@@ -1,0 +1,6 @@
+{
+  "name": "DataNews Кыргызстан",
+  "description": "Date-driven public information, civic alerts, and events platform for Kyrgyzstan (Что, где и когда в Кыргызстане • Эмне, кайда жана качан?).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

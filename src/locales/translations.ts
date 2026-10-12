@@ -222,7 +222,7 @@ export const translations = {
     passwordLabel: { ru: 'Пароль администратора', kg: 'Администратор сырсөзү', en: 'Admin Password' },
     loginBtn: { ru: 'Войти в панель', kg: 'Панелге кирүү', en: 'Sign In to Dashboard' },
     logoutBtn: { ru: 'Выйти', kg: 'Чыгуу', en: 'Log Out' },
-    authNote: { ru: 'Для демонстрации используйте пароль: admin123', kg: 'Көрсөтүү үчүн сырсөз: admin123', en: 'Demo credentials: admin123' },
+    authNote: { ru: 'Введите пароль администратора', kg: 'Администратордун сырсөзүн киргизиңиз', en: 'Enter the administrator password' },
     newAnnouncement: { ru: 'Создать объявление', kg: 'Жаңы билдирүү түзүү', en: 'New Announcement' },
     editAnnouncement: { ru: 'Редактировать', kg: 'Оңдоо', en: 'Edit' },
     deleteAnnouncement: { ru: 'Удалить', kg: 'Өчүрүү', en: 'Delete' },
@@ -238,7 +238,7 @@ export const translations = {
     statusRescheduled: { ru: 'Перенесенные', kg: 'Жылдырылгандар', en: 'Rescheduled' },
     statusArchived: { ru: 'В архиве', kg: 'Архивде', en: 'Archived' },
     resetDefaults: { ru: 'Сбросить к исходным данным', kg: 'Баштапкы маалыматтарга кайтаруу', en: 'Reset to Sample Data' },
-    resetConfirm: { ru: 'Вы уверены? Это сбросит добавленные объявления к демонстрационным данным.', kg: 'Ишенесизби? Бул демонстрациялык маалыматтарды калыбына келтирет.', en: 'Reset all announcements back to initial demo data?' },
+    resetConfirm: { ru: 'Вы уверены? Добавленные вами объявления будут удалены, останутся только проверенные публикации.', kg: 'Ишенесизби? Кошулган жарыялар өчүрүлөт.', en: 'Remove added announcements and restore the verified set?' },
     successSaved: { ru: 'Объявление успешно сохранено!', kg: 'Билдирүү ийгиликтүү сакталды!', en: 'Announcement saved successfully!' },
     titleRu: { ru: 'Заголовок (RU)', kg: 'Аталышы (RU)', en: 'Title (RU)' },
     titleKg: { ru: 'Заголовок (KG)', kg: 'Аталышы (KG)', en: 'Title (KG)' },
@@ -258,14 +258,14 @@ export const translations = {
   // Disclaimer
   disclaimer: {
     bannerText: {
-      ru: 'Демонстрационный режим: Все публикации являются тестовыми материалами для визуализации интерфейса DataNews Kyrgyzstan.',
-      kg: 'Демонстрациялык режим: Бардык жарыялар DataNews Kyrgyzstan интерфейсин көрсөтүү үчүн сыноо материалдары болуп саналат.',
-      en: 'Demonstration prototype: All notices are fictional sample announcements for visualizing DataNews Kyrgyzstan civic interface.',
+      ru: 'Публикации основаны на открытых источниках. Перед поездкой проверяйте информацию у организаторов и в официальных каналах.',
+      kg: 'Жарыялар ачык булактарга негизделген. Жолго чыгаардан мурун уюштуруучулардан тактаңыз.',
+      en: 'Notices are based on public sources. Please confirm details with organisers before you go.',
     },
     footerNotice: {
-      ru: 'КЫРГЫЗСТАН • Демонстрационный прототип Civic Tech платформы DataNews',
-      kg: 'КЫРГЫЗСТАН • DataNews Civic Tech платформасынын демонстрациялык прототиби',
-      en: 'KYRGYZSTAN • DataNews Civic Tech Demonstration Platform Prototype',
+      ru: 'КЫРГЫЗСТАН • DataNews — что, где и когда',
+      kg: 'КЫРГЫЗСТАН • DataNews — эмне, кайда, качан',
+      en: 'KYRGYZSTAN • DataNews — what, where, when',
     },
     copyright: {
       ru: '© 2026 DataNews Kyrgyzstan. Открытые общественные данные.',

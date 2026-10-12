@@ -86,10 +86,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setFormCategory('roads');
     setFormCity('bishkek');
     setFormDistrict('Первомайский район');
-    setFormLocationRu('ул. Киевская / ул. Манаса');
-    setFormStartDate('2026-10-10T08:00');
-    setFormEndDate('2026-10-12T20:00');
-    setFormDuration('48 ч');
+    setFormLocationRu('');
+    setFormStartDate(new Date(Date.now() + 3600000).toISOString().slice(0, 16));
+    setFormEndDate(new Date(Date.now() + 4 * 3600000).toISOString().slice(0, 16));
+    setFormDuration('');
     setFormUrgency('emergency');
     setFormStatus('active');
     setFormSourceName('Мэрия г. Бишкек');
@@ -164,7 +164,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       sourceName: formSourceName || 'Муниципалитет',
       sourceOrgType: formSourceOrgType || 'МБ',
       isVerified: true,
-      isDemo: true,
+      isDemo: false,
     };
 
     if (editingItem) {
@@ -364,7 +364,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     value={formTitleRu}
                     onChange={(e) => setFormTitleRu(e.target.value)}
                     required
-                    placeholder="Временное полное перекрытие движения по ул. Киевская..."
+                    placeholder="Название объявления"
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 text-xs"
                   />
                 </div>
@@ -378,7 +378,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       type="text"
                       value={formTitleKg}
                       onChange={(e) => setFormTitleKg(e.target.value)}
-                      placeholder="Киев көчөсүнүн жабылышы..."
+                      placeholder="Жарыянын аталышы"
                       className="w-full px-3 py-2 rounded-lg border border-gray-300 text-xs"
                     />
                   </div>
@@ -439,7 +439,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     type="text"
                     value={formLocationRu}
                     onChange={(e) => setFormLocationRu(e.target.value)}
-                    placeholder="ул. Киевская (от пр. Манаса до ул. Логвиненко)"
+                    placeholder="Адрес или место"
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 text-xs"
                   />
                 </div>

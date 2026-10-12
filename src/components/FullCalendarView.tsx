@@ -23,7 +23,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
   const [selectedYear, setSelectedYear] = useState(() => now.getFullYear()); // 2026
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [selectedCity, setSelectedCity] = useState<CityId>('all');
-  const [selectedDateStr, setSelectedDateStr] = useState<string>('2026-10-10');
+  const [selectedDateStr, setSelectedDateStr] = useState<string>(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`; });
 
   // Filter announcements
   const filtered = announcements.filter((a) => {

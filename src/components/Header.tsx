@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Language, CityId, ViewMode } from '../types';
+import { Language, CityId, ViewMode, Announcement } from '../types';
 import { getTranslation } from '../locales/translations';
 import { Logo } from './Logo';
 
@@ -12,6 +12,7 @@ interface HeaderProps {
   onViewChange: (view: ViewMode) => void;
   onOpenSearch: () => void;
   onOpenUrgentNotice: () => void;
+  featuredNotice?: Announcement | null;
   onOpenAdmin: () => void;
 }
 
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onViewChange,
   onOpenSearch,
   onOpenUrgentNotice,
+  featuredNotice,
   onOpenAdmin,
 }) => {
   const { t } = getTranslation(currentLanguage);
@@ -51,29 +53,6 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-[#0d2459] shadow-[0_2px_12px_rgba(0,0,0,0.15)] text-white">
-      {/* Top Urgent Alert Strip */}
-      <div className="bg-[#fee2e2] text-[#991b1b] text-xs font-semibold px-4 py-1.5 border-b border-[#fecaca]">
-        <div className="max-w-[1280px] mx-auto w-full flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 truncate cursor-pointer" onClick={onOpenUrgentNotice}>
-            <span className="material-symbols-outlined text-[16px] text-[#dc2626] flex-shrink-0">warning</span>
-            <span className="truncate">
-              {currentLanguage === 'kg'
-                ? 'Көңүл буруңуз: Бишкекте 10–12-октябрда Киев көчөсүнүн жабылышы жана пландуу өчүрүүлөр'
-                : currentLanguage === 'en'
-                ? 'Urgent Notice: Temporary closure of Kyiv St and planned utility outages in Bishkek (Oct 10–12, 2026)'
-                : 'Внимание: Временное перекрытие ул. Киевская и плановые отключения в Бишкеке на 10–12 октября 2026'}
-            </span>
-          </div>
-          <button
-            onClick={onOpenUrgentNotice}
-            className="flex-shrink-0 text-[#dc2626] hover:text-[#b91c1c] hover:underline flex items-center gap-1 font-bold text-xs transition-colors"
-          >
-            <span>{t('nav.more')}</span>
-            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-          </button>
-        </div>
-      </div>
-
       {/* Main Bar */}
       <div className="h-16 max-w-[1280px] mx-auto px-4 md:px-6 flex items-center justify-between gap-4">
         {/* Left: Brand Logo & Navigation */}

@@ -1,7 +1,7 @@
 import { Announcement, CategoryId, CityId, AnnouncementStatus } from '../types';
 import { INITIAL_ANNOUNCEMENTS } from '../data/initialAnnouncements';
 
-const STORAGE_KEY = 'datanews_kg_announcements_2026_v1';
+const STORAGE_KEY = 'datanews_kg_announcements_2026_v2';
 const FAVORITES_KEY = 'datanews_kg_favorites_v1';
 const ADMIN_AUTH_KEY = 'datanews_kg_admin_auth_v1';
 
@@ -16,12 +16,6 @@ export class StorageService {
       }
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // If stored data has legacy 2025 dates, upgrade to fresh 2026 dataset
-        const hasLegacy2025 = parsed.some((item: any) => typeof item.startDate === 'string' && item.startDate.includes('2025'));
-        if (hasLegacy2025) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ANNOUNCEMENTS));
-          return INITIAL_ANNOUNCEMENTS;
-        }
         return parsed;
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ANNOUNCEMENTS));

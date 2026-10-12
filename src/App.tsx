@@ -29,6 +29,14 @@ import { OrganizationsPage } from './components/OrganizationsPage';
 import { AdminPortal } from './components/AdminPortal';
 import { SearchModal } from './components/SearchModal';
 
+const toDateStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const addDays = (d: Date, n: number) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+};
+
 export default function App() {
   // Multilingual State
   const [currentLanguage, setCurrentLanguage] = useState<Language>(() => {
@@ -48,7 +56,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
-  const [calendarSelectedDate, setCalendarSelectedDate] = useState('2026-10-10');
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toDateStr(new Date()));
 
   // Data Store
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -81,33 +89,26 @@ export default function App() {
         return false;
       }
 
-      // Dynamic real-time date filters for October 2026
+      // Date filters are computed from the real current date
       const itemStart = item.startDate.split('T')[0];
       const itemEnd = item.endDate ? item.endDate.split('T')[0] : itemStart;
+      const overlaps = (from: string, to: string) => itemStart <= to && itemEnd >= from;
 
       const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const tomDate = new Date(now);
-      tomDate.setDate(now.getDate() + 1);
-      const tomorrowStr = `${tomDate.getFullYear()}-${String(tomDate.getMonth() + 1).padStart(2, '0')}-${String(tomDate.getDate()).padStart(2, '0')}`;
+      const todayStr = toDateStr(now);
+      const tomorrowStr = toDateStr(addDays(now, 1));
 
       if (dateFilter === 'today') {
-        const isToday = itemStart === todayStr || (itemStart <= todayStr && itemEnd >= todayStr);
-        if (!isToday) return false;
+        if (!overlaps(todayStr, todayStr)) return false;
       } else if (dateFilter === 'tomorrow') {
-        const isTomorrow = itemStart === tomorrowStr || (itemStart <= tomorrowStr && itemEnd >= tomorrowStr);
-        if (!isTomorrow) return false;
+        if (!overlaps(tomorrowStr, tomorrowStr)) return false;
       } else if (dateFilter === 'weekend') {
-        // Weekend is October 10–11, 2026
-        const isWeekend =
-          itemStart === '2026-10-10' ||
-          itemStart === '2026-10-11' ||
-          (itemStart <= '2026-10-11' && itemEnd >= '2026-10-10');
-        if (!isWeekend) return false;
+        // nearest Saturday–Sunday (if today is Sunday, just today)
+        const dow = now.getDay();
+        const sat = dow === 0 ? addDays(now, -1) : addDays(now, 6 - dow);
+        if (!overlaps(toDateStr(sat), toDateStr(addDays(sat, 1)))) return false;
       } else if (dateFilter === 'week') {
-        // Current demonstration week in October 2026
-        const inWeek = itemStart >= '2026-10-05' && itemStart <= '2026-10-18';
-        if (!inWeek) return false;
+        if (!overlaps(todayStr, toDateStr(addDays(now, 7)))) return false;
       }
 
       // Search Query filter
@@ -180,14 +181,18 @@ export default function App() {
     return counts;
   }, [announcements, selectedCity]);
 
-  // Handler to open the primary urgent notice (Kyiv street closure from Image 5)
+  // Featured notice for the top strip: nearest non-finished item flagged for the ticker
+  const featuredNotice = useMemo(() => {
+    const nowTs = Date.now();
+    const pool = announcements
+      .filter((a) => a.isUrgentTicker && a.status !== 'cancelled' && a.status !== 'archived' && a.status !== 'completed')
+      .filter((a) => new Date(a.endDate || a.startDate).getTime() + 4 * 3600 * 1000 >= nowTs)
+      .sort((x, y) => new Date(x.startDate).getTime() - new Date(y.startDate).getTime());
+    return pool[0] || null;
+  }, [announcements]);
+
   const handleOpenUrgentKyivNotice = () => {
-    const kyivNotice =
-      announcements.find((a) => a.id === 'ann-kyiv-street-closure') ||
-      announcements[0];
-    if (kyivNotice) {
-      setActiveNoticeDetail(kyivNotice);
-    }
+    if (featuredNotice) setActiveNoticeDetail(featuredNotice);
   };
 
   const handleTagClick = (tag: string) => {
@@ -219,17 +224,19 @@ export default function App() {
         onViewChange={setCurrentView}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenUrgentNotice={handleOpenUrgentKyivNotice}
+        featuredNotice={featuredNotice}
         onOpenAdmin={() => setIsAdminOpen(true)}
       />
 
       {/* Main Content Area (padding-top accounts for header + urgent ticker) */}
-      <main className="flex-1 w-full pt-[90px] sm:pt-[94px]">
+      <main className="flex-1 w-full pt-16">
         {/* VIEW: HOME */}
         {currentView === 'home' && (
           <div className="w-full flex flex-col">
             {/* Urgent Real-Time Alert Ticker Bar */}
             <UrgentTicker
               currentLanguage={currentLanguage}
+              notice={featuredNotice}
               onOpenNotice={handleOpenUrgentKyivNotice}
             />
 

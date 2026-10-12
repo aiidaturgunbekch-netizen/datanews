@@ -1,0 +1,232 @@
+import React, { useEffect, useState } from 'react';
+import { Announcement, Language } from '../types';
+import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+
+interface Props {
+  announcement: Announcement;
+  currentLanguage: Language;
+  onClose: () => void;
+  onSelectOtherNotice?: (a: Announcement) => void;
+  allAnnouncements: Announcement[];
+}
+
+const L = {
+  when: { ru: 'Когда', kg: 'Качан', en: 'When' },
+  where: { ru: 'Где', kg: 'Кайда', en: 'Where' },
+  price: { ru: 'Стоимость', kg: 'Баасы', en: 'Price' },
+  about: { ru: 'Подробности', kg: 'Кеңири маалымат', en: 'Details' },
+  source: { ru: 'Источник', kg: 'Булак', en: 'Source' },
+  openSource: { ru: 'Открыть источник', kg: 'Булакты ачуу', en: 'Open source' },
+  map: { ru: 'Показать на карте', kg: 'Картадан көрүү', en: 'Show on map' },
+  ics: { ru: 'Добавить в календарь', kg: 'Календарга кошуу', en: 'Add to calendar' },
+  share: { ru: 'Поделиться', kg: 'Бөлүшүү', en: 'Share' },
+  copied: { ru: 'Ссылка скопирована', kg: 'Шилтеме көчүрүлдү', en: 'Link copied' },
+  verified: { ru: 'Проверено', kg: 'Текшерилген', en: 'Verified' },
+  updated: { ru: 'Обновлено', kg: 'Жаңыртылды', en: 'Updated' },
+  nearby: { ru: 'Ещё в этом городе', kg: 'Дагы ушул шаарда', en: 'More in this city' },
+  close: { ru: 'Закрыть', kg: 'Жабуу', en: 'Close' },
+  until: { ru: 'до', kg: 'чейин', en: 'until' },
+};
+
+const locale = (lang: Language) => (lang === 'en' ? 'en-GB' : 'ru-RU');
+
+const fmtDate = (iso: string, lang: Language) =>
+  new Date(iso).toLocaleDateString(locale(lang), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const fmtTime = (iso: string, lang: Language) =>
+  new Date(iso).toLocaleTimeString(locale(lang), { hour: '2-digit', minute: '2-digit' });
+
+const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
+
+export const AnnouncementDetailModal: React.FC<Props> = ({
+  announcement: a,
+  currentLanguage: lang,
+  onClose,
+  onSelectOtherNotice,
+  allAnnouncements,
+}) => {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  const status = getAnnouncementDisplayStatus(a);
+  const badge = getStatusBadgeConfig(status, lang);
+  const isEvent = a.urgency === 'event';
+  const mapQuery = a.coordinates ? `${a.coordinates.lat},${a.coordinates.lng}` : encodeURIComponent(a.location.ru);
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+  const nearby = allAnnouncements.filter((x) => x.id !== a.id && x.city === a.city).slice(0, 3);
+
+  const sameDay = a.endDate && a.endDate.slice(0, 10) === a.startDate.slice(0, 10);
+  const whenText = a.endDate
+    ? sameDay
+      ? `${fmtDate(a.startDate, lang)}, ${fmtTime(a.startDate, lang)}–${fmtTime(a.endDate, lang)}`
+      : `${fmtDate(a.startDate, lang)} ${fmtTime(a.startDate, lang)} — ${fmtDate(a.endDate, lang)} ${fmtTime(a.endDate, lang)}`
+    : `${fmtDate(a.startDate, lang)}, ${fmtTime(a.startDate, lang)}`;
+
+  const downloadIcs = () => {
+    const end = a.endDate || new Date(new Date(a.startDate).getTime() + 3 * 3600 * 1000).toISOString().slice(0, 16);
+    const ics = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//DataNews KG//RU', 'BEGIN:VEVENT',
+      `UID:${a.id}@datanews.kg`,
+      `DTSTAMP:${toIcsDate(new Date().toISOString())}Z`,
+      `DTSTART:${toIcsDate(a.startDate)}00`,
+      `DTEND:${toIcsDate(end)}00`,
+      `SUMMARY:${a.title[lang]}`,
+      `LOCATION:${a.location[lang]}`,
+      `DESCRIPTION:${a.summary[lang]}`,
+      'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n');
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${a.id}.ics`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const share = async () => {
+    const data = { title: a.title[lang], text: a.summary[lang], url: a.sourceUrl || window.location.href };
+    try {
+      if (navigator.share) {
+        await navigator.share(data);
+        return;
+      }
+      await navigator.clipboard.writeText(`${data.title}\n${data.url}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* пользователь отменил */
+    }
+  };
+
+  const Row = ({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) => (
+    <div className="flex gap-3 py-3 border-b border-gray-100 last:border-0">
+      <span className="material-symbols-outlined text-[#12327A] mt-0.5">{icon}</span>
+      <div className="min-w-0">
+        <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{label}</div>
+        <div className="text-sm font-semibold text-[#0f1b33] break-words">{children}</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-[#0d2459]/60 backdrop-blur-sm p-0 sm:p-6"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={a.title[lang]}
+    >
+      <div
+        className="relative w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={`px-6 pt-6 pb-5 text-white ${isEvent ? 'bg-gradient-to-br from-[#12327A] via-[#1d4ed8] to-[#20C7B5]' : 'bg-gradient-to-br from-[#0d2459] to-[#12327A]'}`}>
+          <button
+            onClick={onClose}
+            aria-label={L.close[lang]}
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+          <div className="flex flex-wrap items-center gap-2 mb-3 pr-10">
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${badge.bg} ${badge.text}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+              {badge.label}
+            </span>
+            {a.isVerified && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 text-[11px] font-bold">
+                <span className="material-symbols-outlined text-[14px]">verified</span>
+                {L.verified[lang]}
+              </span>
+            )}
+          </div>
+          <h2 className="text-xl sm:text-2xl font-extrabold leading-tight">{a.title[lang]}</h2>
+          <p className="mt-2 text-sm text-white/85 leading-relaxed">{a.summary[lang]}</p>
+        </div>
+
+        <div className="px-6 py-4">
+          <Row icon="event" label={L.when[lang]}>{whenText}</Row>
+          <Row icon="location_on" label={L.where[lang]}>{a.location[lang]}</Row>
+          {a.eventDetails?.priceText && (
+            <Row icon="confirmation_number" label={L.price[lang]}>{a.eventDetails.priceText[lang]}</Row>
+          )}
+          {a.eventDetails?.timeRange && (
+            <Row icon="schedule" label={lang === "en" ? "Time & age" : lang === "kg" ? "Убакыт жана жаш" : "Время и возраст"}>{a.eventDetails.timeRange}</Row>
+          )}
+        </div>
+
+        <div className="px-6 pb-2">
+          <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2">{L.about[lang]}</h3>
+          <p className="text-sm text-gray-700 leading-relaxed">{a.description[lang]}</p>
+        </div>
+
+        <div className="px-6 py-5 flex flex-wrap gap-2">
+          <a
+            href={mapUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#12327A] text-white text-sm font-bold hover:bg-[#0d2459] transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">map</span>
+            {L.map[lang]}
+          </a>
+          <button
+            onClick={downloadIcs}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold hover:bg-[#dbe1ff] transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">calendar_add_on</span>
+            {L.ics[lang]}
+          </button>
+          <button
+            onClick={share}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold hover:bg-[#dbe1ff] transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'share'}</span>
+            {copied ? L.copied[lang] : L.share[lang]}
+          </button>
+        </div>
+
+        <div className="mx-6 mb-6 p-4 rounded-2xl bg-[#f8fafc] border border-gray-100 text-xs text-gray-600 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span className="font-bold text-[#0f1b33]">{L.source[lang]}:</span> {a.sourceName}
+            <div className="text-gray-400 mt-0.5">
+              {L.updated[lang]}: {new Date(a.updatedAt).toLocaleString(locale(lang), { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+          {a.sourceUrl && (
+            <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline inline-flex items-center gap-1">
+              {L.openSource[lang]}
+              <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+            </a>
+          )}
+        </div>
+
+        {nearby.length > 0 && onSelectOtherNotice && (
+          <div className="px-6 pb-6">
+            <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2">{L.nearby[lang]}</h3>
+            <div className="space-y-2">
+              {nearby.map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => onSelectOtherNotice(n)}
+                  className="w-full text-left p-3 rounded-xl border border-gray-100 hover:border-[#12327A]/30 hover:bg-[#f3f6fc] transition-colors text-sm font-semibold text-[#0f1b33]"
+                >
+                  {n.title[lang]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

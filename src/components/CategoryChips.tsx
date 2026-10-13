@@ -25,6 +25,8 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
     { id: 'repairs', label: t('categories.repairs'), icon: 'construction', iconColor: 'text-orange-500' },
     { id: 'concerts', label: t('categories.concerts'), icon: 'theater_comedy', iconColor: 'text-indigo-500' },
     { id: 'festivals', label: t('categories.festivals'), icon: 'festival', iconColor: 'text-teal-500' },
+    { id: 'fairs', label: t('categories.fairs'), icon: 'storefront', iconColor: 'text-lime-600' },
+    { id: 'cinema', label: t('categories.cinema'), icon: 'movie', iconColor: 'text-rose-500' },
     { id: 'education', label: t('categories.education'), icon: 'school', iconColor: 'text-sky-500' },
     { id: 'gov', label: t('categories.gov'), icon: 'campaign', iconColor: 'text-purple-500' },
   ];

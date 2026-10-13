@@ -13,7 +13,10 @@ interface HeaderProps {
   onOpenSearch: () => void;
   onOpenUrgentNotice: () => void;
   featuredNotice?: Announcement | null;
+  role: 'guest' | 'user' | 'admin';
   onOpenAdmin: () => void;
+  onOpenAccount: () => void;
+  onOpenPublish: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,7 +29,10 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSearch,
   onOpenUrgentNotice,
   featuredNotice,
+  role,
   onOpenAdmin,
+  onOpenAccount,
+  onOpenPublish,
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
@@ -165,22 +171,33 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* "Разместить" CTA Button */}
           <button
-            onClick={onOpenAdmin}
+            onClick={onOpenPublish}
             className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#20C7B5] text-[#002f29] hover:bg-[#1bb3a2] font-bold text-xs sm:text-sm transition-all shadow-sm"
           >
             <span className="material-symbols-outlined text-[18px]">add_circle</span>
             <span>{t('nav.publishBtn')}</span>
           </button>
 
-          {/* Admin Avatar Button */}
-          <button
-            onClick={onOpenAdmin}
-            aria-label="Admin Profile"
-            title="Панель управления / Башкаруу панели"
-            className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors border border-white/20 text-[#20C7B5]"
-          >
-            <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
-          </button>
+          {/* Панель управления видна только администратору, гостю — личный кабинет */}
+          {role === 'admin' ? (
+            <button
+              onClick={onOpenAdmin}
+              aria-label="Admin panel"
+              title="Панель управления"
+              className="w-8 h-8 rounded-full bg-[#20C7B5] hover:bg-[#1bb3a2] flex items-center justify-center transition-colors text-[#002f29]"
+            >
+              <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenAccount}
+              aria-label={t('nav.account')}
+              title={t('nav.account')}
+              className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors border border-white/20 text-[#20C7B5]"
+            >
+              <span className="material-symbols-outlined text-[18px]">{role === 'user' ? 'account_circle' : 'person'}</span>
+            </button>
+          )}
 
           {/* Mobile Menu Toggle Button */}
           <button
@@ -216,7 +233,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="pt-2 border-t border-white/10 flex items-center justify-between">
             <button
               onClick={() => {
-                onOpenAdmin();
+                onOpenPublish();
                 setIsMobileMenuOpen(false);
               }}
               className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-[#20C7B5] text-[#002f29] font-bold text-sm"

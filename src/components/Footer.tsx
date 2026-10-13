@@ -6,9 +6,10 @@ import { Logo } from './Logo';
 interface FooterProps {
   currentLanguage: Language;
   onNavigate: (view: ViewMode) => void;
+  onOpenAccount: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate }) => {
+export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onOpenAccount }) => {
   const { t } = getTranslation(currentLanguage);
 
   return (
@@ -112,10 +113,10 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate }) =
               <li>
                 <button
                   type="button"
-                  onClick={() => onNavigate('admin')}
+                  onClick={onOpenAccount}
                   className="hover:text-[#12327A] transition-colors text-left"
                 >
-                  {currentLanguage === 'kg' ? 'Өнөктөштүн жеке кабинети' : currentLanguage === 'en' ? 'Partner Dashboard' : 'Личный кабинет партнера'}
+                  {currentLanguage === 'kg' ? 'Жеке кабинет' : currentLanguage === 'en' ? 'My account' : 'Личный кабинет'}
                 </button>
               </li>
               <li>

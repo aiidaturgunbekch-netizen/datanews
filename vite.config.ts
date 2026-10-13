@@ -1,11 +1,47 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, type Plugin} from 'vite';
+
+/**
+ * В режиме разработки (npm run dev) запускает функции из папки /api так же,
+ * как это делает Vercel. Если Redis не подключён, данные хранятся в памяти,
+ * а пароль администратора — ADMIN_PASSWORD или «admin-dev».
+ */
+const localApi = (): Plugin => ({
+  name: 'datanews-local-api',
+  configureServer(server) {
+    if (!process.env.KV_REST_API_URL && !process.env.UPSTASH_REDIS_REST_URL) {
+      process.env.DATANEWS_MEMORY_KV = '1';
+    }
+    server.middlewares.use('/api', async (req, res, next) => {
+      const name = (req.url || '').split('?')[0].replace(/^\/+/, '').replace(/\/$/, '');
+      if (!/^[a-z-]+$/.test(name)) return next();
+      try {
+        const mod = await server.ssrLoadModule(`/api/${name}.ts`);
+        const chunks: Buffer[] = [];
+        for await (const c of req) chunks.push(c as Buffer);
+        const headers = new Headers();
+        Object.entries(req.headers).forEach(([k, v]) => v && headers.set(k, Array.isArray(v) ? v.join(', ') : v));
+        const request = new Request(`http://${req.headers.host}/api${req.url}`, {
+          method: req.method,
+          headers,
+          body: ['GET', 'HEAD'].includes(req.method || 'GET') ? undefined : Buffer.concat(chunks),
+        });
+        const response: Response = await mod.default(request);
+        res.statusCode = response.status;
+        response.headers.forEach((v, k) => res.setHeader(k, v));
+        res.end(Buffer.from(await response.arrayBuffer()));
+      } catch (e) {
+        next(e);
+      }
+    });
+  },
+});
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), localApi()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

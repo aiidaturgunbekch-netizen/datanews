@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+import { EventImage } from './EventImage';
 
 interface Props {
   announcement: Announcement;
@@ -129,6 +130,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         className="relative w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
+        {a.imageUrl && <EventImage item={a} showCredit className="w-full aspect-[16/9] sm:rounded-t-3xl rounded-t-3xl" />}
         <div className={`px-6 pt-6 pb-5 text-white ${isEvent ? 'bg-gradient-to-br from-[#12327A] via-[#1d4ed8] to-[#20C7B5]' : 'bg-gradient-to-br from-[#0d2459] to-[#12327A]'}`}>
           <button
             onClick={onClose}
@@ -162,6 +164,31 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           {a.eventDetails?.timeRange && (
             <Row icon="schedule" label={lang === "en" ? "Time & age" : lang === "kg" ? "Убакыт жана жаш" : "Время и возраст"}>{a.eventDetails.timeRange}</Row>
           )}
+          {a.eventDetails?.organizer && (
+            <Row icon="groups" label={lang === 'en' ? 'Organizer' : lang === 'kg' ? 'Уюштуруучу' : 'Организатор'}>{a.eventDetails.organizer}</Row>
+          )}
+          {a.eventDetails?.contactPhone && (
+            <Row icon="call" label={lang === 'en' ? 'Phone' : lang === 'kg' ? 'Телефон' : 'Телефон для справок'}>
+              <a className="text-[#12327A] hover:underline" href={`tel:${a.eventDetails.contactPhone.replace(/[^\d+]/g, '')}`}>
+                {a.eventDetails.contactPhone}
+              </a>
+            </Row>
+          )}
+          {a.emergencyContacts && a.emergencyContacts.length > 0 && (
+            <Row icon="support_agent" label={lang === 'en' ? 'Hotlines' : lang === 'kg' ? 'Ишеним телефондору' : 'Куда звонить'}>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {a.emergencyContacts.map((c) => (
+                  <a
+                    key={c.phone + c.name}
+                    href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#eef2f9] text-[#12327A] text-xs font-bold hover:bg-[#dbe1ff]"
+                  >
+                    {c.name}: {c.phone}
+                  </a>
+                ))}
+              </div>
+            </Row>
+          )}
         </div>
 
         <div className="px-6 pb-2">
@@ -170,6 +197,17 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         </div>
 
         <div className="px-6 py-5 flex flex-wrap gap-2">
+          {a.eventDetails?.ticketUrl && (
+            <a
+              href={a.eventDetails.ticketUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#20C7B5] text-[#002f29] text-sm font-extrabold hover:bg-[#1bb3a2] transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">confirmation_number</span>
+              {lang === 'en' ? 'Tickets' : lang === 'kg' ? 'Билеттер' : 'Купить билет'}
+            </a>
+          )}
           <a
             href={mapUrl}
             target="_blank"

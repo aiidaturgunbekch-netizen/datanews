@@ -8,6 +8,8 @@ export type CategoryId =
   | 'repairs'
   | 'concerts'
   | 'festivals'
+  | 'fairs'
+  | 'cinema'
   | 'education'
   | 'gov';
 
@@ -64,6 +66,7 @@ export interface EventDetails {
   organizer?: string;
   venue?: string;
   timeRange?: string;
+  contactPhone?: string;
 }
 
 export interface Announcement {
@@ -115,7 +118,56 @@ export interface Announcement {
   waterSupplyStatus?: LocalizedString;
   residentialAccess?: LocalizedString;
   
+  /** Баннер / афиша события (URL или data:image загруженного файла) */
+  imageUrl?: string;
+  imageCredit?: string;
+
+  /** Модерация: публикации пользователей видны только после одобрения админом */
+  moderationStatus?: ModerationStatus;
+  moderationNote?: string;
+  submittedBy?: {
+    userId: string;
+    name: string;
+    email: string;
+    phone?: string;
+    organization?: string;
+  };
+
   isDemo: boolean;
+}
+
+export type ModerationStatus = 'pending' | 'approved' | 'rejected';
+
+export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'rejected';
+
+export type PlanId = 'basic' | 'business';
+
+export interface PublicUser {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  organization?: string;
+  plan: PlanId;
+  paymentStatus: PaymentStatus;
+  paymentRef?: string;
+  createdAt: string;
+}
+
+export interface DayStats {
+  date: string;
+  views: number;
+  visitors: number;
+}
+
+export interface SiteStats {
+  days: DayStats[];
+  totals: { views: number; visitors: number; todayViews: number; todayVisitors: number };
+  topPages: { key: string; count: number }[];
+  topReferrers: { key: string; count: number }[];
+  devices: { key: string; count: number }[];
+  languages: { key: string; count: number }[];
+  cities: { key: string; count: number }[];
 }
 
 export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'admin';

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { StorageService } from '../services/storage';
+import { EventImage } from './EventImage';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 
 interface EventsFeedProps {
@@ -190,17 +191,15 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                     : 'border-gray-100'
                 }`}
               >
-                {/* Left Date Tile Component with October 2026 */}
-                <div className="w-full sm:w-20 sm:min-w-20 rounded-xl bg-[#f3f6fc] p-3 flex sm:flex-col items-center justify-between sm:justify-center text-center flex-shrink-0 group-hover:bg-[#12327A] transition-colors">
-                  <span className="text-2xl sm:text-3xl font-black text-[#12327A] group-hover:text-white leading-none">
-                    {dayNum}
-                  </span>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 group-hover:text-[#dbe1ff] mt-1">
-                    {monthStr} 2026
-                  </span>
-                  <span className="text-[10px] font-semibold text-gray-400 group-hover:text-white/80 uppercase">
-                    {weekdayStr}
-                  </span>
+                {/* Фото / афиша события с датой поверх */}
+                <div className="relative w-full sm:w-44 flex-shrink-0">
+                  <EventImage item={item} className="w-full h-40 sm:h-full sm:min-h-32 rounded-xl" />
+                  <div className="absolute top-2 left-2 rounded-lg bg-white/95 px-2 py-1 text-center shadow-sm">
+                    <div className="text-xl font-black text-[#12327A] leading-none">{dayNum}</div>
+                    <div className="text-[10px] font-bold uppercase text-gray-500">
+                      {monthStr} • {weekdayStr}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Main Event Content */}
@@ -307,10 +306,11 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                 }`}
               >
                 <div>
+                  <EventImage item={item} className="w-full h-36 rounded-xl mb-3" />
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className="bg-[#f3f6fc] group-hover:bg-[#12327A] group-hover:text-white transition-colors px-2.5 py-1 rounded-lg text-center font-bold text-[#12327A] text-xs">
-                        <span>{dayNum} {monthStr} 2026</span>
+                        <span>{dayNum} {monthStr} {startDate.getFullYear()}</span>
                       </div>
                       <span className="px-2 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44] text-[10px] font-bold">
                         {t(`categories.${item.category}`)}
@@ -348,7 +348,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                 </div>
 
                 <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-                  <span className="font-bold text-[#12327A]">{price || 'Вход свободный'}</span>
+                  <span className="font-bold text-[#12327A]">{price || ''}</span>
                   <span className="font-semibold text-gray-500 group-hover:text-[#12327A] inline-flex items-center gap-1">
                     <span>Подробнее</span>
                     <span className="material-symbols-outlined text-[14px]">arrow_forward</span>

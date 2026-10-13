@@ -11,7 +11,9 @@ import {
   Language,
   ViewMode,
 } from './types';
-import { StorageService } from './services/storage';
+import { INITIAL_ANNOUNCEMENTS } from './data/initialAnnouncements';
+import * as api from './services/api';
+import { trackView } from './services/analytics';
 import { Header } from './components/Header';
 import { UrgentTicker } from './components/UrgentTicker';
 import { HeroFilter } from './components/HeroFilter';
@@ -28,6 +30,18 @@ import { CitiesPage } from './components/CitiesPage';
 import { OrganizationsPage } from './components/OrganizationsPage';
 import { AdminPortal } from './components/AdminPortal';
 import { SearchModal } from './components/SearchModal';
+import { AccountPortal } from './components/AccountPortal';
+
+/** Встроенные проверенные события + одобренные публикации с сервера */
+const mergeAnnouncements = (server: Announcement[], hidden: string[]) => {
+  const byId = new Map<string, Announcement>();
+  INITIAL_ANNOUNCEMENTS.forEach((a) => byId.set(a.id, a));
+  server.forEach((a) => byId.set(a.id, a));
+  hidden.forEach((id) => byId.delete(id));
+  return [...byId.values()];
+};
+
+const isAdminHash = () => window.location.hash.replace('#', '').toLowerCase() === 'admin';
 
 const toDateStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -58,23 +72,49 @@ export default function App() {
   const [dateFilter, setDateFilter] = useState('all');
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toDateStr(new Date()));
 
-  // Data Store
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  // Data Store: встроенные события показываются сразу, публикации с сервера догружаются
+  const [announcements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
+
+  // Роль: гость / зарегистрированный пользователь / администратор
+  const [role, setRole] = useState<api.Role>(() => api.getSession()?.role || 'guest');
 
   // Modals
   const [activeNoticeDetail, setActiveNoticeDetail] = useState<Announcement | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  // Панель управления открывается только по адресу сайта с #admin и только после входа админа
+  const [isAdminOpen, setIsAdminOpen] = useState(isAdminHash);
+  const [accountMode, setAccountMode] = useState<null | 'cabinet' | 'publish'>(null);
 
-  // Load persistent announcements on mount
   const refreshData = () => {
-    const list = StorageService.getAnnouncements();
-    setAnnouncements(list);
+    api
+      .fetchPublicAnnouncements()
+      .then((r) => setAnnouncements(mergeAnnouncements(r.items, r.hidden)))
+      .catch(() => setAnnouncements(INITIAL_ANNOUNCEMENTS));
   };
 
   useEffect(() => {
     refreshData();
+    if (api.getSession()) {
+      api
+        .me()
+        .then((r) => setRole(r.role))
+        .catch(() => {});
+    }
+    const onHash = () => isAdminHash() && setIsAdminOpen(true);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  // Статистика посещений: один просмотр на каждый открытый раздел (админа не считаем)
+  useEffect(() => {
+    if (role !== 'admin') trackView(currentView, currentLanguage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView]);
+
+  const closeAdmin = () => {
+    setIsAdminOpen(false);
+    if (isAdminHash()) history.replaceState(null, '', window.location.pathname + window.location.search);
+  };
 
   // Filtered announcements
   const filteredAnnouncements = useMemo(() => {
@@ -156,6 +196,8 @@ export default function App() {
         a.urgency === 'event' ||
         a.category === 'concerts' ||
         a.category === 'festivals' ||
+        a.category === 'fairs' ||
+        a.category === 'cinema' ||
         a.category === 'education' ||
         a.category === 'gov'
     );
@@ -175,6 +217,8 @@ export default function App() {
       repairs: baseList.filter((a) => a.category === 'repairs').length,
       concerts: baseList.filter((a) => a.category === 'concerts').length,
       festivals: baseList.filter((a) => a.category === 'festivals').length,
+      fairs: baseList.filter((a) => a.category === 'fairs').length,
+      cinema: baseList.filter((a) => a.category === 'cinema').length,
       education: baseList.filter((a) => a.category === 'education').length,
       gov: baseList.filter((a) => a.category === 'gov').length,
     };
@@ -203,7 +247,9 @@ export default function App() {
     } else if (tag.includes('Концерт')) {
       setSelectedCategory('concerts');
     } else if (tag.includes('Ярмарк')) {
-      setSelectedCategory('festivals');
+      setSelectedCategory('fairs');
+    } else if (tag.includes('Кино')) {
+      setSelectedCategory('cinema');
     } else if (tag.includes('Бишкек')) {
       setSelectedCity('bishkek');
     } else if (tag.includes('Ош')) {
@@ -225,7 +271,10 @@ export default function App() {
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenUrgentNotice={handleOpenUrgentKyivNotice}
         featuredNotice={featuredNotice}
+        role={role}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAccount={() => setAccountMode('cabinet')}
+        onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
       />
 
       {/* Main Content Area (padding-top accounts for header + urgent ticker) */}
@@ -313,7 +362,7 @@ export default function App() {
             {/* For Municipalities & Organizations Section */}
             <ForOrganizationsSection
               currentLanguage={currentLanguage}
-              onOpenPublish={() => setIsAdminOpen(true)}
+              onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
               onOpenPricing={() => setCurrentView('pricing')}
             />
           </div>
@@ -392,14 +441,14 @@ export default function App() {
         {(currentView === 'organizations' || currentView === 'pricing') && (
           <OrganizationsPage
             currentLanguage={currentLanguage}
-            onOpenPublish={() => setIsAdminOpen(true)}
+            onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
             onBackToHome={() => setCurrentView('home')}
           />
         )}
       </main>
 
       {/* Footer */}
-      <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} />
+      <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} onOpenAccount={() => setAccountMode('cabinet')} />
 
       {/* Modals & Overlays */}
       {/* 1. Full Announcement Detail Modal (Image 5 reference) */}
@@ -426,13 +475,22 @@ export default function App() {
         />
       )}
 
-      {/* 3. Secure Admin Portal Modal */}
+      {/* 3. Панель управления — только для администратора */}
       {isAdminOpen && (
         <AdminPortal
           currentLanguage={currentLanguage}
-          announcements={announcements}
           onRefreshData={refreshData}
-          onClose={() => setIsAdminOpen(false)}
+          onRoleChange={setRole}
+          onClose={closeAdmin}
+        />
+      )}
+
+      {/* 4. Личный кабинет гостя: регистрация, оплата, публикации на модерацию */}
+      {accountMode && (
+        <AccountPortal
+          initialTab={accountMode}
+          onRoleChange={setRole}
+          onClose={() => setAccountMode(null)}
         />
       )}
     </div>

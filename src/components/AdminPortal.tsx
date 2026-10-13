@@ -5,6 +5,7 @@ import { INITIAL_ANNOUNCEMENTS } from '../data/initialAnnouncements';
 import { PLANS } from '../config/site';
 import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './AnnouncementForm';
 import { EventImage } from './EventImage';
+import { eventSource, ticketLink } from '../utils/links';
 import { MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
 
 interface AdminPortalProps {
@@ -440,8 +441,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             <div>📍 {a.location.ru}</div>
                             {a.eventDetails?.priceText && <div>🎫 {a.eventDetails.priceText.ru}</div>}
                             {a.eventDetails?.contactPhone && <div>☎ {a.eventDetails.contactPhone}</div>}
-                            {a.sourceUrl && (
-                              <a className="text-[#12327A] font-bold hover:underline truncate" href={a.sourceUrl} target="_blank" rel="noopener noreferrer">
+                            {ticketLink(a).url && (
+                              <a className="text-[#12327A] font-bold hover:underline truncate" href={ticketLink(a).url} target="_blank" rel="noopener noreferrer">
+                                🎟 Билеты (ссылка автора, не проверена)
+                              </a>
+                            )}
+                            {eventSource(a) && (
+                              <a className="text-[#12327A] font-bold hover:underline truncate" href={eventSource(a)} target="_blank" rel="noopener noreferrer">
                                 🔗 Источник
                               </a>
                             )}

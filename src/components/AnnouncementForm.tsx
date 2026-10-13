@@ -3,6 +3,7 @@ import { Announcement, AnnouncementStatus, CategoryId, CityId, Language, Urgency
 import { compressImage } from '../services/api';
 import { MAX_IMAGE_BYTES } from '../config/site';
 import { AccountKey, errorText, ta } from '../locales/account';
+import { eventSource, ticketLink } from '../utils/links';
 import { getTranslation } from '../locales/translations';
 
 export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
@@ -62,13 +63,20 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [venue, setVenue] = useState(initial?.eventDetails?.venue || '');
   const [organizer, setOrganizer] = useState(initial?.eventDetails?.organizer || '');
   const [contactPhone, setContactPhone] = useState(initial?.eventDetails?.contactPhone || '');
-  const [ticketUrl, setTicketUrl] = useState(initial?.eventDetails?.ticketUrl || '');
+  const [ticketUrl, setTicketUrl] = useState(initial ? ticketLink(initial).url : '');
+  const [ticketVerified, setTicketVerified] = useState(Boolean(initial?.ticketUrlVerified));
+  const [organizerUrl, setOrganizerUrl] = useState(initial?.organizerUrl || '');
+  const [artistUrl, setArtistUrl] = useState(initial?.artistUrl || '');
+  const [venueUrl, setVenueUrl] = useState(initial?.venueUrl || '');
   const [timeRange, setTimeRange] = useState(initial?.eventDetails?.timeRange || '');
-  const [sourceUrl, setSourceUrl] = useState(initial?.sourceUrl || '');
+  const [sourceUrl, setSourceUrl] = useState(initial ? eventSource(initial) : '');
   const [sourceName, setSourceName] = useState(initial?.sourceName || '');
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl || '');
   const [imageData, setImageData] = useState('');
   const [imageCredit, setImageCredit] = useState(initial?.imageCredit || '');
+  const [imageSourceUrl, setImageSourceUrl] = useState(initial?.imageSourceUrl || '');
+  const [imageAlt, setImageAlt] = useState(initial?.imageAlt || '');
+  const [imageFit, setImageFit] = useState<'contain' | 'cover'>(initial?.imageFit || 'contain');
   // служебные поля администратора
   const [urgency, setUrgency] = useState<UrgencyType>(initial?.urgency || 'event');
   const [status, setStatus] = useState<AnnouncementStatus>(initial?.status || 'scheduled');
@@ -119,7 +127,15 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       isUrgentTicker: mode === 'admin' ? isTicker : false,
       isVerified: mode === 'admin' ? true : false,
       sourceName: sourceName.trim() || organizer.trim(),
-      sourceUrl: sourceUrl.trim(),
+      eventSourceUrl: sourceUrl.trim(),
+      ticketUrl: ticketUrl.trim(),
+      ticketUrlVerified: mode === 'admin' ? ticketVerified && Boolean(ticketUrl.trim()) : false,
+      organizerUrl: organizerUrl.trim(),
+      artistUrl: artistUrl.trim(),
+      venueUrl: venueUrl.trim(),
+      imageSourceUrl: imageSourceUrl.trim(),
+      imageAlt: imageAlt.trim(),
+      imageFit,
       imageUrl: imageData ? '' : imageUrl.trim(),
       imageData: imageData || undefined,
       imageCredit: imageCredit.trim(),
@@ -128,7 +144,6 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         venue: venue.trim(),
         organizer: organizer.trim(),
         contactPhone: contactPhone.trim(),
-        ticketUrl: ticketUrl.trim(),
         timeRange: timeRange.trim(),
       },
     };
@@ -246,6 +261,20 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
           <input className={inputCls} value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://" />
         </div>
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className={labelCls}>{tr('fOrganizerUrl')}</label>
+          <input className={inputCls} value={organizerUrl} onChange={(e) => setOrganizerUrl(e.target.value)} placeholder="https://" />
+        </div>
+        <div>
+          <label className={labelCls}>{tr('fArtistUrl')}</label>
+          <input className={inputCls} value={artistUrl} onChange={(e) => setArtistUrl(e.target.value)} placeholder="https://" />
+        </div>
+        <div>
+          <label className={labelCls}>{tr('fVenueUrl')}</label>
+          <input className={inputCls} value={venueUrl} onChange={(e) => setVenueUrl(e.target.value)} placeholder="https://" />
+        </div>
+      </div>
 
       {/* Фото / афиша */}
       <div className="p-4 rounded-2xl border border-dashed border-gray-300 bg-[#f8fafc]">
@@ -253,7 +282,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         <div className="flex flex-col sm:flex-row gap-4 items-start">
           <div className="w-full sm:w-48 aspect-[16/9] rounded-xl overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
             {preview ? (
-              <img src={preview} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img src={preview} alt="" className={`w-full h-full ${imageFit === 'cover' ? 'object-cover' : 'object-contain'}`} referrerPolicy="no-referrer" />
             ) : (
               <span className="material-symbols-outlined text-gray-400 text-[36px]">image</span>
             )}
@@ -279,6 +308,17 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
               onChange={(e) => setImageCredit(e.target.value)}
               placeholder={tr('fImageCredit')}
             />
+            <input
+              className={inputCls}
+              value={imageSourceUrl}
+              onChange={(e) => setImageSourceUrl(e.target.value)}
+              placeholder={tr('fImageSource')}
+            />
+            <input className={inputCls} value={imageAlt} onChange={(e) => setImageAlt(e.target.value)} placeholder={tr('fImageAlt')} />
+            <label className="flex items-center gap-2 text-xs text-gray-700">
+              <input type="checkbox" checked={imageFit === 'cover'} onChange={(e) => setImageFit(e.target.checked ? 'cover' : 'contain')} />
+              {tr('fImageCover')}
+            </label>
             {preview && (
               <button
                 type="button"
@@ -324,6 +364,10 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
           <label className="flex items-center gap-2 text-sm font-semibold text-[#0f1b33] mt-5">
             <input type="checkbox" checked={isTicker} onChange={(e) => setIsTicker(e.target.checked)} />
             Показать в бегущей строке «Срочно»
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-[#0f1b33] sm:col-span-2">
+            <input type="checkbox" checked={ticketVerified} onChange={(e) => setTicketVerified(e.target.checked)} />
+            Ссылка на билеты проверена (ведёт на страницу этого события) — показывать кнопку «Купить билет»
           </label>
         </div>
       )}

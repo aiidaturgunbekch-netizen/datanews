@@ -1,8 +1,13 @@
 import { Announcement, LocalizedString } from '../types';
 
 /** Фото с Wikimedia Commons (свободная лицензия) нужного размера */
-const commons = (file: string, width = 1280) =>
+const commons = (file: string, width = 1600) =>
   `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=${width}`;
+/** Страница файла на Commons — первоисточник фото, автор и лицензия */
+const commonsPage = (file: string) => `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(file.replace(/ /g, '_'))}`;
+
+const SHAKIRA_PHOTO = 'Las Mujeres Ya No Lloran World Tour - Rio de Janeiro (8).jpg';
+const ARBENINA_PHOTO = 'Diana Arbenina.jpg';
 
 const L = (ru: string, kg: string, en: string): LocalizedString => ({ ru, kg, en });
 
@@ -43,7 +48,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: true,
     sourceName: 'Economist.kg • Управление делами Президента КР',
     sourceOrgType: 'СМИ',
-    sourceUrl: 'https://economist.kg/society/2026/09/30/shakira-bishkek-bilety-mesta-pravila/',
+    eventSourceUrl: 'https://economist.kg/society/2026/09/30/shakira-bishkek-bilety-mesta-pravila/',
     isVerified: true,
     publishedAt: '2026-09-30T06:50',
     updatedAt: '2026-10-09T12:02',
@@ -56,8 +61,15 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       venue: 'Стадион «Бишкек Арена»',
       timeRange: '19:00 • 7+',
     },
-    imageUrl: commons('Shakira (cropped).JPG'),
-    imageCredit: 'Фото: Wikimedia Commons, CC BY-SA',
+    // Официальная афиша бишкекского концерта не найдена в открытом доступе — используется фото этого же тура
+    imageUrl: commons(SHAKIRA_PHOTO),
+    imageSourceUrl: commonsPage(SHAKIRA_PHOTO),
+    imageAlt: 'Шакира на концерте тура Las Mujeres Ya No Lloran, Рио-де-Жанейро, 2025',
+    imageCredit: 'Фото: Priscila Bruder / Wikimedia Commons — тур Las Mujeres Ya No Lloran, 2025',
+    imageFit: 'contain',
+    ticketUrl: 'https://ticket.gov.kg/ru/event/shakira-vpervye-vystupit-v-tsentralnoy-azii-mirovaya-zvezda-priezzhaet-v-bishkek-116',
+    ticketUrlVerified: true,
+    artistUrl: 'https://www.shakira.com/',
     isDemo: false,
   },
   {
@@ -92,7 +104,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: false,
     sourceName: 'Economist.kg • Управление делами Президента КР',
     sourceOrgType: 'СМИ',
-    sourceUrl: 'https://economist.kg/transport/2026/10/09/shakira-besplatnye-avtobusy/',
+    eventSourceUrl: 'https://economist.kg/transport/2026/10/09/shakira-besplatnye-avtobusy/',
     isVerified: true,
     publishedAt: '2026-10-09T12:02',
     updatedAt: '2026-10-09T12:02',
@@ -129,7 +141,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: false,
     sourceName: 'Мэрия г. Бишкек • Kaktus.media',
     sourceOrgType: 'МБ',
-    sourceUrl: 'https://kaktus.media/doc/554823_v_bishkeke_13_oktiabria_na_15_chasov_otkluchat_vody._spisok_rayonov_i_ylic.html',
+    eventSourceUrl: 'https://kaktus.media/doc/554823_v_bishkeke_13_oktiabria_na_15_chasov_otkluchat_vody._spisok_rayonov_i_ylic.html',
     isVerified: true,
     publishedAt: '2026-10-12T15:00',
     updatedAt: '2026-10-12T15:00',
@@ -168,7 +180,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: true,
     sourceName: 'Бишкекское ПЭС • Kaktus.media',
     sourceOrgType: 'НЭ',
-    sourceUrl: 'https://kaktus.media/doc/554879_14_oktiabria_v_chasti_bishkeka_otkluchat_svet_spisok_ylic.html',
+    eventSourceUrl: 'https://kaktus.media/doc/554879_14_oktiabria_v_chasti_bishkeka_otkluchat_svet_spisok_ylic.html',
     isVerified: true,
     publishedAt: '2026-10-13T10:00',
     updatedAt: '2026-10-13T10:00',
@@ -208,7 +220,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: false,
     sourceName: 'Мэрия г. Бишкек • Knews.kg',
     sourceOrgType: 'МБ',
-    sourceUrl: 'https://knews.kg/2026/10/13/v-chasti-bishkeka-15-oktyabrya-vremenno-ne-budet-vody',
+    eventSourceUrl: 'https://knews.kg/2026/10/13/v-chasti-bishkeka-15-oktyabrya-vremenno-ne-budet-vody',
     isVerified: true,
     publishedAt: '2026-10-13T11:00',
     updatedAt: '2026-10-13T11:00',
@@ -247,7 +259,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: false,
     sourceName: 'Мэрия г. Бишкек • For.kg',
     sourceOrgType: 'МБ',
-    sourceUrl: 'https://www.for.kg/news-930432-ru.html',
+    eventSourceUrl: 'https://www.for.kg/news-930432-ru.html',
     isVerified: true,
     publishedAt: '2026-10-12T12:00',
     updatedAt: '2026-10-12T12:00',
@@ -287,18 +299,22 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: false,
     sourceName: 'Ticket.kg',
     sourceOrgType: 'БИЛ',
-    sourceUrl: 'https://ticket.kg/event/kontsert-pevitsy-diany-arbeninoi-i-gruppy-nochnye-snaipery',
+    eventSourceUrl: 'https://ticket.kg/event/kontsert-pevitsy-diany-arbeninoi-i-gruppy-nochnye-snaipery',
     isVerified: true,
     publishedAt: '2026-09-15T10:00',
     updatedAt: '2026-10-10T10:00',
     eventDetails: {
       priceText: L('от 3 300 до 11 000 сом', '3 300 — 11 000 сом', '3,300 – 11,000 KGS'),
-      ticketUrl: 'https://ticket.kg/event/kontsert-pevitsy-diany-arbeninoi-i-gruppy-nochnye-snaipery',
       venue: 'Nomad Arena',
       timeRange: '19:00',
     },
-    imageUrl: commons('Diana Arbenina.jpg'),
+    imageUrl: commons(ARBENINA_PHOTO),
+    imageSourceUrl: commonsPage(ARBENINA_PHOTO),
+    imageAlt: 'Диана Арбенина на сцене',
     imageCredit: 'Фото: Roman Boldyrev / Wikimedia Commons, CC BY-SA 4.0',
+    imageFit: 'contain',
+    ticketUrl: 'https://ticket.kg/event/kontsert-pevitsy-diany-arbeninoi-i-gruppy-nochnye-snaipery',
+    ticketUrlVerified: true,
     isDemo: false,
   },
   {
@@ -325,12 +341,13 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: false,
     sourceName: 'Kassir.kg',
     sourceOrgType: 'БИЛ',
-    sourceUrl: 'https://kassir.kg/ru/session/4318-jony-v-bishkeke-8-noiabria-zhashtyk-arena',
+    eventSourceUrl: 'https://kassir.kg/ru/session/4318-jony-v-bishkeke-8-noiabria-zhashtyk-arena',
+    ticketUrl: 'https://kassir.kg/ru/session/4318-jony-v-bishkeke-8-noiabria-zhashtyk-arena',
+    ticketUrlVerified: true,
     isVerified: true,
     publishedAt: '2026-09-20T10:00',
     updatedAt: '2026-10-10T10:00',
     eventDetails: {
-      ticketUrl: 'https://kassir.kg/ru/session/4318-jony-v-bishkeke-8-noiabria-zhashtyk-arena',
       venue: '«Жаштык Арена»',
       timeRange: '19:00',
     },
@@ -366,10 +383,11 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     urgency: 'event',
     status: 'scheduled',
     isUrgentTicker: false,
-    sourceName: 'Bishkek.events • Kassir.kg',
+    sourceName: 'Bishkek.events',
     sourceOrgType: 'БИЛ',
-    sourceUrl: 'https://www.kassir.kg/ru/category/concert',
-    isVerified: true,
+    // Дата 28.11 подтверждена только афишей bishkek.events; страница продажи билетов не найдена
+    eventSourceUrl: 'https://bishkek.events/events/category/concerts/',
+    isVerified: false,
     publishedAt: '2026-10-01T10:00',
     updatedAt: '2026-10-10T10:00',
     eventDetails: {
@@ -378,8 +396,6 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       timeRange: '18:30',
       contactPhone: '(0312) 61-40-15',
     },
-    imageUrl: commons('Hans Zimmer in 2022.jpg'),
-    imageCredit: 'Фото: Wikimedia Commons, CC BY',
     isDemo: false,
   },
 
@@ -416,7 +432,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: false,
     sourceName: 'Минводсельпром КР • Kaktus.media',
     sourceOrgType: 'ГОС',
-    sourceUrl: 'https://kaktus.media/doc/554163_v_bishkeke_vnov_proydyt_selhozvystavka_agrotehekspo_i_iarmarka_altyn_kyz._prihodite.html',
+    eventSourceUrl: 'https://kaktus.media/doc/554163_v_bishkeke_vnov_proydyt_selhozvystavka_agrotehekspo_i_iarmarka_altyn_kyz._prihodite.html',
     isVerified: true,
     publishedAt: '2026-09-29T10:00',
     updatedAt: '2026-10-08T10:00',
@@ -455,7 +471,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: false,
     sourceName: 'WorldExpo.pro',
     sourceOrgType: 'ОРГ',
-    sourceUrl: 'https://worldexpo.pro/region/bishkek/exhibitions',
+    eventSourceUrl: 'https://worldexpo.pro/region/bishkek/exhibitions',
     isVerified: true,
     publishedAt: '2026-09-01T10:00',
     updatedAt: '2026-10-05T10:00',
@@ -488,8 +504,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isUrgentTicker: false,
     sourceName: 'Кинотеатр «Манас»',
     sourceOrgType: 'КИНО',
-    sourceUrl: 'https://manascinema.com/',
-    isVerified: true,
+    eventSourceUrl: 'https://manascinema.com/',
+    isVerified: false,
     publishedAt: '2026-10-10T10:00',
     updatedAt: '2026-10-10T10:00',
     eventDetails: { venue: 'Кинотеатры Бишкека' },

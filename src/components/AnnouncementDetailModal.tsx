@@ -3,6 +3,7 @@ import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { EventImage } from './EventImage';
 import { formatDayMonthTime, formatWhen } from '../utils/dates';
+import { eventSource, hostOf, ticketLink } from '../utils/links';
 
 interface Props {
   announcement: Announcement;
@@ -28,6 +29,24 @@ const L = {
   nearby: { ru: 'Ещё в этом городе', kg: 'Дагы ушул шаарда', en: 'More in this city' },
   close: { ru: 'Закрыть', kg: 'Жабуу', en: 'Close' },
   until: { ru: 'до', kg: 'чейин', en: 'until' },
+  buy: { ru: 'Купить билет', kg: 'Билеттерди сатып алуу', en: 'Buy tickets' },
+  ticketUnverified: {
+    ru: 'Ссылка на билеты от организатора пока не подтверждена',
+    kg: 'Уюштуруучунун билет шилтемеси азырынча тастыктала элек',
+    en: 'Organiser’s ticket link is not yet verified',
+  },
+  noTickets: {
+    ru: 'Ссылка на покупку билетов пока не подтверждена',
+    kg: 'Билет сатып алуучу шилтеме азырынча тастыктала элек',
+    en: 'Ticket link not yet confirmed',
+  },
+  links: { ru: 'Первоисточники', kg: 'Түпкү булактар', en: 'Primary sources' },
+  eventSource: { ru: 'Источник информации', kg: 'Маалымат булагы', en: 'Information source' },
+  artist: { ru: 'Официальный сайт артиста', kg: 'Артисттин расмий сайты', en: 'Artist’s official site' },
+  organizer: { ru: 'Организатор', kg: 'Уюштуруучу', en: 'Organiser' },
+  venue: { ru: 'Площадка', kg: 'Аянтча', en: 'Venue' },
+  imageSource: { ru: 'Источник фото', kg: 'Сүрөттүн булагы', en: 'Photo source' },
+  needsCheck: { ru: 'Требует проверки', kg: 'Текшерүүнү талап кылат', en: 'Needs verification' },
 };
 
 const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
@@ -57,6 +76,17 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   const isEvent = a.urgency === 'event';
   const mapQuery = a.coordinates ? `${a.coordinates.lat},${a.coordinates.lng}` : encodeURIComponent(a.location.ru);
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+  const tickets = ticketLink(a);
+  // Свободный вход — билеты не нужны, пометку «ссылка не подтверждена» не показываем
+  const freeEntry = /свободный|бесплатн|акысыз|free/i.test(a.eventDetails?.priceText?.ru || '');
+  const source = eventSource(a);
+  const links = [
+    source && { href: source, label: L.eventSource[lang], icon: 'article' },
+    a.artistUrl && { href: a.artistUrl, label: L.artist[lang], icon: 'star' },
+    a.organizerUrl && { href: a.organizerUrl, label: L.organizer[lang], icon: 'groups' },
+    a.venueUrl && { href: a.venueUrl, label: L.venue[lang], icon: 'stadium' },
+    a.imageSourceUrl && { href: a.imageSourceUrl, label: L.imageSource[lang], icon: 'photo_camera' },
+  ].filter(Boolean) as { href: string; label: string; icon: string }[];
   const nearby = allAnnouncements.filter((x) => x.id !== a.id && x.city === a.city).slice(0, 3);
 
   const whenText = formatWhen(a.startDate, a.endDate, lang, true);
@@ -83,7 +113,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   };
 
   const share = async () => {
-    const data = { title: a.title[lang], text: a.summary[lang], url: a.sourceUrl || window.location.href };
+    const data = { title: a.title[lang], text: a.summary[lang], url: eventSource(a) || window.location.href };
     try {
       if (navigator.share) {
         await navigator.share(data);
@@ -139,6 +169,12 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                 {L.verified[lang]}
               </span>
             )}
+            {!a.isVerified && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-400/90 text-[#3b2a00] text-[11px] font-bold">
+                <span className="material-symbols-outlined text-[14px]">help</span>
+                {L.needsCheck[lang]}
+              </span>
+            )}
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold leading-tight">{a.title[lang]}</h2>
           <p className="mt-2 text-sm text-white/85 leading-relaxed">{a.summary[lang]}</p>
@@ -186,15 +222,16 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         </div>
 
         <div className="px-6 py-5 flex flex-wrap gap-2">
-          {a.eventDetails?.ticketUrl && (
+          {tickets.url && tickets.verified && (
             <a
-              href={a.eventDetails.ticketUrl}
+              href={tickets.url}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#20C7B5] text-[#002f29] text-sm font-extrabold hover:bg-[#1bb3a2] transition-colors"
             >
               <span className="material-symbols-outlined text-[18px]">confirmation_number</span>
-              {lang === 'en' ? 'Tickets' : lang === 'kg' ? 'Билеттер' : 'Купить билет'}
+              {L.buy[lang]}
+              <span className="text-[11px] font-semibold opacity-75">· {hostOf(tickets.url)}</span>
             </a>
           )}
           <a
@@ -229,13 +266,52 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
               {L.updated[lang]}: {formatDayMonthTime(a.updatedAt, lang)}
             </div>
           </div>
-          {a.sourceUrl && (
-            <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline inline-flex items-center gap-1">
+          {source && (
+            <a href={source} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline inline-flex items-center gap-1">
               {L.openSource[lang]}
               <span className="material-symbols-outlined text-[14px]">open_in_new</span>
             </a>
           )}
         </div>
+
+        {/* Первоисточники: отдельные ссылки, а не текст в описании */}
+        {(isEvent || links.length > 0) && (
+          <div className="mx-6 mb-6">
+            <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2">{L.links[lang]}</h3>
+            <ul className="space-y-1.5 text-sm">
+              {links.map((l) => (
+                <li key={l.href}>
+                  <a
+                    href={l.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[#12327A] font-semibold hover:underline break-all"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">{l.icon}</span>
+                    <span>{l.label}</span>
+                    <span className="text-gray-400 font-normal">— {hostOf(l.href)}</span>
+                    <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                  </a>
+                </li>
+              ))}
+              {isEvent && tickets.url && !tickets.verified && (
+                <li className="flex flex-wrap items-center gap-1.5 text-gray-600">
+                  <span className="material-symbols-outlined text-[16px] text-amber-600">help</span>
+                  <span>{L.ticketUnverified[lang]}:</span>
+                  <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="text-gray-600 underline break-all">
+                    {hostOf(tickets.url)}
+                  </a>
+                </li>
+              )}
+              {isEvent && !tickets.url && !freeEntry && (
+                <li className="flex items-center gap-1.5 text-gray-500">
+                  <span className="material-symbols-outlined text-[16px]">info</span>
+                  <span>{L.noTickets[lang]}</span>
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
 
         {nearby.length > 0 && onSelectOtherNotice && (
           <div className="px-6 pb-6">

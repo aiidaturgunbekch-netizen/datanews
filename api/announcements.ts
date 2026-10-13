@@ -71,7 +71,7 @@ export default handler(async (req) => {
       );
       if (mine.length >= limit) throw new HttpError('limit_reached', 403, `Лимит тарифа: ${limit} публикаций за 30 дней`);
     }
-    const item = await sanitize({ ...body.item, isVerified: false, isUrgentTicker: false, status: 'scheduled' });
+    const item = await sanitize({ ...body.item, isVerified: false, isUrgentTicker: false, ticketUrlVerified: false, status: 'scheduled' });
     item.moderationStatus = 'pending';
     item.sourceName = item.sourceName || user.organization || user.name;
     item.submittedBy = { userId: user.id, name: user.name, email: user.email, phone: user.phone, organization: user.organization };
@@ -109,7 +109,7 @@ export default handler(async (req) => {
     }
 
     if (!current || current.submittedBy?.email !== session.sub) throw new HttpError('forbidden', 403);
-    const item = await sanitize({ ...body.item, isVerified: false, isUrgentTicker: false, status: 'scheduled' }, current);
+    const item = await sanitize({ ...body.item, isVerified: false, isUrgentTicker: false, ticketUrlVerified: false, status: 'scheduled' }, current);
     item.moderationStatus = 'pending';
     item.moderationNote = undefined;
     item.submittedBy = current.submittedBy;

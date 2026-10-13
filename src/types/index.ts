@@ -91,6 +91,7 @@ export interface Announcement {
   isUrgentTicker?: boolean;
   sourceName: string;
   sourceOrgType: string; // 'ВК' | 'МБ' | 'НЭ' | 'УП' | 'ФК'
+  /** Устаревшее имя поля источника — читается через eventSource() для совместимости */
   sourceUrl?: string;
   isVerified: boolean;
   publishedAt: string;
@@ -118,9 +119,34 @@ export interface Announcement {
   waterSupplyStatus?: LocalizedString;
   residentialAccess?: LocalizedString;
   
-  /** Баннер / афиша события (URL или data:image загруженного файла) */
+  /** Изображение события: ссылка на файл (или /api/image?id=… для загруженных) */
   imageUrl?: string;
+  /** Страница-первоисточник изображения (например, файл на Wikimedia Commons) */
+  imageSourceUrl?: string;
+  /** Описание изображения для доступности (alt) */
+  imageAlt?: string;
+  /** Автор / лицензия изображения */
   imageCredit?: string;
+  /**
+   * Как вписывать изображение: 'contain' (по умолчанию) — целиком, без обрезки, с размытым фоном;
+   * 'cover' — заполнить рамку (подходит для широких баннеров без важных деталей по краям).
+   */
+  imageFit?: 'contain' | 'cover';
+  /** Точка фокуса для 'cover', CSS object-position (например, 'center 20%') */
+  imagePosition?: string;
+
+  /** Источник информации о событии (статья, официальная страница) */
+  eventSourceUrl?: string;
+  /** Страница покупки билетов на конкретное событие */
+  ticketUrl?: string;
+  /** true — ссылка на билеты проверена администратором */
+  ticketUrlVerified?: boolean;
+  /** Официальный сайт организатора */
+  organizerUrl?: string;
+  /** Официальный сайт артиста */
+  artistUrl?: string;
+  /** Официальный сайт площадки */
+  venueUrl?: string;
 
   /** Модерация: публикации пользователей видны только после одобрения админом */
   moderationStatus?: ModerationStatus;

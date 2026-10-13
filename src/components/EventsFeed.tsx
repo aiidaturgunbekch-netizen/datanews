@@ -3,6 +3,7 @@ import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { StorageService } from '../services/storage';
 import { EventImage } from './EventImage';
+import { ticketLink } from '../utils/links';
 import { MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT, formatDate } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 
@@ -251,6 +252,18 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                         <span className="text-xs font-bold text-[#12327A] bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
                           {price}
                         </span>
+                      )}
+                      {ticketLink(item).verified && ticketLink(item).url && (
+                        <a
+                          href={ticketLink(item).url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs font-extrabold text-[#002f29] bg-[#20C7B5] hover:bg-[#1bb3a2] px-2.5 py-1 rounded-lg inline-flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">confirmation_number</span>
+                          {currentLanguage === 'kg' ? 'Билеттерди сатып алуу' : currentLanguage === 'en' ? 'Buy tickets' : 'Купить билет'}
+                        </a>
                       )}
                       {item.eventDetails?.organizer && (
                         <span className="text-xs text-gray-400 hidden sm:inline">

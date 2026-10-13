@@ -20,6 +20,12 @@
 ## 1. Настройка в Vercel (≈5 минут)
 
 1. Откройте https://vercel.com → ваш проект **datanews**.
+   **Сначала исправьте папку сборки.** Сейчас Vercel собирает сайт из старой копии
+   `datanews-updated/datanews`, поэтому изменения из корня репозитория (включая панель
+   администратора и папку `api/`) на сайт не попадают.
+   **Settings → Build and Deployment → Root Directory → Edit** → очистите поле
+   (корень репозитория, `./`) → **Save**. Framework Preset должен остаться **Vite**,
+   Build Command — `npm run build`, Output Directory — `dist`.
 2. **База данных:** вкладка **Storage** → **Create Database** (или **Browse Marketplace**) →
    **Upstash** → **Upstash for Redis** → тариф **Free** → регион ближе к Центральной Азии
    (например, Frankfurt) → **Create** → **Connect Project** → выберите `datanews`, окружения

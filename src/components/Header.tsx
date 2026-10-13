@@ -60,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-[#0d2459] shadow-[0_2px_12px_rgba(0,0,0,0.15)] text-white">
       {/* Main Bar */}
-      <div className="h-16 max-w-[1280px] mx-auto px-4 md:px-6 flex items-center justify-between gap-4">
+      <div className="h-16 max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Brand Logo & Navigation */}
         <div className="flex items-center gap-6 lg:gap-8">
           <button
@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center text-left focus:outline-none"
             aria-label="DataNews Home"
           >
-            <Logo isLightMode={true} className="h-10" />
+            <Logo isLightMode={true} compactOnMobile className="h-8 sm:h-10" />
           </button>
 
           {/* Desktop Navigation Links */}
@@ -93,9 +93,9 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right: City Selector, Language Picker, Search, Post Button & Admin */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* City Selector Dropdown */}
-          <div className="relative">
+        <div className="flex items-center gap-1 sm:gap-3">
+          {/* City Selector Dropdown (на телефоне город выбирается в фильтре на главной) */}
+          <div className="relative hidden sm:block">
             <button
               onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs sm:text-sm font-semibold transition-colors border border-white/10"

@@ -135,13 +135,13 @@ export const translations = {
 
   // Days of week short
   days: {
-    mon: { ru: 'ПН', kg: 'ДШ', en: 'MO' },
-    tue: { ru: 'ВТ', kg: 'ШШ', en: 'TU' },
-    wed: { ru: 'СР', kg: 'ШР', en: 'WE' },
-    thu: { ru: 'ЧТ', kg: 'БШ', en: 'TH' },
-    fri: { ru: 'ПТ', kg: 'ЖМ', en: 'FR' },
-    sat: { ru: 'СБ', kg: 'ИШ', en: 'SA' },
-    sun: { ru: 'ВС', kg: 'ЖК', en: 'SU' },
+    mon: { ru: 'ПН', kg: 'Дүйшөмбү', en: 'MO' },
+    tue: { ru: 'ВТ', kg: 'Шейшемби', en: 'TU' },
+    wed: { ru: 'СР', kg: 'Шаршемби', en: 'WE' },
+    thu: { ru: 'ЧТ', kg: 'Бейшемби', en: 'TH' },
+    fri: { ru: 'ПТ', kg: 'Жума', en: 'FR' },
+    sat: { ru: 'СБ', kg: 'Ишемби', en: 'SA' },
+    sun: { ru: 'ВС', kg: 'Жекшемби', en: 'SU' },
   },
 
   // Announcement Detail Specifics (from Image 5)

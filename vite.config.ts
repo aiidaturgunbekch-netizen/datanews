@@ -33,7 +33,11 @@ const localApi = (): Plugin => ({
         response.headers.forEach((v, k) => res.setHeader(k, v));
         res.end(Buffer.from(await response.arrayBuffer()));
       } catch (e) {
-        next(e);
+        // Браузер оборвал запрос (перезагрузка страницы) — это не ошибка сервера
+        if (req.destroyed || (e as Error)?.message === 'aborted') return;
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'server_error', message: (e as Error)?.message }));
       }
     });
   },

@@ -3,7 +3,7 @@ import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { StorageService } from '../services/storage';
 import { EventImage } from './EventImage';
-import { MONTHS_SHORT, WEEKDAYS_SHORT } from '../utils/dates';
+import { MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT, formatDate } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 
 interface EventsFeedProps {
@@ -31,8 +31,10 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
     setFavorites(updated);
   };
 
-  const getMonthLabel = (d: Date) => MONTHS_SHORT[currentLanguage][d.getMonth()];
-  const getWeekdayLabel = (d: Date) => WEEKDAYS_SHORT[currentLanguage][d.getDay()];
+  // На кыргызском — полные названия («октябрь», «шейшемби»), на RU/EN — короткие («ОКТ», «ВТ»)
+  const isKg = currentLanguage === 'kg';
+  const getMonthLabel = (d: Date) => (isKg ? MONTHS.kg[d.getMonth()] : MONTHS_SHORT[currentLanguage][d.getMonth()]);
+  const getWeekdayLabel = (d: Date) => (isKg ? WEEKDAYS.kg[d.getDay()] : WEEKDAYS_SHORT[currentLanguage][d.getDay()]);
 
   // Filter events according to status tab so past events are never mistaken for upcoming events
   const filteredEvents = useMemo(() => {
@@ -180,9 +182,16 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                   <EventImage item={item} className="w-full h-40 sm:h-full sm:min-h-32 rounded-xl" />
                   <div className="absolute top-2 left-2 rounded-lg bg-white/95 px-2 py-1 text-center shadow-sm">
                     <div className="text-xl font-black text-[#12327A] leading-none">{dayNum}</div>
-                    <div className="text-[10px] font-bold uppercase text-gray-500">
-                      {monthStr} • {weekdayStr}
-                    </div>
+                    {isKg ? (
+                      <div className="text-[11px] font-bold text-gray-600 leading-tight">
+                        <div>{monthStr}</div>
+                        <div className="font-semibold text-gray-500">{weekdayStr}</div>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] font-bold uppercase text-gray-500">
+                        {monthStr} • {weekdayStr}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -294,7 +303,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className="bg-[#f3f6fc] group-hover:bg-[#12327A] group-hover:text-white transition-colors px-2.5 py-1 rounded-lg text-center font-bold text-[#12327A] text-xs">
-                        <span>{dayNum} {monthStr} {startDate.getFullYear()}</span>
+                        <span>{isKg ? formatDate(startDate, 'kg') : `${dayNum} ${monthStr} ${startDate.getFullYear()}`}</span>
                       </div>
                       <span className="px-2 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44] text-[10px] font-bold">
                         {t(`categories.${item.category}`)}

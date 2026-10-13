@@ -173,14 +173,21 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
         {/* Left: 8 cols monthly grid */}
         <div className="lg:col-span-8 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm">
           {/* Weekday Header */}
-          <div className="grid grid-cols-7 gap-2 text-center text-xs font-extrabold uppercase text-gray-400 mb-3 tracking-wider">
-            <span>{t('days.mon')}</span>
-            <span>{t('days.tue')}</span>
-            <span>{t('days.wed')}</span>
-            <span>{t('days.thu')}</span>
-            <span>{t('days.fri')}</span>
-            <span className="text-[#dc2626]">{t('days.sat')}</span>
-            <span className="text-[#dc2626]">{t('days.sun')}</span>
+          <div
+            className={`grid grid-cols-7 gap-2 text-center font-extrabold text-gray-400 mb-3 ${
+              currentLanguage === 'kg' ? 'text-[8px] sm:text-xs tracking-tighter sm:tracking-normal whitespace-nowrap max-sm:h-9 max-sm:items-end' : 'text-xs uppercase tracking-wider'
+            }`}
+          >
+            {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
+              <span
+                key={d}
+                className={`${d === 'sat' || d === 'sun' ? 'text-[#dc2626]' : ''} ${
+                  currentLanguage === 'kg' ? 'block max-sm:-rotate-[35deg] max-sm:origin-center max-sm:translate-y-1' : ''
+                }`}
+              >
+                {t(`days.${d}`)}
+              </span>
+            ))}
           </div>
 
           {/* Month Days */}

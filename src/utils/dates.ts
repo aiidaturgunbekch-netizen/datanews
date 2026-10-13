@@ -52,15 +52,15 @@ export const formatDayMonth = (v: string | Date, lang: Language) => {
   return `${d.getDate()} ${MONTHS_RU_GEN[d.getMonth()]}`;
 };
 
-/** «13 октября 2026 г.» / «13-октябрь, 2026-ж.» / «13 October 2026» */
+/** «13 октября 2026 г.» / «13-октябрь, 2026-жыл» / «13 October 2026» */
 export const formatDate = (v: string | Date, lang: Language) => {
   const d = toDate(v);
-  if (lang === 'kg') return `${formatDayMonth(d, 'kg')}, ${d.getFullYear()}-ж.`;
+  if (lang === 'kg') return `${formatDayMonth(d, 'kg')}, ${d.getFullYear()}-жыл`;
   if (lang === 'en') return `${formatDayMonth(d, 'en')} ${d.getFullYear()}`;
   return `${formatDayMonth(d, 'ru')} ${d.getFullYear()} г.`;
 };
 
-/** «вторник, 13 октября 2026 г.» / «13-октябрь, 2026-ж., шейшемби» / «Tuesday, 13 October 2026» */
+/** «вторник, 13 октября 2026 г.» / «13-октябрь, 2026-жыл, шейшемби» / «Tuesday, 13 October 2026» */
 export const formatDateLong = (v: string | Date, lang: Language) => {
   const d = toDate(v);
   const wd = WEEKDAYS[lang][d.getDay()];
@@ -103,7 +103,7 @@ export const nearestWeekend = (now = new Date()) => {
 /**
  * Период события одной строкой:
  *  «13 октября 2026 г., 10:00–20:00», «23 октября, 09:00 — 25 октября, 18:00»,
- *  «13-октябрь, 2026-ж., 10:00–20:00».
+ *  «13-октябрь, 2026-жыл, 10:00–20:00».
  * `long` добавляет день недели.
  */
 export const formatWhen = (start: string, end: string | undefined, lang: Language, long = false) => {

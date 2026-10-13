@@ -26,7 +26,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     },
     description: {
       ru: 'Шакира выступит на стадионе «Бишкек Арена» 18 октября 2026 года в 19:00. В программе хиты разных лет, среди которых Hips Don’t Lie, Whenever, Wherever, Waka Waka и She Wolf, а также песни нового альбома. Сцена расположена у восточной трибуны, трибуны за сценой закрыты. Вход на стадион по QR-билету. Возрастное ограничение 7+. Билеты продаются на государственном портале GovTicket, по данным Управления делами Президента КР, билеты купили жители 28 стран.',
-      kg: 'Шакира 2026-жылдын 18-октябрында саат 19:00до «Бишкек Арена» стадионунда концерт берет. Программада ар кайсы жылдардагы хиттер жана жаңы альбомдун ырлары. Сахна чыгыш трибунанын жанында жайгашкан, сахнанын аркасындагы трибуналар жабык. Стадионго QR-билет менен кирүү. Жаш чектөө 7+. Билеттер GovTicket мамлекеттик порталында сатылат.',
+      kg: 'Шакира 2026-жылдын 18-октябрында саат 19:00дө «Бишкек Арена» стадионунда концерт берет. Программада ар кайсы жылдардагы хиттер жана жаңы альбомдун ырлары. Сахна чыгыш трибунанын жанында жайгашкан, сахнанын аркасындагы трибуналар жабык. Стадионго QR-билет менен кирилет. Жаш чеги: 7+. Билеттер GovTicket мамлекеттик порталында сатылат.',
       en: 'Shakira performs at Bishkek Arena on 18 October 2026 at 19:00. The set features hits from across her career, including Hips Don’t Lie, Whenever, Wherever, Waka Waka and She Wolf, plus songs from her new album. The stage is set up by the east stand and the stands behind it are closed. Entry is by QR ticket; age 7+. Tickets are sold on the state GovTicket portal.',
     },
     category: 'concerts',
@@ -149,7 +149,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ),
     summary: L(
       'Бишкекское предприятие электрических сетей проводит ремонт: отключения в Восточном и Западном РЭС с 09:00–09:30 до 12:00–17:00.',
-      'Бишкек электр тармактары ишканасы оңдоо жүргүзөт: Чыгыш жана Батыш РЭСтерде 09:00–09:30дан 12:00–17:00гө чейин өчүрүүлөр.',
+      'Бишкек электр тармактары ишканасы оңдоо жүргүзөт: Чыгыш жана Батыш РЭСтерде 09:00–09:30дан 12:00–17:00гө чейин жарык өчүрүлөт.',
       'Bishkek Electric Grid is doing repairs: outages in the Eastern and Western districts from 09:00–09:30 until 12:00–17:00.'
     ),
     description: L(
@@ -184,7 +184,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ),
     summary: L(
       'С 10:00 до 20:00 — ремонт водопровода диаметром 300 мм. Без воды останутся дома, школы, детсады и больницы в квартале.',
-      '10:00дөн 20:00гө чейин — диаметри 300 мм суу түтүгүн оңдоо. Кварталдагы үйлөр, мектептер, бала бакчалар сууз калат.',
+      '10:00дөн 20:00гө чейин — диаметри 300 мм суу түтүгүн оңдоо. Кварталдагы үйлөр, мектептер, бала бакчалар суусуз калат.',
       '10:00–20:00 — repair of a 300 mm water main. Homes, schools, kindergartens and clinics in the area will be without water.'
     ),
     description: L(
@@ -229,19 +229,19 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ),
     summary: L(
       'Мэрия включает отопление распоряжением, когда среднесуточная температура 5 дней подряд не выше +8°C.',
-      'Мэрия жылытууну орточо суткалык температура 5 күн катары менен +8°Cтан жогору болбогондо буйрук менен киргизет.',
+      'Мэрия жылытууну орточо суткалык температура 5 күн катары менен +8 градустан жогору болбогондо буйрук менен киргизет.',
       'City Hall starts heating by decree once the average daily temperature stays at or below +8°C for 5 days in a row.'
     ),
     description: L(
       'На 12 октября официальная дата начала отопительного сезона в Бишкеке не объявлена. Решение принимает мэрия своим распоряжением с учётом прогноза погоды: тепло дают, когда среднесуточная температура воздуха пять суток подряд не поднимается выше +8°C. ТЭЦ и «Бишкектеплосеть» завершают ремонт оборудования и сетей. В прошлом сезоне отопление включили 3 ноября 2025 года. Вопросы по теплу и горячей воде: «Бишкектеплосеть» 1980, колл-центр мэрии 1840 / 1850.',
-      '12-октябрга карата Бишкекте жылытуу мезгилинин расмий башталыш датасы жарыялана элек. Чечимди мэрия аба ырайынын болжолун эске алуу менен кабыл алат: орточо суткалык температура беш күн катары менен +8°Cтан жогору көтөрүлбөсө, жылуулук берилет. Өткөн сезондо жылытуу 2025-жылдын 3-ноябрында киргизилген. Суроолор: «Бишкектеплосеть» 1980, мэриянын колл-борбору 1840 / 1850.',
+      '12-октябрга карата Бишкекте жылытуу мезгилинин расмий башталыш датасы жарыялана элек. Чечимди мэрия аба ырайынын болжолун эске алуу менен кабыл алат: орточо суткалык температура беш күн катары менен +8 градустан жогору көтөрүлбөсө, жылуулук берилет. Өткөн сезондо жылытуу 2025-жылдын 3-ноябрында киргизилген. Суроолор: «Бишкектеплосеть» 1980, мэриянын колл-борбору 1840 / 1850.',
       'As of 12 October the official start of the heating season in Bishkek has not been announced. City Hall decides by decree based on the forecast: heating starts when the average daily temperature stays at or below +8°C for five days in a row. Last season heating started on 3 November 2025. Questions: Bishkekteploset 1980, City Hall call centre 1840 / 1850.'
     ),
     category: 'gov',
     city: 'bishkek',
     location: L('г. Бишкек, все районы', 'Бишкек ш., бардык райондор', 'Bishkek, all districts'),
     startDate: '2026-10-13T08:00',
-    endDate: '2026-11-15T23:59',
+    endDate: '2026-10-13T23:59',
     urgency: 'regular',
     status: 'active',
     isUrgentTicker: false,
@@ -295,7 +295,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       priceText: L('от 3 300 до 11 000 сом', '3 300 — 11 000 сом', '3,300 – 11,000 KGS'),
       ticketUrl: 'https://ticket.kg/event/kontsert-pevitsy-diany-arbeninoi-i-gruppy-nochnye-snaipery',
       venue: 'Nomad Arena',
-      timeRange: '19:00 • ~2 ч',
+      timeRange: '19:00',
     },
     imageUrl: commons('Diana Arbenina.jpg'),
     imageCredit: 'Фото: Roman Boldyrev / Wikimedia Commons, CC BY-SA 4.0',
@@ -389,7 +389,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     protocolCode: '#KG-FR-ALTYNKUZ',
     title: L(
       'Ярмарка «Алтын күз» и выставка «АгроТехЭкспо — 2026»',
-      '«Алтын күз» жарминкеси жана «АгроТехЭкспо — 2026» көргөзмөсү',
+      '«Алтын күз» жарманкеси жана «АгроТехЭкспо — 2026» көргөзмөсү',
       '“Altyn Kuz” fair & AgroTechExpo 2026'
     ),
     summary: L(
@@ -399,7 +399,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ),
     description: L(
       'С 23 по 25 октября на площади им. Турдакуна Усубалиева (Старая площадь) пройдут республиканская выставка «АгроТехЭкспо — 2026» и сельскохозяйственная ярмарка «Алтын күз», приуроченные ко Дню работников сельского хозяйства. Организатор — Министерство водных ресурсов, сельского хозяйства и перерабатывающей промышленности КР. Главная тема выставки — инновации: мультиспектральный дрон для мониторинга пастбищ, первый кыргызстанский спутник, современная техника. На ярмарке — продукция фермеров напрямую. Время работы уточняйте у организатора (по разным данным 09:00–18:00 или 10:00–17:00).',
-      '23–25-октябрь күндөрү Турдакун Усубалиев атындагы аянтта (Эски аянт) Айыл чарба кызматкерлеринин күнүнө карата «АгроТехЭкспо — 2026» республикалык көргөзмөсү жана «Алтын күз» айыл чарба жарминкеси өтөт. Уюштуруучу — КР Суу ресурстары, айыл чарба жана кайра иштетүү өнөр жайы министрлиги. Көргөзмөдө жайыттарды көзөмөлдөөчү мультиспектралдык дрон жана биринчи кыргызстандык спутник көрсөтүлөт.',
+      '23–25-октябрь күндөрү Турдакун Усубалиев атындагы аянтта (Эски аянт) Айыл чарба кызматкерлеринин күнүнө карата «АгроТехЭкспо — 2026» республикалык көргөзмөсү жана «Алтын күз» айыл чарба жарманкеси өтөт. Уюштуруучу — КР Суу ресурстары, айыл чарба жана кайра иштетүү өнөр жайы министрлиги. Көргөзмөдө жайыттарды көзөмөлдөөчү мультиспектралдык дрон жана биринчи кыргызстандык спутник көрсөтүлөт.',
       'From 23 to 25 October, Turdakun Usubaliev Square (Old Square) hosts the national AgroTechExpo 2026 exhibition and the “Altyn Kuz” farmers’ fair for Agriculture Workers’ Day, organised by the Ministry of Water Resources, Agriculture and Processing Industry. Highlights: a multispectral pasture-monitoring drone and Kyrgyzstan’s first satellite.'
     ),
     category: 'fairs',
@@ -424,7 +424,6 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       priceText: L('Вход свободный', 'Кирүү акысыз', 'Free entry'),
       organizer: 'Минводсельпром КР',
       venue: 'Старая площадь',
-      timeRange: '23–25 октября',
     },
     isDemo: false,
   },
@@ -460,7 +459,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isVerified: true,
     publishedAt: '2026-09-01T10:00',
     updatedAt: '2026-10-05T10:00',
-    eventDetails: { venue: 'Дворец спорта им. Кожомкула', timeRange: '27–29 октября' },
+    eventDetails: { venue: 'Дворец спорта им. Кожомкула' },
     isDemo: false,
   },
 
@@ -468,7 +467,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
   {
     id: 'ann-street-fighter-2026',
     protocolCode: '#KG-CN-STREETF',
-    title: L('Премьера: «Уличный боец» (Street Fighter)', 'Премьера: «Көчө мушкери» (Street Fighter)', 'Premiere: Street Fighter'),
+    title: L('Премьера: «Уличный боец» (Street Fighter)', 'Премьера: «Street Fighter»', 'Premiere: Street Fighter'),
     summary: L(
       'Новая экранизация культовой игры с Джейсоном Момоа выходит в кинотеатрах Бишкека.',
       'Джейсон Момоа ойногон культтук оюндун жаңы экранизациясы Бишкектин кинотеатрларында.',
@@ -476,7 +475,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ),
     description: L(
       'Мировая премьера фильма «Уличный боец» (Street Fighter) — 16 октября 2026 года; в кинотеатре «Манас» фильм заявлен в разделе «Скоро» с 15 октября. Расписание сеансов и цены — на сайтах кинотеатров. Закрытые и специальные показы появятся здесь после подтверждения организаторами.',
-      '«Көчө мушкери» (Street Fighter) тасмасынын дүйнөлүк премьерасы — 2026-жылдын 16-октябры; «Манас» кинотеатрында 15-октябрдан тартып «Жакында» бөлүмүндө. Сеанстар жана баалар — кинотеатрлардын сайттарында.',
+      '«Street Fighter» тасмасынын дүйнөлүк премьерасы — 2026-жылдын 16-октябры; «Манас» кинотеатрында 15-октябрдан тартып «Жакында» бөлүмүндө. Сеанстар жана баалар — кинотеатрлардын сайттарында.',
       'Street Fighter opens worldwide on 16 October 2026; Manas cinema lists it as “Coming soon” from 15 October. Showtimes and prices on cinema websites.'
     ),
     category: 'cinema',
@@ -493,7 +492,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isVerified: true,
     publishedAt: '2026-10-10T10:00',
     updatedAt: '2026-10-10T10:00',
-    eventDetails: { venue: 'Кинотеатры Бишкека', timeRange: 'с 15 октября' },
+    eventDetails: { venue: 'Кинотеатры Бишкека' },
     isDemo: false,
   },
 ];

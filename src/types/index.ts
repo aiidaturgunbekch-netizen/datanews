@@ -151,6 +151,8 @@ export interface PublicUser {
   plan: PlanId;
   paymentStatus: PaymentStatus;
   paymentRef?: string;
+  /** До какого момента действует оплаченный тариф (ISO) */
+  paidUntil?: string;
   createdAt: string;
 }
 

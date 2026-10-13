@@ -8,6 +8,8 @@
  * его включает vite.config.ts через DATANEWS_MEMORY_KV=1.
  */
 
+import { env } from './env';
+
 type Cmd = (string | number)[];
 
 export class StorageNotConfiguredError extends Error {
@@ -16,11 +18,8 @@ export class StorageNotConfiguredError extends Error {
   }
 }
 
-const env = (name: string): string | undefined =>
-  (globalThis as any).process?.env?.[name] || undefined;
-
-const restUrl = () => env('KV_REST_API_URL') || env('UPSTASH_REDIS_REST_URL');
-const restToken = () => env('KV_REST_API_TOKEN') || env('UPSTASH_REDIS_REST_TOKEN');
+const restUrl = () => env('KV_REST_API_URL');
+const restToken = () => env('KV_REST_API_TOKEN');
 
 // ---------- in-memory implementation (dev only) ----------
 const mem: { strings: Map<string, string>; hashes: Map<string, Map<string, string>>; sets: Map<string, Set<string>> } =

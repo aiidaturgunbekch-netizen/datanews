@@ -3,6 +3,7 @@ import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { StorageService } from '../services/storage';
 import { EventImage } from './EventImage';
+import { MONTHS_SHORT, WEEKDAYS_SHORT } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 
 interface EventsFeedProps {
@@ -30,25 +31,8 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
     setFavorites(updated);
   };
 
-  const getMonthLabel = (d: Date) => {
-    const monthsRu = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК'];
-    const monthsKg = ['ҮЧТ', 'БИР', 'ЖАЛ', 'ЧЫН', 'БУГУ', 'КУЛ', 'ТЕК', 'БАШ', 'АЯК', 'ТОГ', 'ЖЕТ', 'БЕШ'];
-    const monthsEn = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const m = d.getMonth();
-    if (currentLanguage === 'kg') return monthsKg[m] || 'ТОГ';
-    if (currentLanguage === 'en') return monthsEn[m] || 'OCT';
-    return monthsRu[m] || 'ОКТ';
-  };
-
-  const getWeekdayLabel = (d: Date) => {
-    const daysRu = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
-    const daysKg = ['ЖЕ', 'ДҮ', 'ШЕ', 'ША', 'БЕ', 'ЖУ', 'ИШ'];
-    const daysEn = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-    const day = d.getDay();
-    if (currentLanguage === 'kg') return daysKg[day];
-    if (currentLanguage === 'en') return daysEn[day];
-    return daysRu[day];
-  };
+  const getMonthLabel = (d: Date) => MONTHS_SHORT[currentLanguage][d.getMonth()];
+  const getWeekdayLabel = (d: Date) => WEEKDAYS_SHORT[currentLanguage][d.getDay()];
 
   // Filter events according to status tab so past events are never mistaken for upcoming events
   const filteredEvents = useMemo(() => {
@@ -136,7 +120,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
           }`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-[#20C7B5]" />
-          <span>{currentLanguage === 'kg' ? 'Алдыдагы (Предстоящие)' : currentLanguage === 'en' ? 'Upcoming & Active' : 'Предстоящие и активные'}</span>
+          <span>{currentLanguage === 'kg' ? 'Алдыдагылар жана учурдагылар' : currentLanguage === 'en' ? 'Upcoming & Active' : 'Предстоящие и активные'}</span>
         </button>
         <button
           onClick={() => setStatusTab('completed')}
@@ -147,7 +131,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
           }`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-          <span>{currentLanguage === 'kg' ? 'Аяктаган / Архив' : currentLanguage === 'en' ? 'Completed / Past' : 'Завершенные / Архив'}</span>
+          <span>{currentLanguage === 'kg' ? 'Аяктагандар / Архив' : currentLanguage === 'en' ? 'Completed / Past' : 'Завершённые / Архив'}</span>
         </button>
       </div>
 
@@ -350,7 +334,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                 <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
                   <span className="font-bold text-[#12327A]">{price || ''}</span>
                   <span className="font-semibold text-gray-500 group-hover:text-[#12327A] inline-flex items-center gap-1">
-                    <span>Подробнее</span>
+                    <span>{t('nav.more')}</span>
                     <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                   </span>
                 </div>

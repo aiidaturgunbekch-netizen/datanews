@@ -134,26 +134,21 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onO
             </h4>
             <ul className="space-y-2.5 text-xs sm:text-sm text-gray-600 mb-4">
               <li>
-                <a
-                  href="https://t.me/datanewskg"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-[#12327A] transition-colors flex items-center gap-1.5"
-                >
+                {/* Ссылки на каналы появятся после их создания — ведущие в никуда адреса убраны */}
+                <span className="flex items-center gap-1.5 text-gray-500">
                   <span className="material-symbols-outlined text-[16px] text-[#0088cc]">send</span>
-                  <span>Telegram бот уведомлений</span>
-                </a>
+                  <span>
+                    {currentLanguage === 'kg' ? 'Telegram-бот (жакында)' : currentLanguage === 'en' ? 'Telegram bot (soon)' : 'Telegram-бот (скоро)'}
+                  </span>
+                </span>
               </li>
               <li>
-                <a
-                  href="https://wa.me/996"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-[#12327A] transition-colors flex items-center gap-1.5"
-                >
+                <span className="flex items-center gap-1.5 text-gray-500">
                   <span className="material-symbols-outlined text-[16px] text-[#25d366]">chat</span>
-                  <span>WhatsApp оперативный канал</span>
-                </a>
+                  <span>
+                    {currentLanguage === 'kg' ? 'WhatsApp-канал (жакында)' : currentLanguage === 'en' ? 'WhatsApp channel (soon)' : 'WhatsApp-канал (скоро)'}
+                  </span>
+                </span>
               </li>
               <li className="text-gray-400 text-xs">
                 {currentLanguage === 'kg' ? 'Жарыялоо эрежелери' : currentLanguage === 'en' ? 'Publishing Rules' : 'Правила публикации'}

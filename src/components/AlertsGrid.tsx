@@ -2,6 +2,7 @@ import React from 'react';
 import { Announcement, Language, CityId } from '../types';
 import { getTranslation } from '../locales/translations';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+import { formatWhen } from '../utils/dates';
 
 interface AlertsGridProps {
   currentLanguage: Language;
@@ -219,20 +220,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                             : 'event_busy'}
                         </span>
                         <span className="truncate">
-                          {new Date(ann.startDate).toLocaleDateString(
-                            currentLanguage === 'en' ? 'en-US' : 'ru-RU',
-                            { day: 'numeric', month: 'short', year: 'numeric' }
-                          )}
-                          ,{' '}
-                          {new Date(ann.startDate).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}{' '}
-                          —{' '}
-                          {new Date(ann.endDate).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {formatWhen(ann.startDate, ann.endDate, currentLanguage)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-500">

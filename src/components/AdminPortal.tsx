@@ -530,9 +530,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                               <div className="text-xs mt-1 flex flex-wrap gap-2 items-center">
                                 <span className={`px-2 py-0.5 rounded-full font-bold ${pb.cls}`}>{pb.label}</span>
                                 <span>
-                                  {PLANS[u.plan].name}, {PLANS[u.plan].priceSom.toLocaleString('ru-RU')} сом
+                                  {PLANS[u.plan].name.ru}, {PLANS[u.plan].priceSom.toLocaleString('ru-RU')} сом
                                 </span>
                                 {u.paymentRef && <span className="text-gray-600">Платёж: <b>{u.paymentRef}</b></span>}
+                                {u.paidUntil && (
+                                  <span className={new Date(u.paidUntil).getTime() > Date.now() ? 'text-gray-600' : 'text-red-700 font-bold'}>
+                                    {new Date(u.paidUntil).getTime() > Date.now() ? 'Оплачено до' : 'Истекло'} {fmt(u.paidUntil)}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -541,9 +546,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                   Подтвердить оплату
                                 </button>
                               ) : (
-                                <button onClick={() => setPay('unpaid', `Доступ ${u.name} приостановлен`)} className="px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold">
-                                  Приостановить
-                                </button>
+                                <>
+                                  <button onClick={() => setPay('paid', `Доступ ${u.name} продлён на ${PLANS[u.plan].periodDays} дней`)} className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold">
+                                    Продлить на {PLANS[u.plan].periodDays} дней
+                                  </button>
+                                  <button onClick={() => setPay('unpaid', `Доступ ${u.name} приостановлен`)} className="px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold">
+                                    Приостановить
+                                  </button>
+                                </>
                               )}
                               {u.paymentStatus === 'pending' && (
                                 <button onClick={() => setPay('rejected', 'Оплата отклонена')} className="px-3 py-2 rounded-xl bg-red-50 text-red-700 text-xs font-bold">

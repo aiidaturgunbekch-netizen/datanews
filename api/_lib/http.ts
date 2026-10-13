@@ -2,6 +2,7 @@
  * Общие функции для серверных функций Vercel: ответы, токены входа, пароли.
  */
 import { isConfigured, StorageNotConfiguredError } from './kv';
+import { env } from './env';
 
 export type Role = 'admin' | 'user';
 
@@ -11,8 +12,6 @@ export interface Session {
   exp: number;
 }
 
-const env = (name: string): string | undefined =>
-  (globalThis as any).process?.env?.[name] || undefined;
 
 export const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {

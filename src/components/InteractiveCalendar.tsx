@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { formatDate, formatMonthYear, formatTime } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 
 interface InteractiveCalendarProps {
@@ -25,15 +26,6 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   const [currentYear, setCurrentYear] = useState(() => now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => now.getMonth()); // 9 = October
 
-  const monthNamesRu = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-  const monthNamesKg = ['Үчтүн айы', 'Бирдин айы', 'Жалган куран', 'Чын куран', 'Бугу (Май)', 'Кулжа (Июнь)', 'Теке', 'Баш оона', 'Аяк оона', 'Тогуздун айы (Октябрь)', 'Жетинин айы', 'Бештин айы'];
-  const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-  const getMonthName = (m: number) => {
-    if (currentLanguage === 'kg') return monthNamesKg[m] || 'Тогуздун айы (Октябрь)';
-    if (currentLanguage === 'en') return monthNamesEn[m] || 'October';
-    return monthNamesRu[m] || 'Октябрь';
-  };
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -106,7 +98,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       <div className="flex items-center justify-between mb-4">
         <div>
           <span className="text-base sm:text-lg font-bold text-[#0f1b33] block">
-            {getMonthName(currentMonth)} {currentYear}
+            {formatMonthYear(currentYear, currentMonth, currentLanguage)}
           </span>
           <span className="text-xs text-gray-400 font-medium">
             {t('views.calendarHelp')}
@@ -234,10 +226,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
         <div className="flex items-center justify-between mb-2.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#12327A]">
             {t('views.selectedDate')}:{' '}
-            {selectedDateObj.toLocaleDateString(
-              currentLanguage === 'en' ? 'en-US' : 'ru-RU',
-              { day: 'numeric', month: 'long', year: 'numeric' }
-            )}
+            {formatDate(selectedDateObj, currentLanguage)}
           </span>
           <span className="text-[11px] font-semibold text-gray-400">
             {selectedItems.length} {t('views.recordsCount')}
@@ -291,10 +280,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                     </div>
                     <div className="flex items-center justify-between text-gray-400 text-[11px]">
                       <span>
-                        {new Date(item.startDate).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formatTime(item.startDate)}
                         {item.district ? ` • ${item.district}` : ''}
                       </span>
                       <span className="text-[10px] text-gray-400 font-medium">

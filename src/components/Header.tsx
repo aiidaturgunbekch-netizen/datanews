@@ -99,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs sm:text-sm font-semibold transition-colors border border-white/10"
-              title="Выбрать город / Шаарды тандоо"
+              title={currentLanguage === 'kg' ? 'Шаарды тандоо' : currentLanguage === 'en' ? 'Choose city' : 'Выбрать город'}
             >
               <span className="material-symbols-outlined text-[16px] text-[#20C7B5]">location_on</span>
               <span className="truncate max-w-[90px] sm:max-w-[110px]">{cityLabels[selectedCity]}</span>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { PLANS, planPeriod } from '../config/site';
 
 interface OrganizationsPageProps {
   currentLanguage: Language;
@@ -15,49 +16,50 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
 }) => {
   const { t } = getTranslation(currentLanguage);
 
+  const lang = currentLanguage;
+  const tx = {
+    badge: { ru: 'Гражданская платформа Кыргызстана', kg: 'Кыргызстандын жарандык платформасы', en: 'Civic platform of Kyrgyzstan' },
+    intro: {
+      ru: 'Платформа DataNews создана для того, чтобы жители Бишкека, Оша и всех регионов Кыргызстана заранее узнавали о перекрытиях дорог, отключениях воды и света и интересных событиях — без слухов и дезинформации.',
+      kg: 'DataNews платформасы Бишкектин, Оштун жана Кыргызстандын бардык аймактарынын тургундары жолдордун жабылышы, суу жана жарык өчүрүү, кызыктуу иш-чаралар тууралуу алдын ала, ушак-айыңсыз жана жалган маалыматсыз билиши үчүн түзүлгөн.',
+      en: 'DataNews helps people in Bishkek, Osh and every region of Kyrgyzstan learn about road closures, water and power outages and events in advance — without rumours or misinformation.',
+    },
+    plansTitle: { ru: 'Тарифы', kg: 'Тарифтер', en: 'Plans' },
+    plansDesc: {
+      ru: 'Регистрация для размещения событий платная. Каждая публикация проходит проверку модератором перед выходом на сайт.',
+      kg: 'Иш-чараларды жайгаштыруу үчүн каттоо акылуу. Ар бир жарыя сайтка чыкканга чейин модератордун текшерүүсүнөн өтөт.',
+      en: 'Registration to post events is paid. Every post is reviewed by a moderator before it appears on the site.',
+    },
+    recommended: { ru: 'Рекомендуем', kg: 'Сунуштайбыз', en: 'Recommended' },
+    som: { ru: 'сом', kg: 'сом', en: 'KGS' },
+    choose: { ru: 'Зарегистрироваться', kg: 'Катталуу', en: 'Sign up' },
+    govName: { ru: 'Госорганы и муниципалитеты', kg: 'Мамлекеттик органдар жана муниципалитеттер', en: 'Government & municipalities' },
+    govBadge: { ru: 'Официальные службы', kg: 'Расмий кызматтар', en: 'Official services' },
+    govPrice: { ru: 'По согласованию', kg: 'Макулдашуу боюнча', en: 'By agreement' },
+    govCta: { ru: 'Оставить заявку', kg: 'Өтүнмө калтыруу', en: 'Apply' },
+  };
+  const govFeatures = [
+    { ru: 'Публикация аварийных и плановых отключений', kg: 'Авариялык жана пландуу өчүрүүлөрдү жарыялоо', en: 'Emergency and planned outage notices' },
+    { ru: 'Отметка «Проверено» после подтверждения ведомства', kg: 'Мекеме тастыктагандан кийин «Текшерилген» белгиси', en: '“Verified” badge once the agency is confirmed' },
+    { ru: 'Схемы перекрытий и ссылки на документы', kg: 'Жол жабуу схемалары жана документтерге шилтемелер', en: 'Closure maps and document links' },
+  ];
+
   const tiers = [
+    ...(['basic', 'business'] as const).map((id) => ({
+      name: PLANS[id].name[lang],
+      badge: planPeriod(PLANS[id].periodDays, lang),
+      price: `${PLANS[id].priceSom.toLocaleString('ru-RU')} ${tx.som[lang]}`,
+      features: PLANS[id].features.map((f) => f[lang]),
+      isPopular: id === 'business',
+      ctaText: tx.choose[lang],
+    })),
     {
-      name: 'Базовый (Бесплатно)',
-      badge: 'Для госструктур и НКО',
-      price: '0 сом / мес',
-      features: [
-        'Публикация аварийных и плановых отключений',
-        'Официальная верификация ведомства',
-        'Автоматический геотаргетинг по району',
-        'Прикрепление схем перекрытий и документов',
-        'Публикация до 10 объявлений в месяц',
-      ],
+      name: tx.govName[lang],
+      badge: tx.govBadge[lang],
+      price: tx.govPrice[lang],
+      features: govFeatures.map((f) => f[lang]),
       isPopular: false,
-      ctaText: 'Подключить ведомство',
-    },
-    {
-      name: 'Муниципальный PRO',
-      badge: 'Скоро • Фаза 2',
-      price: 'Партнерская программа',
-      features: [
-        'Безлимитные публикации с приоритетным ранжированием',
-        'Интеграция с Telegram-ботом и WhatsApp рассылками за 60 секунд',
-        'Срочные push-уведомления жителям конкретных улиц',
-        'Прямой экспорт в Google Карты и Яндекс Навигатор',
-        'Персональный менеджер верификации 24/7',
-        'Расширенная статистика прочтений и скачиваний схем',
-      ],
-      isPopular: true,
-      ctaText: 'Оставить заявку на участие',
-    },
-    {
-      name: 'Организаторам мероприятий',
-      badge: 'Культура & Афиша',
-      price: 'По запросу',
-      features: [
-        'Размещение концертов, форумов и фестивалей',
-        'Кнопка прямой покупки билетов (Ticket.kg / Kaspi)',
-        'Размещение в календаре и виджетах даты',
-        'Фото- и видео-галереи событий',
-        'Анонсы в еженедельном дайджесте столицы',
-      ],
-      isPopular: false,
-      ctaText: 'Связаться с редакцией',
+      ctaText: tx.govCta[lang],
     },
   ];
 
@@ -77,13 +79,13 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
         <div className="max-w-3xl relative z-10">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-[#68f9e5] text-xs font-bold uppercase tracking-wider mb-3">
             <span className="material-symbols-outlined text-[16px]">verified</span>
-            <span>Civic Tech платформа Кыргызстана</span>
+            <span>{tx.badge[lang]}</span>
           </span>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4 text-white">
             {t('forOrg.title')}
           </h1>
           <p className="text-sm sm:text-base text-[#dbe1ff] leading-relaxed mb-6">
-            Платформа DataNews создана для того, чтобы жители Бишкека, Оша и всех регионов Кыргызстана узнавали о перекрытиях дорог, отключениях воды, света и ярких событиях заранее, без слухов и дезинформации.
+            {tx.intro[lang]}
           </p>
           <button
             onClick={onOpenPublish}
@@ -98,9 +100,9 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
       {/* Tiers Grid */}
       <div className="mb-12">
         <div className="text-center max-w-xl mx-auto mb-8">
-          <h2 className="text-2xl font-bold text-[#0f1b33] mb-2">Тарифы и партнерские программы</h2>
+          <h2 className="text-2xl font-bold text-[#0f1b33] mb-2">{tx.plansTitle[lang]}</h2>
           <p className="text-xs sm:text-sm text-gray-500">
-            Муниципальные службы и госорганы публикуют важные предупреждения бесплатно. Платные подписки будут добавлены на следующем этапе развития.
+            {tx.plansDesc[lang]}
           </p>
         </div>
 
@@ -121,7 +123,7 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
                   </span>
                   {tier.isPopular && (
                     <span className="px-2.5 py-0.5 rounded-full bg-[#12327A] text-white text-[10px] font-bold uppercase tracking-wider">
-                      Рекомендуем
+                      {tx.recommended[lang]}
                     </span>
                   )}
                 </div>

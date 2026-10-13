@@ -59,12 +59,13 @@ export default handler(async (req) => {
 
     const user = await hgetJson<StoredUser>(USERS_KEY, session.sub);
     if (!user) throw new HttpError('unauthorized', 401);
-    if (user.paymentStatus !== 'paid') {
+    const paidActive = user.paymentStatus === 'paid' && (!user.paidUntil || new Date(user.paidUntil).getTime() > Date.now());
+    if (!paidActive) {
       throw new HttpError('payment_required', 402, 'Публикация доступна после подтверждения оплаты регистрации');
     }
     const limit = PLANS[user.plan].limit;
     if (limit !== null) {
-      const since = Date.now() - 30 * 86400_000;
+      const since = Date.now() - PLANS[user.plan].periodDays * 86400_000;
       const mine = (await hvalsJson<Announcement>(ANN_KEY)).filter(
         (a) => a.submittedBy?.email === user.email && new Date(a.publishedAt).getTime() > since
       );

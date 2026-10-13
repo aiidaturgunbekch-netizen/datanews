@@ -1,6 +1,7 @@
 import React from 'react';
 import { Language, CityId } from '../types';
 import { getTranslation } from '../locales/translations';
+import { formatDayMonth, formatDayRange, nearestWeekend } from '../utils/dates';
 
 interface HeroFilterProps {
   currentLanguage: Language;
@@ -42,22 +43,29 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
     { id: 'batken', label: t('cities.batken') },
   ];
 
+  // Подписи с реальными датами: «Сегодня, 13 октября» / «Бүгүн, 13-октябрь»
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const [sat, sun] = nearestWeekend(now);
   const dateOptions = [
     { id: 'all', label: t('search.allDates') },
-    { id: 'today', label: t('search.today') },
-    { id: 'tomorrow', label: t('search.tomorrow') },
-    { id: 'weekend', label: t('search.weekend') },
+    { id: 'today', label: `${t('search.today')}, ${formatDayMonth(now, currentLanguage)}` },
+    { id: 'tomorrow', label: `${t('search.tomorrow')}, ${formatDayMonth(tomorrow, currentLanguage)}` },
+    { id: 'weekend', label: `${t('search.weekend')}, ${formatDayRange(sat, sun, currentLanguage)}` },
     { id: 'week', label: t('search.thisWeek') },
   ];
 
-  const popularTags = [
-    { key: '#ОтключениеСвета', label: currentLanguage === 'kg' ? '#ЖарыкӨчүрүү' : '#ОтключениеСвета' },
-    { key: '#РемонтДорог', label: currentLanguage === 'kg' ? '#ЖолОңдоо' : '#РемонтДорог' },
-    { key: '#Концерты', label: currentLanguage === 'kg' ? '#Концерттер' : '#Концерты' },
-    { key: '#Ярмарки', label: currentLanguage === 'kg' ? '#Жарманкелер' : '#Ярмарки' },
-    { key: '#МэрияБишкек', label: '#МэрияБишкек' },
-    { key: '#ОшМэриясы', label: '#ОшМэриясы' },
-  ];
+  const tagLabels: Record<string, { ru: string; kg: string; en: string }> = {
+    '#ОтключениеСвета': { ru: '#ОтключениеСвета', kg: '#ЖарыкӨчүрүү', en: '#PowerOutage' },
+    '#РемонтДорог': { ru: '#РемонтДорог', kg: '#ЖолОңдоо', en: '#RoadWorks' },
+    '#Концерты': { ru: '#Концерты', kg: '#Концерттер', en: '#Concerts' },
+    '#Ярмарки': { ru: '#Ярмарки', kg: '#Жарманкелер', en: '#Fairs' },
+    '#Кино': { ru: '#Кино', kg: '#Кино', en: '#Cinema' },
+    '#МэрияБишкек': { ru: '#МэрияБишкека', kg: '#БишкекМэриясы', en: '#BishkekCityHall' },
+    '#ОшМэриясы': { ru: '#МэрияОша', kg: '#ОшМэриясы', en: '#OshCityHall' },
+  };
+  const popularTags = Object.entries(tagLabels).map(([key, l]) => ({ key, label: l[currentLanguage] }));
 
   return (
     <section className="w-full relative overflow-hidden bg-[#eef2f9] py-8 lg:py-12 border-b border-gray-200">
@@ -89,7 +97,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
               <p className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-[#12327A]">
                 {currentLanguage === 'kg' ? (
                   <>
-                    <span>Датаны бил</span> <span className="text-[#20C7B5]">—</span> <span>күнүңдү планда</span>
+                    <span>Датаны бил</span> <span className="text-[#20C7B5]">—</span> <span>күнүңдү пландаштыр</span>
                   </>
                 ) : currentLanguage === 'en' ? (
                   <>

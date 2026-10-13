@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Announcement, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { formatDayMonth } from '../utils/dates';
 
 interface CitiesPageProps {
   currentLanguage: Language;
@@ -20,64 +21,127 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
   const { t } = getTranslation(currentLanguage);
   const [activeCityTab, setActiveCityTab] = useState<CityId>('bishkek');
 
-  const regionsData: { id: CityId; name: string; regionTitle: string; population: string; desc: string; mayorInfo: string }[] = [
+  type Tr = { ru: string; kg: string; en: string };
+  const regions: { id: CityId; regionTitle: Tr; population: Tr; desc: Tr; mayorInfo: Tr }[] = [
     {
       id: 'bishkek',
-      name: t('cities.bishkek'),
-      regionTitle: 'Столица Кыргызской Республики • Чуйская долина',
-      population: '1 150 000+ жителей',
-      desc: 'Главный административный, экономический и научно-культурный центр страны. Включает Первомайский, Ленинский, Свердловский и Октябрьский административные районы.',
-      mayorInfo: 'Мэрия города Бишкек • Колл-центр 1840 / 1850 (круглосуточно) • WhatsApp 0554 182 185',
+      regionTitle: { ru: 'Столица Кыргызской Республики • Чуйская долина', kg: 'Кыргыз Республикасынын борбору • Чүй өрөөнү', en: 'Capital of the Kyrgyz Republic • Chui Valley' },
+      population: { ru: '1 150 000+ жителей', kg: '1 150 000+ тургун', en: '1,150,000+ residents' },
+      desc: {
+        ru: 'Главный административный, экономический и научно-культурный центр страны. Включает Первомайский, Ленинский, Свердловский и Октябрьский административные районы.',
+        kg: 'Өлкөнүн негизги административдик, экономикалык, илимий жана маданий борбору. Биринчи Май, Ленин, Свердлов жана Октябрь райондорунан турат.',
+        en: 'The country’s main administrative, economic, scientific and cultural centre, made up of the Pervomaisky, Leninsky, Sverdlovsky and Oktyabrsky districts.',
+      },
+      mayorInfo: {
+        ru: 'Мэрия города Бишкек • Колл-центр 1840 / 1850 (круглосуточно) • WhatsApp 0554 182 185',
+        kg: 'Бишкек шаарынын мэриясы • Колл-борбор 1840 / 1850 (күнү-түнү) • WhatsApp 0554 182 185',
+        en: 'Bishkek City Hall • Call centre 1840 / 1850 (24/7) • WhatsApp 0554 182 185',
+      },
     },
     {
       id: 'osh',
-      name: t('cities.osh'),
-      regionTitle: 'Южная столица • Ошская область',
-      population: '360 000+ жителей',
-      desc: 'Древнейший город на Великом шелковом пути у подножия священной горы Сулайман-Тоо. Крупнейший промышленный и транспортный узел юга республики.',
-      mayorInfo: 'Мэрия города Ош • ул. Ленина, 221 • oshcity.gov.kg',
+      regionTitle: { ru: 'Южная столица • Ошская область', kg: 'Түштүк борбор • Ош облусу', en: 'Southern capital • Osh Region' },
+      population: { ru: '360 000+ жителей', kg: '360 000+ тургун', en: '360,000+ residents' },
+      desc: {
+        ru: 'Древнейший город на Великом шелковом пути у подножия священной горы Сулайман-Тоо. Крупнейший промышленный и транспортный узел юга республики.',
+        kg: 'Улуу Жибек жолундагы ыйык Сулайман-Тоонун этегинде жайгашкан байыркы шаар. Республиканын түштүгүндөгү эң ири өнөр жай жана транспорт түйүнү.',
+        en: 'An ancient Silk Road city at the foot of the sacred Sulaiman-Too mountain and the largest industrial and transport hub in the south.',
+      },
+      mayorInfo: {
+        ru: 'Мэрия города Ош • ул. Ленина, 221 • oshcity.gov.kg',
+        kg: 'Ош шаарынын мэриясы • Ленин көч., 221 • oshcity.gov.kg',
+        en: 'Osh City Hall • 221 Lenin St • oshcity.gov.kg',
+      },
     },
     {
       id: 'jalalabad',
-      name: t('cities.jalalabad'),
-      regionTitle: 'Жалал-Абадская область • Курортный кластер',
-      population: '120 000+ жителей',
-      desc: 'Известен своими бальнеологическими санаториями, минеральными источниками, орехово-плодовыми лесами Арсланбоба и промышленными предприятиями.',
-      mayorInfo: 'Мэрия города Жалал-Абад',
+      regionTitle: { ru: 'Жалал-Абадская область • Курортный кластер', kg: 'Жалал-Абад облусу • Курорттук аймак', en: 'Jalal-Abad Region • Resort cluster' },
+      population: { ru: '120 000+ жителей', kg: '120 000+ тургун', en: '120,000+ residents' },
+      desc: {
+        ru: 'Известен своими бальнеологическими санаториями, минеральными источниками, орехово-плодовыми лесами Арсланбоба и промышленными предприятиями.',
+        kg: 'Бальнеологиялык санаторийлери, минералдык булактары, Арстанбаптын жаңгак-мөмө токойлору жана өнөр жай ишканалары менен белгилүү.',
+        en: 'Known for its spa sanatoriums, mineral springs, the walnut forests of Arslanbob and its industry.',
+      },
+      mayorInfo: { ru: 'Мэрия города Жалал-Абад', kg: 'Жалал-Абад шаарынын мэриясы', en: 'Jalal-Abad City Hall' },
     },
     {
       id: 'karakol',
-      name: t('cities.karakol'),
-      regionTitle: 'Иссык-Кульская область • Восточное Прииссыккулье',
-      population: '85 000+ жителей',
-      desc: 'Туристическая столица восточного Тянь-Шаня, отправная точка для треккинговых маршрутов, горнолыжной базы Каракол и ущелий Ала-Куль и Алтын-Арашан.',
-      mayorInfo: 'Мэрия города Каракол • Визит-центр Ысык-Көл',
+      regionTitle: { ru: 'Иссык-Кульская область • Восточное Прииссыккулье', kg: 'Ысык-Көл облусу • Ысык-Көлдүн чыгыш жээги', en: 'Issyk-Kul Region • Eastern Issyk-Kul' },
+      population: { ru: '85 000+ жителей', kg: '85 000+ тургун', en: '85,000+ residents' },
+      desc: {
+        ru: 'Туристическая столица восточного Тянь-Шаня, отправная точка для треккинговых маршрутов, горнолыжной базы Каракол и ущелий Ала-Куль и Алтын-Арашан.',
+        kg: 'Чыгыш Теңир-Тоонун туристтик борбору: треккинг маршруттарынын, Каракол тоо лыжа базасынын, Ала-Көл жана Алтын-Арашан капчыгайларынын башталышы.',
+        en: 'The tourist capital of the eastern Tian Shan and the gateway to trekking routes, the Karakol ski base and the Ala-Kul and Altyn-Arashan gorges.',
+      },
+      mayorInfo: { ru: 'Мэрия города Каракол', kg: 'Каракол шаарынын мэриясы', en: 'Karakol City Hall' },
     },
     {
       id: 'talas',
-      name: t('cities.talas'),
-      regionTitle: 'Таласская область • Северо-западная долина',
-      population: '40 000+ жителей',
-      desc: 'Родина легендарного эпоса «Манас» и комплекса «Манас Ордо». Центр фасолевого растениеводства и садоводства.',
-      mayorInfo: 'Мэрия города Талас',
+      regionTitle: { ru: 'Таласская область • Северо-западная долина', kg: 'Талас облусу • Түндүк-батыш өрөөнү', en: 'Talas Region • North-western valley' },
+      population: { ru: '40 000+ жителей', kg: '40 000+ тургун', en: '40,000+ residents' },
+      desc: {
+        ru: 'Родина легендарного эпоса «Манас» и комплекса «Манас Ордо». Центр фасолевого растениеводства и садоводства.',
+        kg: '«Манас» эпосунун мекени жана «Манас Ордо» комплекси жайгашкан жер. Төө буурчак өстүрүүнүн жана багбанчылыктын борбору.',
+        en: 'Homeland of the Manas epic and the Manas Ordo complex, and a centre of bean growing and horticulture.',
+      },
+      mayorInfo: { ru: 'Мэрия города Талас', kg: 'Талас шаарынын мэриясы', en: 'Talas City Hall' },
     },
     {
       id: 'naryn',
-      name: t('cities.naryn'),
-      regionTitle: 'Нарынская область • Внутренний Тянь-Шань',
-      population: '42 000+ жителей',
-      desc: 'Высокогорный город на берегах бурной реки Нарын. Важный транзитный узел трассы Бишкек — Торугарт в направлении Китая.',
-      mayorInfo: 'Мэрия города Нарын',
+      regionTitle: { ru: 'Нарынская область • Внутренний Тянь-Шань', kg: 'Нарын облусу • Ички Теңир-Тоо', en: 'Naryn Region • Inner Tian Shan' },
+      population: { ru: '42 000+ жителей', kg: '42 000+ тургун', en: '42,000+ residents' },
+      desc: {
+        ru: 'Высокогорный город на берегах бурной реки Нарын. Важный транзитный узел трассы Бишкек — Торугарт в направлении Китая.',
+        kg: 'Шардуу Нарын дарыясынын жээгиндеги бийик тоолуу шаар. Кытайды көздөй кеткен Бишкек — Торугарт трассасындагы маанилүү транзиттик түйүн.',
+        en: 'A high-mountain town on the fast-flowing Naryn River and a key transit point on the Bishkek – Torugart road to China.',
+      },
+      mayorInfo: { ru: 'Мэрия города Нарын', kg: 'Нарын шаарынын мэриясы', en: 'Naryn City Hall' },
     },
     {
       id: 'batken',
-      name: t('cities.batken'),
-      regionTitle: 'Баткенская область • Юго-западный рубеж',
-      population: '30 000+ жителей',
-      desc: 'Славится цветком Айгүл, плантациями сладкого урюка и уникальными горными хребтами Памиро-Алая.',
-      mayorInfo: 'Полномочное представительство в Баткенской области',
+      regionTitle: { ru: 'Баткенская область • Юго-западный рубеж', kg: 'Баткен облусу • Түштүк-батыш чек ара', en: 'Batken Region • South-western frontier' },
+      population: { ru: '30 000+ жителей', kg: '30 000+ тургун', en: '30,000+ residents' },
+      desc: {
+        ru: 'Славится цветком Айгүл, плантациями сладкого урюка и уникальными горными хребтами Памиро-Алая.',
+        kg: 'Айгүл гүлү, таттуу өрүк бактары жана Памир-Алайдын өзгөчө тоо кыркалары менен даңазалуу.',
+        en: 'Famous for the Aigul flower, sweet apricot orchards and the striking ranges of the Pamir-Alay.',
+      },
+      mayorInfo: {
+        ru: 'Полномочное представительство в Баткенской области',
+        kg: 'Баткен облусундагы ыйгарым укуктуу өкүлчүлүк',
+        en: 'Presidential Plenipotentiary Office in Batken Region',
+      },
     },
   ];
+  const regionsData = regions.map((r) => ({
+    id: r.id,
+    name: t(`cities.${r.id}`),
+    regionTitle: r.regionTitle[currentLanguage],
+    population: r.population[currentLanguage],
+    desc: r.desc[currentLanguage],
+    mayorInfo: r.mayorInfo[currentLanguage],
+  }));
+
+  const ui = {
+    subtitle: {
+      ru: 'Муниципальные ленты открытых данных, коммунальные предупреждения и афиша по регионам Кыргызстана',
+      kg: 'Кыргызстандын аймактары боюнча муниципалдык ачык маалыматтар, коммуналдык эскертүүлөр жана афиша',
+      en: 'Municipal open-data feeds, utility alerts and events across the regions of Kyrgyzstan',
+    },
+    showFeed: { ru: 'Показать ленту', kg: 'Тасманы көрсөтүү', en: 'Show feed' },
+    alerts: { ru: 'Предупреждения и ремонтные работы', kg: 'Эскертүүлөр жана оңдоо иштери', en: 'Alerts & repair works' },
+    noAlerts: {
+      ru: 'В этом городе нет коммунальных аварий или перекрытий дорог.',
+      kg: 'Бул шаарда коммуналдык авариялар же жол жабуулар жок.',
+      en: 'No utility outages or road closures in this city.',
+    },
+    events: { ru: 'Афиша и городские события', kg: 'Афиша жана шаардык иш-чаралар', en: 'Events & city life' },
+    noEvents: {
+      ru: 'На ближайшие дни в городе нет зарегистрированных мероприятий.',
+      kg: 'Жакынкы күндөрү шаарда катталган иш-чаралар жок.',
+      en: 'No events registered in this city for the coming days.',
+    },
+  };
 
   const currentRegion = regionsData.find((r) => r.id === activeCityTab) || regionsData[0];
   const cityItems = announcements.filter((a) => a.city === activeCityTab);
@@ -99,7 +163,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
           {t('sections.citiesTitle')}
         </h1>
         <p className="text-xs sm:text-sm text-gray-500">
-          Муниципальные ленты открытых данных, коммунальные предупреждения и афиша по регионам Кыргызстана
+          {ui.subtitle[currentLanguage]}
         </p>
       </div>
 
@@ -165,7 +229,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
               }}
               className="px-5 py-2.5 rounded-xl bg-[#20C7B5] text-[#002f29] font-bold text-xs sm:text-sm hover:bg-[#1bb3a2] transition-colors shadow-2xs flex-1 sm:flex-none text-center"
             >
-              Показать ленту {currentRegion.name}
+              {ui.showFeed[currentLanguage]}: {currentRegion.name}
             </button>
           </div>
         </div>
@@ -180,14 +244,14 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
               <span className="material-symbols-outlined text-[#dc2626] text-[20px]">
                 warning
               </span>
-              <span>Предупреждения и ремонтные работы</span>
+              <span>{ui.alerts[currentLanguage]}</span>
             </h3>
             <span className="text-xs text-gray-400 font-bold">{alertItems.length}</span>
           </div>
 
           {alertItems.length === 0 ? (
             <div className="bg-white p-6 rounded-2xl border border-gray-200 text-center text-xs text-gray-400">
-              В данном городе нет активных коммунальных аварий или дорожных перекрытий.
+              {ui.noAlerts[currentLanguage]}
             </div>
           ) : (
             <div className="space-y-3">
@@ -202,10 +266,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
                       {t(`categories.${item.category}`)}
                     </span>
                     <span className="text-gray-400">
-                      {new Date(item.startDate).toLocaleDateString([], {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
+                      {formatDayMonth(item.startDate, currentLanguage)}
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-[#0f1b33] group-hover:text-[#12327A] mb-1">
@@ -215,7 +276,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
                     {item.summary[currentLanguage] || item.summary.ru}
                   </p>
                   <span className="text-xs font-semibold text-[#12327A] group-hover:underline flex items-center gap-1">
-                    <span>Подробнее</span>
+                    <span>{t('nav.more')}</span>
                     <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                   </span>
                 </div>
@@ -231,14 +292,14 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
               <span className="material-symbols-outlined text-[#00897b] text-[20px]">
                 event
               </span>
-              <span>Афиша и городские события</span>
+              <span>{ui.events[currentLanguage]}</span>
             </h3>
             <span className="text-xs text-gray-400 font-bold">{eventItems.length}</span>
           </div>
 
           {eventItems.length === 0 ? (
             <div className="bg-white p-6 rounded-2xl border border-gray-200 text-center text-xs text-gray-400">
-              На ближайшие дни в городе нет зарегистрированных культурных мероприятий.
+              {ui.noEvents[currentLanguage]}
             </div>
           ) : (
             <div className="space-y-3">
@@ -253,10 +314,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
                       {t(`categories.${item.category}`)}
                     </span>
                     <span className="text-gray-400">
-                      {new Date(item.startDate).toLocaleDateString([], {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
+                      {formatDayMonth(item.startDate, currentLanguage)}
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-[#0f1b33] group-hover:text-[#12327A] mb-1">
@@ -266,7 +324,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
                     {item.summary[currentLanguage] || item.summary.ru}
                   </p>
                   <span className="text-xs font-semibold text-[#12327A] group-hover:underline flex items-center gap-1">
-                    <span>Подробнее</span>
+                    <span>{t('nav.more')}</span>
                     <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                   </span>
                 </div>

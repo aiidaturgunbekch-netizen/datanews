@@ -1,5 +1,6 @@
 import React from 'react';
 import { Announcement, Language } from '../types';
+import { formatDayMonthTime } from '../utils/dates';
 
 interface UrgentTickerProps {
   currentLanguage: Language;
@@ -8,13 +9,11 @@ interface UrgentTickerProps {
 }
 
 const LABEL = { ru: 'Скоро', kg: 'Жакында', en: 'Coming up' };
-const CTA = { ru: 'Подробнее', kg: 'Кененирээк', en: 'Details' };
+const CTA = { ru: 'Подробнее', kg: 'Толугураак', en: 'Details' };
 
 export const UrgentTicker: React.FC<UrgentTickerProps> = ({ currentLanguage, notice, onOpenNotice }) => {
   if (!notice) return null;
-  const d = new Date(notice.startDate);
-  const loc = currentLanguage === 'en' ? 'en-GB' : 'ru-RU';
-  const when = `${d.toLocaleDateString(loc, { day: 'numeric', month: 'long' })}, ${d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' })}`;
+  const when = formatDayMonthTime(notice.startDate, currentLanguage);
 
   return (
     <button

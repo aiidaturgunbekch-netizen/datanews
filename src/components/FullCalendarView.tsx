@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { formatDateLong, formatMonthYear, formatTime } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 
 interface FullCalendarViewProps {
@@ -31,12 +32,6 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
     if (selectedCity !== 'all' && a.city !== selectedCity) return false;
     return true;
   });
-
-  const monthNames = currentLanguage === 'kg'
-    ? ['Үчтүн айы', 'Бирдин айы', 'Жалган куран', 'Чын куран', 'Бугу (Май)', 'Кулжа (Июнь)', 'Теке', 'Баш оона', 'Аяк оона', 'Тогуздун айы (Октябрь)', 'Жетинин айы', 'Бештин айы']
-    : currentLanguage === 'en'
-    ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    : ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
   const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
   const firstDay = new Date(selectedYear, selectedMonth, 1).getDay();
@@ -88,7 +83,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
             <span>{t('nav.home')}</span>
           </button>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f1b33]">
-            {t('nav.calendar')} — {monthNames[selectedMonth]} {selectedYear}
+            {t('nav.calendar')} — {formatMonthYear(selectedYear, selectedMonth, currentLanguage)}
           </h1>
           <p className="text-xs sm:text-sm text-gray-500">
             {t('appSlogan')}
@@ -111,7 +106,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
             <span className="material-symbols-outlined text-[20px]">chevron_left</span>
           </button>
           <span className="font-bold text-sm px-3 text-[#0f1b33]">
-            {monthNames[selectedMonth]} {selectedYear}
+            {formatMonthYear(selectedYear, selectedMonth, currentLanguage)}
           </span>
           <button
             onClick={() => {
@@ -275,10 +270,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                 {t('views.selectedDate')}
               </span>
               <h3 className="font-extrabold text-base text-[#0f1b33]">
-                {selectedDateObj.toLocaleDateString(
-                  currentLanguage === 'en' ? 'en-US' : 'ru-RU',
-                  { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }
-                )}
+                {formatDateLong(selectedDateObj, currentLanguage)}
               </h3>
             </div>
             <span className="px-2.5 py-1 rounded-full bg-blue-50 text-[#12327A] font-bold text-xs">
@@ -289,7 +281,13 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
           {selectedDayItems.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
               <span className="material-symbols-outlined text-3xl mb-1">calendar_today</span>
-              <p className="text-xs">На эту дату записей не найдено</p>
+              <p className="text-xs">
+                {currentLanguage === 'kg'
+                  ? 'Бул күнгө жазуулар табылган жок'
+                  : currentLanguage === 'en'
+                  ? 'No records for this date'
+                  : 'На эту дату записей не найдено'}
+              </p>
             </div>
           ) : (
             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
@@ -315,10 +313,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                         </span>
                       </div>
                       <span className="text-xs text-gray-400 font-semibold">
-                        {new Date(item.startDate).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formatTime(item.startDate)}
                       </span>
                     </div>
                     <h4 className="text-xs font-bold text-[#0f1b33] group-hover:text-[#12327A] transition-colors line-clamp-2 mb-1">

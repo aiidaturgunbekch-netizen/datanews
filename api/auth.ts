@@ -99,7 +99,8 @@ export default handler(async (req) => {
     const s = await requireUser(req);
     const u = await hgetJson<StoredUser>(USERS_KEY, s.sub);
     if (!u) throw new HttpError('not_found', 404);
-    if (u.paymentStatus === 'paid') return json({ user: toPublic(u) });
+    const stillPaid = u.paymentStatus === 'paid' && (!u.paidUntil || new Date(u.paidUntil).getTime() > Date.now());
+    if (stillPaid) return json({ user: toPublic(u) });
     const paymentRef = clean(body.paymentRef, 120);
     if (!paymentRef) throw new HttpError('bad_payment_ref', 400, 'Укажите номер/код платежа');
     const plan: PlanId = body.plan === 'business' ? 'business' : body.plan === 'basic' ? 'basic' : u.plan;

@@ -9,6 +9,8 @@ import { dayKey, K, STATS_TTL } from './_lib/stats';
 
 export const config = { runtime: 'edge' };
 
+const PAGES = ['home', 'calendar', 'alerts', 'events', 'cities', 'organizations', 'pricing'];
+
 const BOT = /bot|crawl|spider|slurp|preview|headless|lighthouse|facebookexternalhit|telegrambot|whatsapp/i;
 
 const clean = (v: unknown, max = 60) =>
@@ -23,6 +25,16 @@ export default handler(async (req) => {
   if (BOT.test(ua)) return json({ ok: true, skipped: 'bot' });
 
   const body = await readBody<{ path?: string; visitorId?: string; referrer?: string; lang?: string }>(req, 4000);
+
+  // Не больше 120 просмотров в минуту с одного IP — защита статистики от накрутки
+  const ip = (req.headers.get('x-forwarded-for') || 'local').split(',')[0].trim();
+  const rlKey = `dn:rl:track:${ip}:${Math.floor(Date.now() / 60000)}`;
+  const [hits] = await pipeline([['INCR', rlKey], ['EXPIRE', rlKey, 120]]);
+  if (Number(hits) > 120) return json({ ok: true, skipped: 'rate' });
+
+  // Учитываем только известные разделы и языки сайта
+  const path = PAGES.includes(String(body.path)) ? String(body.path) : 'other';
+  const lang = ['ru', 'kg', 'en'].includes(String(body.lang)) ? String(body.lang) : 'other';
   const visitor = clean(body.visitorId, 64);
   const day = dayKey(new Date());
   const device = /ipad|tablet/i.test(ua) ? 'Планшет' : /mobi|android|iphone/i.test(ua) ? 'Телефон' : 'Компьютер';
@@ -51,10 +63,10 @@ export default handler(async (req) => {
     ['INCR', K.allViews],
     ['PFADD', K.visitors(day), visitor],
     ['PFADD', K.allVisitors, visitor],
-    ['HINCRBY', K.pages(day), clean(body.path, 40), 1],
+    ['HINCRBY', K.pages(day), path, 1],
     ['HINCRBY', K.refs(day), clean(ref, 60), 1],
     ['HINCRBY', K.devices(day), device, 1],
-    ['HINCRBY', K.langs(day), clean(body.lang, 4), 1],
+    ['HINCRBY', K.langs(day), lang, 1],
     ['HINCRBY', K.cities(day), place, 1],
     ...keys.map((k) => ['EXPIRE', k, STATS_TTL] as (string | number)[]),
   ]);

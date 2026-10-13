@@ -13,13 +13,13 @@ export const translations = {
     en: 'Kyrgyzstan',
   },
   appSlogan: {
-    ru: 'Знай, что, где и когда • Эмне, кайда жана качан?',
-    kg: 'Эмне, кайда жана качан? • Знай, что, где и когда',
+    ru: 'Знай, что, где и когда',
+    kg: 'Эмне, кайда жана качан болорун бил',
     en: 'Know What, Where and When in Kyrgyzstan',
   },
   officialSlogan: {
     ru: 'Знай дату — планируй день',
-    kg: 'Датаны бил — күнүңдү планда',
+    kg: 'Датаны бил — күнүңдү пландаштыр',
     en: 'Know the date — plan your day',
   },
   appHeroDesc: {
@@ -52,22 +52,22 @@ export const translations = {
 
   // Search & Filter
   search: {
-    whatLabel: { ru: 'Что ищем? / Эмне издөө?', kg: 'Эмне издөө? / Что ищем?', en: 'What are you looking for?' },
+    whatLabel: { ru: 'Что ищем?', kg: 'Эмне издейсиз?', en: 'What are you looking for?' },
     whatPlaceholder: {
       ru: 'Найдите событие, дату, улицу или объявление...',
       kg: 'Окуяны, датаны, көчөнү же билдирүүнү издеңиз...',
       en: 'Search event, date, street or notice...',
     },
-    whenLabel: { ru: 'Когда? / Качан?', kg: 'Качан? / Когда?', en: 'When?' },
-    whereLabel: { ru: 'Где? / Кайда?', kg: 'Кайда? / Где?', en: 'Where?' },
+    whenLabel: { ru: 'Когда?', kg: 'Качан?', en: 'When?' },
+    whereLabel: { ru: 'Где?', kg: 'Кайда?', en: 'Where?' },
     findBtn: { ru: 'Найти', kg: 'Издөө', en: 'Search' },
-    today: { ru: 'Сегодня, 10 октября', kg: 'Бүгүн, 10-октябрь', en: 'Today, 10 Oct' },
-    tomorrow: { ru: 'Завтра, 11 октября', kg: 'Эртең, 11-октябрь', en: 'Tomorrow, 11 Oct' },
-    weekend: { ru: 'Выходные, 10–11 октября', kg: 'Дем алыш, 10–11-октябрь', en: 'Weekend, 10–11 Oct' },
-    thisWeek: { ru: 'Вся текущая неделя', kg: 'Ушул жума бою', en: 'All This Week' },
+    today: { ru: 'Сегодня', kg: 'Бүгүн', en: 'Today' },
+    tomorrow: { ru: 'Завтра', kg: 'Эртең', en: 'Tomorrow' },
+    weekend: { ru: 'Выходные', kg: 'Дем алыш күндөрү', en: 'Weekend' },
+    thisWeek: { ru: 'Ближайшие 7 дней', kg: 'Жакынкы 7 күн', en: 'Next 7 days' },
     allDates: { ru: 'Все даты', kg: 'Бардык күндөр', en: 'All Dates' },
     popularTags: { ru: 'Популярное:', kg: 'Популярдуу:', en: 'Trending:' },
-    eventsOnDate: { ru: 'Событий на дату', kg: 'Күндөгү окуялар', en: 'Events on date' },
+    eventsOnDate: { ru: 'Публикаций по фильтру', kg: 'Тандалгандар боюнча', en: 'Matching posts' },
     activeAlerts: { ru: 'Предупреждений', kg: 'Эскертүүлөр', en: 'Alerts' },
     regionsCount: { ru: 'Областей КР', kg: 'КР облустары', en: 'KR Regions' },
   },
@@ -81,7 +81,7 @@ export const translations = {
     repairs: { ru: 'Ремонтные работы', kg: 'Оңдоо иштери', en: 'Repairs & Works' },
     concerts: { ru: 'Концерты и шоу', kg: 'Концерттер жана шоу', en: 'Concerts & Shows' },
     festivals: { ru: 'Фестивали', kg: 'Фестивалдар', en: 'Festivals' },
-    fairs: { ru: 'Ярмарки и выставки', kg: 'Жарминкелер жана көргөзмөлөр', en: 'Fairs & Expos' },
+    fairs: { ru: 'Ярмарки и выставки', kg: 'Жарманкелер жана көргөзмөлөр', en: 'Fairs & Expos' },
     cinema: { ru: 'Кино и показы', kg: 'Кино жана көрсөтүүлөр', en: 'Cinema & Screenings' },
     education: { ru: 'Лекции & IT', kg: 'Лекциялар & IT', en: 'Lectures & Tech' },
     gov: { ru: 'Гос. оповещения', kg: 'Мамлекеттик билдирүүлөр', en: 'Gov Notices' },
@@ -89,7 +89,7 @@ export const translations = {
 
   // Cities
   cities: {
-    all: { ru: 'Все регионы КР', kg: 'КР бардык аймактары', en: 'All KR Regions' },
+    all: { ru: 'Все регионы КР', kg: 'КРдин бардык аймактары', en: 'All KR Regions' },
     bishkek: { ru: 'г. Бишкек', kg: 'Бишкек ш.', en: 'Bishkek' },
     osh: { ru: 'г. Ош', kg: 'Ош ш.', en: 'Osh' },
     jalalabad: { ru: 'г. Жалал-Абад', kg: 'Жалал-Абад ш.', en: 'Jalal-Abad' },
@@ -108,15 +108,15 @@ export const translations = {
       en: 'Real-time feed from municipal utilities and local authorities',
     },
     upcomingTitle: { ru: 'Ближайшие события и афиша', kg: 'Жакынкы окуялар жана афиша', en: 'Upcoming Events & Public Schedule' },
-    upcomingSubtitle: { ru: 'Городская афиша • Шаардык иш-чаралар', kg: 'Шаардык иш-чаралар • Городская афиша', en: 'City schedule & events' },
+    upcomingSubtitle: { ru: 'Городская афиша', kg: 'Шаардык афиша', en: 'City schedule & events' },
     citiesTitle: { ru: 'Обзор по городам Кыргызстана', kg: 'Кыргызстандын шаарлары боюнча сереп', en: 'Overview by Cities of Kyrgyzstan' },
     citiesSubtitle: {
       ru: 'Выберите ваш город, чтобы следовать исключительно за локальными коммунальными графиками и культурными мероприятиями.',
       kg: 'Жергиликтүү коммуналдык графиктерди жана маданий иш-чараларды көрүү үчүн шаарыңызды тандаңыз.',
       en: 'Select your city to track local municipal schedules and cultural happenings.',
     },
-    viewAllCities: { ru: 'Смотреть все 31 город и аймаки', kg: 'Бардык 31 шаарды жана аймактарды көрүү', en: 'View all 31 cities & districts' },
-    loadMore: { ru: 'Загрузить еще события', kg: 'Дагы окуяларды жүктөө', en: 'Load more events' },
+    viewAllCities: { ru: 'Смотреть все города и регионы', kg: 'Бардык шаарларды жана аймактарды көрүү', en: 'View all cities & regions' },
+    loadMore: { ru: 'Показать ещё события', kg: 'Дагы окуяларды көрсөтүү', en: 'Show more events' },
   },
 
   // Views & Controls
@@ -124,32 +124,32 @@ export const translations = {
     list: { ru: 'Список', kg: 'Тизме', en: 'List' },
     grid: { ru: 'Сетка', kg: 'Торчо', en: 'Grid' },
     calendar: { ru: 'Календарь', kg: 'Календарь', en: 'Calendar' },
-    monthYear: { ru: 'Октябрь 2026', kg: 'Тогуздун айы (Октябрь) 2026', en: 'October 2026' },
+    monthYear: { ru: 'Октябрь 2026', kg: 'Октябрь 2026', en: 'October 2026' },
     calendarHelp: { ru: 'Выберите число для быстрой сводки', kg: 'Ыкчам маалымат үчүн күндү тандаңыз', en: 'Select date for instant summary' },
     legendEmergency: { ru: 'Аварии', kg: 'Авариялар', en: 'Emergency' },
     legendPlanned: { ru: 'Плановые', kg: 'Пландуу', en: 'Planned' },
     legendEvents: { ru: 'События', kg: 'Окуялар', en: 'Events' },
-    selectedDate: { ru: 'Выбрано', kg: 'Тандалды', en: 'Selected' },
+    selectedDate: { ru: 'Выбрано', kg: 'Тандалган күн', en: 'Selected' },
     recordsCount: { ru: 'записей', kg: 'жазуу', en: 'records' },
   },
 
   // Days of week short
   days: {
-    mon: { ru: 'ПН', kg: 'ДҮ', en: 'MO' },
-    tue: { ru: 'ВТ', kg: 'ШЕ', en: 'TU' },
-    wed: { ru: 'СР', kg: 'ША', en: 'WE' },
-    thu: { ru: 'ЧТ', kg: 'БЕ', en: 'TH' },
-    fri: { ru: 'ПТ', kg: 'ЖУ', en: 'FR' },
+    mon: { ru: 'ПН', kg: 'ДШ', en: 'MO' },
+    tue: { ru: 'ВТ', kg: 'ШШ', en: 'TU' },
+    wed: { ru: 'СР', kg: 'ШР', en: 'WE' },
+    thu: { ru: 'ЧТ', kg: 'БШ', en: 'TH' },
+    fri: { ru: 'ПТ', kg: 'ЖМ', en: 'FR' },
     sat: { ru: 'СБ', kg: 'ИШ', en: 'SA' },
-    sun: { ru: 'ВС', kg: 'ЖЕ', en: 'SU' },
+    sun: { ru: 'ВС', kg: 'ЖК', en: 'SU' },
   },
 
   // Announcement Detail Specifics (from Image 5)
   details: {
     protocol: { ru: 'ОПЕРАТИВНЫЙ ПРОТОКОЛ', kg: 'ЫКЧАМ ПРОТОКОЛ', en: 'OPERATIONAL PROTOCOL' },
-    statusActive: { ru: 'Действует (Active)', kg: 'Иштеп жатат (Active)', en: 'Active' },
+    statusActive: { ru: 'Действует', kg: 'Күчүндө', en: 'Active' },
     statusScheduled: { ru: 'Запланировано', kg: 'Пландаштырылган', en: 'Scheduled' },
-    statusCompleted: { ru: 'Завершено (В архиве)', kg: 'Аяктады (Архивде)', en: 'Completed' },
+    statusCompleted: { ru: 'Завершено', kg: 'Аяктады', en: 'Completed' },
     statusCancelled: { ru: 'Отменено', kg: 'Жокко чыгарылды', en: 'Cancelled' },
     statusRescheduled: { ru: 'Перенесено', kg: 'Жылдырылды', en: 'Rescheduled' },
     statusArchived: { ru: 'В архиве', kg: 'Архивде', en: 'Archived' },
@@ -178,7 +178,7 @@ export const translations = {
     northDetour: { ru: 'Северный объезд', kg: 'Түндүк айланып өтүү', en: 'North Detour' },
     transportHeader: { ru: 'ГОРОДСКОЙ ТРАНСПОРТ И РЕЗИДЕНТЫ', kg: 'ШААРДЫК ТРАНСПОРТ ЖАНА ЖАШООЧУЛАР', en: 'PUBLIC TRANSIT & RESIDENTS' },
     transportTitle: { ru: 'Изменения в работе транспорта и доступ к домам', kg: 'Транспорттун ишиндеги өзгөрүүлөр жана үйлөргө кирүү', en: 'Transit Route Changes & Access to Houses' },
-    officialStatementTitle: { ru: 'Официальное заявление Мэрии Бишкека', kg: 'Бишкек шаарынын Мэриясынын расмий билдирүүсү', en: 'Official Statement of the Mayor’s Office' },
+    officialStatementTitle: { ru: 'Официальное заявление мэрии Бишкека', kg: 'Бишкек шаарынын мэриясынын расмий билдирүүсү', en: 'Official Statement of the Mayor’s Office' },
     originalDoc: { ru: 'ПЕРВОИСТОЧНИК ДОКУМЕНТА:', kg: 'ДОКУМЕНТТИН ТҮП БУЛАГЫ:', en: 'ORIGINAL DOCUMENT SOURCE:' },
     verifiedByDataNews: { ru: 'Верифицировано DataNews', kg: 'DataNews тарабынан текшерилди', en: 'Verified by DataNews' },
     emergencyHotlines: { ru: 'Дежурные службы', kg: 'Нөөмөт кызматтары', en: 'Emergency Hotlines' },
@@ -189,7 +189,7 @@ export const translations = {
     shareTelegram: { ru: 'Поделиться в Telegram', kg: 'Telegram аркылуу бөлүшүү', en: 'Share on Telegram' },
     shareWhatsApp: { ru: 'Поделиться в WhatsApp', kg: 'WhatsApp аркылуу бөлүшүү', en: 'Share on WhatsApp' },
     copyLink: { ru: 'Скопировать прямую ссылку', kg: 'Түз шилтемени көчүрүү', en: 'Copy direct link' },
-    saveFavorite: { ru: 'Сохранить в избранное', kg: 'Тандалмандарга сактоо', en: 'Save to Favorites' },
+    saveFavorite: { ru: 'Сохранить в избранное', kg: 'Тандалгандарга сактоо', en: 'Save to Favorites' },
     googleCalendar: { ru: 'Google Календарь', kg: 'Google Календарь', en: 'Google Calendar' },
     nearbyTitle: { ru: 'Рядом в этом районе', kg: 'Бул райондо жакын жерде', en: 'Nearby in this district' },
     allAlertsCity: { ru: 'Все предупреждения Бишкека', kg: 'Бишкектин бардык эскертүүлөрү', en: 'All Bishkek alerts' },
@@ -198,7 +198,7 @@ export const translations = {
   // For Organizations Section
   forOrg: {
     tag: { ru: 'Для муниципалитетов и бизнеса', kg: 'Муниципалитеттер жана бизнес үчүн', en: 'For Municipalities & Business' },
-    title: { ru: 'Ваши объявления увидят вовремя и по нужному адресу', kg: 'Сиздин билдирүүлөрүңүздү керектүү дарек боюнча өз убагында көрүшөт', en: 'Your Notices Seen on Time and at the Right Address' },
+    title: { ru: 'Ваши объявления увидят вовремя и по нужному адресу', kg: 'Билдирүүлөрүңүз өз убагында жана керектүү дарекке жетет', en: 'Your Notices Seen on Time and at the Right Address' },
     desc: {
       ru: 'Муниципальные службы, коммунальные предприятия, организаторы концертов, государственные ведомства и образовательные центры публикуют верифицированные анонсы с точной привязкой ко времени и локации.',
       kg: 'Муниципалдык кызматтар, коммуналдык ишканалар, концерт уюштуруучулары, мамлекеттик мекемелер жана билим берүү борборлору убакытка жана жерге так байланган текшерилген анонсторду жарыялашат.',
@@ -211,7 +211,7 @@ export const translations = {
     p3Title: { ru: 'Каналы Telegram & WhatsApp', kg: 'Telegram & WhatsApp каналдары', en: 'Instant Telegram & WhatsApp' },
     p3Desc: { ru: 'Автоматическая рассылка подписчикам вашего городского округа за 1 минуту.', kg: 'Шаардык округдун жазылуучуларына 1 мүнөттө автоматтык түрдө жөнөтүү.', en: 'Instant push dispatches to subscribed neighborhood chats within 1 minute.' },
     p4Title: { ru: 'Детальная аналитика охвата', kg: 'Көрүүлөрдүн толук аналитикасы', en: 'Detailed Reach Analytics' },
-    p4Desc: { ru: 'Прозрачная статистика прочтений, скачиваний схем объезда и переходов на билеты.', kg: 'Окулгандардын, айланып өтүү схемаларын көчүргөндөрдүн ачык статистикасы.', en: 'Transparent counters for reads, detour diagram downloads, and ticket links.' },
+    p4Desc: { ru: 'Прозрачная статистика прочтений, скачиваний схем объезда и переходов на билеты.', kg: 'Окуулардын, айланып өтүү схемаларын жүктөп алуулардын жана билеттерге өтүүлөрдүн ачык статистикасы.', en: 'Transparent counters for reads, detour diagram downloads, and ticket links.' },
     ctaPost: { ru: 'Разместить объявление', kg: 'Билдирүү жайгаштыруу', en: 'Post an Announcement' },
     ctaPricing: { ru: 'Тарифы и партнерство PRO', kg: 'Тарифтер жана PRO өнөктөштүк', en: 'Plans & PRO Partnership' },
   },
@@ -241,7 +241,7 @@ export const translations = {
     statusRescheduled: { ru: 'Перенесенные', kg: 'Жылдырылгандар', en: 'Rescheduled' },
     statusArchived: { ru: 'В архиве', kg: 'Архивде', en: 'Archived' },
     resetDefaults: { ru: 'Сбросить к исходным данным', kg: 'Баштапкы маалыматтарга кайтаруу', en: 'Reset to Sample Data' },
-    resetConfirm: { ru: 'Вы уверены? Добавленные вами объявления будут удалены, останутся только проверенные публикации.', kg: 'Ишенесизби? Кошулган жарыялар өчүрүлөт.', en: 'Remove added announcements and restore the verified set?' },
+    resetConfirm: { ru: 'Вы уверены? Добавленные вами объявления будут удалены, останутся только проверенные публикации.', kg: 'Ишенесизби? Сиз кошкон билдирүүлөр өчүрүлүп, текшерилген жарыялар гана калат.', en: 'Remove added announcements and restore the verified set?' },
     successSaved: { ru: 'Объявление успешно сохранено!', kg: 'Билдирүү ийгиликтүү сакталды!', en: 'Announcement saved successfully!' },
     titleRu: { ru: 'Заголовок (RU)', kg: 'Аталышы (RU)', en: 'Title (RU)' },
     titleKg: { ru: 'Заголовок (KG)', kg: 'Аталышы (KG)', en: 'Title (KG)' },
@@ -262,7 +262,7 @@ export const translations = {
   disclaimer: {
     bannerText: {
       ru: 'Публикации основаны на открытых источниках. Перед поездкой проверяйте информацию у организаторов и в официальных каналах.',
-      kg: 'Жарыялар ачык булактарга негизделген. Жолго чыгаардан мурун уюштуруучулардан тактаңыз.',
+      kg: 'Жарыялар ачык булактардын негизинде даярдалган. Жолго чыгаардан мурун маалыматты уюштуруучулардан жана расмий каналдардан тактаңыз.',
       en: 'Notices are based on public sources. Please confirm details with organisers before you go.',
     },
     footerNotice: {

@@ -34,7 +34,7 @@ export function getStatusBadgeConfig(status: DisplayStatus, language: Language) 
       return {
         label:
           language === 'kg'
-            ? 'Действует (Иштеп жатат)'
+            ? 'Учурда жүрүп жатат'
             : language === 'en'
             ? 'Active'
             : 'Действует сейчас',
@@ -48,7 +48,7 @@ export function getStatusBadgeConfig(status: DisplayStatus, language: Language) 
       return {
         label:
           language === 'kg'
-            ? 'Предстоящее (Алдыдагы)'
+            ? 'Алдыда'
             : language === 'en'
             ? 'Upcoming'
             : 'Предстоящее',
@@ -62,10 +62,10 @@ export function getStatusBadgeConfig(status: DisplayStatus, language: Language) 
       return {
         label:
           language === 'kg'
-            ? 'Завершено (Аяктады)'
+            ? 'Аяктады'
             : language === 'en'
             ? 'Completed'
-            : 'Завершено (В архиве)',
+            : 'Завершено',
         bg: 'bg-gray-100',
         text: 'text-gray-600',
         border: 'border-gray-200',
@@ -76,7 +76,7 @@ export function getStatusBadgeConfig(status: DisplayStatus, language: Language) 
       return {
         label:
           language === 'kg'
-            ? 'Отменено (Жокко чыгарылды)'
+            ? 'Жокко чыгарылды'
             : language === 'en'
             ? 'Cancelled'
             : 'Отменено',
@@ -90,7 +90,7 @@ export function getStatusBadgeConfig(status: DisplayStatus, language: Language) 
       return {
         label:
           language === 'kg'
-            ? 'Перенесено (Жылдырылды)'
+            ? 'Жылдырылды'
             : language === 'en'
             ? 'Rescheduled'
             : 'Перенесено',

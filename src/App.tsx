@@ -386,7 +386,7 @@ export default function App() {
               className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4"
             >
               <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-              <span>Главная</span>
+              <span>{currentLanguage === 'kg' ? 'Башкы бет' : currentLanguage === 'en' ? 'Home' : 'Главная'}</span>
             </button>
             <CategoryChips
               currentLanguage={currentLanguage}
@@ -412,7 +412,7 @@ export default function App() {
               className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4"
             >
               <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-              <span>Главная</span>
+              <span>{currentLanguage === 'kg' ? 'Башкы бет' : currentLanguage === 'en' ? 'Home' : 'Главная'}</span>
             </button>
             <EventsFeed
               currentLanguage={currentLanguage}
@@ -488,6 +488,7 @@ export default function App() {
       {/* 4. Личный кабинет гостя: регистрация, оплата, публикации на модерацию */}
       {accountMode && (
         <AccountPortal
+          lang={currentLanguage}
           initialTab={accountMode}
           onRoleChange={setRole}
           onClose={() => setAccountMode(null)}

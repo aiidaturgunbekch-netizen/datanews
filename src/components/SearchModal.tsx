@@ -109,7 +109,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
           </select>
 
           <span className="ml-auto text-gray-400 font-medium">
-            Найдено: {filtered.length}
+            {currentLanguage === 'kg' ? 'Табылды' : currentLanguage === 'en' ? 'Found' : 'Найдено'}: {filtered.length}
           </span>
         </div>
 
@@ -120,7 +120,13 @@ export const SearchModal: React.FC<SearchModalProps> = ({
               <span className="material-symbols-outlined text-4xl mb-2 text-gray-300">
                 search_off
               </span>
-              <p className="text-xs sm:text-sm">По вашему запросу ничего не найдено</p>
+              <p className="text-xs sm:text-sm">
+                {currentLanguage === 'kg'
+                  ? 'Сурамыңыз боюнча эч нерсе табылган жок'
+                  : currentLanguage === 'en'
+                  ? 'Nothing matches your search'
+                  : 'По вашему запросу ничего не найдено'}
+              </p>
             </div>
           ) : (
             filtered.map((item) => (

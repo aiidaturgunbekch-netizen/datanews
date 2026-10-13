@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { EventImage } from './EventImage';
+import { formatDayMonthTime, formatWhen } from '../utils/dates';
 
 interface Props {
   announcement: Announcement;
@@ -18,7 +19,7 @@ const L = {
   about: { ru: 'Подробности', kg: 'Кеңири маалымат', en: 'Details' },
   source: { ru: 'Источник', kg: 'Булак', en: 'Source' },
   openSource: { ru: 'Открыть источник', kg: 'Булакты ачуу', en: 'Open source' },
-  map: { ru: 'Показать на карте', kg: 'Картадан көрүү', en: 'Show on map' },
+  map: { ru: 'Показать на карте', kg: 'Картадан көрсөтүү', en: 'Show on map' },
   ics: { ru: 'Добавить в календарь', kg: 'Календарга кошуу', en: 'Add to calendar' },
   share: { ru: 'Поделиться', kg: 'Бөлүшүү', en: 'Share' },
   copied: { ru: 'Ссылка скопирована', kg: 'Шилтеме көчүрүлдү', en: 'Link copied' },
@@ -28,13 +29,6 @@ const L = {
   close: { ru: 'Закрыть', kg: 'Жабуу', en: 'Close' },
   until: { ru: 'до', kg: 'чейин', en: 'until' },
 };
-
-const locale = (lang: Language) => (lang === 'en' ? 'en-GB' : 'ru-RU');
-
-const fmtDate = (iso: string, lang: Language) =>
-  new Date(iso).toLocaleDateString(locale(lang), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-const fmtTime = (iso: string, lang: Language) =>
-  new Date(iso).toLocaleTimeString(locale(lang), { hour: '2-digit', minute: '2-digit' });
 
 const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
 
@@ -65,12 +59,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
   const nearby = allAnnouncements.filter((x) => x.id !== a.id && x.city === a.city).slice(0, 3);
 
-  const sameDay = a.endDate && a.endDate.slice(0, 10) === a.startDate.slice(0, 10);
-  const whenText = a.endDate
-    ? sameDay
-      ? `${fmtDate(a.startDate, lang)}, ${fmtTime(a.startDate, lang)}–${fmtTime(a.endDate, lang)}`
-      : `${fmtDate(a.startDate, lang)} ${fmtTime(a.startDate, lang)} — ${fmtDate(a.endDate, lang)} ${fmtTime(a.endDate, lang)}`
-    : `${fmtDate(a.startDate, lang)}, ${fmtTime(a.startDate, lang)}`;
+  const whenText = formatWhen(a.startDate, a.endDate, lang, true);
 
   const downloadIcs = () => {
     const end = a.endDate || new Date(new Date(a.startDate).getTime() + 3 * 3600 * 1000).toISOString().slice(0, 16);
@@ -162,20 +151,20 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             <Row icon="confirmation_number" label={L.price[lang]}>{a.eventDetails.priceText[lang]}</Row>
           )}
           {a.eventDetails?.timeRange && (
-            <Row icon="schedule" label={lang === "en" ? "Time & age" : lang === "kg" ? "Убакыт жана жаш" : "Время и возраст"}>{a.eventDetails.timeRange}</Row>
+            <Row icon="schedule" label={lang === "en" ? "Time & age" : lang === "kg" ? "Убактысы жана жаш чеги" : "Время и возраст"}>{a.eventDetails.timeRange}</Row>
           )}
           {a.eventDetails?.organizer && (
             <Row icon="groups" label={lang === 'en' ? 'Organizer' : lang === 'kg' ? 'Уюштуруучу' : 'Организатор'}>{a.eventDetails.organizer}</Row>
           )}
           {a.eventDetails?.contactPhone && (
-            <Row icon="call" label={lang === 'en' ? 'Phone' : lang === 'kg' ? 'Телефон' : 'Телефон для справок'}>
+            <Row icon="call" label={lang === 'en' ? 'Phone' : lang === 'kg' ? 'Маалымат үчүн телефон' : 'Телефон для справок'}>
               <a className="text-[#12327A] hover:underline" href={`tel:${a.eventDetails.contactPhone.replace(/[^\d+]/g, '')}`}>
                 {a.eventDetails.contactPhone}
               </a>
             </Row>
           )}
           {a.emergencyContacts && a.emergencyContacts.length > 0 && (
-            <Row icon="support_agent" label={lang === 'en' ? 'Hotlines' : lang === 'kg' ? 'Ишеним телефондору' : 'Куда звонить'}>
+            <Row icon="support_agent" label={lang === 'en' ? 'Hotlines' : lang === 'kg' ? 'Кайда чалуу керек' : 'Куда звонить'}>
               <div className="flex flex-wrap gap-2 mt-1">
                 {a.emergencyContacts.map((c) => (
                   <a
@@ -237,7 +226,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           <div>
             <span className="font-bold text-[#0f1b33]">{L.source[lang]}:</span> {a.sourceName}
             <div className="text-gray-400 mt-0.5">
-              {L.updated[lang]}: {new Date(a.updatedAt).toLocaleString(locale(lang), { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+              {L.updated[lang]}: {formatDayMonthTime(a.updatedAt, lang)}
             </div>
           </div>
           {a.sourceUrl && (

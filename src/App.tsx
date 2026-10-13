@@ -351,6 +351,7 @@ export default function App() {
 
             {/* Browse by City / Regional Portals Mosaic */}
             <CityMosaic
+              announcements={announcements}
               currentLanguage={currentLanguage}
               onSelectCity={(cityId) => {
                 setSelectedCity(cityId);

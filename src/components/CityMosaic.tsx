@@ -1,28 +1,46 @@
 import React from 'react';
-import { Language, CityId } from '../types';
+import { Announcement, Language, CityId } from '../types';
 import { getTranslation } from '../locales/translations';
 
 interface CityMosaicProps {
+  announcements: Announcement[];
   currentLanguage: Language;
   onSelectCity: (cityId: CityId) => void;
   onOpenAllCities: () => void;
 }
 
+/** «1 предупреждение / 3 предупреждения / 5 предупреждений», «5 эскертүү», «5 alerts» */
+const countLabel = (n: number, kind: 'alert' | 'event', lang: Language) => {
+  if (lang === 'kg') return `${n} ${kind === 'alert' ? 'эскертүү' : 'иш-чара'}`;
+  if (lang === 'en') return `${n} ${kind}${n === 1 ? '' : 's'}`;
+  const forms = kind === 'alert' ? ['предупреждение', 'предупреждения', 'предупреждений'] : ['событие', 'события', 'событий'];
+  const m10 = n % 10;
+  const m100 = n % 100;
+  const f = m10 === 1 && m100 !== 11 ? 0 : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 1 : 2;
+  return `${n} ${forms[f]}`;
+};
+
 export const CityMosaic: React.FC<CityMosaicProps> = ({
+  announcements,
   currentLanguage,
   onSelectCity,
   onOpenAllCities,
 }) => {
   const { t } = getTranslation(currentLanguage);
 
+  // Реальное число предупреждений и событий по городу (без завершённых и отменённых)
+  const counts = (city: CityId) => {
+    const list = announcements.filter((x) => x.city === city && x.status !== 'completed' && x.status !== 'cancelled' && x.status !== 'archived');
+    const isAlert = (x: Announcement) => x.urgency === 'emergency' || x.urgency === 'planned';
+    return { alerts: list.filter(isAlert).length, events: list.filter((x) => !isAlert(x)).length };
+  };
+
   const cityCards = [
     {
       id: 'bishkek' as CityId,
       colSpan: 'lg:col-span-2',
       name: currentLanguage === 'kg' ? 'Бишкек шаары' : currentLanguage === 'en' ? 'Bishkek City' : 'г. Бишкек',
-      subtitle: currentLanguage === 'kg' ? 'Борбор калаа, 4 район: Ленин, Биринчи май, Свердлов, Октябрь' : currentLanguage === 'en' ? 'Capital municipality, 4 districts' : 'Столичный муниципалитет, 4 района: Ленинский, Первомайский, Свердловский, Октябрьский',
-      alerts: '12 предупреждений',
-      events: '78 событий',
+      subtitle: currentLanguage === 'kg' ? 'Борбор калаа, 4 район: Ленин, Биринчи Май, Свердлов, Октябрь' : currentLanguage === 'en' ? 'Capital municipality, 4 districts' : 'Столичный муниципалитет, 4 района: Ленинский, Первомайский, Свердловский, Октябрьский',
       bgGradient: 'from-[#0d2459] to-[#1e3a8a]',
     },
     {
@@ -30,8 +48,6 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
       colSpan: 'lg:col-span-1',
       name: currentLanguage === 'kg' ? 'Ош шаары' : currentLanguage === 'en' ? 'Osh City' : 'г. Ош',
       subtitle: currentLanguage === 'kg' ? 'Түштүк борбор • Сулайман-Тоо' : currentLanguage === 'en' ? 'Southern Capital • Sulaiman-Too' : 'Южная столица • Сулайман-Тоо',
-      alerts: '5 предупреждений',
-      events: '24 события',
       bgGradient: 'from-[#07173d] to-[#1e293b]',
     },
     {
@@ -39,39 +55,34 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
       colSpan: 'lg:col-span-1',
       name: currentLanguage === 'kg' ? 'Жалал-Абад' : currentLanguage === 'en' ? 'Jalal-Abad' : 'Жалал-Абад',
       subtitle: currentLanguage === 'kg' ? 'Курорттук аймак жана өнөр жай' : currentLanguage === 'en' ? 'Resort Valley & Industry' : 'Курортная зона и индустрия',
-      events: '14 событий',
       bgGradient: 'from-[#004d40] to-[#0f766e]',
     },
     {
       id: 'karakol' as CityId,
       colSpan: 'lg:col-span-1',
       name: currentLanguage === 'kg' ? 'Каракол' : currentLanguage === 'en' ? 'Karakol' : 'Каракол',
-      subtitle: currentLanguage === 'kg' ? 'Ысык-Көл • Тоо кластери' : currentLanguage === 'en' ? 'Issyk-Kul • Alpine Hub' : 'Ысык-Көл • Горный кластер',
-      events: '18 событий',
+      subtitle: currentLanguage === 'kg' ? 'Ысык-Көл • Тоо кластери' : currentLanguage === 'en' ? 'Issyk-Kul • Alpine Hub' : 'Иссык-Куль • Горный кластер',
       bgGradient: 'from-[#1e1b4b] to-[#312e81]',
     },
     {
       id: 'talas' as CityId,
       colSpan: 'lg:col-span-1',
       name: currentLanguage === 'kg' ? 'Талас' : currentLanguage === 'en' ? 'Talas' : 'Талас',
-      subtitle: currentLanguage === 'kg' ? 'Манас Ордосу • Түндүк-батыш' : currentLanguage === 'en' ? 'Manas Ordo • North-West' : 'Манас Ордосу • Северо-запад',
-      events: '6 событий',
+      subtitle: currentLanguage === 'kg' ? 'Манас Ордосу • Түндүк-батыш' : currentLanguage === 'en' ? 'Manas Ordo • North-West' : 'Манас-Ордо • Северо-запад',
       bgGradient: 'from-[#3b1259] to-[#581c87]',
     },
     {
       id: 'naryn' as CityId,
       colSpan: 'lg:col-span-1',
       name: currentLanguage === 'kg' ? 'Нарын' : currentLanguage === 'en' ? 'Naryn' : 'Нарын',
-      subtitle: currentLanguage === 'kg' ? 'Теңир-Тоо • Тоолуу облус' : currentLanguage === 'en' ? 'Tengir-Too • Mountain Basin' : 'Теңир-Тоо • Горная область',
-      events: '9 событий',
+      subtitle: currentLanguage === 'kg' ? 'Теңир-Тоо • Тоолуу облус' : currentLanguage === 'en' ? 'Tengir-Too • Mountain Basin' : 'Тянь-Шань • Горная область',
       bgGradient: 'from-[#701a75] to-[#86198f]',
     },
     {
       id: 'batken' as CityId,
       colSpan: 'lg:col-span-1',
       name: currentLanguage === 'kg' ? 'Баткен' : currentLanguage === 'en' ? 'Batken' : 'Баткен',
-      subtitle: currentLanguage === 'kg' ? 'Айгүл тоосу • Түштүк-батыш' : currentLanguage === 'en' ? 'Aigul Mountain • South-West' : 'Айгүл тоосу • Юго-запад',
-      events: '5 событий',
+      subtitle: currentLanguage === 'kg' ? 'Айгүл тоосу • Түштүк-батыш' : currentLanguage === 'en' ? 'Aigul Mountain • South-West' : 'Гора Айгуль-Тоо • Юго-запад',
       bgGradient: 'from-[#831843] to-[#9f1239]',
     },
   ];
@@ -119,14 +130,14 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
             >
               <div className="relative z-10 p-5 h-full flex flex-col justify-end text-white">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {card.alerts && (
+                  {counts(card.id).alerts > 0 && (
                     <span className="px-2 py-0.5 rounded-md bg-[#dc2626] text-[10px] font-bold uppercase tracking-wider">
-                      {card.alerts}
+                      {countLabel(counts(card.id).alerts, 'alert', currentLanguage)}
                     </span>
                   )}
-                  {card.events && (
+                  {counts(card.id).events > 0 && (
                     <span className="px-2 py-0.5 rounded-md bg-[#20C7B5] text-[#002f29] text-[10px] font-bold uppercase tracking-wider">
-                      {card.events}
+                      {countLabel(counts(card.id).events, 'event', currentLanguage)}
                     </span>
                   )}
                 </div>

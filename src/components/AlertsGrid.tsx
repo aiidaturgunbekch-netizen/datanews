@@ -12,6 +12,16 @@ interface AlertsGridProps {
   onSelectAnnouncement: (announcement: Announcement) => void;
 }
 
+/** Короткая метка типа источника на языке интерфейса */
+const ORG_TYPES: Record<string, { ru: string; kg: string; en: string }> = {
+  МБ: { ru: 'Мэрия', kg: 'Мэрия', en: 'City Hall' },
+  СМИ: { ru: 'СМИ', kg: 'ЖМК', en: 'Media' },
+  НЭ: { ru: 'Электросети', kg: 'Электр тармагы', en: 'Power grid' },
+  ВК: { ru: 'Водоканал', kg: 'Водоканал', en: 'Water utility' },
+  ГОС: { ru: 'Госорган', kg: 'Мамлекеттик орган', en: 'Government' },
+};
+const orgTypeLabel = (code: string, lang: 'ru' | 'kg' | 'en') => ORG_TYPES[code]?.[lang] || code || 'KG';
+
 export const AlertsGrid: React.FC<AlertsGridProps> = ({
   currentLanguage,
   alerts,
@@ -236,7 +246,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                   <div className="pl-1 pt-2 flex items-center justify-between mt-auto border-t border-gray-100">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-6 h-6 rounded-full bg-blue-50 text-[#12327A] flex items-center justify-center font-bold text-[10px] flex-shrink-0 border border-blue-100">
-                        {ann.sourceOrgType || 'KG'}
+                        {orgTypeLabel(ann.sourceOrgType, currentLanguage)}
                       </span>
                       <span className="text-xs text-gray-500 truncate max-w-[140px]">
                         {ann.sourceName}

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Announcement, Language, PlanId, PublicUser } from '../types';
+import { Announcement, Language, PlanId, PlanUsage, PublicUser } from '../types';
 import * as api from '../services/api';
-import { PAYMENT_DETAILS, PLANS, planPeriod } from '../config/site';
+import { normalizePlan, PAYMENT_DETAILS, PLAN_IDS, PLANS, planTerms } from '../config/site';
 import { AccountKey, errorText, ta } from '../locales/account';
-import { formatDate, formatDayMonthTime } from '../utils/dates';
+import { formatDate, formatDayMonth, formatDayMonthTime } from '../utils/dates';
 import { AnnouncementForm, inputCls } from './AnnouncementForm';
 import { EventImage } from './EventImage';
 
@@ -29,15 +29,18 @@ export const PAYMENT_BADGE: Record<string, { label: string; key: AccountKey; cls
   rejected: { label: 'Оплата не найдена', key: 'payRejected', cls: 'bg-red-100 text-red-700' },
 };
 
-/** Оплата подтверждена и срок тарифа ещё не истёк */
+/** Оплата подтверждена и срок тарифа ещё не истёк (точное состояние, включая лимиты, присылает сервер — PlanUsage) */
 export const isPaidActive = (u: PublicUser) =>
   u.paymentStatus === 'paid' && (!u.paidUntil || new Date(u.paidUntil).getTime() > Date.now());
+
+/** Можно ли сейчас отправить новую публикацию */
+const canPublishNow = (u: PublicUser, usage: PlanUsage | null) => (usage ? !usage.reason : isPaidActive(u));
 
 const som = (n: number, lang: Language) => `${n.toLocaleString('ru-RU')} ${lang === 'en' ? 'KGS' : 'сом'}`;
 
 const PlanPicker: React.FC<{ lang: Language; value: PlanId; onChange: (p: PlanId) => void }> = ({ lang, value, onChange }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-    {(Object.keys(PLANS) as PlanId[]).map((id) => {
+    {PLAN_IDS.map((id) => {
       const p = PLANS[id];
       const active = value === id;
       return (
@@ -45,17 +48,20 @@ const PlanPicker: React.FC<{ lang: Language; value: PlanId; onChange: (p: PlanId
           type="button"
           key={id}
           onClick={() => onChange(id)}
+          aria-pressed={active}
           className={`text-left p-4 rounded-2xl border-2 transition-all ${
             active ? 'border-[#20C7B5] bg-[#effdfb]' : 'border-gray-200 bg-white hover:border-gray-300'
           }`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-2">
             <span className="font-extrabold text-[#0f1b33]">{p.name[lang]}</span>
             {active && <span className="material-symbols-outlined text-[#20C7B5]">check_circle</span>}
           </div>
           <div className="text-xl font-black text-[#12327A] mt-1">
-            {som(p.priceSom, lang)} <span className="text-xs font-semibold text-gray-500">/ {planPeriod(p.periodDays, lang)}</span>
+            {som(p.priceSom, lang)} <span className="text-xs font-semibold text-gray-500">{p.priceUnit[lang]}</span>
           </div>
+          <div className="text-xs font-bold text-[#0f766e] mt-0.5">{planTerms(id, lang)}</div>
+          <div className="text-xs text-gray-500 mt-1">{p.audience[lang]}</div>
           <ul className="mt-2 space-y-1">
             {p.features.map((f) => (
               <li key={f.ru} className="text-xs text-gray-600 flex gap-1">
@@ -71,26 +77,40 @@ const PlanPicker: React.FC<{ lang: Language; value: PlanId; onChange: (p: PlanId
 );
 
 const PaymentInstructions: React.FC<{ lang: Language; plan: PlanId }> = ({ lang, plan }) => {
-  const price = som(PLANS[plan].priceSom, lang);
-  const period = planPeriod(PLANS[plan].periodDays, lang);
+  const p = PLANS[plan];
+  const price = som(p.priceSom, lang);
   return (
     <div className="p-4 rounded-2xl bg-[#eef2f9] text-sm text-[#0f1b33] space-y-1">
       <div className="font-extrabold">
-        {lang === 'kg'
-          ? `Төлөм: ${period} үчүн ${price}`
-          : lang === 'en'
-          ? `Payment: ${price} for ${period}`
-          : `Оплата: ${price} за ${period}`}
+        {lang === 'kg' ? 'Төлөм' : lang === 'en' ? 'Payment' : 'Оплата'}: {p.name[lang]} — {price} ({planTerms(plan, lang)})
       </div>
+      <p className="text-xs font-bold text-amber-800">{ta('manualPay', lang)}</p>
       {PAYMENT_DETAILS ? <p className="whitespace-pre-line">{PAYMENT_DETAILS}</p> : <p>{ta('payContact', lang)}</p>}
       <p className="text-xs text-gray-600">{ta('payAfter', lang)}</p>
     </div>
   );
 };
 
+/** Строка «сколько осталось» по тарифу */
+const UsageLine: React.FC<{ lang: Language; usage: PlanUsage }> = ({ lang, usage }) => {
+  if (usage.reason && usage.reason !== 'daily_limit_reached') {
+    return <div className="text-xs mt-1 text-red-700 font-bold">{errorText({ code: usage.reason }, lang)}</div>;
+  }
+  let text = ta('usageUnlimited', lang);
+  if (usage.postLimit !== null) {
+    text = ta('usagePack', lang).replace('{used}', String(usage.postsUsed)).replace('{limit}', String(usage.postLimit));
+  } else if (usage.dailyLimit !== null) {
+    text = usage.postedToday
+      ? ta('usageDailyUsed', lang).replace('{date}', usage.nextAllowedDate ? formatDayMonth(usage.nextAllowedDate, lang) : '')
+      : ta('usageDailyFree', lang);
+  }
+  return <div className={`text-xs mt-1 ${usage.postedToday ? 'text-amber-800 font-bold' : 'text-gray-600'}`}>{text}</div>;
+};
+
 export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange, onClose }) => {
   const tr = (k: AccountKey) => ta(k, lang);
   const [user, setUser] = useState<PublicUser | null>(null);
+  const [usage, setUsage] = useState<PlanUsage | null>(null);
   const [loading, setLoading] = useState(Boolean(api.getSession()));
   const [authTab, setAuthTab] = useState<'login' | 'register'>('register');
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -106,7 +126,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
   const [phone, setPhone] = useState('');
   const [org, setOrg] = useState('');
   const [password, setPassword] = useState('');
-  const [plan, setPlan] = useState<PlanId>('basic');
+  const [plan, setPlan] = useState<PlanId>('start');
   const [paymentRef, setPaymentRef] = useState('');
 
   useEffect(() => {
@@ -128,6 +148,8 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
       .then((r) => {
         if (r.role === 'user' && r.user) {
           setUser(r.user);
+          setUsage(r.usage || null);
+          setPlan(normalizePlan(r.user.plan));
           loadMine();
         }
         onRoleChange(r.role);
@@ -150,12 +172,22 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
     }
   };
 
-  const afterAuth = (u: PublicUser) => {
+  /** Свежие данные о тарифе с сервера (лимиты считает только сервер) */
+  const refreshUsage = async () => {
+    const r = await api.me().catch(() => null);
+    if (r?.user) setUser(r.user);
+    setUsage(r?.usage || null);
+    return r?.usage || null;
+  };
+
+  const afterAuth = async (u: PublicUser) => {
     setUser(u);
+    setPlan(normalizePlan(u.plan));
     onRoleChange('user');
     setPassword('');
     loadMine();
-    setTab(isPaidActive(u) ? initialTab : 'cabinet');
+    const us = await refreshUsage();
+    setTab(canPublishNow(u, us) ? initialTab : 'cabinet');
   };
 
   const logout = () => {
@@ -320,8 +352,10 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                     <div className="p-4 rounded-2xl bg-[#f8fafc] border border-gray-100">
                       <div className="text-xs text-gray-500">{tr('plan')}</div>
                       <div className="font-bold">
-                        {PLANS[user.plan].name[lang]} — {som(PLANS[user.plan].priceSom, lang)}
+                        {PLANS[normalizePlan(user.plan)].name[lang]} — {som(PLANS[normalizePlan(user.plan)].priceSom, lang)}{' '}
+                        <span className="text-xs font-semibold text-gray-500">{PLANS[normalizePlan(user.plan)].priceUnit[lang]}</span>
                       </div>
+                      <div className="text-xs text-gray-500">{planTerms(normalizePlan(user.plan), lang)}</div>
                       <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-bold ${PAYMENT_BADGE[user.paymentStatus].cls}`}>
                         {tr(PAYMENT_BADGE[user.paymentStatus].key)}
                       </span>
@@ -331,20 +365,24 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                           {isPaidActive(user) ? tr('paidUntil') : tr('paidExpired')}: {formatDate(user.paidUntil, lang)}
                         </div>
                       )}
+                      {usage && user.paymentStatus === 'paid' && <UsageLine lang={lang} usage={usage} />}
                     </div>
                   </div>
 
-                  {!isPaidActive(user) && (
+                  {!canPublishNow(user, usage) && usage?.reason !== 'daily_limit_reached' && user.paymentStatus !== 'pending' && (
                     <form
                       className="space-y-3"
                       onSubmit={(e) => {
                         e.preventDefault();
                         run(async () => {
-                          setUser(await api.reportPayment(paymentRef, plan));
+                          const r = await api.reportPayment(paymentRef, plan);
+                          setUser(r.user);
+                          setUsage(r.usage || null);
                           setNotice(tr('paidThanks'));
                         });
                       }}
                     >
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{tr('newPayment')}</div>
                       <PlanPicker lang={lang} value={plan} onChange={setPlan} />
                       <PaymentInstructions lang={lang} plan={plan} />
                       <div className="flex flex-col sm:flex-row gap-2">
@@ -370,22 +408,42 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
               )}
 
               {tab === 'publish' &&
-                (!isPaidActive(user) ? (
+                (!canPublishNow(user, usage) ? (
                   <div className="p-6 rounded-2xl bg-amber-50 text-amber-900 text-sm">
                     <div className="font-extrabold mb-1">{tr('lockedTitle')}</div>
-                    {tr('lockedStatus')}: <b>{tr(PAYMENT_BADGE[user.paymentStatus].key)}</b>. {tr('lockedHint')}
+                    {usage?.reason && usage.reason !== 'payment_required' ? (
+                      <>
+                        {usage.reason === 'daily_limit_reached' ? (
+                          <UsageLine lang={lang} usage={usage} />
+                        ) : (
+                          <>
+                            {errorText({ code: usage.reason }, lang)}. {tr('lockedHint')}
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {tr('lockedStatus')}: <b>{tr(PAYMENT_BADGE[user.paymentStatus].key)}</b>. {tr('lockedHint')}
+                      </>
+                    )}
                   </div>
                 ) : (
                   <>
                     <div className="p-3 rounded-xl bg-[#eef2f9] text-xs text-gray-700">
                       {tr('moderationHint')}
+                      {usage && <UsageLine lang={lang} usage={usage} />}
                     </div>
                     <AnnouncementForm
                       lang={lang}
                       mode="user"
                       submitLabel={tr('sendToModeration')}
                       onSubmit={async (item) => {
-                        await api.submitAnnouncement(item);
+                        try {
+                          await api.submitAnnouncement(item);
+                        } finally {
+                          // лимит мог измениться (или сервер отказал по лимиту) — обновляем состояние тарифа
+                          await refreshUsage();
+                        }
                         await loadMine();
                         setTab('mine');
                         setNotice(tr('sentToModeration'));

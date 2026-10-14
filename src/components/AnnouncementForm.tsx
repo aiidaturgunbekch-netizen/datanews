@@ -9,7 +9,10 @@ import { getTranslation } from '../locales/translations';
 export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
   { id: 'concerts', label: 'Концерты и шоу' },
   { id: 'festivals', label: 'Фестивали' },
-  { id: 'fairs', label: 'Ярмарки и выставки' },
+  { id: 'fairs', label: 'Ярмарки' },
+  { id: 'exhibitions', label: 'Выставки и форумы' },
+  { id: 'culture', label: 'Театр и культура' },
+  { id: 'sport', label: 'Спорт' },
   { id: 'cinema', label: 'Кино и показы' },
   { id: 'education', label: 'Лекции и IT' },
   { id: 'gov', label: 'Гос. оповещения' },
@@ -27,6 +30,7 @@ export const CITY_OPTIONS: { id: CityId; label: string }[] = [
   { id: 'talas', label: 'Талас' },
   { id: 'naryn', label: 'Нарын' },
   { id: 'batken', label: 'Баткен' },
+  { id: 'all', label: 'Весь Кыргызстан' },
 ];
 
 const ALERT_CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs'];
@@ -77,6 +81,8 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [imageSourceUrl, setImageSourceUrl] = useState(initial?.imageSourceUrl || '');
   const [imageAlt, setImageAlt] = useState(initial?.imageAlt || '');
   const [imageFit, setImageFit] = useState<'contain' | 'cover'>(initial?.imageFit || 'contain');
+  const [timeTBA, setTimeTBA] = useState(Boolean(initial?.timeTBA));
+  const [allDay, setAllDay] = useState(Boolean(initial?.allDay));
   // служебные поля администратора
   const [urgency, setUrgency] = useState<UrgencyType>(initial?.urgency || 'event');
   const [status, setStatus] = useState<AnnouncementStatus>(initial?.status || 'scheduled');
@@ -122,6 +128,8 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       location: { ru: location.trim() },
       startDate,
       endDate,
+      timeTBA,
+      allDay,
       urgency: mode === 'admin' ? urgency : ALERT_CATEGORIES.includes(category) ? 'planned' : 'event',
       status: mode === 'admin' ? status : 'scheduled',
       isUrgentTicker: mode === 'admin' ? isTicker : false,
@@ -225,6 +233,16 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         <div>
           <label className={labelCls}>{tr('fEnd')}</label>
           <input type="datetime-local" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </div>
+        <div className="sm:col-span-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-700">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={timeTBA} onChange={(e) => setTimeTBA(e.target.checked)} />
+            {tr('fTimeTBA')}
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />
+            {tr('fAllDay')}
+          </label>
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

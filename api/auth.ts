@@ -21,7 +21,8 @@ import {
   verifyPassword,
 } from './_lib/http';
 import { StoredUser, toPublic, USERS_KEY } from './_lib/users';
-import type { PlanId } from '../src/types';
+import { normalizePlan } from '../src/config/site';
+import { getUsage } from './_lib/quota';
 
 export const config = { runtime: 'edge' };
 
@@ -42,7 +43,7 @@ export default handler(async (req) => {
     if (!s) return json({ role: 'guest' });
     if (s.role === 'admin') return json({ role: 'admin' });
     const u = await hgetJson<StoredUser>(USERS_KEY, s.sub);
-    return u ? json({ role: 'user', user: toPublic(u) }) : json({ role: 'guest' });
+    return u ? json({ role: 'user', user: toPublic(u), usage: await getUsage(u) }) : json({ role: 'guest' });
   }
   if (req.method !== 'POST') throw new HttpError('method_not_allowed', 405);
 
@@ -61,7 +62,7 @@ export default handler(async (req) => {
     const name = clean(body.name, 120);
     const phone = clean(body.phone, 40);
     const password = String(body.password ?? '');
-    const plan: PlanId = body.plan === 'business' ? 'business' : 'basic';
+    const plan = normalizePlan(body.plan);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError('bad_email', 400, 'Проверьте e-mail');
     if (name.length < 2) throw new HttpError('bad_name', 400, 'Укажите имя');
     if (phone.replace(/\D/g, '').length < 9) throw new HttpError('bad_phone', 400, 'Укажите телефон');
@@ -92,21 +93,24 @@ export default handler(async (req) => {
     if (!u || !(await verifyPassword(String(body.password ?? ''), u.salt, u.hash))) {
       throw new HttpError('wrong_credentials', 401, 'Неверный e-mail или пароль');
     }
-    return json({ role: 'user', user: toPublic(u), token: await signSession(email, 'user') });
+    return json({ role: 'user', user: toPublic(u), usage: await getUsage(u), token: await signSession(email, 'user') });
   }
 
   if (action === 'payment') {
     const s = await requireUser(req);
     const u = await hgetJson<StoredUser>(USERS_KEY, s.sub);
     if (!u) throw new HttpError('not_found', 404);
-    const stillPaid = u.paymentStatus === 'paid' && (!u.paidUntil || new Date(u.paidUntil).getTime() > Date.now());
-    if (stillPaid) return json({ user: toPublic(u) });
+    // Новую оплату можно заявить, только если текущий тариф уже не даёт публиковать
+    const usage = await getUsage(u);
+    if (u.paymentStatus === 'paid' && (!usage.reason || usage.reason === 'daily_limit_reached')) {
+      return json({ user: toPublic(u), usage });
+    }
     const paymentRef = clean(body.paymentRef, 120);
     if (!paymentRef) throw new HttpError('bad_payment_ref', 400, 'Укажите номер/код платежа');
-    const plan: PlanId = body.plan === 'business' ? 'business' : body.plan === 'basic' ? 'basic' : u.plan;
+    const plan = body.plan ? normalizePlan(body.plan) : normalizePlan(u.plan);
     const next: StoredUser = { ...u, plan, paymentRef, paymentStatus: 'pending' };
     await hsetJson(USERS_KEY, s.sub, next);
-    return json({ user: toPublic(next) });
+    return json({ user: toPublic(next), usage: await getUsage(next) });
   }
 
   throw new HttpError('unknown_action', 400);

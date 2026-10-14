@@ -14,6 +14,9 @@ import {
 import { INITIAL_ANNOUNCEMENTS } from './data/initialAnnouncements';
 import * as api from './services/api';
 import { trackView } from './services/analytics';
+import { addDaysStr, kgDateStr, kgTs } from './utils/time';
+import { alertLevel, isAlert, isExpired, isListed } from './utils/urgency';
+import { CATEGORY_IDS, REGIONS } from './config/regions';
 import { Header } from './components/Header';
 import { UrgentTicker } from './components/UrgentTicker';
 import { HeroFilter } from './components/HeroFilter';
@@ -31,6 +34,7 @@ import { OrganizationsPage } from './components/OrganizationsPage';
 import { AdminPortal } from './components/AdminPortal';
 import { SearchModal } from './components/SearchModal';
 import { AccountPortal } from './components/AccountPortal';
+import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
 
 /** Встроенные проверенные события + одобренные публикации с сервера */
 const mergeAnnouncements = (server: Announcement[], hidden: string[]) => {
@@ -43,13 +47,6 @@ const mergeAnnouncements = (server: Announcement[], hidden: string[]) => {
 
 const isAdminHash = () => window.location.hash.replace('#', '').toLowerCase() === 'admin';
 
-const toDateStr = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const addDays = (d: Date, n: number) => {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-};
 
 export default function App() {
   // Multilingual State
@@ -70,7 +67,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
-  const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toDateStr(new Date()));
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => kgDateStr());
 
   // Data Store: встроенные события показываются сразу, публикации с сервера догружаются
   const [announcements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
@@ -84,6 +81,7 @@ export default function App() {
   // Панель управления открывается только по адресу сайта с #admin и только после входа админа
   const [isAdminOpen, setIsAdminOpen] = useState(isAdminHash);
   const [accountMode, setAccountMode] = useState<null | 'cabinet' | 'publish'>(null);
+  const [statsMode, setStatsMode] = useState<StatsMode | null>(null);
 
   const refreshData = () => {
     api
@@ -116,113 +114,69 @@ export default function App() {
     if (isAdminHash()) history.replaceState(null, '', window.location.pathname + window.location.search);
   };
 
-  // Filtered announcements
-  const filteredAnnouncements = useMemo(() => {
-    return announcements.filter((item) => {
-      // City filter
-      if (selectedCity !== 'all' && item.city !== selectedCity) {
-        return false;
-      }
+  /**
+   * Один общий фильтр для счётчиков и списков (город, дата, поиск) — чтобы число на чипе категории
+   * всегда совпадало с тем, что открывается по нажатию. Завершённые предупреждения не показываются.
+   */
+  const matchesScope = (item: Announcement, ignoreCategory = false) => {
+    if (!isListed(item)) return false;
+    // Город: публикации «Весь Кыргызстан» (city = 'all') видны в любом городе
+    if (selectedCity !== 'all' && item.city !== selectedCity && item.city !== 'all') return false;
+    if (!ignoreCategory && selectedCategory !== 'all' && item.category !== selectedCategory) return false;
 
-      // Category filter
-      if (selectedCategory !== 'all' && item.category !== selectedCategory) {
-        return false;
-      }
+    // Даты считаются по календарю Бишкека
+    const itemStart = item.startDate.slice(0, 10);
+    const itemEnd = item.endDate ? item.endDate.slice(0, 10) : itemStart;
+    const overlaps = (from: string, to: string) => itemStart <= to && itemEnd >= from;
+    const today = kgDateStr();
+    if (dateFilter === 'today' && !overlaps(today, today)) return false;
+    if (dateFilter === 'tomorrow' && !overlaps(addDaysStr(today, 1), addDaysStr(today, 1))) return false;
+    if (dateFilter === 'weekend') {
+      const dow = new Date(`${today}T00:00:00Z`).getUTCDay();
+      const sat = addDaysStr(today, dow === 0 ? -1 : 6 - dow);
+      if (!overlaps(sat, addDaysStr(sat, 1))) return false;
+    }
+    if (dateFilter === 'week' && !overlaps(today, addDaysStr(today, 7))) return false;
 
-      // Date filters are computed from the real current date
-      const itemStart = item.startDate.split('T')[0];
-      const itemEnd = item.endDate ? item.endDate.split('T')[0] : itemStart;
-      const overlaps = (from: string, to: string) => itemStart <= to && itemEnd >= from;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const hay = [item.title.ru, item.title.kg, item.title.en, item.location.ru, item.protocolCode, item.summary.ru]
+        .join(' ')
+        .toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  };
 
-      const now = new Date();
-      const todayStr = toDateStr(now);
-      const tomorrowStr = toDateStr(addDays(now, 1));
+  const filteredAnnouncements = useMemo(
+    () => announcements.filter((a) => matchesScope(a)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [announcements, selectedCity, selectedCategory, dateFilter, searchQuery]
+  );
 
-      if (dateFilter === 'today') {
-        if (!overlaps(todayStr, todayStr)) return false;
-      } else if (dateFilter === 'tomorrow') {
-        if (!overlaps(tomorrowStr, tomorrowStr)) return false;
-      } else if (dateFilter === 'weekend') {
-        // nearest Saturday–Sunday (if today is Sunday, just today)
-        const dow = now.getDay();
-        const sat = dow === 0 ? addDays(now, -1) : addDays(now, 6 - dow);
-        if (!overlaps(toDateStr(sat), toDateStr(addDays(sat, 1)))) return false;
-      } else if (dateFilter === 'week') {
-        if (!overlaps(todayStr, toDateStr(addDays(now, 7)))) return false;
-      }
+  // Предупреждения и афиша делят список без пропусков: всё, что не предупреждение, — в афише
+  const alertsList = useMemo(() => filteredAnnouncements.filter(isAlert), [filteredAnnouncements]);
+  const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
 
-      // Search Query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const titleRu = item.title.ru.toLowerCase();
-        const titleKg = (item.title.kg || '').toLowerCase();
-        const titleEn = (item.title.en || '').toLowerCase();
-        const loc = item.location.ru.toLowerCase();
-        const proto = item.protocolCode.toLowerCase();
-        const sum = item.summary.ru.toLowerCase();
-
-        if (
-          !titleRu.includes(q) &&
-          !titleKg.includes(q) &&
-          !titleEn.includes(q) &&
-          !loc.includes(q) &&
-          !proto.includes(q) &&
-          !sum.includes(q)
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [announcements, selectedCity, selectedCategory, dateFilter, searchQuery]);
-
-  // Split into Alerts vs Events
-  const alertsList = useMemo(() => {
-    return filteredAnnouncements.filter(
-      (a) =>
-        a.urgency === 'emergency' ||
-        a.urgency === 'planned' ||
-        a.category === 'roads' ||
-        a.category === 'water' ||
-        a.category === 'electricity' ||
-        a.category === 'repairs'
-    );
-  }, [filteredAnnouncements]);
-
-  const eventsList = useMemo(() => {
-    return filteredAnnouncements.filter(
-      (a) =>
-        a.urgency === 'event' ||
-        a.category === 'concerts' ||
-        a.category === 'festivals' ||
-        a.category === 'fairs' ||
-        a.category === 'cinema' ||
-        a.category === 'education' ||
-        a.category === 'gov'
-    );
-  }, [filteredAnnouncements]);
-
-  // Compute category counts
+  // Счётчики категорий — по тем же правилам, что и список (кроме самой категории)
   const categoryCounts = useMemo(() => {
-    const baseList = selectedCity === 'all'
-      ? announcements
-      : announcements.filter((a) => a.city === selectedCity);
-
-    const counts: Record<CategoryId, number> = {
-      all: baseList.length,
-      water: baseList.filter((a) => a.category === 'water').length,
-      electricity: baseList.filter((a) => a.category === 'electricity').length,
-      roads: baseList.filter((a) => a.category === 'roads').length,
-      repairs: baseList.filter((a) => a.category === 'repairs').length,
-      concerts: baseList.filter((a) => a.category === 'concerts').length,
-      festivals: baseList.filter((a) => a.category === 'festivals').length,
-      fairs: baseList.filter((a) => a.category === 'fairs').length,
-      cinema: baseList.filter((a) => a.category === 'cinema').length,
-      education: baseList.filter((a) => a.category === 'education').length,
-      gov: baseList.filter((a) => a.category === 'gov').length,
-    };
+    const base = announcements.filter((a) => matchesScope(a, true));
+    const counts = { all: base.length } as Record<CategoryId, number>;
+    CATEGORY_IDS.forEach((c) => (counts[c] = base.filter((a) => a.category === c).length));
     return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [announcements, selectedCity, dateFilter, searchQuery]);
+
+  // Показатели в шапке — по фактическим данным
+  const heroStats = useMemo(() => {
+    const scoped = announcements.filter(
+      (a) => isListed(a) && (selectedCity === 'all' || a.city === selectedCity || a.city === 'all')
+    );
+    return {
+      publications: scoped.length,
+      activeAlerts: scoped.filter((a) => alertLevel(a) === 'urgent' || alertLevel(a) === 'soon').length,
+      regions: REGIONS.length,
+    };
   }, [announcements, selectedCity]);
 
   // Featured notice for the top strip: nearest non-finished item flagged for the ticker
@@ -230,8 +184,8 @@ export default function App() {
     const nowTs = Date.now();
     const pool = announcements
       .filter((a) => a.isUrgentTicker && a.status !== 'cancelled' && a.status !== 'archived' && a.status !== 'completed')
-      .filter((a) => new Date(a.endDate || a.startDate).getTime() + 4 * 3600 * 1000 >= nowTs)
-      .sort((x, y) => new Date(x.startDate).getTime() - new Date(y.startDate).getTime());
+      .filter((a) => !isExpired(a, nowTs))
+      .sort((x, y) => kgTs(x.startDate) - kgTs(y.startDate));
     return pool[0] || null;
   }, [announcements]);
 
@@ -300,8 +254,8 @@ export default function App() {
               onDateFilterChange={setDateFilter}
               onSearchSubmit={() => {}}
               onTagClick={handleTagClick}
-              totalEventsCount={eventsList.length + alertsList.length}
-              totalAlertsCount={alertsList.length}
+              stats={heroStats}
+              onOpenStats={setStatsMode}
             />
 
             {/* Quick Category Filter Chips Bar */}
@@ -312,7 +266,19 @@ export default function App() {
               categoryCounts={categoryCounts}
             />
 
+            {/* Выбрана категория — показываем ровно те публикации, что учтены в счётчике чипа */}
+            {selectedCategory !== 'all' && (
+              <CategoryResults
+                lang={currentLanguage}
+                category={selectedCategory}
+                items={filteredAnnouncements}
+                onOpen={setActiveNoticeDetail}
+                onReset={() => setSelectedCategory('all')}
+              />
+            )}
+
             {/* Urgent & Important Alerts Section */}
+            {selectedCategory === 'all' && (
             <AlertsGrid
               currentLanguage={currentLanguage}
               alerts={alertsList}
@@ -320,8 +286,10 @@ export default function App() {
               onCityFilterChange={setSelectedCity}
               onSelectAnnouncement={setActiveNoticeDetail}
             />
+            )}
 
             {/* Upcoming Events Feed & Interactive Calendar Mosaic */}
+            {selectedCategory === 'all' && (
             <section className="w-full py-10 sm:py-14 bg-[#eef2f9] border-t border-gray-200">
               <div className="max-w-[1280px] mx-auto px-4 md:px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -348,6 +316,7 @@ export default function App() {
                 </div>
               </div>
             </section>
+            )}
 
             {/* Browse by City / Regional Portals Mosaic */}
             <CityMosaic
@@ -395,13 +364,23 @@ export default function App() {
               onSelectCategory={setSelectedCategory}
               categoryCounts={categoryCounts}
             />
-            <AlertsGrid
-              currentLanguage={currentLanguage}
-              alerts={alertsList}
-              selectedCity={selectedCity}
-              onCityFilterChange={setSelectedCity}
-              onSelectAnnouncement={setActiveNoticeDetail}
-            />
+            {selectedCategory !== 'all' ? (
+              <CategoryResults
+                lang={currentLanguage}
+                category={selectedCategory}
+                items={filteredAnnouncements}
+                onOpen={setActiveNoticeDetail}
+                onReset={() => setSelectedCategory('all')}
+              />
+            ) : (
+              <AlertsGrid
+                currentLanguage={currentLanguage}
+                alerts={alertsList}
+                selectedCity={selectedCity}
+                onCityFilterChange={setSelectedCity}
+                onSelectAnnouncement={setActiveNoticeDetail}
+              />
+            )}
           </div>
         )}
 
@@ -473,6 +452,17 @@ export default function App() {
             setIsSearchOpen(false);
           }}
           onClose={() => setIsSearchOpen(false)}
+        />
+      )}
+
+      {/* Списки по показателям в шапке */}
+      {statsMode && (
+        <StatsPanel
+          mode={statsMode}
+          lang={currentLanguage}
+          announcements={announcements.filter((a) => selectedCity === 'all' || a.city === selectedCity || a.city === 'all' || statsMode === 'regions')}
+          onOpen={setActiveNoticeDetail}
+          onClose={() => setStatsMode(null)}
         />
       )}
 

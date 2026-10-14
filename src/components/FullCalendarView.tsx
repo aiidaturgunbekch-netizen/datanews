@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { alertLevel } from '../utils/urgency';
 import { formatDateLong, formatMonthYear, formatTime } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 
@@ -244,10 +245,10 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                           ? 'bg-red-500'
                           : displayStatus === 'rescheduled'
                           ? 'bg-amber-500'
-                          : item.urgency === 'emergency'
-                          ? 'bg-[#dc2626]'
-                          : item.urgency === 'planned'
-                          ? 'bg-[#d97706]'
+                          : alertLevel(item) === 'urgent'
+                          ? 'bg-red-600 dn-urgent-blink'
+                          : alertLevel(item) === 'soon'
+                          ? 'bg-amber-400'
                           : 'bg-[#00897b]';
 
                       return (

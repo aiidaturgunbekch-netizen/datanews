@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { alertLevel, isAlert } from '../utils/urgency';
 import { formatDate, formatMonthYear, formatTime } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 
@@ -164,9 +165,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           const isToday = todayStr === dateStr;
           const dayItems = itemsByDate[dateStr] || [];
 
-          const hasEmergency = dayItems.some((i) => i.urgency === 'emergency' && i.status !== 'completed' && i.status !== 'cancelled');
-          const hasPlanned = dayItems.some((i) => (i.urgency === 'planned' || i.category === 'roads') && i.status !== 'completed' && i.status !== 'cancelled');
-          const hasEvent = dayItems.some((i) => (i.urgency === 'event' || i.category === 'concerts' || i.category === 'festivals') && i.status !== 'completed' && i.status !== 'cancelled');
+          // Красная мигающая точка — срочное предупреждение (0–3 дня), жёлтая — предупреждение позже, бирюзовая — событие
+          const hasEmergency = dayItems.some((i) => alertLevel(i) === 'urgent');
+          const hasPlanned = dayItems.some((i) => alertLevel(i) === 'soon');
+          const hasEvent = dayItems.some((i) => !isAlert(i) && i.status !== 'cancelled');
 
           return (
             <button
@@ -187,15 +189,15 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
               <span className="flex items-center gap-0.5 mt-0.5 h-1.5">
                 {hasEmergency && (
                   <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isSelected ? 'bg-red-400' : 'bg-[#dc2626]'
+                    className={`w-1.5 h-1.5 rounded-full dn-urgent-blink ${
+                      isSelected ? 'bg-red-300' : 'bg-red-600'
                     }`}
                   />
                 )}
                 {hasPlanned && (
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${
-                      isSelected ? 'bg-amber-300' : 'bg-[#d97706]'
+                      isSelected ? 'bg-amber-200' : 'bg-amber-400'
                     }`}
                   />
                 )}
@@ -215,11 +217,11 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       {/* Calendar Color Legend */}
       <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100 mb-4">
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#dc2626]" />
+          <span className="w-2 h-2 rounded-full bg-red-600" />
           <span>{t('views.legendEmergency')}</span>
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#d97706]" />
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
           <span>{t('views.legendPlanned')}</span>
         </span>
         <span className="inline-flex items-center gap-1.5">
@@ -250,7 +252,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           </p>
         ) : (
           <ul className="space-y-2">
-            {selectedItems.slice(0, 4).map((item) => {
+            {selectedItems.map((item) => {
               const displayStatus = getAnnouncementDisplayStatus(item);
               const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
 
@@ -261,10 +263,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                   ? 'bg-red-500'
                   : displayStatus === 'rescheduled'
                   ? 'bg-amber-500'
-                  : item.urgency === 'emergency'
-                  ? 'bg-[#dc2626]'
-                  : item.urgency === 'planned'
-                  ? 'bg-[#d97706]'
+                  : alertLevel(item) === 'urgent'
+                  ? 'bg-red-600 dn-urgent-blink'
+                  : alertLevel(item) === 'soon'
+                  ? 'bg-amber-400'
                   : 'bg-[#20C7B5]';
 
               return (

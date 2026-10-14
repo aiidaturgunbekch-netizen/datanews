@@ -13,8 +13,8 @@ interface HeroFilterProps {
   onDateFilterChange: (d: string) => void;
   onSearchSubmit: () => void;
   onTagClick: (tag: string) => void;
-  totalEventsCount: number;
-  totalAlertsCount: number;
+  stats: { publications: number; activeAlerts: number; regions: number };
+  onOpenStats: (mode: 'all' | 'alerts' | 'regions') => void;
 }
 
 export const HeroFilter: React.FC<HeroFilterProps> = ({
@@ -27,8 +27,8 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
   onDateFilterChange,
   onSearchSubmit,
   onTagClick,
-  totalEventsCount,
-  totalAlertsCount,
+  stats,
+  onOpenStats,
 }) => {
   const { t } = getTranslation(currentLanguage);
 
@@ -116,22 +116,30 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
             </p>
           </div>
 
-          {/* Live Metrics Counter Strip */}
-          <div className="flex items-center gap-4 sm:gap-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex-shrink-0">
-            <div className="text-left">
-              <div className="text-2xl font-bold text-[#12327A]">{totalEventsCount}</div>
-              <div className="text-xs text-gray-500 font-medium">{t('search.eventsOnDate')}</div>
-            </div>
-            <div className="w-px h-8 bg-gray-200" />
-            <div className="text-left">
-              <div className="text-2xl font-bold text-[#dc2626]">{totalAlertsCount}</div>
-              <div className="text-xs text-gray-500 font-medium">{t('search.activeAlerts')}</div>
-            </div>
-            <div className="w-px h-8 bg-gray-200" />
-            <div className="text-left">
-              <div className="text-2xl font-bold text-[#00897b]">7</div>
-              <div className="text-xs text-gray-500 font-medium">{t('search.regionsCount')}</div>
-            </div>
+          {/* Показатели по фактическим данным — каждый открывает список */}
+          <div className="flex items-stretch gap-1 sm:gap-2 bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex-shrink-0">
+            {(
+              [
+                { mode: 'all', value: stats.publications, label: t('search.eventsOnDate'), color: 'text-[#12327A]' },
+                { mode: 'alerts', value: stats.activeAlerts, label: t('search.activeAlerts'), color: 'text-[#dc2626]' },
+                { mode: 'regions', value: stats.regions, label: t('search.regionsCount'), color: 'text-[#00897b]' },
+              ] as const
+            ).map((m, i) => (
+              <React.Fragment key={m.mode}>
+                {i > 0 && <div className="w-px bg-gray-200 my-2" />}
+                <button
+                  type="button"
+                  onClick={() => onOpenStats(m.mode)}
+                  className="text-left px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-[#eef2f9] focus-visible:ring-2 focus-visible:ring-[#12327A] transition-colors group"
+                >
+                  <div className={`text-2xl font-bold ${m.color} flex items-center gap-1`}>
+                    {m.value}
+                    <span className="material-symbols-outlined text-[16px] text-gray-400 group-hover:text-[#12327A]">open_in_full</span>
+                  </div>
+                  <div className="text-xs text-gray-500 font-medium underline decoration-dotted underline-offset-2">{m.label}</div>
+                </button>
+              </React.Fragment>
+            ))}
           </div>
         </div>
 

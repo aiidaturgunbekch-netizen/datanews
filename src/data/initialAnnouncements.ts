@@ -6,6 +6,17 @@ const commons = (file: string, width = 1600) =>
 /** Страница файла на Commons — первоисточник фото, автор и лицензия */
 const commonsPage = (file: string) => `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(file.replace(/ /g, '_'))}`;
 
+/** Тематическая иллюстрация DataNews (не фотография события) из public/illustrations */
+const illus = (name: string, alt: string) => ({
+  imageUrl: `/illustrations/${name}.svg`,
+  imageAlt: alt,
+  imageCredit: 'Иллюстрация DataNews — не фото события',
+  imageFit: 'cover' as const,
+});
+
+/** Отметка редакции: запись внесена вручную по источнику, дата последней проверки */
+const checked = (at: string) => ({ lastCheckedAt: at, dataOrigin: 'manual' as const });
+
 const SHAKIRA_PHOTO = 'Las Mujeres Ya No Lloran World Tour - Rio de Janeiro (8).jpg';
 const ARBENINA_PHOTO = 'Diana Arbenina.jpg';
 
@@ -70,6 +81,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ticketUrl: 'https://ticket.gov.kg/ru/event/shakira-vpervye-vystupit-v-tsentralnoy-azii-mirovaya-zvezda-priezzhaet-v-bishkek-116',
     ticketUrlVerified: true,
     artistUrl: 'https://www.shakira.com/',
+    ...checked('2026-10-14T10:00'),
     isDemo: false,
   },
   {
@@ -108,6 +120,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isVerified: true,
     publishedAt: '2026-10-09T12:02',
     updatedAt: '2026-10-09T12:02',
+    ...illus('roads', 'Дорожная иллюстрация: ограждение и знак'),
+    ...checked('2026-10-13T18:00'),
     isDemo: false,
   },
 
@@ -149,6 +163,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       { name: 'Бишкекводоканал', phone: '1533', isTollFree: true, icon: 'water_drop' },
       { name: 'Колл-центр мэрии Бишкека', phone: '1840', isTollFree: true, icon: 'support_agent' },
     ],
+    ...illus('water', 'Водопроводный кран — отключение воды'),
+    ...checked('2026-10-13T18:00'),
     isDemo: false,
   },
   {
@@ -184,6 +200,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     isVerified: true,
     publishedAt: '2026-10-13T10:00',
     updatedAt: '2026-10-13T10:00',
+    ...illus('power', 'Лампочка и электросчётчик — отключение электричества'),
+    ...checked('2026-10-13T18:00'),
     isDemo: false,
   },
   {
@@ -229,6 +247,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       { name: 'Бишкекводоканал', phone: '1533', isTollFree: true, icon: 'water_drop' },
       { name: 'Колл-центр мэрии Бишкека', phone: '1840', isTollFree: true, icon: 'support_agent' },
     ],
+    ...illus('water', 'Водопроводный кран — отключение воды'),
+    ...checked('2026-10-13T18:00'),
     isDemo: false,
   },
   {
@@ -267,6 +287,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       { name: 'Бишкектеплосеть', phone: '1980', isTollFree: true, icon: 'heat' },
       { name: 'Колл-центр мэрии Бишкека', phone: '1840', isTollFree: true, icon: 'support_agent' },
     ],
+    ...illus('heating', 'Радиатор отопления и термометр'),
+    ...checked('2026-10-14T10:00'),
     isDemo: false,
   },
 
@@ -315,6 +337,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     imageFit: 'contain',
     ticketUrl: 'https://ticket.kg/event/kontsert-pevitsy-diany-arbeninoi-i-gruppy-nochnye-snaipery',
     ticketUrlVerified: true,
+    ...checked('2026-10-13T18:00'),
     isDemo: false,
   },
   {
@@ -351,6 +374,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       venue: '«Жаштык Арена»',
       timeRange: '19:00',
     },
+    ...illus('concert', 'Пустая концертная сцена с микрофоном'),
+    ...checked('2026-10-13T18:00'),
     isDemo: false,
   },
   {
@@ -396,6 +421,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       timeRange: '18:30',
       contactPhone: '(0312) 61-40-15',
     },
+    ...illus('concert', 'Пустая концертная сцена с микрофоном'),
+    ...checked('2026-10-13T18:00'),
     isDemo: false,
   },
 
@@ -441,6 +468,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       organizer: 'Минводсельпром КР',
       venue: 'Старая площадь',
     },
+    ...illus('fair', 'Прилавок с овощами и фруктами'),
+    ...checked('2026-10-13T18:00'),
     isDemo: false,
   },
   {
@@ -461,7 +490,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       '2026-жылдын 27–29-октябрында Бишкекте KyrgyzTransLogistic 2026 (транспорт жана логистика) жана Interior Expo 2026 (курулуш жана интерьер) көргөзмөлөрү өтөт. KyrgyzTransLogistic аянтчасы — Кожомкул атындагы Спорт сарайы.',
       'KyrgyzTransLogistic 2026 (transport & logistics) and Interior Expo 2026 (construction & interiors) run 27–29 October 2026 in Bishkek. KyrgyzTransLogistic venue: Kozhomkul Sports Palace.'
     ),
-    category: 'fairs',
+    category: 'exhibitions',
     city: 'bishkek',
     location: L('Дворец спорта им. Кожомкула, Бишкек', 'Кожомкул атн. Спорт сарайы, Бишкек', 'Kozhomkul Sports Palace, Bishkek'),
     startDate: '2026-10-27T10:00',
@@ -476,6 +505,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     publishedAt: '2026-09-01T10:00',
     updatedAt: '2026-10-05T10:00',
     eventDetails: { venue: 'Дворец спорта им. Кожомкула' },
+    ...illus('exhibition', 'Выставочные стенды'),
+    ...checked('2026-10-13T18:00'),
     isDemo: false,
   },
 
@@ -509,6 +540,518 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     publishedAt: '2026-10-10T10:00',
     updatedAt: '2026-10-10T10:00',
     eventDetails: { venue: 'Кинотеатры Бишкека' },
+    ...illus('cinema', 'Кинохлопушка'),
+    ...checked('2026-10-13T18:00'),
+    isDemo: false,
+  },
+
+  // ───────────── Добавлено 14.10.2026: подтверждённые события и объявления до 31.12.2026 ─────────────
+  {
+    id: 'ann-expo-eurasia-2026',
+    protocolCode: '#KG-EX-EXPOEURASIA',
+    title: L(
+      'EXPO EURASIA KYRGYZSTAN 2026 и Бишкекский бизнес-форум',
+      'EXPO EURASIA KYRGYZSTAN 2026 көргөзмөсү жана Бишкек бизнес-форуму',
+      'EXPO EURASIA KYRGYZSTAN 2026 & Bishkek Business Forum'
+    ),
+    summary: L(
+      'Вторая международная промышленная выставка с конференцией и круглыми столами.',
+      'Конференция жана тегерек столдор менен экинчи эл аралык өнөр жай көргөзмөсү.',
+      'The second international industrial exhibition with a conference and round tables.'
+    ),
+    description: L(
+      'С 15 по 17 октября 2026 года в ВСК «Жаштык Арена» проходит вторая международная промышленная выставка EXPO EURASIA KYRGYZSTAN 2026 и Бишкекский бизнес-форум. В программе — экспозиция компаний, конференция и круглые столы. Время работы уточняйте у организаторов.',
+      '2026-жылдын 15–17-октябрында «Жаштык Арена» спорт комплексинде EXPO EURASIA KYRGYZSTAN 2026 экинчи эл аралык өнөр жай көргөзмөсү жана Бишкек бизнес-форуму өтөт. Программада компаниялардын экспозициясы, конференция жана тегерек столдор. Иштөө убактысын уюштуруучулардан тактаңыз.',
+      'The second international industrial exhibition EXPO EURASIA KYRGYZSTAN 2026 and the Bishkek Business Forum take place at Zhashtyk Arena on 15–17 October 2026, with company stands, a conference and round tables. Check opening hours with the organisers.'
+    ),
+    category: 'exhibitions',
+    city: 'bishkek',
+    location: L('ВСК «Жаштык Арена», ул. Тоголок Молдо, 17/7', '«Жаштык Арена», Тоголок Молдо көч., 17/7', 'Zhashtyk Arena, 17/7 Togolok Moldo St'),
+    startDate: '2026-10-15T00:00',
+    endDate: '2026-10-17T23:59',
+    timeTBA: true,
+    urgency: 'event',
+    status: 'scheduled',
+    sourceName: 'Elec.ru — календарь выставок',
+    sourceOrgType: 'ОРГ',
+    eventSourceUrl: 'https://www.elec.ru/events/2026/expo-eurasia-kyrgyzstan.html',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    eventDetails: { venue: 'Жаштык Арена' },
+    ...illus('exhibition', 'Выставочные стенды'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-philharmonic-90-season',
+    protocolCode: '#KG-CU-FIL90',
+    title: L(
+      'Открытие 90-го концертного сезона Национальной филармонии',
+      'Улуттук филармониянын 90-концерттик сезонунун ачылышы',
+      'National Philharmonic opens its 90th concert season'
+    ),
+    summary: L(
+      'Выступит Академический оркестр народных инструментов имени К. Орозова.',
+      'К. Орозов атындагы академиялык элдик аспаптар оркестри чыгат.',
+      'The K. Orozov Academic Orchestra of Folk Instruments performs.'
+    ),
+    description: L(
+      'По сообщению пресс-службы Министерства культуры, 19 октября 2026 года Кыргызская национальная филармония им. Т. Сатылганова открывает 90-й концертный сезон. На открытии выступит Академический оркестр народных инструментов имени К. Орозова. Время начала и условия входа уточняйте в кассе филармонии.',
+      'Маданият министрлигинин басма сөз кызматынын маалыматы боюнча, 2026-жылдын 19-октябрында Т. Сатылганов атындагы Кыргыз улуттук филармониясы 90-концерттик сезонун ачат. Ачылышта К. Орозов атындагы академиялык элдик аспаптар оркестри чыгат. Башталыш убактысын жана кирүү шарттарын филармониянын кассасынан тактаңыз.',
+      'According to the Ministry of Culture, the T. Satylganov Kyrgyz National Philharmonic opens its 90th concert season on 19 October 2026 with the K. Orozov Academic Orchestra of Folk Instruments. Check the start time and entry at the box office.'
+    ),
+    category: 'culture',
+    city: 'bishkek',
+    location: L('Филармония им. Т. Сатылганова, пр. Чуй, 253', 'Т. Сатылганов атн. филармония, Чүй пр., 253', 'T. Satylganov Philharmonic, 253 Chui Ave'),
+    startDate: '2026-10-19T00:00',
+    endDate: '',
+    timeTBA: true,
+    urgency: 'event',
+    status: 'scheduled',
+    sourceName: 'Минкультуры КР • АКИpress Культура',
+    sourceOrgType: 'ГОС',
+    eventSourceUrl: 'https://culture.akipress.org/news:2548332',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    eventDetails: { venue: 'Национальная филармония', contactPhone: '(0312) 61-40-15' },
+    ...illus('culture', 'Театральные маски и занавес'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-malika-dina-2026-10-31',
+    protocolCode: '#KG-EV-MALIKADINA',
+    title: L('MALIKA DINA: большой сольный концерт', 'MALIKA DINA: чоң жеке концерт', 'MALIKA DINA: big solo concert'),
+    summary: L(
+      'Известные хиты, новые песни, живой вокал и световое шоу. Около двух часов.',
+      'Белгилүү хиттер, жаңы ырлар, жандуу вокал жана жарык шоусу. Болжол менен эки саат.',
+      'Best-known hits, new songs, live vocals and a light show. About two hours.'
+    ),
+    description: L(
+      'Сольный концерт MALIKA DINA пройдёт в субботу, 31 октября 2026 года, в 19:00 в «Жаштык Арене» (ул. Тоголок Молдо, 17/7). Продолжительность — около двух часов. Билеты от 1 500 сом продаются на Kassir.kg.',
+      'MALIKA DINAнын жеке концерти 2026-жылдын 31-октябрында, ишемби күнү, саат 19:00дө «Жаштык Аренада» (Тоголок Молдо көч., 17/7) өтөт. Узактыгы — болжол менен эки саат. Билеттер 1 500 сомдон Kassir.kg сайтында сатылат.',
+      'MALIKA DINA performs on Saturday 31 October 2026 at 19:00 at Zhashtyk Arena (17/7 Togolok Moldo St). About two hours. Tickets from 1,500 KGS on Kassir.kg.'
+    ),
+    category: 'concerts',
+    city: 'bishkek',
+    location: L('«Жаштык Арена», ул. Тоголок Молдо, 17/7', '«Жаштык Арена», Тоголок Молдо көч., 17/7', 'Zhashtyk Arena, 17/7 Togolok Moldo St'),
+    startDate: '2026-10-31T19:00',
+    endDate: '2026-10-31T21:00',
+    urgency: 'event',
+    status: 'scheduled',
+    sourceName: 'Kassir.kg • Bishkek.events',
+    sourceOrgType: 'БИЛ',
+    eventSourceUrl: 'https://bishkek.events/event/malika-dina/',
+    ticketUrl: 'https://kassir.kg/ru/session/4316-malika-dina-bolshoi-solnyi-kontsert',
+    ticketUrlVerified: true,
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    eventDetails: { priceText: L('от 1 500 сом', '1 500 сомдон', 'from 1,500 KGS'), venue: '«Жаштык Арена»', timeRange: '19:00' },
+    ...illus('concert', 'Пустая концертная сцена с микрофоном'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-futsal-kg-vn-2026-11-03',
+    protocolCode: '#KG-SP-FUTSAL1',
+    title: L(
+      'Футзал: Кыргызстан — Вьетнам, товарищеский матч (1-й)',
+      'Футзал: Кыргызстан — Вьетнам, жолдоштук беттеш (1-)',
+      'Futsal: Kyrgyzstan v Vietnam, friendly (match 1)'
+    ),
+    summary: L(
+      'Сборная Кыргызстана по футзалу проведёт в Бишкеке два матча с Вьетнамом — 3 и 5 ноября.',
+      'Кыргызстандын футзал боюнча курама командасы Бишкекте Вьетнам менен эки беттеш өткөрөт — 3 жана 5-ноябрда.',
+      'Kyrgyzstan’s futsal team hosts Vietnam in Bishkek for two friendlies on 3 and 5 November.'
+    ),
+    description: L(
+      'Товарищеские матчи национальных сборных Кыргызстана и Вьетнама по футзалу пройдут в Бишкеке на площадке новой «Мурас Арены» 3 и 5 ноября 2026 года. Время начала и продажа билетов пока не объявлены — следите за сообщениями Кыргызского футбольного союза.',
+      'Кыргызстан менен Вьетнамдын футзал боюнча курама командаларынын жолдоштук беттештери 2026-жылдын 3 жана 5-ноябрында Бишкектеги жаңы «Мурас Аренада» өтөт. Башталыш убактысы жана билет сатуу азырынча жарыялана элек — Кыргыз футбол союзунун кабарларын көз салыңыз.',
+      'Kyrgyzstan and Vietnam play two futsal friendlies at the new Muras Arena in Bishkek on 3 and 5 November 2026. Kick-off times and ticket sales have not been announced yet — follow the Kyrgyz Football Union.'
+    ),
+    category: 'sport',
+    city: 'bishkek',
+    location: L('«Мурас Арена», Бишкек', '«Мурас Арена», Бишкек', 'Muras Arena, Bishkek'),
+    startDate: '2026-11-03T00:00',
+    endDate: '',
+    timeTBA: true,
+    urgency: 'event',
+    status: 'scheduled',
+    sourceName: 'Sport АКИpress • Новости.кг',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://sport.akipress.org/news:2542299',
+    organizerUrl: 'https://www.kfu.kg/',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    eventDetails: { venue: 'Мурас Арена' },
+    ...illus('sport', 'Футбольный мяч и ворота'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-futsal-kg-vn-2026-11-05',
+    protocolCode: '#KG-SP-FUTSAL2',
+    title: L(
+      'Футзал: Кыргызстан — Вьетнам, товарищеский матч (2-й)',
+      'Футзал: Кыргызстан — Вьетнам, жолдоштук беттеш (2-)',
+      'Futsal: Kyrgyzstan v Vietnam, friendly (match 2)'
+    ),
+    summary: L(
+      'Второй товарищеский матч сборных по футзалу в «Мурас Арене».',
+      'Курама командалардын «Мурас Аренадагы» экинчи жолдоштук беттеши.',
+      'The second futsal friendly at Muras Arena.'
+    ),
+    description: L(
+      'Второй из двух товарищеских матчей сборных Кыргызстана и Вьетнама по футзалу — 5 ноября 2026 года в «Мурас Арене» (Бишкек). Время начала и билеты пока не объявлены.',
+      'Кыргызстан менен Вьетнамдын футзал боюнча эки жолдоштук беттешинин экинчиси — 2026-жылдын 5-ноябрында «Мурас Аренада» (Бишкек). Башталыш убактысы жана билеттер азырынча жарыялана элек.',
+      'The second of two Kyrgyzstan v Vietnam futsal friendlies — 5 November 2026 at Muras Arena, Bishkek. Kick-off time and tickets not announced yet.'
+    ),
+    category: 'sport',
+    city: 'bishkek',
+    location: L('«Мурас Арена», Бишкек', '«Мурас Арена», Бишкек', 'Muras Arena, Bishkek'),
+    startDate: '2026-11-05T00:00',
+    endDate: '',
+    timeTBA: true,
+    urgency: 'event',
+    status: 'scheduled',
+    sourceName: 'Новости.кг • Sport АКИpress',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://novosti.kg/2026/09/kyrgyzstan-i-vetnam-sygrayut-v-futzal-v-bishkeke/',
+    organizerUrl: 'https://www.kfu.kg/',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    eventDetails: { venue: 'Мурас Арена' },
+    ...illus('sport', 'Футбольный мяч и ворота'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-history-memory-days-2026',
+    protocolCode: '#KG-GOV-TARYH',
+    title: L(
+      'Дни истории и памяти предков',
+      'Тарых жана ата-бабаларды эскерүү күндөрү',
+      'Days of History and Commemoration of Ancestors'
+    ),
+    summary: L(
+      '7–8 ноября — праздничные дни в календаре Кыргызстана. Режим работы организаций уточняйте.',
+      '7–8-ноябрь — Кыргызстандын календарындагы майрам күндөрү. Мекемелердин иш тартибин тактаңыз.',
+      '7–8 November are public commemoration days in Kyrgyzstan. Check opening hours of organisations.'
+    ),
+    description: L(
+      '7 и 8 ноября в Кыргызстане отмечаются Дни истории и памяти предков. В 2026 году эти даты выпадают на субботу и воскресенье. Источники расходятся в том, будут ли они нерабочими: по сообщению Sputnik Кыргызстан, по новому Трудовому кодексу 7 и 8 ноября остаются праздничными, но рабочими днями. Уточняйте режим работы у своего работодателя и в учреждениях.',
+      'Кыргызстанда 7 жана 8-ноябрда Тарых жана ата-бабаларды эскерүү күндөрү белгиленет. 2026-жылы бул даталар ишемби жана жекшембиге туура келет. Алардын эс алуу күнү болушу боюнча булактар ар башка: Sputnik Кыргызстандын маалыматы боюнча, жаңы Эмгек кодексине ылайык 7 жана 8-ноябрь майрам, бирок жумуш күндөрү бойдон калат. Иш тартибин иш берүүчүдөн жана мекемелерден тактаңыз.',
+      'Kyrgyzstan marks the Days of History and Commemoration of Ancestors on 7 and 8 November; in 2026 they fall on a Saturday and Sunday. Sources differ on whether they are days off: Sputnik Kyrgyzstan reports that under the new Labour Code they remain holidays but working days. Check with your employer.'
+    ),
+    category: 'gov',
+    city: 'all',
+    location: L('Весь Кыргызстан', 'Бүт Кыргызстан', 'All of Kyrgyzstan'),
+    startDate: '2026-11-07T00:00',
+    endDate: '2026-11-08T23:59',
+    allDay: true,
+    urgency: 'regular',
+    status: 'scheduled',
+    sourceName: 'Кабар • Sputnik Кыргызстан',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://ru.kabar.kg/news/kakie-prazdniki-i-kanikuly-zhdut-kyrgyzstancev-v-2026-godu/',
+    organizerUrl: 'https://ru.sputnik.kg/20260121/calendar-2026-prazdniki-vyhodnye-1099270899.html',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    ...illus('holiday', 'Страница календаря с орнаментом'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-u17-qualifiers-2026',
+    protocolCode: '#KG-SP-U17',
+    title: L(
+      'Отбор Кубка Азии U-17: группа F в Кыргызстане',
+      'U-17 Азия кубогунун тандоосу: F тайпасы Кыргызстанда',
+      'AFC U-17 Asian Cup qualifiers: Group F in Kyrgyzstan'
+    ),
+    summary: L(
+      'Сборная Кыргызстана U-17 сыграет с Йеменом, Туркменистаном, Монголией и Северными Марианскими островами.',
+      'Кыргызстандын U-17 курамасы Йемен, Түркмөнстан, Монголия жана Түндүк Мариан аралдары менен ойнойт.',
+      'Kyrgyzstan U-17 face Yemen, Turkmenistan, Mongolia and the Northern Mariana Islands.'
+    ),
+    description: L(
+      'По данным AKIpress, матчи отборочного раунда Кубка Азии (U-17) в группе F стартуют 8 ноября 2026 года и пройдут в Кыргызстане. Соперники сборной Кыргызстана (тренер Игорь Кудренко) — Йемен, Туркменистан, Монголия и Северные Марианские острова. Расписание матчей и стадион пока не опубликованы.',
+      'AKIpressтин маалыматы боюнча, Азия кубогунун (U-17) тандоо айлампасынын F тайпасындагы беттештер 2026-жылдын 8-ноябрында башталып, Кыргызстанда өтөт. Кыргызстан курамасынын (машыктыруучу Игорь Кудренко) атаандаштары — Йемен, Түркмөнстан, Монголия жана Түндүк Мариан аралдары. Беттештердин графиги жана стадион азырынча жарыялана элек.',
+      'According to AKIpress, AFC U-17 Asian Cup qualifying Group F starts on 8 November 2026 in Kyrgyzstan. Kyrgyzstan (coach Igor Kudrenko) face Yemen, Turkmenistan, Mongolia and the Northern Mariana Islands. The fixture list and stadium have not been published yet.'
+    ),
+    category: 'sport',
+    city: 'all',
+    location: L('Кыргызстан — стадион будет объявлен', 'Кыргызстан — стадион кийин жарыяланат', 'Kyrgyzstan — stadium to be announced'),
+    startDate: '2026-11-08T00:00',
+    endDate: '',
+    timeTBA: true,
+    urgency: 'event',
+    status: 'scheduled',
+    sourceName: 'Sport АКИpress',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://sport.akipress.org/news:2523610',
+    organizerUrl: 'https://www.kfu.kg/',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    ...illus('sport', 'Футбольный мяч и ворота'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-xcho-2026-11-11',
+    protocolCode: '#KG-EV-XCHO',
+    title: L('XCHO в Бишкеке', 'XCHO Бишкекте', 'XCHO in Bishkek'),
+    summary: L(
+      'Концерт исполнителя XCHO в Nomad Arena. Билеты продают несколько билетных сервисов.',
+      'XCHO аткаруучусунун Nomad Arenaдагы концерти. Билеттерди бир нече билет кызматы сатат.',
+      'XCHO live at Nomad Arena. Tickets are sold by several ticket services.'
+    ),
+    description: L(
+      'Концерт XCHO пройдёт 11 ноября 2026 года в 19:00 в Nomad Arena (ул. Виноградная, 1/3). По данным афиши Bishkek.events, билеты продаются на Kassir.kg, Ticket.kg и Ticketon.kg; цены в разных сервисах указаны по-разному — проверяйте при покупке.',
+      'XCHOнун концерти 2026-жылдын 11-ноябрында саат 19:00дө Nomad Arenaда (Виноградная көч., 1/3) өтөт. Bishkek.events афишасынын маалыматы боюнча, билеттер Kassir.kg, Ticket.kg жана Ticketon.kg сайттарында сатылат; баалар ар кайсы кызматта ар башка — сатып алууда текшериңиз.',
+      'XCHO performs on 11 November 2026 at 19:00 at Nomad Arena (1/3 Vinogradnaya St). According to Bishkek.events, tickets are on Kassir.kg, Ticket.kg and Ticketon.kg; prices differ between services — check when buying.'
+    ),
+    category: 'concerts',
+    city: 'bishkek',
+    location: L('Nomad Arena, ул. Виноградная, 1/3', 'Nomad Arena, Виноградная көч., 1/3', 'Nomad Arena, 1/3 Vinogradnaya St'),
+    startDate: '2026-11-11T19:00',
+    endDate: '',
+    urgency: 'event',
+    status: 'scheduled',
+    sourceName: 'Bishkek.events',
+    sourceOrgType: 'БИЛ',
+    eventSourceUrl: 'https://bishkek.events/event/xcho/',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    eventDetails: { venue: 'Nomad Arena', timeRange: '19:00' },
+    ...illus('concert', 'Пустая концертная сцена с микрофоном'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-cec-nomination-end-2026',
+    protocolCode: '#KG-GOV-CEC1',
+    title: L(
+      'Выборы президента: завершение выдвижения кандидатов',
+      'Президенттик шайлоо: талапкерлерди көрсөтүүнүн аякташы',
+      'Presidential election: candidate nomination closes'
+    ),
+    summary: L(
+      'По календарному плану ЦИК выдвижение кандидатов на выборы 27 января 2027 года завершается 13 ноября.',
+      'БШКнын календардык планы боюнча 2027-жылдын 27-январындагы шайлоого талапкерлерди көрсөтүү 13-ноябрда аяктайт.',
+      'Under the CEC calendar, nominations for the 27 January 2027 election close on 13 November.'
+    ),
+    description: L(
+      'Выборы президента Кыргызской Республики назначены на 27 января 2027 года. Согласно календарному плану, утверждённому ЦИК, выдвижение кандидатов завершается 13 ноября 2026 года.',
+      'Кыргыз Республикасынын Президентин шайлоо 2027-жылдын 27-январына дайындалган. БШК бекиткен календардык планга ылайык, талапкерлерди көрсөтүү 2026-жылдын 13-ноябрында аяктайт.',
+      'The presidential election is set for 27 January 2027. Under the calendar plan approved by the Central Election Commission, candidate nomination closes on 13 November 2026.'
+    ),
+    category: 'gov',
+    city: 'all',
+    location: L('Весь Кыргызстан', 'Бүт Кыргызстан', 'All of Kyrgyzstan'),
+    startDate: '2026-11-13T00:00',
+    endDate: '2026-11-13T23:59',
+    allDay: true,
+    urgency: 'regular',
+    status: 'scheduled',
+    sourceName: 'Reporter.kg • ЦИК КР',
+    sourceOrgType: 'ГОС',
+    eventSourceUrl: 'https://reporter.kg/ru/klyuchevye-daty-utverzhdennogo-tsik-kalendarya-prezidentskikh-vyborov-podrobno/',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    ...illus('election', 'Урна для голосования и бюллетень'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-cec-voter-lists-2026',
+    protocolCode: '#KG-GOV-CEC2',
+    title: L(
+      'Проверьте свои данные в списках избирателей',
+      'Шайлоочулардын тизмесинен өз маалыматыңызды текшериңиз',
+      'Check your details in the voter lists'
+    ),
+    summary: L(
+      'С 18 ноября 2026 по 12 января 2027 года можно подать заявление об уточнении данных в списках избирателей.',
+      '2026-жылдын 18-ноябрынан 2027-жылдын 12-январына чейин шайлоочулардын тизмесиндеги маалыматты тактоо үчүн арыз берсе болот.',
+      'From 18 November 2026 to 12 January 2027 you can apply to correct your voter-list details.'
+    ),
+    description: L(
+      'По календарному плану ЦИК к выборам президента 27 января 2027 года избиратели могут с 18 ноября 2026 года по 12 января 2027 года подать заявление об уточнении своих данных в списках избирателей, если обнаружили ошибки или неточности.',
+      '2027-жылдын 27-январындагы президенттик шайлоого карата БШКнын календардык планына ылайык, шайлоочулар 2026-жылдын 18-ноябрынан 2027-жылдын 12-январына чейин тизмеден ката же так эмес маалымат тапса, аны тактоо үчүн арыз бере алышат.',
+      'Under the CEC calendar for the 27 January 2027 presidential election, voters can apply from 18 November 2026 to 12 January 2027 to correct errors in their voter-list details.'
+    ),
+    category: 'gov',
+    city: 'all',
+    location: L('Весь Кыргызстан', 'Бүт Кыргызстан', 'All of Kyrgyzstan'),
+    startDate: '2026-11-18T00:00',
+    endDate: '2027-01-12T23:59',
+    allDay: true,
+    urgency: 'regular',
+    status: 'scheduled',
+    sourceName: 'Reporter.kg • ЦИК КР',
+    sourceOrgType: 'ГОС',
+    eventSourceUrl: 'https://reporter.kg/ru/klyuchevye-daty-utverzhdennogo-tsik-kalendarya-prezidentskikh-vyborov-podrobno/',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    ...illus('election', 'Урна для голосования и бюллетень'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-lokel-2026-11-26',
+    protocolCode: '#KG-EV-LOKEL',
+    title: L('Марьяна Локель: «Нано тур»', 'Марьяна Локель: «Нано тур»', 'Maryana Lokel: Nano Tour'),
+    summary: L(
+      'Концерт Марьяны Локель в Nomad Arena в рамках «Нано тура». Около полутора часов.',
+      'Марьяна Локелдин «Нано тур» алкагындагы Nomad Arenaдагы концерти. Болжол менен бир жарым саат.',
+      'Maryana Lokel’s Nano Tour concert at Nomad Arena. About an hour and a half.'
+    ),
+    description: L(
+      'Марьяна Локель выступит в Бишкеке в четверг, 26 ноября 2026 года, в 19:00 в Nomad Arena (ул. Виноградная, 1/3). Продолжительность — около полутора часов. Билеты от 2 500 сом на Kassir.kg; концерт указан и на официальном сайте артистки.',
+      'Марьяна Локель 2026-жылдын 26-ноябрында, бейшемби күнү, саат 19:00дө Бишкектеги Nomad Arenaда (Виноградная көч., 1/3) концерт берет. Узактыгы — болжол менен бир жарым саат. Билеттер Kassir.kg сайтында 2 500 сомдон; концерт артисттин расмий сайтында да көрсөтүлгөн.',
+      'Maryana Lokel performs in Bishkek on Thursday 26 November 2026 at 19:00 at Nomad Arena (1/3 Vinogradnaya St). About an hour and a half. Tickets from 2,500 KGS on Kassir.kg; the show is also listed on her official site.'
+    ),
+    category: 'concerts',
+    city: 'bishkek',
+    location: L('Nomad Arena, ул. Виноградная, 1/3', 'Nomad Arena, Виноградная көч., 1/3', 'Nomad Arena, 1/3 Vinogradnaya St'),
+    startDate: '2026-11-26T19:00',
+    endDate: '2026-11-26T20:30',
+    urgency: 'event',
+    status: 'scheduled',
+    sourceName: 'Kassir.kg • maryanalokel.ru',
+    sourceOrgType: 'БИЛ',
+    eventSourceUrl: 'https://kassir.kg/ru/session/4587-lokel',
+    ticketUrl: 'https://kassir.kg/ru/session/4587-lokel',
+    ticketUrlVerified: true,
+    artistUrl: 'https://maryanalokel.ru/',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    eventDetails: { priceText: L('от 2 500 сом', '2 500 сомдон', 'from 2,500 KGS'), venue: 'Nomad Arena', timeRange: '19:00' },
+    ...illus('concert', 'Пустая концертная сцена с микрофоном'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-lisevsky-2026-12-05',
+    protocolCode: '#KG-EV-LISEVSKY',
+    title: L('Богдан Лисевский: новый стендап-концерт', 'Богдан Лисевский: жаңы стендап-концерт', 'Bogdan Lisevsky: new stand-up show'),
+    summary: L(
+      'Стендап в Кыргызском академическом драмтеатре им. Т. Абдумомунова. 18+.',
+      'Т. Абдумомунов атындагы Кыргыз академиялык драма театрындагы стендап. 18+.',
+      'Stand-up at the T. Abdumomunov Kyrgyz Academic Drama Theatre. 18+.'
+    ),
+    description: L(
+      'Стендап-концерт Богдана Лисевского — 5 декабря 2026 года в Кыргызском академическом драматическом театре им. Т. Абдумомунова (ул. Абдумомунова, 230). Длительность — 1,5 часа, возраст 18+. Билеты от 2 000 сом на Kassir.kg. В карточке продажи указано начало в 20:00, а в описании — 19:00: уточните время на странице билетов.',
+      'Богдан Лисевскийдин стендап-концерти — 2026-жылдын 5-декабрында Т. Абдумомунов атындагы Кыргыз академиялык драма театрында (Абдумомунов көч., 230). Узактыгы — 1,5 саат, жаш чеги 18+. Билеттер Kassir.kg сайтында 2 000 сомдон. Сатуу баракчасында башталышы 20:00, сүрөттөмөдө 19:00 деп көрсөтүлгөн: убакытты билет баракчасынан тактаңыз.',
+      'Bogdan Lisevsky’s stand-up show is on 5 December 2026 at the T. Abdumomunov Kyrgyz Academic Drama Theatre (230 Abdumomunov St). 1.5 hours, 18+. Tickets from 2,000 KGS on Kassir.kg. The listing says 20:00 but the description says 19:00 — check the ticket page.'
+    ),
+    category: 'concerts',
+    city: 'bishkek',
+    location: L(
+      'Драмтеатр им. Т. Абдумомунова, ул. Абдумомунова, 230',
+      'Т. Абдумомунов атн. драма театры, Абдумомунов көч., 230',
+      'T. Abdumomunov Drama Theatre, 230 Abdumomunov St'
+    ),
+    startDate: '2026-12-05T20:00',
+    endDate: '2026-12-05T21:30',
+    urgency: 'event',
+    status: 'scheduled',
+    sourceName: 'Kassir.kg • bogdanlisevskii.com',
+    sourceOrgType: 'БИЛ',
+    eventSourceUrl: 'https://kassir.kg/ru/session/4175-bogdan-lisevskii-novyi-stand-up-kontsert',
+    ticketUrl: 'https://kassir.kg/ru/session/4175-bogdan-lisevskii-novyi-stand-up-kontsert',
+    ticketUrlVerified: true,
+    artistUrl: 'https://bogdanlisevskii.com/',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    eventDetails: { priceText: L('от 2 000 сом', '2 000 сомдон', 'from 2,000 KGS'), venue: 'Драмтеатр им. Т. Абдумомунова', timeRange: '20:00 (уточняйте) • 18+' },
+    ...illus('culture', 'Театральные маски и занавес'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-cec-registration-2026',
+    protocolCode: '#KG-GOV-CEC3',
+    title: L(
+      'Выборы президента: регистрация кандидатов и старт агитации',
+      'Президенттик шайлоо: талапкерлерди каттоо жана үгүттүн башталышы',
+      'Presidential election: candidates registered, campaigning begins'
+    ),
+    summary: L(
+      '23 декабря завершается регистрация кандидатов и начинается предвыборная агитация.',
+      '23-декабрда талапкерлерди каттоо аяктап, шайлоо алдындагы үгүт башталат.',
+      'On 23 December candidate registration ends and campaigning begins.'
+    ),
+    description: L(
+      'По календарному плану ЦИК к выборам президента 27 января 2027 года окончательная регистрация кандидатов — 23 декабря 2026 года. С этого же дня начинается предвыборная агитация; она разрешена до 8:00 26 января 2027 года.',
+      '2027-жылдын 27-январындагы президенттик шайлоого карата БШКнын календардык планына ылайык, талапкерлерди акыркы каттоо — 2026-жылдын 23-декабры. Ушул күндөн тартып шайлоо алдындагы үгүт башталат; ал 2027-жылдын 26-январындагы саат 8:00гө чейин уруксат.',
+      'Under the CEC calendar for the 27 January 2027 presidential election, final candidate registration is on 23 December 2026, and campaigning starts the same day, allowed until 08:00 on 26 January 2027.'
+    ),
+    category: 'gov',
+    city: 'all',
+    location: L('Весь Кыргызстан', 'Бүт Кыргызстан', 'All of Kyrgyzstan'),
+    startDate: '2026-12-23T00:00',
+    endDate: '2026-12-23T23:59',
+    allDay: true,
+    urgency: 'regular',
+    status: 'scheduled',
+    sourceName: 'Reporter.kg • ЦИК КР',
+    sourceOrgType: 'ГОС',
+    eventSourceUrl: 'https://reporter.kg/ru/klyuchevye-daty-utverzhdennogo-tsik-kalendarya-prezidentskikh-vyborov-podrobno/',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    ...illus('election', 'Урна для голосования и бюллетень'),
+    ...checked('2026-10-14T12:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-dec31-short-day-2026',
+    protocolCode: '#KG-GOV-DEC31',
+    title: L(
+      '31 декабря — сокращённый предпраздничный рабочий день',
+      '31-декабрь — майрам алдындагы кыскартылган жумуш күнү',
+      '31 December — shortened pre-holiday working day'
+    ),
+    summary: L(
+      'В производственном календаре 2026 года 31 декабря — предпраздничный сокращённый день.',
+      '2026-жылдын өндүрүштүк календарында 31-декабрь — майрам алдындагы кыскартылган күн.',
+      'In the 2026 working calendar, 31 December is a shortened pre-holiday day.'
+    ),
+    description: L(
+      'По данным Sputnik Кыргызстан о производственном календаре на 2026 год, предпраздничными сокращёнными днями названы 20 марта, 30 апреля и 31 декабря. Режим работы конкретных учреждений уточняйте отдельно.',
+      'Sputnik Кыргызстандын 2026-жылдын өндүрүштүк календары тууралуу маалыматы боюнча, майрам алдындагы кыскартылган күндөр — 20-март, 30-апрель жана 31-декабрь. Мекемелердин иш тартибин өзүнчө тактаңыз.',
+      'According to Sputnik Kyrgyzstan’s report on the 2026 working calendar, 20 March, 30 April and 31 December are shortened pre-holiday days. Check the hours of specific institutions.'
+    ),
+    category: 'gov',
+    city: 'all',
+    location: L('Весь Кыргызстан', 'Бүт Кыргызстан', 'All of Kyrgyzstan'),
+    startDate: '2026-12-31T00:00',
+    endDate: '2026-12-31T23:59',
+    allDay: true,
+    urgency: 'regular',
+    status: 'scheduled',
+    sourceName: 'Sputnik Кыргызстан',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://ru.sputnik.kg/20260121/calendar-2026-prazdniki-vyhodnye-1099270899.html',
+    isVerified: true,
+    publishedAt: '2026-10-14T12:00',
+    updatedAt: '2026-10-14T12:00',
+    ...illus('holiday', 'Страница календаря с орнаментом'),
+    ...checked('2026-10-14T12:00'),
     isDemo: false,
   },
 ];

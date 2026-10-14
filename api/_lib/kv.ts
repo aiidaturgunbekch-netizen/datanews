@@ -41,9 +41,20 @@ const runMemory = (cmd: Cmd): unknown => {
   switch (String(name).toUpperCase()) {
     case 'GET':
       return mem.strings.get(args[0]) ?? null;
-    case 'SET':
+    case 'SET': {
+      // поддерживается SET key value [NX] [EX seconds] — срок жизни в памяти не отслеживается
+      const nx = args.slice(2).some((a) => a.toUpperCase() === 'NX');
+      if (nx && mem.strings.has(args[0])) return null;
       mem.strings.set(args[0], args[1]);
       return 'OK';
+    }
+    case 'DEL':
+      return args.reduce((n, k) => n + (mem.strings.delete(k) ? 1 : 0), 0);
+    case 'DECR': {
+      const v = Number(mem.strings.get(args[0]) || 0) - 1;
+      mem.strings.set(args[0], String(v));
+      return v;
+    }
     case 'INCR': {
       const v = Number(mem.strings.get(args[0]) || 0) + 1;
       mem.strings.set(args[0], String(v));

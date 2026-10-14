@@ -9,6 +9,9 @@ export type CategoryId =
   | 'concerts'
   | 'festivals'
   | 'fairs'
+  | 'exhibitions'
+  | 'culture'
+  | 'sport'
   | 'cinema'
   | 'education'
   | 'gov';
@@ -159,6 +162,18 @@ export interface Announcement {
     organization?: string;
   };
 
+  /** Время начала ещё не объявлено — показывается только дата */
+  timeTBA?: boolean;
+  /** Событие на весь день (праздник, срок кампании) — показываются только даты */
+  allDay?: boolean;
+  /** Когда редакция последний раз проверила информацию (ISO, время Бишкека) */
+  lastCheckedAt?: string;
+  /**
+   * Откуда запись: 'manual' — внесена редакцией вручную по источнику, 'user' — прислал организатор через кабинет,
+   * 'auto' — зарезервировано для будущего автоматического сбора (сейчас не используется).
+   */
+  dataOrigin?: 'manual' | 'user' | 'auto';
+
   isDemo: boolean;
 }
 
@@ -166,7 +181,8 @@ export type ModerationStatus = 'pending' | 'approved' | 'rejected';
 
 export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'rejected';
 
-export type PlanId = 'basic' | 'business';
+/** start / private — пакет публикаций; organizer / gov — 30 дней. Старые 'basic' / 'business' приводятся normalizePlan() */
+export type PlanId = 'start' | 'private' | 'organizer' | 'gov';
 
 export interface PublicUser {
   id: string;
@@ -179,7 +195,23 @@ export interface PublicUser {
   paymentRef?: string;
   /** До какого момента действует оплаченный тариф (ISO) */
   paidUntil?: string;
+  /** Идентификатор оплаченного пакета (тарифы «Старт» / «Частный»); счётчик публикаций хранится на сервере */
+  packId?: string;
   createdAt: string;
+}
+
+/** Использование тарифа — считает сервер (GET /api/auth) */
+export interface PlanUsage {
+  plan: PlanId;
+  active: boolean;
+  /** Почему публиковать сейчас нельзя */
+  reason?: 'payment_required' | 'period_expired' | 'pack_exhausted' | 'daily_limit_reached';
+  postLimit: number | null;
+  postsUsed: number;
+  dailyLimit: number | null;
+  postedToday: boolean;
+  /** Дата по Бишкеку, когда снова можно публиковать (при дневном лимите) */
+  nextAllowedDate?: string;
 }
 
 export interface DayStats {

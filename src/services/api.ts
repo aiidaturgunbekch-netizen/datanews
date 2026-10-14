@@ -1,4 +1,4 @@
-import { Announcement, PaymentStatus, PlanId, PublicUser, SiteStats } from '../types';
+import { Announcement, PaymentStatus, PlanId, PlanUsage, PublicUser, SiteStats } from '../types';
 
 /**
  * Клиент серверных функций /api (Vercel). Токен входа хранится в браузере.
@@ -59,7 +59,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 const post = <T>(path: string, body: unknown, method = 'POST') => request<T>(path, { method, body: JSON.stringify(body) });
 
 // ---------- auth ----------
-export const me = () => request<{ role: Role; user?: PublicUser }>('auth');
+export const me = () => request<{ role: Role; user?: PublicUser; usage?: PlanUsage }>('auth');
 
 export const adminLogin = async (password: string) => {
   const r = await post<{ token: string }>('auth', { action: 'admin-login', password });
@@ -89,7 +89,7 @@ export const login = async (email: string, password: string) => {
 };
 
 export const reportPayment = (paymentRef: string, plan: PlanId) =>
-  post<{ user: PublicUser }>('auth', { action: 'payment', paymentRef, plan }).then((r) => r.user);
+  post<{ user: PublicUser; usage?: PlanUsage }>('auth', { action: 'payment', paymentRef, plan });
 
 // ---------- announcements ----------
 export const fetchPublicAnnouncements = () => request<{ items: Announcement[]; hidden: string[] }>('announcements');
@@ -110,7 +110,8 @@ export const deleteAnnouncement = (id: string) =>
   request<{ ok: true }>(`announcements?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 
 // ---------- users & stats (admin) ----------
-export const fetchUsers = () => request<{ users: PublicUser[] }>('users').then((r) => r.users);
+export type AdminUser = PublicUser & { usage?: PlanUsage };
+export const fetchUsers = () => request<{ users: AdminUser[] }>('users').then((r) => r.users);
 export const setPaymentStatus = (email: string, paymentStatus: PaymentStatus) =>
   post<{ user: PublicUser }>('users', { email, paymentStatus }, 'PATCH').then((r) => r.user);
 

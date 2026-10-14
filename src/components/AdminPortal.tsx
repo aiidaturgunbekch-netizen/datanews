@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Announcement, Language, PaymentStatus, PublicUser, SiteStats } from '../types';
+import { Announcement, Language, PaymentStatus, SiteStats } from '../types';
 import * as api from '../services/api';
 import { INITIAL_ANNOUNCEMENTS } from '../data/initialAnnouncements';
-import { PLANS } from '../config/site';
+import { normalizePlan, PLANS } from '../config/site';
 import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './AnnouncementForm';
 import { EventImage } from './EventImage';
 import { eventSource, ticketLink } from '../utils/links';
@@ -225,7 +225,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   const [tab, setTab] = useState<Tab>('moderation');
   const [serverItems, setServerItems] = useState<Announcement[]>([]);
   const [hidden, setHidden] = useState<string[]>([]);
-  const [users, setUsers] = useState<PublicUser[]>([]);
+  const [users, setUsers] = useState<api.AdminUser[]>([]);
   const [editing, setEditing] = useState<Announcement | null | 'new'>(null);
   const [query, setQuery] = useState('');
   const [msg, setMsg] = useState('');
@@ -523,6 +523,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     <div className="space-y-2">
                       {users.map((u) => {
                         const pb = PAYMENT_BADGE[u.paymentStatus];
+                        const plan = PLANS[normalizePlan(u.plan)];
+                        const us = u.usage;
                         const setPay = (s: PaymentStatus, m: string) => act(() => api.setPaymentStatus(u.email, s), m);
                         return (
                           <div key={u.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col md:flex-row md:items-center gap-3">
@@ -536,8 +538,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                               <div className="text-xs mt-1 flex flex-wrap gap-2 items-center">
                                 <span className={`px-2 py-0.5 rounded-full font-bold ${pb.cls}`}>{pb.label}</span>
                                 <span>
-                                  {PLANS[u.plan].name.ru}, {PLANS[u.plan].priceSom.toLocaleString('ru-RU')} сом
+                                  {plan.name.ru}, {plan.priceSom.toLocaleString('ru-RU')} сом {plan.priceUnit.ru}
                                 </span>
+                                {us && us.postLimit !== null && u.paymentStatus === 'paid' && (
+                                  <span className={us.postsUsed >= us.postLimit ? 'text-red-700 font-bold' : 'text-gray-600'}>
+                                    Публикаций: {us.postsUsed} из {us.postLimit}
+                                  </span>
+                                )}
+                                {us && us.dailyLimit !== null && u.paymentStatus === 'paid' && (
+                                  <span className="text-gray-600">{us.postedToday ? 'Сегодня уже отправил(а) публикацию' : 'Сегодня публикаций не было'}</span>
+                                )}
                                 {u.paymentRef && <span className="text-gray-600">Платёж: <b>{u.paymentRef}</b></span>}
                                 {u.paidUntil && (
                                   <span className={new Date(u.paidUntil).getTime() > Date.now() ? 'text-gray-600' : 'text-red-700 font-bold'}>
@@ -553,9 +563,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                 </button>
                               ) : (
                                 <>
-                                  <button onClick={() => setPay('paid', `Доступ ${u.name} продлён на ${PLANS[u.plan].periodDays} дней`)} className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold">
-                                    Продлить на {PLANS[u.plan].periodDays} дней
-                                  </button>
+                                  {plan.kind === 'period' ? (
+                                    <button onClick={() => setPay('paid', `Доступ ${u.name} продлён на ${plan.periodDays} дней`)} className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold">
+                                      Продлить на {plan.periodDays} дней
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() =>
+                                        window.confirm(`Открыть ${u.name} новый пакет «${plan.name.ru}» (${plan.postLimit} публикаций)? Делайте это только после новой оплаты.`) &&
+                                        setPay('paid', `Открыт новый пакет: ${plan.postLimit} публикаций`)
+                                      }
+                                      className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold"
+                                    >
+                                      Новый пакет ({plan.postLimit})
+                                    </button>
+                                  )}
                                   <button onClick={() => setPay('unpaid', `Доступ ${u.name} приостановлен`)} className="px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold">
                                     Приостановить
                                   </button>

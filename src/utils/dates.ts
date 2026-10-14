@@ -106,10 +106,21 @@ export const nearestWeekend = (now = new Date()) => {
  *  «13-октябрь, 2026-жыл, 10:00–20:00».
  * `long` добавляет день недели.
  */
-export const formatWhen = (start: string, end: string | undefined, lang: Language, long = false) => {
+const TIME_TBA = { ru: 'время уточняется', kg: 'убактысы такталат', en: 'time TBA' };
+
+export const formatWhen = (start: string, end: string | undefined, lang: Language, long = false, timeTBA = false, allDay = false) => {
   const s = new Date(start);
   const e = end ? new Date(end) : null;
   const day = long ? formatDateLong(s, lang) : formatDate(s, lang);
+  if (timeTBA || allDay) {
+    // Время не объявлено или событие на весь день — показываем только даты
+    const suffix = timeTBA ? ` · ${TIME_TBA[lang]}` : '';
+    if (e && !isNaN(e.getTime()) && e.toDateString() !== s.toDateString()) {
+      const sameYear = e.getFullYear() === s.getFullYear();
+      return `${sameYear ? formatDayRange(s, e, lang) : `${formatDate(s, lang)} – ${formatDate(e, lang)}`}${suffix}`;
+    }
+    return `${day}${suffix}`;
+  }
   if (!e || isNaN(e.getTime())) return `${day}, ${formatTime(s)}`;
   if (e.toDateString() === s.toDateString()) return `${day}, ${formatTime(s)}–${formatTime(e)}`;
   return `${formatDayMonthTime(s, lang)} — ${formatDayMonthTime(e, lang)}`;

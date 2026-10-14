@@ -1,7 +1,7 @@
 import React from 'react';
 import { Language } from '../types';
 import { getTranslation } from '../locales/translations';
-import { PLANS, planPeriod } from '../config/site';
+import { PLAN_IDS, PLANS, planTerms } from '../config/site';
 
 interface OrganizationsPageProps {
   currentLanguage: Language;
@@ -33,35 +33,25 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
     recommended: { ru: 'Рекомендуем', kg: 'Сунуштайбыз', en: 'Recommended' },
     som: { ru: 'сом', kg: 'сом', en: 'KGS' },
     choose: { ru: 'Зарегистрироваться', kg: 'Катталуу', en: 'Sign up' },
-    govName: { ru: 'Госорганы и муниципалитеты', kg: 'Мамлекеттик органдар жана муниципалитеттер', en: 'Government & municipalities' },
-    govBadge: { ru: 'Официальные службы', kg: 'Расмий кызматтар', en: 'Official services' },
-    govPrice: { ru: 'По согласованию', kg: 'Макулдашуу боюнча', en: 'By agreement' },
-    govCta: { ru: 'Оставить заявку', kg: 'Өтүнмө калтыруу', en: 'Apply' },
-  };
-  const govFeatures = [
-    { ru: 'Публикация аварийных и плановых отключений', kg: 'Авариялык жана пландуу өчүрүүлөрдү жарыялоо', en: 'Emergency and planned outage notices' },
-    { ru: 'Отметка «Проверено» после подтверждения ведомства', kg: 'Мекеме тастыктагандан кийин «Текшерилген» белгиси', en: '“Verified” badge once the agency is confirmed' },
-    { ru: 'Схемы перекрытий и ссылки на документы', kg: 'Жол жабуу схемалары жана документтерге шилтемелер', en: 'Closure maps and document links' },
-  ];
-
-  const tiers = [
-    ...(['basic', 'business'] as const).map((id) => ({
-      name: PLANS[id].name[lang],
-      badge: planPeriod(PLANS[id].periodDays, lang),
-      price: `${PLANS[id].priceSom.toLocaleString('ru-RU')} ${tx.som[lang]}`,
-      features: PLANS[id].features.map((f) => f[lang]),
-      isPopular: id === 'business',
-      ctaText: tx.choose[lang],
-    })),
-    {
-      name: tx.govName[lang],
-      badge: tx.govBadge[lang],
-      price: tx.govPrice[lang],
-      features: govFeatures.map((f) => f[lang]),
-      isPopular: false,
-      ctaText: tx.govCta[lang],
+    manual: {
+      ru: 'Оформление вручную: онлайн-оплата на сайте пока не подключена. После регистрации администратор пришлёт реквизиты, проверит платёж и откроет доступ.',
+      kg: 'Кол менен тариздөө: сайтта онлайн төлөм азырынча туташтырылган эмес. Катталгандан кийин администратор реквизиттерди жөнөтүп, төлөмдү текшерип, уруксат берет.',
+      en: 'Manual sign-up: online payment is not connected yet. After you register, the administrator sends payment details, checks the payment and enables posting.',
     },
-  ];
+    terms: { ru: 'Срок / лимит', kg: 'Мөөнөт / чек', en: 'Term / limit' },
+  };
+
+  const tiers = PLAN_IDS.map((id) => ({
+    id,
+    name: PLANS[id].name[lang],
+    audience: PLANS[id].audience[lang],
+    terms: planTerms(id, lang),
+    price: `${PLANS[id].priceSom.toLocaleString('ru-RU')} ${tx.som[lang]}`,
+    unit: PLANS[id].priceUnit[lang],
+    features: PLANS[id].features.map((f) => f[lang]),
+    isPopular: id === 'organizer',
+    ctaText: tx.choose[lang],
+  }));
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-8">
@@ -104,12 +94,16 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
           <p className="text-xs sm:text-sm text-gray-500">
             {tx.plansDesc[lang]}
           </p>
+          <p className="mt-3 inline-flex items-start gap-1.5 text-left text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            <span className="material-symbols-outlined text-[16px] flex-shrink-0">info</span>
+            <span>{tx.manual[lang]}</span>
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {tiers.map((tier, idx) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+          {tiers.map((tier) => (
             <div
-              key={idx}
+              key={tier.id}
               className={`rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all ${
                 tier.isPopular
                   ? 'bg-white border-2 border-[#12327A] shadow-xl relative'
@@ -118,8 +112,8 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                    {tier.badge}
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    {tx.terms[lang]}
                   </span>
                   {tier.isPopular && (
                     <span className="px-2.5 py-0.5 rounded-full bg-[#12327A] text-white text-[10px] font-bold uppercase tracking-wider">
@@ -128,8 +122,12 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
                   )}
                 </div>
 
-                <h3 className="text-xl font-bold text-[#0f1b33] mb-2">{tier.name}</h3>
-                <div className="text-xl font-black text-[#12327A] mb-6">{tier.price}</div>
+                <h3 className="text-xl font-bold text-[#0f1b33] mb-1 break-words">{tier.name}</h3>
+                <p className="text-xs text-gray-500 mb-3">{tier.audience}</p>
+                <div className="text-2xl font-black text-[#12327A]">
+                  {tier.price} <span className="text-xs font-semibold text-gray-500">{tier.unit}</span>
+                </div>
+                <div className="text-xs font-bold text-[#0f766e] mt-1 mb-6">{tier.terms}</div>
 
                 <ul className="space-y-3 mb-8">
                   {tier.features.map((f, fIdx) => (

@@ -4,6 +4,8 @@ import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/sta
 import { EventImage } from './EventImage';
 import { formatDayMonthTime, formatWhen } from '../utils/dates';
 import { eventSource, hostOf, ticketLink } from '../utils/links';
+import { isExpired } from '../utils/urgency';
+import { kgTs } from '../utils/time';
 
 interface Props {
   announcement: Announcement;
@@ -47,6 +49,10 @@ const L = {
   venue: { ru: 'Площадка', kg: 'Аянтча', en: 'Venue' },
   imageSource: { ru: 'Источник фото', kg: 'Сүрөттүн булагы', en: 'Photo source' },
   needsCheck: { ru: 'Требует проверки', kg: 'Текшерүүнү талап кылат', en: 'Needs verification' },
+  originManual: { ru: 'Внесено вручную редакцией', kg: 'Редакция кол менен киргизген', en: 'Added manually by the editors' },
+  originUser: { ru: 'Публикация организатора, прошла модерацию', kg: 'Уюштуруучунун жарыясы, модерациядан өткөн', en: 'Organiser’s post, moderated' },
+  originAuto: { ru: 'Собрано автоматически', kg: 'Автоматтык түрдө чогултулган', en: 'Collected automatically' },
+  checkedAt: { ru: 'проверено', kg: 'текшерилген', en: 'checked' },
 };
 
 const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
@@ -87,9 +93,13 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     a.venueUrl && { href: a.venueUrl, label: L.venue[lang], icon: 'stadium' },
     a.imageSourceUrl && { href: a.imageSourceUrl, label: L.imageSource[lang], icon: 'photo_camera' },
   ].filter(Boolean) as { href: string; label: string; icon: string }[];
-  const nearby = allAnnouncements.filter((x) => x.id !== a.id && x.city === a.city).slice(0, 3);
+  // Только ещё не завершившиеся, ближайшие по дате
+  const nearby = allAnnouncements
+    .filter((x) => x.id !== a.id && x.city === a.city && !isExpired(x))
+    .sort((x, y) => kgTs(x.startDate) - kgTs(y.startDate))
+    .slice(0, 3);
 
-  const whenText = formatWhen(a.startDate, a.endDate, lang, true);
+  const whenText = formatWhen(a.startDate, a.endDate, lang, true, a.timeTBA, a.allDay);
 
   const downloadIcs = () => {
     const end = a.endDate || new Date(new Date(a.startDate).getTime() + 3 * 3600 * 1000).toISOString().slice(0, 16);
@@ -311,6 +321,16 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
               )}
             </ul>
           </div>
+        )}
+
+        {(a.dataOrigin || a.lastCheckedAt) && (
+          <p className="mx-6 mb-6 -mt-3 text-xs text-gray-500 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px]">fact_check</span>
+            <span>
+              {a.dataOrigin === 'auto' ? L.originAuto[lang] : a.dataOrigin === 'user' ? L.originUser[lang] : L.originManual[lang]}
+              {a.lastCheckedAt && ` • ${L.checkedAt[lang]} ${formatDayMonthTime(a.lastCheckedAt, lang)}`}
+            </span>
+          </p>
         )}
 
         {nearby.length > 0 && onSelectOtherNotice && (

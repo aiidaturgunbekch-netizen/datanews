@@ -1,4 +1,6 @@
 import { Announcement, Language } from '../types';
+import { kgTs } from './time';
+import { endTs } from './urgency';
 
 export type DisplayStatus = 'upcoming' | 'active' | 'completed' | 'cancelled' | 'rescheduled';
 
@@ -16,8 +18,9 @@ export function getAnnouncementDisplayStatus(
   if (ann.status === 'completed' || ann.status === 'archived') return 'completed';
 
   const refTime = referenceDate.getTime();
-  const startTime = new Date(ann.startDate).getTime();
-  const endTime = ann.endDate ? new Date(ann.endDate).getTime() : startTime + 4 * 3600 * 1000;
+  // Даты в данных — время Бишкека (UTC+6), сравниваем независимо от часового пояса посетителя
+  const startTime = ann.timeTBA ? kgTs(ann.startDate.slice(0, 10)) : kgTs(ann.startDate);
+  const endTime = endTs(ann);
 
   if (refTime > endTime) {
     return 'completed';

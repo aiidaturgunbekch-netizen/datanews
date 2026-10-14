@@ -1,3 +1,4 @@
+import { kgNowLocal } from '../../src/utils/time';
 import type { Announcement, CategoryId, CityId, LocalizedString, UrgencyType } from '../../src/types';
 import { cmd, hsetJson } from './kv';
 import { HttpError, randomId } from './http';
@@ -6,8 +7,8 @@ export const ANN_KEY = 'dn:ann'; // id → JSON объявления (публи
 export const HIDDEN_KEY = 'dn:ann:hidden'; // id встроенных объявлений, удалённых админом
 export const IMG_KEY = 'dn:img'; // id → data:image/...;base64
 
-const CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs', 'concerts', 'festivals', 'fairs', 'cinema', 'education', 'gov'];
-const CITIES: CityId[] = ['bishkek', 'osh', 'jalalabad', 'karakol', 'talas', 'naryn', 'batken'];
+const CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs', 'concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education', 'gov'];
+const CITIES: CityId[] = ['all', 'bishkek', 'osh', 'jalalabad', 'karakol', 'talas', 'naryn', 'batken'];
 const URGENCY: UrgencyType[] = ['emergency', 'planned', 'regular', 'event'];
 
 const str = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
@@ -31,7 +32,7 @@ const isoLocal = (v: unknown, required: boolean) => {
 
 const httpUrl = (v: unknown) => {
   const s = str(v, 600);
-  return /^https?:\/\//i.test(s) || s.startsWith('/api/image?') ? s : '';
+  return /^https?:\/\//i.test(s) || s.startsWith('/api/image?') || /^\/illustrations\/[a-z0-9-]+\.svg$/.test(s) ? s : '';
 };
 
 /** Сохраняет загруженное фото отдельно и возвращает ссылку /api/image?id=… */
@@ -53,7 +54,7 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
   const category = CATEGORIES.includes(raw.category) ? (raw.category as CategoryId) : base?.category || 'concerts';
   const city = CITIES.includes(raw.city) ? (raw.city as CityId) : base?.city || 'bishkek';
   const urgency = URGENCY.includes(raw.urgency) ? (raw.urgency as UrgencyType) : base?.urgency || 'event';
-  const now = new Date().toISOString().slice(0, 16);
+  const now = kgNowLocal();
 
   let imageUrl = httpUrl(raw.imageUrl) || undefined;
   if (typeof raw.imageData === 'string' && raw.imageData) imageUrl = await storeImage(raw.imageData);
@@ -104,6 +105,11 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     imageAlt: str(raw.imageAlt, 300) || undefined,
     imageFit: raw.imageFit === 'cover' ? 'cover' : 'contain',
     imagePosition: /^[a-z0-9 %.]{1,30}$/i.test(String(raw.imagePosition ?? '')) ? String(raw.imagePosition) : undefined,
+    timeTBA: Boolean(raw.timeTBA) || undefined,
+    allDay: Boolean(raw.allDay) || undefined,
+    // когда и кем проверено — выставляют обработчики (админ / модерация), а не присланные данные
+    lastCheckedAt: base?.lastCheckedAt,
+    dataOrigin: base?.dataOrigin,
     isDemo: false,
   };
 };

@@ -688,7 +688,11 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     publishedAt: '2026-10-14T12:00',
     updatedAt: '2026-10-14T12:00',
     eventDetails: { priceText: L('от 1 500 сом', '1 500 сомдон', 'from 1,500 KGS'), venue: '«Жаштык Арена»', timeRange: '19:00' },
-    ...illus('concert', 'Пустая концертная сцена с микрофоном'),
+    // Фото артистки предоставлено владельцем сайта; хранится в public/posters. Это не официальная афиша концерта.
+    imageUrl: '/posters/malika-dina.jpg',
+    imageAlt: 'MALIKA DINA в образе из красных лепестков на тёмно-красном фоне',
+    imageCredit: 'Фото артистки MALIKA DINA — не афиша этого концерта',
+    imageFit: 'contain' as const,
     ...checked('2026-10-14T12:00'),
     isDemo: false,
   },

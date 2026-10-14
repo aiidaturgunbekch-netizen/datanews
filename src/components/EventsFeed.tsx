@@ -180,7 +180,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               >
                 {/* Фото / афиша события с датой поверх */}
                 <div className="relative w-full sm:w-44 flex-shrink-0">
-                  <EventImage item={item} className="w-full h-40 sm:h-full sm:min-h-32 rounded-xl" />
+                  <EventImage item={item} lang={currentLanguage} className="w-full h-40 sm:h-full sm:min-h-32 rounded-xl" />
                   <div className="absolute top-2 left-2 rounded-lg bg-white/95 px-2 py-1 text-center shadow-sm">
                     <div className="text-xl font-black text-[#12327A] leading-none">{dayNum}</div>
                     {isKg ? (
@@ -312,7 +312,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                 }`}
               >
                 <div>
-                  <EventImage item={item} className="w-full h-36 rounded-xl mb-3" />
+                  <EventImage item={item} lang={currentLanguage} className="w-full h-36 rounded-xl mb-3" />
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className="bg-[#f3f6fc] group-hover:bg-[#12327A] group-hover:text-white transition-colors px-2.5 py-1 rounded-lg text-center font-bold text-[#12327A] text-xs">

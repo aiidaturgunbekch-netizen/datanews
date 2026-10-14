@@ -1,3 +1,4 @@
+import { EventImage } from './EventImage';
 import React, { useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -275,7 +276,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                   onClick={() => onSelectAnnouncement(item)}
                   className="p-2.5 rounded-lg bg-white shadow-2xs hover:shadow-sm border border-gray-100 flex items-start gap-2.5 text-xs cursor-pointer group transition-all"
                 >
-                  <span className={`w-2 h-2 rounded-full ${dotColor} mt-1 flex-shrink-0`} />
+                  <div className="relative flex-shrink-0">
+                    <EventImage item={item} lang={currentLanguage} compact className="w-14 h-11 rounded-md" />
+                    <span className={`absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full ring-2 ring-white ${dotColor}`} />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1 mb-1">
                       <p className="font-semibold text-[#0f1b33] leading-snug group-hover:text-[#12327A] truncate">

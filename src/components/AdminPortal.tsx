@@ -558,6 +558,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                 <>
                   <div className="flex flex-wrap items-center gap-2">
                     <input className={`${inputCls} max-w-xs`} placeholder="Поиск по названию, адресу, автору" value={query} onChange={(e) => setQuery(e.target.value)} />
+                    <span className="text-xs text-gray-500">
+                      Без настоящего фото: {allPosts.filter((a) => !a.imageUrl || a.imageUrl.startsWith('/illustrations/')).length}
+                    </span>
                     <button onClick={() => setEditing('new')} className="ml-auto px-4 py-2 rounded-xl bg-[#20C7B5] text-[#002f29] text-sm font-extrabold inline-flex items-center gap-1">
                       <span className="material-symbols-outlined text-[18px]">add</span>Новая публикация
                     </button>
@@ -572,6 +575,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
                               <span className={`px-2 py-0.5 rounded-full ${b.cls}`}>{b.label}</span>
                               {a.publishedByGov && <span className="px-2 py-0.5 rounded-full bg-[#e6ecf8] text-[#12327A]">Госорган, без премодерации</span>}
+                              {(!a.imageUrl || a.imageUrl.startsWith('/illustrations/')) && (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" title="Сейчас показывается иллюстрация. Загрузите официальную афишу или фото через «Редактировать».">
+                                  Нужна афиша / фото
+                                </span>
+                              )}
                               {(a.reportsCount || 0) > 0 && <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700">Жалоб: {a.reportsCount}</span>}
                               <span className="text-gray-500">{catLabel(a.category)} • {fmt(a.startDate)}</span>
                               {a.submittedBy && <span className="text-gray-500">• {a.submittedBy.name}</span>}

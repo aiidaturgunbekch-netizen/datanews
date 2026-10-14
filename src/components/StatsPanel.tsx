@@ -59,7 +59,7 @@ export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a:
       onClick={() => onOpen(item)}
       className="w-full text-left flex gap-3 p-3 rounded-2xl bg-white border border-gray-100 hover:border-[#12327A]/30 hover:shadow-sm transition-all"
     >
-      <EventImage item={item} className="w-20 h-16 sm:w-28 sm:h-20 rounded-xl flex-shrink-0" />
+      <EventImage item={item} lang={lang} compact className="w-20 h-16 sm:w-28 sm:h-20 rounded-xl flex-shrink-0" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5 mb-1">
           <span className="px-2 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44] text-[10px] font-bold">{t(`categories.${item.category}`)}</span>

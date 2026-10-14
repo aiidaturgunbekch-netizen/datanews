@@ -5,6 +5,7 @@ import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/sta
 import { formatWhen } from '../utils/dates';
 import { UrgencyBadge } from './UrgencyBadge';
 import { alertLevel } from '../utils/urgency';
+import { EventImage } from './EventImage';
 
 interface AlertsGridProps {
   currentLanguage: Language;
@@ -192,6 +193,9 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                       alertLevel(ann) === 'urgent' ? 'bg-red-600' : alertLevel(ann) === 'soon' ? 'bg-amber-400' : cfg.barColor
                     }`}
                   />
+
+                  {/* Фото — то же поле imageUrl, что и в подробном окне; отдельный блок, не внутри текста */}
+                  <EventImage item={ann} lang={currentLanguage} className="-mx-5 -mt-5 mb-4 h-40 sm:h-44" />
 
                   <div className="pl-1">
                     {/* Card Header Badge & Lifecycle Status */}

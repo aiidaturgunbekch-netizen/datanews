@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Announcement } from '../types';
 
 const CATEGORY_STYLE: Record<string, { icon: string; bg: string }> = {
@@ -30,26 +30,49 @@ const CATEGORY_ILLUSTRATION: Record<string, string> = {
  *  - imageFit: 'cover' заполняет рамку с фокусом imagePosition (для широких баннеров);
  *  - если фото нет или оно не загрузилось — тематическая заставка категории (не выдаётся за фото).
  */
-export const EventImage: React.FC<{ item: Announcement; className?: string; showCredit?: boolean }> = ({
+type Lang = 'ru' | 'kg' | 'en';
+const REASON: Record<'missing' | 'failed' | 'illustration', Record<Lang, string>> = {
+  missing: { ru: 'Фото не предоставлено', kg: 'Сүрөт берилген жок', en: 'No photo provided' },
+  failed: { ru: 'Фото не загрузилось', kg: 'Сүрөт жүктөлгөн жок', en: 'Photo failed to load' },
+  illustration: { ru: 'Иллюстрация', kg: 'Иллюстрация', en: 'Illustration' },
+};
+
+const ReasonTag: React.FC<{ text: string }> = ({ text }) => (
+  <span className="absolute bottom-1.5 left-1.5 max-w-[90%] truncate text-[10px] font-semibold text-white bg-black/45 px-1.5 py-0.5 rounded">{text}</span>
+);
+
+/**
+ * Единственный компонент изображения публикации: карточки главной, категорий, календаря и подробное окно
+ * берут картинку из одного поля `imageUrl`, поэтому фото не может быть «только в подробностях».
+ *  - compact — маленькая миниатюра (без подписи причины).
+ */
+export const EventImage: React.FC<{ item: Announcement; className?: string; showCredit?: boolean; lang?: Lang; compact?: boolean }> = ({
   item,
   className = '',
   showCredit = false,
+  lang = 'ru',
+  compact = false,
 }) => {
   const [failed, setFailed] = useState(false);
+  // другое изображение (например, переход к соседнему событию в том же окне) — пробуем загрузить заново
+  useEffect(() => setFailed(false), [item.imageUrl]);
   const style = CATEGORY_STYLE[item.category] || CATEGORY_STYLE.gov;
   const fallback = CATEGORY_ILLUSTRATION[item.category];
+  const isIllustration = Boolean(item.imageUrl?.startsWith('/illustrations/'));
 
-  if (item.imageUrl && failed && fallback && !item.imageUrl.startsWith('/illustrations/')) {
+  // Фото нет или не загрузилось — тематическая иллюстрация категории с понятной причиной
+  if ((!item.imageUrl || (failed && !isIllustration)) && fallback) {
     return (
-      <div className={`relative overflow-hidden bg-[#0d2459] ${className}`}>
-        <img src={`/illustrations/${fallback}.svg`} alt={item.imageAlt || item.title.ru} className="absolute inset-0 w-full h-full object-cover" />
+      <div className={`relative overflow-hidden bg-[#0d2459] ${className}`} role="img" aria-label={item.imageAlt || item.title[lang] || item.title.ru}>
+        <img src={`/illustrations/${fallback}.svg`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90" />
+        {!compact && <ReasonTag text={REASON[item.imageUrl ? 'failed' : 'missing'][lang]} />}
       </div>
     );
   }
 
   if (item.imageUrl && !failed) {
     const cover = item.imageFit === 'cover';
-    const alt = item.imageAlt || item.title.ru;
+    const alt = item.imageAlt || item.title[lang] || item.title.ru;
     return (
       <div className={`relative overflow-hidden bg-[#0d2459] ${className}`}>
         {!cover && (
@@ -71,6 +94,7 @@ export const EventImage: React.FC<{ item: Announcement; className?: string; show
           style={cover ? { objectPosition: item.imagePosition || 'center 25%' } : undefined}
           className={`absolute inset-0 w-full h-full ${cover ? 'object-cover' : 'object-contain'}`}
         />
+        {!compact && isIllustration && !showCredit && <ReasonTag text={REASON.illustration[lang]} />}
         {showCredit && item.imageCredit && (
           <span className="absolute bottom-1.5 right-2 max-w-[90%] truncate text-[10px] text-white/90 bg-black/50 px-1.5 py-0.5 rounded">
             {item.imageSourceUrl ? (
@@ -93,8 +117,7 @@ export const EventImage: React.FC<{ item: Announcement; className?: string; show
       aria-label={item.title.ru}
     >
       <span className="material-symbols-outlined text-white/85 text-[48px]">{style.icon}</span>
-      <span className="absolute -right-6 -bottom-6 w-28 h-28 rounded-full bg-white/10" />
-      <span className="absolute -left-4 -top-8 w-20 h-20 rounded-full bg-white/10" />
+      {!compact && <ReasonTag text={REASON[item.imageUrl ? 'failed' : 'missing'][lang]} />}
     </div>
   );
 };

@@ -23,6 +23,18 @@ const archivePhoto = (file: string, alt: string, credit: string) => ({
   imageFit: 'cover' as const,
 });
 
+/**
+ * Фото артиста со свободной лицензией (Wikimedia Commons) — когда официальная афиша концерта недоступна.
+ * Показывается целиком (contain), лицо не обрезается; подпись честно говорит, что это не афиша.
+ */
+const artistPhoto = (file: string, alt: string, credit: string) => ({
+  imageUrl: commons(file),
+  imageSourceUrl: commonsPage(file),
+  imageAlt: alt,
+  imageCredit: `Фото артиста: ${credit}, Wikimedia Commons — не афиша этого концерта`,
+  imageFit: 'contain' as const,
+});
+
 /** Официальные сайты ведомств (сами сайты; конкретное сообщение там может отсутствовать) */
 const BISHKEK_CITY_HALL = 'https://bishkek.gov.kg/';
 const CEC_SITE = 'https://shailoo.gov.kg/';
@@ -398,8 +410,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       venue: '«Жаштык Арена»',
       timeRange: '19:00',
     },
-    ...illus('concert', 'Пустая концертная сцена с микрофоном'),
     ...checked('2026-10-13T18:00'),
+    ...artistPhoto('Jony на VK Fest 2022 (2).jpg', 'JONY на сцене VK Fest 2022', 'JONY на VK Fest 2022'),
     isDemo: false,
   },
   {
@@ -859,8 +871,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     publishedAt: '2026-10-14T12:00',
     updatedAt: '2026-10-14T12:00',
     eventDetails: { venue: 'Nomad Arena', timeRange: '19:00' },
-    ...illus('concert', 'Пустая концертная сцена с микрофоном'),
     ...checked('2026-10-14T12:00'),
+    ...artistPhoto('Խաչիկ Դունամալյան.jpg', 'Портрет исполнителя XCHO', 'XCHO (Хачик Дунамалян)'),
     isDemo: false,
   },
   {
@@ -1097,9 +1109,9 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       'The new Kyrgyz film “Kul” opens at Cinematica cinemas.'
     ),
     description: L(
-      'По афише сети кинотеатров «Синематика», фильм «Кул» (возрастное ограничение 14+) идёт в прокате с 29 октября. Расписание сеансов и цены публикуются на сайте кинотеатра ближе к дате — уточняйте там. Специальные и закрытые показы с участием создателей на момент проверки не объявлены.',
-      '«Синематика» кинотеатрлар тармагынын афишасы боюнча, «Кул» тасмасы (жаш чеги 14+) 29-октябрдан тартып прокатта. Көрсөтүүлөрдүн графиги жана баалар датага жакындаганда кинотеатрдын сайтында жарыяланат — ошол жерден тактаңыз. Жаратуучулардын катышуусундагы атайын жана жабык көрсөтүүлөр текшерүү учурунда жарыялана элек.',
-      'According to the Cinematica cinema chain’s listings, “Kul” (age 14+) opens on 29 October. Showtimes and prices are published on the cinema’s website closer to the date. No special or closed screenings with the filmmakers had been announced at the time of checking.'
+      'По афише сети кинотеатров «Синематика», фильм «Кул» (возрастное ограничение 14+) идёт в прокате с 29 октября; год на странице не указан — дата требует подтверждения. Расписание сеансов и цены публикуются на сайте кинотеатра ближе к дате — уточняйте там. Специальные и закрытые показы с участием создателей на момент проверки не объявлены.',
+      '«Синематика» кинотеатрлар тармагынын афишасы боюнча, «Кул» тасмасы (жаш чеги 14+) 29-октябрдан тартып прокатта; баракчада жылы көрсөтүлгөн эмес — дата тактоону талап кылат. Көрсөтүүлөрдүн графиги жана баалар датага жакындаганда кинотеатрдын сайтында жарыяланат — ошол жерден тактаңыз. Жаратуучулардын катышуусундагы атайын жана жабык көрсөтүүлөр текшерүү учурунда жарыялана элек.',
+      'According to the Cinematica cinema chain’s listings, “Kul” (age 14+) opens on 29 October; the year is not shown on the page, so the date still needs confirmation. Showtimes and prices are published on the cinema’s website closer to the date. No special or closed screenings with the filmmakers had been announced at the time of checking.'
     ),
     category: 'cinema',
     city: 'bishkek',
@@ -1114,12 +1126,12 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     eventSourceUrl: 'https://cinematica.kg/',
     sourceKind: 'organizer',
     venueUrl: 'https://cinematica.kg/',
-    isVerified: true,
+    isVerified: false,
     publishedAt: '2026-10-14T16:00',
     updatedAt: '2026-10-14T16:00',
     eventDetails: { venue: 'Синематика', timeRange: '14+' },
-    ...illus('cinema', 'Кинозал с экраном и кинолентой'),
     ...checked('2026-10-14T16:00'),
+    ...illus('cinema', 'Кинозал с экраном и кинолентой'),
     isDemo: false,
   },
 ];

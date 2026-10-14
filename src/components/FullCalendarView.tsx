@@ -1,3 +1,4 @@
+import { EventImage } from './EventImage';
 import React, { useState } from 'react';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -307,8 +308,10 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                   <div
                     key={item.id}
                     onClick={() => onSelectAnnouncement(item)}
-                    className="p-3.5 rounded-2xl bg-[#f8fafc] hover:bg-blue-50/50 border border-gray-100 transition-all cursor-pointer group"
+                    className="p-3.5 rounded-2xl bg-[#f8fafc] hover:bg-blue-50/50 border border-gray-100 transition-all cursor-pointer group flex gap-3"
                   >
+                    <EventImage item={item} lang={currentLanguage} compact className="w-20 h-16 rounded-xl flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-white border border-gray-200 text-[#12327A]">
@@ -331,6 +334,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                       <span className="material-symbols-outlined text-[14px]">location_on</span>
                       <span>{item.location[currentLanguage] || item.location.ru}</span>
                     </p>
+                    </div>
                   </div>
                 );
               })}

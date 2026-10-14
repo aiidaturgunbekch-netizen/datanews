@@ -1,4 +1,4 @@
-import { Announcement, PaymentStatus, PlanId, PlanUsage, PublicUser, SiteStats } from '../types';
+import { Announcement, GovVerification, PaymentStatus, PlanId, PlanUsage, PublicUser, Report, SiteStats } from '../types';
 
 /**
  * Клиент серверных функций /api (Vercel). Токен входа хранится в браузере.
@@ -103,8 +103,22 @@ export const submitAnnouncement = (item: Record<string, unknown>) =>
 export const updateAnnouncement = (id: string, item: Record<string, unknown>) =>
   post<{ item: Announcement }>('announcements', { id, item }, 'PATCH').then((r) => r.item);
 
-export const moderateAnnouncement = (id: string, action: 'approve' | 'reject', note?: string) =>
+export const moderateAnnouncement = (id: string, action: 'approve' | 'reject' | 'restore' | 'withdraw', note?: string) =>
   post<{ item: Announcement }>('announcements', { id, action, note }, 'PATCH').then((r) => r.item);
+
+/** Снять свою публикацию с сайта (автор) */
+export const withdrawAnnouncement = (id: string, note?: string) => moderateAnnouncement(id, 'withdraw', note);
+
+/** Заявка на подтверждение статуса госоргана / муниципалитета */
+export const requestGovStatus = (input: Omit<GovVerification, 'requestedAt' | 'verifiedAt' | 'note'>) =>
+  post<{ user: PublicUser; usage?: PlanUsage }>('auth', { action: 'gov-request', ...input });
+
+// ---------- жалобы ----------
+export const submitReport = (annId: string, reason: Report['reason'], comment?: string, contact?: string) =>
+  post<{ ok: true }>('reports', { annId, reason, comment, contact });
+export const fetchReports = () => request<{ reports: Report[] }>('reports').then((r) => r.reports);
+export const resolveReport = (id: string, resolution: string, withdraw = false) =>
+  post<{ ok: true }>('reports', { id, resolution, withdraw }, 'PATCH');
 
 export const deleteAnnouncement = (id: string) =>
   request<{ ok: true }>(`announcements?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -112,8 +126,10 @@ export const deleteAnnouncement = (id: string) =>
 // ---------- users & stats (admin) ----------
 export type AdminUser = PublicUser & { usage?: PlanUsage };
 export const fetchUsers = () => request<{ users: AdminUser[] }>('users').then((r) => r.users);
-export const setPaymentStatus = (email: string, paymentStatus: PaymentStatus) =>
-  post<{ user: PublicUser }>('users', { email, paymentStatus }, 'PATCH').then((r) => r.user);
+export const setPaymentStatus = (email: string, paymentStatus: PaymentStatus, plan?: PlanId) =>
+  post<{ user: AdminUser }>('users', { email, paymentStatus, plan }, 'PATCH').then((r) => r.user);
+export const setGovStatus = (email: string, gov: 'verify' | 'reject' | 'revoke', note?: string) =>
+  post<{ user: AdminUser }>('users', { email, gov, note }, 'PATCH').then((r) => r.user);
 
 export const fetchStats = (days: number) => request<SiteStats>(`stats?days=${days}`);
 

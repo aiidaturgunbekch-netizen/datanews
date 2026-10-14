@@ -1,7 +1,7 @@
 /**
  * Общие функции для серверных функций Vercel: ответы, токены входа, пароли.
  */
-import { isConfigured, StorageNotConfiguredError } from './kv';
+import { cmd, isConfigured, StorageNotConfiguredError } from './kv';
 import { env } from './env';
 
 export type Role = 'admin' | 'user';
@@ -140,3 +140,12 @@ export const verifyPassword = async (password: string, salt: string, hash: strin
   safeEqual((await hashPassword(password, salt)).hash, hash);
 
 export const randomId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${b64url(crypto.getRandomValues(new Uint8Array(6)))}`;
+
+/** Не более `limit` попыток за `windowSec` секунд с одного IP (или по ключу `who`) */
+export const rateLimit = async (req: Request, bucket: string, limit: number, windowSec = 60, who?: string) => {
+  const ip = who || (req.headers.get('x-forwarded-for') || 'local').split(',')[0].trim();
+  const key = `dn:rl:${bucket}:${ip}:${Math.floor(Date.now() / (windowSec * 1000))}`;
+  const n = await cmd<number>('INCR', key);
+  if (n === 1) await cmd('EXPIRE', key, windowSec * 2);
+  if (n > limit) throw new HttpError('too_many_attempts', 429, 'Слишком много попыток, подождите немного');
+};

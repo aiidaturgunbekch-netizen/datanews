@@ -1,5 +1,5 @@
 import { kgNowLocal } from '../../src/utils/time';
-import type { Announcement, CategoryId, CityId, LocalizedString, UrgencyType } from '../../src/types';
+import type { Announcement, CategoryId, CityId, HistoryEntry, LocalizedString, SourceKind, UrgencyType } from '../../src/types';
 import { cmd, hsetJson } from './kv';
 import { HttpError, randomId } from './http';
 
@@ -18,6 +18,15 @@ const loc = (v: unknown, max: number, required = false): LocalizedString => {
   const ru = str(o.ru, max);
   if (required && !ru) throw new HttpError('missing_field', 400, 'Заполните обязательные поля');
   return { ru, kg: str(o.kg, max) || ru, en: str(o.en, max) || ru };
+};
+
+/** Краткий текст карточки; если не задан — начало основного описания */
+const summaryOf = (summary: unknown, description: unknown) => {
+  const s = loc(summary, 400);
+  if (s.ru) return s;
+  const d = loc(description, 5000, true).ru;
+  const cut = d.length <= 300 ? d : `${d.slice(0, 300).replace(/\s+\S*$/, '')}…`;
+  return { ru: cut, kg: cut, en: cut };
 };
 
 const isoLocal = (v: unknown, required: boolean) => {
@@ -40,7 +49,7 @@ export const storeImage = async (dataUrl: string) => {
   if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(dataUrl)) {
     throw new HttpError('bad_image', 400, 'Поддерживаются JPG, PNG, WEBP');
   }
-  if (dataUrl.length > 1_400_000) throw new HttpError('image_too_large', 413, 'Фото слишком большое');
+  if (dataUrl.length > 950_000) throw new HttpError('image_too_large', 413, 'Фото слишком большое');
   const id = randomId('img');
   await cmd('HSET', IMG_KEY, id, dataUrl);
   return `/api/image?id=${id}`;
@@ -67,8 +76,8 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     id: base?.id || randomId('ann'),
     protocolCode: str(raw.protocolCode, 40) || base?.protocolCode || `#KG-${Math.floor(1000 + Math.random() * 9000)}`,
     title: loc(raw.title, 200, true),
-    summary: loc(raw.summary, 400, true),
-    description: loc(raw.description, 5000),
+    summary: summaryOf(raw.summary, raw.description),
+    description: loc(raw.description, 5000, true),
     category,
     city,
     district: str(raw.district, 120) || undefined,
@@ -105,11 +114,18 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     imageAlt: str(raw.imageAlt, 300) || undefined,
     imageFit: raw.imageFit === 'cover' ? 'cover' : 'contain',
     imagePosition: /^[a-z0-9 %.]{1,30}$/i.test(String(raw.imagePosition ?? '')) ? String(raw.imagePosition) : undefined,
+    sourceKind: (['official', 'organizer', 'ticket', 'media'] as SourceKind[]).includes(raw.sourceKind) ? raw.sourceKind : undefined,
+    additionalSourceUrl: httpUrl(raw.additionalSourceUrl) || undefined,
+    authorityUrl: httpUrl(raw.authorityUrl) || undefined,
     timeTBA: Boolean(raw.timeTBA) || undefined,
     allDay: Boolean(raw.allDay) || undefined,
     // когда и кем проверено — выставляют обработчики (админ / модерация), а не присланные данные
     lastCheckedAt: base?.lastCheckedAt,
     dataOrigin: base?.dataOrigin,
+    // служебные поля — только из сохранённой версии, не из присланных данных
+    history: base?.history,
+    reportsCount: base?.reportsCount,
+    publishedByGov: base?.publishedByGov,
     isDemo: false,
   };
 };
@@ -119,3 +135,9 @@ export const saveAnnouncement = (a: Announcement) => hsetJson(ANN_KEY, a.id, a);
 /** Для публичной выдачи скрываем личные контакты автора */
 export const publicView = (a: Announcement): Announcement =>
   a.submittedBy ? { ...a, submittedBy: { userId: a.submittedBy.userId, name: a.submittedBy.name, email: '', organization: a.submittedBy.organization } } : a;
+
+/** Добавляет запись в историю изменений (хранятся последние 50) */
+export const withHistory = (a: Announcement, by: HistoryEntry['by'], action: HistoryEntry['action'], note?: string): Announcement => ({
+  ...a,
+  history: [...(a.history || []), { at: kgNowLocal(), by, action, ...(note ? { note: note.slice(0, 500) } : {}) }].slice(-50),
+});

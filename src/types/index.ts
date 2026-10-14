@@ -140,6 +140,17 @@ export interface Announcement {
 
   /** Источник информации о событии (статья, официальная страница) */
   eventSourceUrl?: string;
+  /**
+   * Чем является eventSourceUrl: 'official' — официальный сайт госоргана / мэрии / службы или GovTicket,
+   * 'organizer' — официальная страница организатора или площадки, 'ticket' — страница билетного сервиса,
+   * 'media' — публикация СМИ (используется, только если официального сообщения нет в открытом доступе).
+   * Если не задано — определяется по адресу (utils/links.ts → sourceKindOf).
+   */
+  sourceKind?: SourceKind;
+  /** Дополнительный источник (обычно СМИ), когда основной — официальный */
+  additionalSourceUrl?: string;
+  /** Официальный сайт ответственного ведомства (мэрия, служба) — когда само сообщение там не найдено */
+  authorityUrl?: string;
   /** Страница покупки билетов на конкретное событие */
   ticketUrl?: string;
   /** true — ссылка на билеты проверена администратором */
@@ -174,15 +185,72 @@ export interface Announcement {
    */
   dataOrigin?: 'manual' | 'user' | 'auto';
 
+  /** Опубликовано подтверждённым госорганом без предварительной модерации; организация отвечает за сведения сама */
+  publishedByGov?: boolean;
+  /** История изменений (создание, правки, модерация, жалобы, снятие) */
+  history?: HistoryEntry[];
+  /** Количество поступивших жалоб */
+  reportsCount?: number;
+
   isDemo: boolean;
 }
 
-export type ModerationStatus = 'pending' | 'approved' | 'rejected';
+export type SourceKind = 'official' | 'organizer' | 'ticket' | 'media';
+
+export interface HistoryEntry {
+  at: string;
+  by: 'admin' | 'author' | 'reader' | 'system';
+  action: 'created' | 'published' | 'edited' | 'approved' | 'rejected' | 'withdrawn' | 'restored' | 'reported';
+  note?: string;
+}
+
+/** 'withdrawn' — снято с публикации (автором-госорганом или администратором), на сайте не показывается */
+export type ModerationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn';
+
+export interface Report {
+  id: string;
+  annId: string;
+  annTitle: string;
+  reason: 'false' | 'outdated' | 'offensive' | 'spam' | 'other';
+  comment?: string;
+  contact?: string;
+  at: string;
+  status: 'open' | 'resolved';
+  resolution?: string;
+}
 
 export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'rejected';
 
-/** start / private — пакет публикаций; organizer / gov — 30 дней. Старые 'basic' / 'business' приводятся normalizePlan() */
+/** Все тарифы — на 30 дней. Старые 'basic' / 'business' приводятся normalizePlan() */
 export type PlanId = 'start' | 'private' | 'organizer' | 'gov';
+
+/** Оплаченный 30-дневный период (история платежей хранится полностью) */
+export interface PlanPeriod {
+  id: string;
+  plan: PlanId;
+  /** Начало и конец периода (ISO, UTC) */
+  start: string;
+  end: string;
+  paymentRef?: string;
+  priceSom: number;
+  confirmedAt: string;
+  /** Период досрочно остановлен администратором */
+  suspendedAt?: string;
+}
+
+export type GovStatus = 'none' | 'pending' | 'verified' | 'rejected';
+
+/** Заявка на подтверждение официального статуса госоргана / муниципалитета */
+export interface GovVerification {
+  orgName: string;
+  position: string;
+  officialSite: string;
+  officialEmail: string;
+  documentRef: string;
+  requestedAt: string;
+  verifiedAt?: string;
+  note?: string;
+}
 
 export interface PublicUser {
   id: string;
@@ -193,10 +261,13 @@ export interface PublicUser {
   plan: PlanId;
   paymentStatus: PaymentStatus;
   paymentRef?: string;
-  /** До какого момента действует оплаченный тариф (ISO) */
+  /** Конец последнего оплаченного периода (ISO) */
   paidUntil?: string;
-  /** Идентификатор оплаченного пакета (тарифы «Старт» / «Частный»); счётчик публикаций хранится на сервере */
-  packId?: string;
+  /** Все оплаченные периоды — история платежей */
+  periods?: PlanPeriod[];
+  /** Статус государственного аккаунта: публикует без предварительной модерации только 'verified' */
+  govStatus?: GovStatus;
+  gov?: GovVerification;
   createdAt: string;
 }
 
@@ -206,8 +277,17 @@ export interface PlanUsage {
   active: boolean;
   /** Почему публиковать сейчас нельзя */
   reason?: 'payment_required' | 'period_expired' | 'pack_exhausted' | 'daily_limit_reached';
+  /** Текущий период (если есть) */
+  periodStart?: string;
+  periodEnd?: string;
+  /** Следующий уже оплаченный период (продление заранее) */
+  nextPeriodStart?: string;
   postLimit: number | null;
   postsUsed: number;
+  /** Осталось публикаций в текущем периоде (null — без лимита) */
+  postsLeft: number | null;
+  /** Публикации подтверждённого госоргана выходят без предварительной модерации */
+  skipsModeration: boolean;
   dailyLimit: number | null;
   postedToday: boolean;
   /** Дата по Бишкеку, когда снова можно публиковать (при дневном лимите) */

@@ -1,24 +1,24 @@
 import { LocalizedString, PlanId } from '../types';
 
 /**
- * Тарифы платной регистрации.
+ * Тарифы платной регистрации. ВСЕ тарифы действуют 30 дней, оплата ежемесячная.
  * ЦЕНЫ меняются в поле `priceSom`, названия и описания — в `name` / `features`.
- * Ограничения (`kind`, `periodDays`, `postLimit`, `dailyLimit`) проверяет СЕРВЕР (api/_lib/quota.ts),
+ * Ограничения (`periodDays`, `postLimit`, `dailyLimit`) проверяет СЕРВЕР (api/_lib/quota.ts),
  * а не только интерфейс: обновление страницы или повторная отправка их не обходят.
  *
- *  - kind 'period' — доступ на `periodDays` дней с момента подтверждения оплаты;
- *  - kind 'pack'   — пакет из `postLimit` публикаций (без ограничения по сроку), после исчерпания нужна новая оплата;
- *  - dailyLimit    — не более N новых публикаций за календарный день по времени Кыргызстана (UTC+6).
+ *  - период — 30 дней с момента подтверждения оплаты (или с конца текущего периода при продлении заранее);
+ *  - postLimit — публикаций за период; неиспользованные сгорают, новый период начинается с полным лимитом;
+ *  - dailyLimit — не более N новых публикаций за календарный день по времени Кыргызстана (UTC+6);
+ *  - лимит НЕ сбрасывается 1-го числа — только с началом нового оплаченного периода.
  */
 export interface PlanConfig {
   name: LocalizedString;
   priceSom: number;
-  kind: 'period' | 'pack';
-  periodDays: number | null;
+  periodDays: number;
   postLimit: number | null;
   dailyLimit: number | null;
-  /** «/ 30 дней», «/ месяц», «за пакет» */
-  priceUnit: LocalizedString;
+  /** Только для подтверждённых госорганов и муниципалитетов */
+  govOnly?: boolean;
   /** Для кого тариф */
   audience: LocalizedString;
   features: LocalizedString[];
@@ -26,71 +26,81 @@ export interface PlanConfig {
 
 export const PLAN_IDS: PlanId[] = ['start', 'private', 'organizer', 'gov'];
 
+const MODERATED = { ru: 'Каждая публикация проходит модерацию', kg: 'Ар бир жарыя модерациядан өтөт', en: 'Every post is moderated' };
+const BURN = {
+  ru: 'Неиспользованные публикации не переносятся на следующий период',
+  kg: 'Колдонулбаган жарыялар кийинки мезгилге өтпөйт',
+  en: 'Unused posts do not carry over to the next period',
+};
+
 export const PLANS: Record<PlanId, PlanConfig> = {
   start: {
     name: { ru: 'Старт', kg: 'Старт', en: 'Start' },
     priceSom: 2000,
-    kind: 'pack',
-    periodDays: null,
+    periodDays: 30,
     postLimit: 3,
     dailyLimit: null,
-    priceUnit: { ru: 'за пакет', kg: 'топтом үчүн', en: 'per pack' },
-    audience: { ru: 'Для разового объявления', kg: 'Бир жолку жарыя үчүн', en: 'For a one-off announcement' },
+    audience: { ru: 'Для разовых объявлений', kg: 'Бир жолку жарыялар үчүн', en: 'For occasional announcements' },
     features: [
-      { ru: 'До 3 публикаций', kg: '3 жарыяга чейин', en: 'Up to 3 posts' },
+      { ru: 'До 3 публикаций за 30 дней', kg: '30 күндө 3 жарыяга чейин', en: 'Up to 3 posts per 30 days' },
+      BURN,
       { ru: 'Фото или афиша к событию', kg: 'Окуяга сүрөт же афиша', en: 'Photo or poster for each event' },
-      { ru: 'Каждая публикация проходит модерацию', kg: 'Ар бир жарыя модерациядан өтөт', en: 'Every post is moderated' },
+      MODERATED,
     ],
   },
   private: {
     name: { ru: 'Частный', kg: 'Жеке', en: 'Private' },
     priceSom: 5000,
-    kind: 'pack',
-    periodDays: null,
+    periodDays: 30,
     postLimit: 8,
     dailyLimit: null,
-    priceUnit: { ru: 'за пакет', kg: 'топтом үчүн', en: 'per pack' },
     audience: { ru: 'Для частных лиц и небольших мероприятий', kg: 'Жеке адамдар жана чакан иш-чаралар үчүн', en: 'For individuals and small events' },
     features: [
-      { ru: 'До 8 публикаций', kg: '8 жарыяга чейин', en: 'Up to 8 posts' },
+      { ru: 'До 8 публикаций за 30 дней', kg: '30 күндө 8 жарыяга чейин', en: 'Up to 8 posts per 30 days' },
+      BURN,
       { ru: 'Фото или афиша к событию', kg: 'Окуяга сүрөт же афиша', en: 'Photo or poster for each event' },
-      { ru: 'Каждая публикация проходит модерацию', kg: 'Ар бир жарыя модерациядан өтөт', en: 'Every post is moderated' },
+      MODERATED,
     ],
   },
   organizer: {
     name: { ru: 'Организатор', kg: 'Уюштуруучу', en: 'Organiser' },
     priceSom: 10000,
-    kind: 'period',
     periodDays: 30,
     postLimit: null,
     dailyLimit: 1,
-    priceUnit: { ru: '/ 30 дней', kg: '/ 30 күн', en: '/ 30 days' },
     audience: { ru: 'Для организаторов концертов, фестивалей и выставок', kg: 'Концерт, фестиваль жана көргөзмө уюштуруучулары үчүн', en: 'For concert, festival and exhibition organisers' },
     features: [
-      { ru: 'Срок действия — 30 дней', kg: 'Мөөнөтү — 30 күн', en: 'Valid for 30 days' },
-      { ru: 'Без ограничения общего количества публикаций', kg: 'Жарыялардын жалпы саны чектелбейт', en: 'No cap on the total number of posts' },
+      { ru: 'Без ограничения общего количества публикаций за 30 дней', kg: '30 күндө жарыялардын жалпы саны чектелбейт', en: 'No cap on the total number of posts in 30 days' },
       { ru: 'Не более 1 новой публикации в день (по времени Кыргызстана)', kg: 'Күнүнө 1ден ашпаган жаңы жарыя (Кыргызстан убактысы боюнча)', en: 'At most 1 new post per day (Kyrgyzstan time)' },
-      { ru: 'Каждая публикация проходит модерацию', kg: 'Ар бир жарыя модерациядан өтөт', en: 'Every post is moderated' },
+      { ru: 'После 30 дней тариф нужно продлить', kg: '30 күндөн кийин тарифти узартуу керек', en: 'Renew after 30 days' },
+      MODERATED,
     ],
   },
   gov: {
     name: { ru: 'Муниципалитет / государственный орган', kg: 'Муниципалитет / мамлекеттик орган', en: 'Municipality / government body' },
     priceSom: 2000,
-    kind: 'period',
     periodDays: 30,
     postLimit: null,
     dailyLimit: null,
-    priceUnit: { ru: '/ месяц', kg: '/ ай', en: '/ month' },
+    govOnly: true,
     audience: {
-      ru: 'Мэрии, айыл окмоту, министерства, госслужбы и Администрация Президента',
-      kg: 'Мэриялар, айыл өкмөттөрү, министрликтер, мамлекеттик кызматтар жана Президенттин Администрациясы',
-      en: 'City halls, local councils, ministries, state services and the Presidential Administration',
+      ru: 'Мэрии, айыл окмоту, министерства, госучреждения и Администрация Президента КР',
+      kg: 'Мэриялар, айыл өкмөттөрү, министрликтер, мамлекеттик мекемелер жана КР Президентинин Администрациясы',
+      en: 'City halls, local councils, ministries, state institutions and the Presidential Administration',
     },
     features: [
-      { ru: 'Срок действия — 30 дней', kg: 'Мөөнөтү — 30 күн', en: 'Valid for 30 days' },
-      { ru: 'Без ограничения количества публикаций', kg: 'Жарыялардын саны чектелбейт', en: 'Unlimited posts' },
-      { ru: 'Предупреждения: вода, свет, дороги, ремонт', kg: 'Эскертүүлөр: суу, жарык, жолдор, оңдоо', en: 'Alerts: water, power, roads, repairs' },
-      { ru: 'Каждая публикация проходит модерацию', kg: 'Ар бир жарыя модерациядан өтөт', en: 'Every post is moderated' },
+      { ru: 'Без ограничения количества публикаций за 30 дней', kg: '30 күндө жарыялардын саны чектелбейт', en: 'Unlimited posts for 30 days' },
+      {
+        ru: 'После подтверждения статуса — публикация без предварительной модерации',
+        kg: 'Статус тастыкталгандан кийин — алдын ала модерациясыз жарыялоо',
+        en: 'Once status is verified — posts go live without pre-moderation',
+      },
+      {
+        ru: 'Организация сама отвечает за достоверность сведений',
+        kg: 'Маалыматтын тактыгы үчүн уюм өзү жооп берет',
+        en: 'The organisation is responsible for its information',
+      },
+      { ru: 'Требуется подтверждение официального статуса', kg: 'Расмий статусту тастыктоо талап кылынат', en: 'Official status verification required' },
     ],
   },
 };
@@ -110,17 +120,22 @@ export const planPeriod = (days: number, lang: keyof LocalizedString) =>
 const ruPosts = (n: number) =>
   n % 10 === 1 && n % 100 !== 11 ? 'публикация' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'публикации' : 'публикаций';
 
+/** «/ 30 дней» */
+export const planUnit = (lang: keyof LocalizedString) => (lang === 'kg' ? '/ 30 күн' : lang === 'en' ? '/ 30 days' : '/ 30 дней');
+
 /** Короткая строка «срок / лимит» для карточки тарифа */
 export const planTerms = (id: PlanId, lang: keyof LocalizedString) => {
   const p = PLANS[id];
-  if (p.kind === 'pack') {
-    return lang === 'kg' ? `${p.postLimit} жарыя, мөөнөтсүз` : lang === 'en' ? `${p.postLimit} posts, no expiry` : `${p.postLimit} ${ruPosts(p.postLimit!)}, без срока`;
+  const period = planPeriod(p.periodDays, lang);
+  if (p.postLimit !== null) {
+    const n = p.postLimit;
+    return lang === 'kg' ? `${period}, ${n} жарыя` : lang === 'en' ? `${period}, ${n} posts` : `${period}, ${n} ${ruPosts(n)}`;
   }
   const daily = p.dailyLimit
     ? lang === 'kg' ? `, күнүнө ${p.dailyLimit}` : lang === 'en' ? `, ${p.dailyLimit} per day` : `, ${p.dailyLimit} в день`
     : '';
   const unl = lang === 'kg' ? 'чексиз' : lang === 'en' ? 'unlimited' : 'безлимитно';
-  return `${planPeriod(p.periodDays!, lang)}, ${unl}${daily}`;
+  return `${period}, ${unl}${daily}`;
 };
 
 /**
@@ -129,6 +144,12 @@ export const planTerms = (id: PlanId, lang: keyof LocalizedString) => {
  * Пример: 'MBank: 0700 000 000 (получатель — Айида Т.)'
  */
 export const PAYMENT_DETAILS = '';
+
+/**
+ * Фото / афиша автора до этого размера сохраняется как есть (оригинал, без перекодирования).
+ * Больше — уменьшается технически с сохранением пропорций (без обрезки).
+ */
+export const ORIGINAL_MAX_BYTES = 650_000; // в base64 ≈ 890 КБ — укладывается в лимит запроса Upstash Free (1 МБ)
 
 /** Максимальный размер загружаемого фото (после сжатия в браузере) */
 export const MAX_IMAGE_BYTES = 450_000;

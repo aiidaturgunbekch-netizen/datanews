@@ -17,6 +17,12 @@ const CATEGORY_STYLE: Record<string, { icon: string; bg: string }> = {
   repairs: { icon: 'construction', bg: 'from-[#7c2d12] via-[#ea580c] to-[#fdba74]' },
 };
 
+/** Тематическая иллюстрация категории — запасной вариант, если фото не загрузилось */
+const CATEGORY_ILLUSTRATION: Record<string, string> = {
+  concerts: 'concert', festivals: 'festival', fairs: 'fair', exhibitions: 'exhibition', culture: 'culture', sport: 'sport',
+  cinema: 'cinema', education: 'education', gov: 'gov', water: 'water', electricity: 'power', roads: 'roads', repairs: 'repairs',
+};
+
 /**
  * Фото / афиша события.
  *  - по умолчанию изображение вписывается целиком (object-contain), без обрезки лиц и текста афиши,
@@ -31,6 +37,15 @@ export const EventImage: React.FC<{ item: Announcement; className?: string; show
 }) => {
   const [failed, setFailed] = useState(false);
   const style = CATEGORY_STYLE[item.category] || CATEGORY_STYLE.gov;
+  const fallback = CATEGORY_ILLUSTRATION[item.category];
+
+  if (item.imageUrl && failed && fallback && !item.imageUrl.startsWith('/illustrations/')) {
+    return (
+      <div className={`relative overflow-hidden bg-[#0d2459] ${className}`}>
+        <img src={`/illustrations/${fallback}.svg`} alt={item.imageAlt || item.title.ru} className="absolute inset-0 w-full h-full object-cover" />
+      </div>
+    );
+  }
 
   if (item.imageUrl && !failed) {
     const cover = item.imageFit === 'cover';

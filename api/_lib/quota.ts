@@ -1,54 +1,131 @@
 /**
- * Лимиты тарифов — проверяются на сервере при каждой новой публикации.
+ * Тарифы и лимиты — проверяются на сервере при каждой новой публикации.
  *
- *  - «Организатор» (dailyLimit = 1): ключ dn:quota:day:{email}:{дата по Бишкеку} ставится
- *    атомарно (SET … NX), поэтому вторая публикация в тот же календарный день отклоняется
- *    даже при одновременной отправке, повторе запроса или обновлении страницы.
- *  - «Старт» / «Частный» (postLimit): счётчик dn:quota:pack:{email}:{packId} увеличивается
- *    атомарно (INCR); если он превысил лимит — откатываем (DECR) и отказываем.
- *  - «Организатор» / «Муниципалитет»: публиковать можно только до paidUntil (30 дней).
+ * Все тарифы действуют 30 дней. Оплаченные периоды хранятся в пользователе (`periods`) —
+ * это и есть история платежей. Текущий период — тот, в который попадает «сейчас».
  *
- * Попытка засчитывается в момент отправки на модерацию (отклонённая модератором публикация
- * лимит не возвращает). Правка своей уже отправленной публикации лимит не расходует.
+ *  - Лимит публикаций («Старт» — 3, «Частный» — 8) считается по счётчику
+ *    dn:quota:period:{email}:{periodId}. У нового периода новый id, поэтому лимит начинается
+ *    заново, а неиспользованные публикации прошлого периода сгорают. Никакого сброса 1-го числа.
+ *  - «Организатор» (dailyLimit = 1): ключ dn:quota:day:{email}:{дата по Бишкеку} ставится атомарно
+ *    (SET … NX) — вторая публикация в тот же календарный день отклоняется даже при повторе запроса,
+ *    обновлении страницы или одновременной отправке.
+ *  - Вне оплаченного периода публиковать нельзя.
+ *
+ * Публикация засчитывается в момент отправки (отклонённая модератором лимит не возвращает).
+ * Правка уже отправленной публикации лимит не расходует.
  */
-import type { PlanUsage } from '../../src/types';
+import type { PlanPeriod, PlanUsage } from '../../src/types';
 import { normalizePlan, PLANS } from '../../src/config/site';
 import { kgDateStr, addDaysStr } from '../../src/utils/time';
 import { cmd } from './kv';
-import { HttpError } from './http';
+import { HttpError, randomId } from './http';
 import type { StoredUser } from './users';
 
 const dayKey = (email: string, day = kgDateStr()) => `dn:quota:day:${email}:${day}`;
-const packKey = (email: string, packId: string) => `dn:quota:pack:${email}:${packId}`;
+const periodKey = (email: string, periodId: string) => `dn:quota:period:${email}:${periodId}`;
 
 const MESSAGES = {
   payment_required: 'Публикация доступна после подтверждения оплаты тарифа',
-  period_expired: 'Срок действия тарифа закончился — продлите его в личном кабинете',
-  pack_exhausted: 'Публикации в оплаченном пакете закончились — оплатите новый пакет',
+  period_expired: 'Срок действия тарифа (30 дней) закончился — продлите его в личном кабинете',
+  pack_exhausted: 'Лимит публикаций в текущем 30-дневном периоде исчерпан. Новый лимит начнётся с продлением тарифа.',
   daily_limit_reached: 'По тарифу «Организатор» можно отправить не более одной новой публикации в день (по времени Кыргызстана). Попробуйте завтра.',
 } as const;
 
+const ts = (iso: string) => new Date(iso).getTime();
+
+/** Периоды пользователя; старые записи (только paidUntil) превращаются в один период */
+export const periodsOf = (u: StoredUser): PlanPeriod[] => {
+  if (u.periods?.length) return u.periods;
+  if (u.paymentStatus === 'paid' && u.paidUntil) {
+    const end = ts(u.paidUntil);
+    return [
+      {
+        id: 'legacy',
+        plan: normalizePlan(u.plan),
+        start: new Date(end - 30 * 86400_000).toISOString(),
+        end: u.paidUntil,
+        paymentRef: u.paymentRef,
+        priceSom: PLANS[normalizePlan(u.plan)].priceSom,
+        confirmedAt: u.paidUntil,
+      },
+    ];
+  }
+  return [];
+};
+
+const effectiveEnd = (p: PlanPeriod) => (p.suspendedAt ? Math.min(ts(p.end), ts(p.suspendedAt)) : ts(p.end));
+
+export const currentPeriod = (u: StoredUser, now = Date.now()) =>
+  periodsOf(u).find((p) => ts(p.start) <= now && now < effectiveEnd(p)) || null;
+
+/**
+ * Новый оплаченный период: 30 дней с сегодняшнего момента, а если текущий период ещё идёт —
+ * с момента его окончания (продление заранее не съедает оставшиеся дни).
+ */
+export const addPeriod = (u: StoredUser, plan = normalizePlan(u.plan), now = Date.now()): StoredUser => {
+  const periods = periodsOf(u);
+  const lastEnd = periods.reduce((m, p) => Math.max(m, effectiveEnd(p)), 0);
+  const start = Math.max(now, lastEnd);
+  const p = PLANS[plan];
+  const period: PlanPeriod = {
+    id: randomId('per'),
+    plan,
+    start: new Date(start).toISOString(),
+    end: new Date(start + p.periodDays * 86400_000).toISOString(),
+    paymentRef: u.paymentRef,
+    priceSom: p.priceSom,
+    confirmedAt: new Date(now).toISOString(),
+  };
+  const next = [...periods, period];
+  return { ...u, plan, periods: next, paidUntil: period.end, paymentStatus: 'paid' };
+};
+
+/** Досрочная остановка (кнопка «Приостановить»): текущий и будущие периоды прекращаются сейчас, история сохраняется */
+export const suspendPeriods = (u: StoredUser, now = Date.now()): StoredUser => {
+  const at = new Date(now).toISOString();
+  const periods = periodsOf(u).map((p) => (effectiveEnd(p) > now ? { ...p, suspendedAt: at } : p));
+  return { ...u, periods, paidUntil: undefined };
+};
+
+export const isGovVerified = (u: StoredUser) => u.govStatus === 'verified';
+
 /** Текущее состояние тарифа пользователя (для кабинета и проверки перед публикацией) */
 export async function getUsage(user: StoredUser): Promise<PlanUsage> {
-  const plan = normalizePlan(user.plan);
+  const now = Date.now();
+  const cur = currentPeriod(user, now);
+  const plan = cur ? cur.plan : normalizePlan(user.plan);
   const p = PLANS[plan];
   const [usedRaw, todayRaw] = await Promise.all([
-    p.postLimit !== null && user.packId ? cmd<string | null>('GET', packKey(user.email, user.packId)) : Promise.resolve(null),
-    p.dailyLimit !== null ? cmd<string | null>('GET', dayKey(user.email)) : Promise.resolve(null),
+    cur && p.postLimit !== null ? cmd<string | null>('GET', periodKey(user.email, cur.id)) : Promise.resolve(null),
+    cur && p.dailyLimit !== null ? cmd<string | null>('GET', dayKey(user.email)) : Promise.resolve(null),
   ]);
   const postsUsed = Math.max(0, Number(usedRaw || 0));
   const postedToday = Boolean(todayRaw);
-  const usage: PlanUsage = { plan, active: false, postLimit: p.postLimit, postsUsed, dailyLimit: p.dailyLimit, postedToday };
+  const future = periodsOf(user)
+    .filter((x) => ts(x.start) > now && !x.suspendedAt)
+    .sort((a, b) => ts(a.start) - ts(b.start))[0];
+  const usage: PlanUsage = {
+    plan,
+    active: false,
+    periodStart: cur?.start,
+    periodEnd: cur ? new Date(effectiveEnd(cur)).toISOString() : undefined,
+    nextPeriodStart: future?.start,
+    postLimit: p.postLimit,
+    postsUsed,
+    postsLeft: p.postLimit === null ? null : Math.max(0, p.postLimit - postsUsed),
+    dailyLimit: p.dailyLimit,
+    postedToday,
+    skipsModeration: Boolean(cur && plan === 'gov' && isGovVerified(user)),
+  };
 
-  if (user.paymentStatus !== 'paid') usage.reason = 'payment_required';
-  else if (p.kind === 'period' && (!user.paidUntil || new Date(user.paidUntil).getTime() <= Date.now())) usage.reason = 'period_expired';
-  else if (p.kind === 'pack' && !user.packId) usage.reason = 'payment_required';
+  if (!cur) usage.reason = periodsOf(user).length ? 'period_expired' : 'payment_required';
   else if (p.postLimit !== null && postsUsed >= p.postLimit) usage.reason = 'pack_exhausted';
   else if (p.dailyLimit !== null && postedToday) {
     usage.reason = 'daily_limit_reached';
     usage.nextAllowedDate = addDaysStr(kgDateStr(), 1);
   }
-  usage.active = !usage.reason || usage.reason === 'daily_limit_reached';
+  usage.active = Boolean(cur);
   return usage;
 }
 
@@ -56,25 +133,28 @@ export async function getUsage(user: StoredUser): Promise<PlanUsage> {
  * Резервирует одну публикацию. Возвращает функцию отката — вызвать её, если сохранить
  * публикацию не удалось (чтобы ошибка сервера не «съела» попытку).
  */
-export async function reservePost(user: StoredUser): Promise<() => Promise<void>> {
+export async function reservePost(user: StoredUser): Promise<{ release: () => Promise<void>; periodId: string; usage: PlanUsage }> {
   const usage = await getUsage(user);
-  if (usage.reason && usage.reason !== 'daily_limit_reached') {
-    throw new HttpError(usage.reason, usage.reason === 'pack_exhausted' ? 403 : 402, MESSAGES[usage.reason]);
+  const cur = currentPeriod(user);
+  if (!cur || (usage.reason && usage.reason !== 'daily_limit_reached')) {
+    const code = usage.reason || 'payment_required';
+    throw new HttpError(code, code === 'pack_exhausted' ? 403 : 402, MESSAGES[code]);
   }
-  const p = PLANS[usage.plan];
+  const p = PLANS[cur.plan];
   const undo: (() => Promise<unknown>)[] = [];
 
   if (p.dailyLimit !== null) {
-    // Ключ живёт двое суток — дольше календарного дня по Бишкеку при любом смещении часов
+    // Ключ живёт двое суток — дольше календарного дня по Бишкеку
     const key = dayKey(user.email);
     const ok = await cmd<string | null>('SET', key, '1', 'NX', 'EX', 172800);
     if (ok !== 'OK') throw new HttpError('daily_limit_reached', 429, MESSAGES.daily_limit_reached);
     undo.push(() => cmd('DEL', key));
   }
 
-  if (p.postLimit !== null && user.packId) {
-    const key = packKey(user.email, user.packId);
+  if (p.postLimit !== null) {
+    const key = periodKey(user.email, cur.id);
     const n = await cmd<number>('INCR', key);
+    if (n === 1) await cmd('EXPIRE', key, 60 * 86400); // счётчик живёт дольше периода
     if (n > p.postLimit) {
       await cmd('DECR', key);
       for (const u of undo) await u();
@@ -83,7 +163,11 @@ export async function reservePost(user: StoredUser): Promise<() => Promise<void>
     undo.push(() => cmd('DECR', key));
   }
 
-  return async () => {
-    for (const u of undo) await u();
+  return {
+    periodId: cur.id,
+    usage,
+    release: async () => {
+      for (const u of undo) await u();
+    },
   };
 }

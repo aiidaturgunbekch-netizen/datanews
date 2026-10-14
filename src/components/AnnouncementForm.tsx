@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Announcement, AnnouncementStatus, CategoryId, CityId, Language, UrgencyType } from '../types';
+import { Announcement, AnnouncementStatus, CategoryId, CityId, Language, SourceKind, UrgencyType } from '../types';
 import { compressImage } from '../services/api';
-import { MAX_IMAGE_BYTES } from '../config/site';
+import { ORIGINAL_MAX_BYTES } from '../config/site';
+import { EventImage } from './EventImage';
+import { formatWhen } from '../utils/dates';
 import { AccountKey, errorText, ta } from '../locales/account';
 import { eventSource, ticketLink } from '../utils/links';
 import { getTranslation } from '../locales/translations';
@@ -34,6 +36,15 @@ export const CITY_OPTIONS: { id: CityId; label: string }[] = [
 ];
 
 const ALERT_CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs'];
+
+/** Файл как есть (data:URL) — без перекодирования, чтобы сохранить оригинал */
+const readAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error('read'));
+    r.readAsDataURL(file);
+  });
 
 interface Props {
   /** Язык подписей формы (панель администратора — 'ru') */
@@ -87,18 +98,38 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [urgency, setUrgency] = useState<UrgencyType>(initial?.urgency || 'event');
   const [status, setStatus] = useState<AnnouncementStatus>(initial?.status || 'scheduled');
   const [isTicker, setIsTicker] = useState(Boolean(initial?.isUrgentTicker));
+  const [sourceKind, setSourceKind] = useState<SourceKind | ''>(initial?.sourceKind || '');
+  const [additionalSourceUrl, setAdditionalSourceUrl] = useState(initial?.additionalSourceUrl || '');
+  const [authorityUrl, setAuthorityUrl] = useState(initial?.authorityUrl || '');
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
+  const [imageNote, setImageNote] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+
+  /**
+   * Фото / афиша автора. Если файл не больше ORIGINAL_MAX_BYTES — сохраняется оригинал без изменений.
+   * Если больше — только техническое уменьшение размера: пропорции и всё содержимое сохраняются,
+   * ничего не обрезается и не дорисовывается.
+   */
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setErr('');
     try {
-      let data = await compressImage(file);
-      if (data.length > MAX_IMAGE_BYTES * 1.37) data = await compressImage(file, 1000, 0.7);
-      if (data.length > MAX_IMAGE_BYTES * 1.37) throw new Error(tr('fPhotoTooBig'));
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error(tr('fPhotoBad'));
+      let data: string;
+      if (file.size <= ORIGINAL_MAX_BYTES) {
+        data = await readAsDataUrl(file);
+        setImageNote(tr('fPhotoOriginal'));
+      } else {
+        data = await compressImage(file, 2000, 0.9);
+        if (data.length > ORIGINAL_MAX_BYTES * 1.37) data = await compressImage(file, 1600, 0.85);
+        if (data.length > ORIGINAL_MAX_BYTES * 1.37) data = await compressImage(file, 1280, 0.8);
+        if (data.length > ORIGINAL_MAX_BYTES * 1.37) throw new Error(tr('fPhotoTooBig'));
+        setImageNote(tr('fPhotoResized'));
+      }
       setImageData(data);
       setImageUrl('');
     } catch (ex) {
@@ -106,10 +137,54 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
     }
   };
 
+  /** Объект публикации из полей формы — тот же, что увидят читатели (для предпросмотра) */
+  const draft = (): Announcement => ({
+    id: initial?.id || 'preview',
+    protocolCode: initial?.protocolCode || '#KG-PREVIEW',
+    title: { ru: titleRu.trim(), kg: titleKg.trim() || titleRu.trim(), en: titleEn.trim() || titleRu.trim() },
+    summary: { ru: summaryText(), kg: summaryText(), en: summaryText() },
+    description: { ru: description.trim(), kg: description.trim(), en: description.trim() },
+    category,
+    city,
+    location: { ru: location.trim(), kg: location.trim(), en: location.trim() },
+    startDate,
+    endDate,
+    timeTBA,
+    allDay,
+    urgency: mode === 'admin' ? urgency : ALERT_CATEGORIES.includes(category) ? 'planned' : 'event',
+    status: 'scheduled',
+    isUrgentTicker: false,
+    sourceName: sourceName.trim() || organizer.trim(),
+    sourceOrgType: 'ОРГ',
+    isVerified: false,
+    publishedAt: '',
+    updatedAt: '',
+    eventSourceUrl: sourceUrl.trim() || undefined,
+    ticketUrl: ticketUrl.trim() || undefined,
+    imageUrl: imageData || imageUrl.trim() || undefined,
+    imageAlt: imageAlt.trim() || titleRu.trim(),
+    imageCredit: imageCredit.trim() || undefined,
+    imageFit: mode === 'admin' ? imageFit : 'contain',
+    eventDetails: {
+      priceText: price.trim() ? { ru: price.trim(), kg: price.trim(), en: price.trim() } : undefined,
+      contactPhone: contactPhone.trim() || undefined,
+    },
+    isDemo: false,
+  });
+
+  /** Краткое описание: если не заполнено — первые предложения основного описания */
+  const summaryText = () => {
+    if (summary.trim()) return summary.trim();
+    const d = description.trim();
+    if (d.length <= 300) return d;
+    const cut = d.slice(0, 300);
+    return `${cut.slice(0, Math.max(cut.lastIndexOf('. ') + 1, cut.lastIndexOf(' ')))}…`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
-    if (!titleRu.trim() || !summary.trim() || !location.trim() || !startDate) {
+    if (!titleRu.trim() || !description.trim() || !location.trim() || !startDate) {
       setErr(tr('fRequired'));
       return;
     }
@@ -121,8 +196,8 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       id: initial?.id,
       protocolCode: initial?.protocolCode,
       title: { ru: titleRu.trim(), kg: titleKg.trim(), en: titleEn.trim() },
-      summary: { ru: summary.trim() },
-      description: { ru: description.trim() || summary.trim() },
+      summary: { ru: summaryText() },
+      description: { ru: description.trim() },
       category,
       city,
       location: { ru: location.trim() },
@@ -136,6 +211,9 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       isVerified: mode === 'admin' ? true : false,
       sourceName: sourceName.trim() || organizer.trim(),
       eventSourceUrl: sourceUrl.trim(),
+      sourceKind: mode === 'admin' && sourceKind ? sourceKind : undefined,
+      additionalSourceUrl: mode === 'admin' ? additionalSourceUrl.trim() : undefined,
+      authorityUrl: mode === 'admin' ? authorityUrl.trim() : undefined,
       ticketUrl: ticketUrl.trim(),
       ticketUrlVerified: mode === 'admin' ? ticketVerified && Boolean(ticketUrl.trim()) : false,
       organizerUrl: organizerUrl.trim(),
@@ -143,7 +221,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       venueUrl: venueUrl.trim(),
       imageSourceUrl: imageSourceUrl.trim(),
       imageAlt: imageAlt.trim(),
-      imageFit,
+      imageFit: mode === 'admin' ? imageFit : 'contain',
       imageUrl: imageData ? '' : imageUrl.trim(),
       imageData: imageData || undefined,
       imageCredit: imageCredit.trim(),
@@ -166,35 +244,44 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   };
 
   const preview = imageData || imageUrl;
+  const isAdmin = mode === 'admin';
+
+  const field = (label: string, node: React.ReactNode, hint?: string) => (
+    <div>
+      <label className={labelCls}>{label}</label>
+      {node}
+      {hint && <p className="text-[11px] text-gray-500 mt-1">{hint}</p>}
+    </div>
+  );
+
+  const extras = (
+    <>
+      {field(tr('fSummaryOpt'), <textarea className={inputCls} rows={2} value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={400} />)}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {field(tr('fTitleKg'), <input className={inputCls} value={titleKg} onChange={(e) => setTitleKg(e.target.value)} maxLength={200} />)}
+        {field(tr('fTitleEn'), <input className={inputCls} value={titleEn} onChange={(e) => setTitleEn(e.target.value)} maxLength={200} />)}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {field(tr('fPrice'), <input className={inputCls} value={price} onChange={(e) => setPrice(e.target.value)} placeholder={tr('fPricePh')} />)}
+        {field(tr('fTime'), <input className={inputCls} value={timeRange} onChange={(e) => setTimeRange(e.target.value)} placeholder="19:00 • 12+" />)}
+        {field(tr('fVenue'), <input className={inputCls} value={venue} onChange={(e) => setVenue(e.target.value)} />)}
+      </div>
+      {field(tr('fOrganizer'), <input className={inputCls} value={organizer} onChange={(e) => setOrganizer(e.target.value)} />)}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {field(tr('fTickets'), <input className={inputCls} value={ticketUrl} onChange={(e) => setTicketUrl(e.target.value)} placeholder="https://" />, tr('fTicketsHint'))}
+        {field(tr('fOrganizerUrl'), <input className={inputCls} value={organizerUrl} onChange={(e) => setOrganizerUrl(e.target.value)} placeholder="https://" />)}
+        {field(tr('fArtistUrl'), <input className={inputCls} value={artistUrl} onChange={(e) => setArtistUrl(e.target.value)} placeholder="https://" />)}
+        {field(tr('fVenueUrl'), <input className={inputCls} value={venueUrl} onChange={(e) => setVenueUrl(e.target.value)} placeholder="https://" />)}
+      </div>
+    </>
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className={labelCls}>{tr('fTitleRu')}</label>
-        <input className={inputCls} value={titleRu} onChange={(e) => setTitleRu(e.target.value)} maxLength={200} required />
-      </div>
+      {!isAdmin && <p className="text-xs text-gray-600 bg-[#f8fafc] rounded-xl p-3">{tr('fTemplateNote')}</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className={labelCls}>{tr('fTitleKg')}</label>
-          <input className={inputCls} value={titleKg} onChange={(e) => setTitleKg(e.target.value)} maxLength={200} />
-        </div>
-        <div>
-          <label className={labelCls}>{tr('fTitleEn')}</label>
-          <input className={inputCls} value={titleEn} onChange={(e) => setTitleEn(e.target.value)} maxLength={200} />
-        </div>
-      </div>
-      <div>
-        <label className={labelCls}>{tr('fSummary')}</label>
-        <textarea className={inputCls} rows={2} value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={400} required />
-      </div>
-      <div>
-        <label className={labelCls}>{tr('fDescription')}</label>
-        <textarea className={inputCls} rows={4} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} />
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className={labelCls}>{tr('fCategory')}</label>
+        {field(
+          tr('fCategory'),
           <select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value as CategoryId)}>
             {CATEGORY_OPTIONS.map((c) => (
               <option key={c.id} value={c.id}>
@@ -202,9 +289,9 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
               </option>
             ))}
           </select>
-        </div>
-        <div>
-          <label className={labelCls}>{tr('fCity')}</label>
+        )}
+        {field(
+          tr('fCity'),
           <select className={inputCls} value={city} onChange={(e) => setCity(e.target.value as CityId)}>
             {CITY_OPTIONS.map((c) => (
               <option key={c.id} value={c.id}>
@@ -212,28 +299,12 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
               </option>
             ))}
           </select>
-        </div>
+        )}
       </div>
-      <div>
-        <label className={labelCls}>{tr('fLocation')}</label>
-        <input
-          className={inputCls}
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder={tr('fLocationPh')}
-          maxLength={300}
-          required
-        />
-      </div>
+      {field(tr('fTitleRu'), <input className={inputCls} value={titleRu} onChange={(e) => setTitleRu(e.target.value)} maxLength={200} required />)}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className={labelCls}>{tr('fStart')}</label>
-          <input type="datetime-local" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-        </div>
-        <div>
-          <label className={labelCls}>{tr('fEnd')}</label>
-          <input type="datetime-local" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-        </div>
+        {field(tr('fStart'), <input type="datetime-local" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} required />)}
+        {field(tr('fEndOpt'), <input type="datetime-local" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />, tr('fEndHint'))}
         <div className="sm:col-span-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-700">
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={timeTBA} onChange={(e) => setTimeTBA(e.target.checked)} />
@@ -245,62 +316,23 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
           </label>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <label className={labelCls}>{tr('fPrice')}</label>
-          <input className={inputCls} value={price} onChange={(e) => setPrice(e.target.value)} placeholder={tr('fPricePh')} />
-        </div>
-        <div>
-          <label className={labelCls}>{tr('fTime')}</label>
-          <input className={inputCls} value={timeRange} onChange={(e) => setTimeRange(e.target.value)} placeholder="19:00 • 12+" />
-        </div>
-        <div>
-          <label className={labelCls}>{tr('fVenue')}</label>
-          <input className={inputCls} value={venue} onChange={(e) => setVenue(e.target.value)} />
-        </div>
-      </div>
+      {field(
+        tr('fLocation'),
+        <input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} placeholder={tr('fLocationPh')} maxLength={300} required />
+      )}
+      {field(tr('fDescriptionReq'), <textarea className={inputCls} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} required />)}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className={labelCls}>{tr('fOrganizer')}</label>
-          <input className={inputCls} value={organizer} onChange={(e) => setOrganizer(e.target.value)} />
-        </div>
-        <div>
-          <label className={labelCls}>{tr('fPhone')}</label>
-          <input className={inputCls} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+996 ..." />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className={labelCls}>{tr('fTickets')}</label>
-          <input className={inputCls} value={ticketUrl} onChange={(e) => setTicketUrl(e.target.value)} placeholder="https://" />
-        </div>
-        <div>
-          <label className={labelCls}>{tr('fSource')}</label>
-          <input className={inputCls} value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://" />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <label className={labelCls}>{tr('fOrganizerUrl')}</label>
-          <input className={inputCls} value={organizerUrl} onChange={(e) => setOrganizerUrl(e.target.value)} placeholder="https://" />
-        </div>
-        <div>
-          <label className={labelCls}>{tr('fArtistUrl')}</label>
-          <input className={inputCls} value={artistUrl} onChange={(e) => setArtistUrl(e.target.value)} placeholder="https://" />
-        </div>
-        <div>
-          <label className={labelCls}>{tr('fVenueUrl')}</label>
-          <input className={inputCls} value={venueUrl} onChange={(e) => setVenueUrl(e.target.value)} placeholder="https://" />
-        </div>
+        {field(tr('fPhone'), <input className={inputCls} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+996 ..." />)}
+        {field(tr('fSource'), <input className={inputCls} value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://" />)}
       </div>
 
-      {/* Фото / афиша */}
+      {/* Оригинальное фото / афиша автора */}
       <div className="p-4 rounded-2xl border border-dashed border-gray-300 bg-[#f8fafc]">
         <label className={labelCls}>{tr('fPhoto')}</label>
         <div className="flex flex-col sm:flex-row gap-4 items-start">
           <div className="w-full sm:w-48 aspect-[16/9] rounded-xl overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
             {preview ? (
-              <img src={preview} alt="" className={`w-full h-full ${imageFit === 'cover' ? 'object-cover' : 'object-contain'}`} referrerPolicy="no-referrer" />
+              <img src={preview} alt="" className={`w-full h-full ${isAdmin && imageFit === 'cover' ? 'object-cover' : 'object-contain'}`} referrerPolicy="no-referrer" />
             ) : (
               <span className="material-symbols-outlined text-gray-400 text-[36px]">image</span>
             )}
@@ -311,32 +343,30 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
               {tr('fUpload')}
               <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onFile} />
             </label>
-            <input
-              className={inputCls}
-              value={imageUrl}
-              onChange={(e) => {
-                setImageUrl(e.target.value);
-                setImageData('');
-              }}
-              placeholder={tr('fImageUrl')}
-            />
-            <input
-              className={inputCls}
-              value={imageCredit}
-              onChange={(e) => setImageCredit(e.target.value)}
-              placeholder={tr('fImageCredit')}
-            />
-            <input
-              className={inputCls}
-              value={imageSourceUrl}
-              onChange={(e) => setImageSourceUrl(e.target.value)}
-              placeholder={tr('fImageSource')}
-            />
+            <p className="text-[11px] text-gray-500">{tr('fPhotoRules')}</p>
+            {imageNote && imageData && <p className="text-[11px] font-bold text-emerald-700">{imageNote}</p>}
+            {isAdmin && (
+              <input
+                className={inputCls}
+                value={imageUrl}
+                onChange={(e) => {
+                  setImageUrl(e.target.value);
+                  setImageData('');
+                }}
+                placeholder={tr('fImageUrl')}
+              />
+            )}
+            <input className={inputCls} value={imageCredit} onChange={(e) => setImageCredit(e.target.value)} placeholder={tr('fImageCredit')} />
+            {isAdmin && (
+              <input className={inputCls} value={imageSourceUrl} onChange={(e) => setImageSourceUrl(e.target.value)} placeholder={tr('fImageSource')} />
+            )}
             <input className={inputCls} value={imageAlt} onChange={(e) => setImageAlt(e.target.value)} placeholder={tr('fImageAlt')} />
-            <label className="flex items-center gap-2 text-xs text-gray-700">
-              <input type="checkbox" checked={imageFit === 'cover'} onChange={(e) => setImageFit(e.target.checked ? 'cover' : 'contain')} />
-              {tr('fImageCover')}
-            </label>
+            {isAdmin && (
+              <label className="flex items-center gap-2 text-xs text-gray-700">
+                <input type="checkbox" checked={imageFit === 'cover'} onChange={(e) => setImageFit(e.target.checked ? 'cover' : 'contain')} />
+                {tr('fImageCover')}
+              </label>
+            )}
             {preview && (
               <button
                 type="button"
@@ -344,6 +374,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
                 onClick={() => {
                   setImageData('');
                   setImageUrl('');
+                  setImageNote('');
                 }}
               >
                 {tr('fRemovePhoto')}
@@ -353,7 +384,16 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         </div>
       </div>
 
-      {mode === 'admin' && (
+      {isAdmin ? (
+        extras
+      ) : (
+        <details className="rounded-2xl border border-gray-200 p-4 [&_summary]:cursor-pointer">
+          <summary className="text-sm font-bold text-[#12327A]">{tr('fMore')}</summary>
+          <div className="space-y-4 mt-4">{extras}</div>
+        </details>
+      )}
+
+      {isAdmin && (
         <div className="p-4 rounded-2xl bg-[#eef2f9] grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>Тип</label>
@@ -379,16 +419,36 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
             <label className={labelCls}>Источник (название)</label>
             <input className={inputCls} value={sourceName} onChange={(e) => setSourceName(e.target.value)} placeholder="Мэрия г. Бишкек" />
           </div>
+          <div>
+            <label className={labelCls}>Чем является ссылка на источник</label>
+            <select className={inputCls} value={sourceKind} onChange={(e) => setSourceKind(e.target.value as SourceKind | '')}>
+              <option value="">Определить автоматически (*.gov.kg — официальный)</option>
+              <option value="official">Официальный источник (мэрия, госорган, служба, GovTicket)</option>
+              <option value="organizer">Организатор / площадка</option>
+              <option value="ticket">Билетный сервис</option>
+              <option value="media">СМИ (официального сообщения нет)</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Дополнительный источник (СМИ)</label>
+            <input className={inputCls} value={additionalSourceUrl} onChange={(e) => setAdditionalSourceUrl(e.target.value)} placeholder="https://" />
+          </div>
+          <div>
+            <label className={labelCls}>Официальный сайт ведомства</label>
+            <input className={inputCls} value={authorityUrl} onChange={(e) => setAuthorityUrl(e.target.value)} placeholder="https://bishkek.gov.kg" />
+          </div>
           <label className="flex items-center gap-2 text-sm font-semibold text-[#0f1b33] mt-5">
             <input type="checkbox" checked={isTicker} onChange={(e) => setIsTicker(e.target.checked)} />
             Показать в бегущей строке «Срочно»
           </label>
           <label className="flex items-center gap-2 text-sm font-semibold text-[#0f1b33] sm:col-span-2">
             <input type="checkbox" checked={ticketVerified} onChange={(e) => setTicketVerified(e.target.checked)} />
-            Ссылка на билеты проверена (ведёт на страницу этого события) — показывать кнопку «Купить билет»
+            Ссылка на билеты проверена (ведёт на страницу этого события) — показывать кнопку «Купить билет». Приоритет: GovTicket → сайт организатора → частный сервис
           </label>
         </div>
       )}
+
+      {showPreview && <FormPreview item={draft()} lang={lang} />}
 
       {err && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">{err}</div>}
 
@@ -399,6 +459,15 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
           </button>
         )}
         <button
+          type="button"
+          onClick={() => setShowPreview((v) => !v)}
+          className="px-4 py-2.5 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold inline-flex items-center gap-1"
+          aria-expanded={showPreview}
+        >
+          <span className="material-symbols-outlined text-[18px]">{showPreview ? 'visibility_off' : 'visibility'}</span>
+          {showPreview ? tr('fHidePreview') : tr('fPreview')}
+        </button>
+        <button
           type="submit"
           disabled={busy}
           className="px-5 py-2.5 rounded-xl bg-[#20C7B5] text-[#002f29] text-sm font-extrabold hover:bg-[#1bb3a2] disabled:opacity-60"
@@ -407,5 +476,41 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         </button>
       </div>
     </form>
+  );
+};
+
+/** Предпросмотр: публикация в фирменном шаблоне DataNews — так её увидят читатели */
+const FormPreview: React.FC<{ item: Announcement; lang: Language }> = ({ item, lang }) => {
+  const { t } = getTranslation(lang);
+  const tr = (k: AccountKey) => ta(k, lang);
+  const valid = item.title.ru && item.startDate;
+  return (
+    <div className="rounded-2xl border-2 border-[#20C7B5]/50 p-3 bg-[#f5f7fb]">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-[#0f766e] mb-2">{tr('fPreviewTitle')}</div>
+      {!valid ? (
+        <p className="text-xs text-gray-500">{tr('fPreviewEmpty')}</p>
+      ) : (
+        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 max-w-md">
+          <EventImage item={item} className="w-full aspect-[16/9]" showCredit />
+          <div className="p-4 space-y-2">
+            <span className="inline-block px-2 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44] text-[11px] font-bold">{t(`categories.${item.category}`)}</span>
+            <h3 className="font-extrabold text-[#0f1b33] leading-snug">{item.title[lang] || item.title.ru}</h3>
+            <div className="text-xs text-gray-600 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px] text-[#12327A]">calendar_month</span>
+              {formatWhen(item.startDate, item.endDate, lang, true, item.timeTBA, item.allDay)}
+            </div>
+            {item.location.ru && (
+              <div className="text-xs text-gray-600 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[16px] text-[#12327A]">location_on</span>
+                {t(`cities.${item.city}`)} • {item.location.ru}
+              </div>
+            )}
+            {item.summary.ru && <p className="text-sm text-gray-700">{item.summary.ru}</p>}
+            {item.eventDetails?.contactPhone && <div className="text-xs text-gray-600">☎ {item.eventDetails.contactPhone}</div>}
+            {item.eventSourceUrl && <div className="text-xs text-[#12327A] font-semibold break-all">🔗 {item.eventSourceUrl}</div>}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

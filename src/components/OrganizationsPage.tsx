@@ -1,7 +1,7 @@
 import React from 'react';
 import { Language } from '../types';
 import { getTranslation } from '../locales/translations';
-import { PLAN_IDS, PLANS, planTerms } from '../config/site';
+import { PLAN_IDS, PLANS, planTerms, planUnit } from '../config/site';
 
 interface OrganizationsPageProps {
   currentLanguage: Language;
@@ -26,9 +26,9 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
     },
     plansTitle: { ru: 'Тарифы', kg: 'Тарифтер', en: 'Plans' },
     plansDesc: {
-      ru: 'Регистрация для размещения событий платная. Каждая публикация проходит проверку модератором перед выходом на сайт.',
-      kg: 'Иш-чараларды жайгаштыруу үчүн каттоо акылуу. Ар бир жарыя сайтка чыкканга чейин модератордун текшерүүсүнөн өтөт.',
-      en: 'Registration to post events is paid. Every post is reviewed by a moderator before it appears on the site.',
+      ru: 'Все тарифы действуют 30 дней, оплата ежемесячная. Неиспользованные публикации на следующий период не переносятся. Публикации проходят проверку модератором; подтверждённые госорганы и муниципалитеты публикуют сами и отвечают за сведения.',
+      kg: 'Бардык тарифтер 30 күн жарактуу, төлөм ай сайын. Колдонулбаган жарыялар кийинки мезгилге өтпөйт. Жарыялар модератордун текшерүүсүнөн өтөт; тастыкталган мамлекеттик органдар жана муниципалитеттер өздөрү жарыялап, маалымат үчүн өздөрү жооп беришет.',
+      en: 'Every plan runs for 30 days and is paid monthly. Unused posts do not carry over. Posts are moderated; verified government bodies and municipalities publish directly and are responsible for their information.',
     },
     recommended: { ru: 'Рекомендуем', kg: 'Сунуштайбыз', en: 'Recommended' },
     som: { ru: 'сом', kg: 'сом', en: 'KGS' },
@@ -47,7 +47,7 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
     audience: PLANS[id].audience[lang],
     terms: planTerms(id, lang),
     price: `${PLANS[id].priceSom.toLocaleString('ru-RU')} ${tx.som[lang]}`,
-    unit: PLANS[id].priceUnit[lang],
+    unit: planUnit(lang),
     features: PLANS[id].features.map((f) => f[lang]),
     isPopular: id === 'organizer',
     ctaText: tx.choose[lang],

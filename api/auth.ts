@@ -14,6 +14,7 @@ import {
   HttpError,
   json,
   randomId,
+  rateLimit,
   readBody,
   readSession,
   requireUser,
@@ -21,21 +22,12 @@ import {
   verifyPassword,
 } from './_lib/http';
 import { StoredUser, toPublic, USERS_KEY } from './_lib/users';
-import { normalizePlan } from '../src/config/site';
-import { getUsage } from './_lib/quota';
+import { normalizePlan, PLANS } from '../src/config/site';
+import { getUsage, periodsOf } from './_lib/quota';
 
 export const config = { runtime: 'edge' };
 
 const clean = (v: unknown, max = 200) => String(v ?? '').trim().slice(0, max);
-
-/** Не более `limit` попыток в минуту с одного IP */
-const rateLimit = async (req: Request, bucket: string, limit: number) => {
-  const ip = (req.headers.get('x-forwarded-for') || 'local').split(',')[0].trim();
-  const key = `dn:rl:${bucket}:${ip}:${Math.floor(Date.now() / 60000)}`;
-  const n = await cmd<number>('INCR', key);
-  if (n === 1) await cmd('EXPIRE', key, 120);
-  if (n > limit) throw new HttpError('too_many_attempts', 429, 'Слишком много попыток, подождите минуту');
-};
 
 export default handler(async (req) => {
   if (req.method === 'GET') {
@@ -43,7 +35,7 @@ export default handler(async (req) => {
     if (!s) return json({ role: 'guest' });
     if (s.role === 'admin') return json({ role: 'admin' });
     const u = await hgetJson<StoredUser>(USERS_KEY, s.sub);
-    return u ? json({ role: 'user', user: toPublic(u), usage: await getUsage(u) }) : json({ role: 'guest' });
+    return u ? json({ role: 'user', user: { ...toPublic(u), periods: periodsOf(u) }, usage: await getUsage(u) }) : json({ role: 'guest' });
   }
   if (req.method !== 'POST') throw new HttpError('method_not_allowed', 405);
 
@@ -100,15 +92,40 @@ export default handler(async (req) => {
     const s = await requireUser(req);
     const u = await hgetJson<StoredUser>(USERS_KEY, s.sub);
     if (!u) throw new HttpError('not_found', 404);
-    // Новую оплату можно заявить, только если текущий тариф уже не даёт публиковать
-    const usage = await getUsage(u);
-    if (u.paymentStatus === 'paid' && (!usage.reason || usage.reason === 'daily_limit_reached')) {
-      return json({ user: toPublic(u), usage });
-    }
+    // Оплату можно заявить в любой момент: продление заранее начнётся после окончания текущего периода
     const paymentRef = clean(body.paymentRef, 120);
     if (!paymentRef) throw new HttpError('bad_payment_ref', 400, 'Укажите номер/код платежа');
     const plan = body.plan ? normalizePlan(body.plan) : normalizePlan(u.plan);
+    // Тариф только для госорганов не выбирается без подачи заявки на подтверждение статуса
+    if (PLANS[plan].govOnly && u.govStatus !== 'verified' && u.govStatus !== 'pending') {
+      throw new HttpError('gov_request_required', 409, 'Сначала подайте заявку на подтверждение статуса госоргана');
+    }
     const next: StoredUser = { ...u, plan, paymentRef, paymentStatus: 'pending' };
+    await hsetJson(USERS_KEY, s.sub, next);
+    return json({ user: toPublic(next), usage: await getUsage(next) });
+  }
+
+  if (action === 'gov-request') {
+    // Заявка на подтверждение официального статуса. Статус НЕ присваивается автоматически
+    // (ни по названию, ни по e-mail) — его подтверждает администратор после проверки.
+    const s = await requireUser(req);
+    await rateLimit(req, 'gov', 5, 3600, s.sub);
+    const u = await hgetJson<StoredUser>(USERS_KEY, s.sub);
+    if (!u) throw new HttpError('not_found', 404);
+    if (u.govStatus === 'verified') return json({ user: toPublic(u), usage: await getUsage(u) });
+    const orgName = clean(body.orgName, 200);
+    const position = clean(body.position, 160);
+    const officialSite = clean(body.officialSite, 300);
+    const officialEmail = clean(body.officialEmail, 120).toLowerCase();
+    const documentRef = clean(body.documentRef, 300);
+    if (orgName.length < 3 || position.length < 2 || documentRef.length < 3) throw new HttpError('missing_field', 400, 'Заполните обязательные поля');
+    if (!/^https?:\/\/[^\s]+\.[^\s]+/i.test(officialSite)) throw new HttpError('bad_url', 400, 'Укажите адрес официального сайта');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(officialEmail)) throw new HttpError('bad_email', 400, 'Проверьте e-mail');
+    const next: StoredUser = {
+      ...u,
+      govStatus: 'pending',
+      gov: { orgName, position, officialSite, officialEmail, documentRef, requestedAt: new Date().toISOString() },
+    };
     await hsetJson(USERS_KEY, s.sub, next);
     return json({ user: toPublic(next), usage: await getUsage(next) });
   }

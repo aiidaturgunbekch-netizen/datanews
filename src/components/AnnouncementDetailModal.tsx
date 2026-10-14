@@ -3,7 +3,9 @@ import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { EventImage } from './EventImage';
 import { formatDayMonthTime, formatWhen } from '../utils/dates';
-import { eventSource, hostOf, ticketLink } from '../utils/links';
+import { eventSource, groupedSources, hostOf, isGovTicket, SourceLink, ticketLink } from '../utils/links';
+import * as api from '../services/api';
+import { Report } from '../types';
 import { isExpired } from '../utils/urgency';
 import { kgTs } from '../utils/time';
 
@@ -53,7 +55,41 @@ const L = {
   originUser: { ru: 'Публикация организатора, прошла модерацию', kg: 'Уюштуруучунун жарыясы, модерациядан өткөн', en: 'Organiser’s post, moderated' },
   originAuto: { ru: 'Собрано автоматически', kg: 'Автоматтык түрдө чогултулган', en: 'Collected automatically' },
   checkedAt: { ru: 'проверено', kg: 'текшерилген', en: 'checked' },
+  official: { ru: 'Официальный источник', kg: 'Расмий булак', en: 'Official source' },
+  authority: { ru: 'Официальный сайт ведомства', kg: 'Мекеменин расмий сайты', en: 'Official website of the agency' },
+  authorityTitle: { ru: 'Ответственное ведомство', kg: 'Жооптуу мекеме', en: 'Responsible agency' },
+  additional: { ru: 'Дополнительный источник', kg: 'Кошумча булак', en: 'Additional source' },
+  media: { ru: 'Публикация СМИ / афиши', kg: 'ЖМКнын / афишанын жарыясы', en: 'News or listings report' },
+  ticketPage: { ru: 'Страница события в билетном сервисе', kg: 'Билет кызматындагы окуянын баракчасы', en: 'Event page on the ticket service' },
+  ticketsTitle: { ru: 'Купить билет', kg: 'Билет сатып алуу', en: 'Buy tickets' },
+  govTicket: { ru: 'GovTicket — государственный билетный сервис', kg: 'GovTicket — мамлекеттик билет кызматы', en: 'GovTicket — state ticketing service' },
+  privateTicket: { ru: 'частный билетный сервис', kg: 'жеке билет кызматы', en: 'private ticketing service' },
+  mediaOnly: {
+    ru: 'Официальное сообщение в открытом доступе не найдено — сведения взяты из СМИ. Уточняйте у ответственной службы.',
+    kg: 'Расмий билдирүү ачык булактарда табылган жок — маалымат ЖМКдан алынды. Жооптуу кызматтан тактаңыз.',
+    en: 'No official notice was found publicly — this information comes from the media. Check with the responsible service.',
+  },
+  govPost: {
+    ru: 'Официальная публикация организации. Организация самостоятельно отвечает за достоверность сведений.',
+    kg: 'Уюмдун расмий жарыясы. Маалыматтын тактыгы үчүн уюм өзү жооп берет.',
+    en: 'Official post by the organisation, which is responsible for the accuracy of the information.',
+  },
+  report: { ru: 'Пожаловаться', kg: 'Даттануу', en: 'Report' },
+  reportTitle: { ru: 'Сообщить о проблеме с публикацией', kg: 'Жарыядагы көйгөй тууралуу билдирүү', en: 'Report a problem with this post' },
+  reportComment: { ru: 'Что не так? (необязательно)', kg: 'Эмне туура эмес? (милдеттүү эмес)', en: 'What is wrong? (optional)' },
+  reportContact: { ru: 'Ваш контакт для ответа (необязательно)', kg: 'Жооп үчүн байланышыңыз (милдеттүү эмес)', en: 'Your contact for a reply (optional)' },
+  reportSend: { ru: 'Отправить жалобу', kg: 'Даттанууну жөнөтүү', en: 'Send report' },
+  reportThanks: { ru: 'Спасибо! Администратор проверит публикацию.', kg: 'Рахмат! Администратор жарыяны текшерет.', en: 'Thank you! The administrator will review the post.' },
+  reportFail: { ru: 'Не удалось отправить жалобу. Попробуйте позже.', kg: 'Даттанууну жөнөтүү мүмкүн болгон жок. Кийинчерээк аракет кылыңыз.', en: 'Could not send the report. Please try later.' },
 };
+
+const REASONS: { id: Report['reason']; ru: string; kg: string; en: string }[] = [
+  { id: 'false', ru: 'Недостоверная информация', kg: 'Туура эмес маалымат', en: 'False information' },
+  { id: 'outdated', ru: 'Устаревшие сведения', kg: 'Эскирген маалымат', en: 'Outdated information' },
+  { id: 'offensive', ru: 'Оскорбительное содержание', kg: 'Кордогон мазмун', en: 'Offensive content' },
+  { id: 'spam', ru: 'Спам / реклама', kg: 'Спам / жарнама', en: 'Spam / advertising' },
+  { id: 'other', ru: 'Другое', kg: 'Башка', en: 'Other' },
+];
 
 const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
 
@@ -86,13 +122,49 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   // Свободный вход — билеты не нужны, пометку «ссылка не подтверждена» не показываем
   const freeEntry = /свободный|бесплатн|акысыз|free/i.test(a.eventDetails?.priceText?.ru || '');
   const source = eventSource(a);
-  const links = [
-    source && { href: source, label: L.eventSource[lang], icon: 'article' },
-    a.artistUrl && { href: a.artistUrl, label: L.artist[lang], icon: 'star' },
-    a.organizerUrl && { href: a.organizerUrl, label: L.organizer[lang], icon: 'groups' },
-    a.venueUrl && { href: a.venueUrl, label: L.venue[lang], icon: 'stadium' },
-    a.imageSourceUrl && { href: a.imageSourceUrl, label: L.imageSource[lang], icon: 'photo_camera' },
-  ].filter(Boolean) as { href: string; label: string; icon: string }[];
+  const groups = groupedSources(a);
+  const govTicket = tickets.url ? isGovTicket(tickets.url) : false;
+  const LINK_META: Record<SourceLink['label'], { text: string; icon: string }> = {
+    official: { text: L.official[lang], icon: 'verified' },
+    authority: { text: L.authority[lang], icon: 'account_balance' },
+    organizer: { text: L.organizer[lang], icon: 'groups' },
+    artist: { text: L.artist[lang], icon: 'star' },
+    venue: { text: L.venue[lang], icon: 'stadium' },
+    media: { text: L.media[lang], icon: 'newspaper' },
+    ticketPage: { text: L.ticketPage[lang], icon: 'confirmation_number' },
+    additional: { text: L.additional[lang], icon: 'article' },
+    image: { text: L.imageSource[lang], icon: 'photo_camera' },
+  };
+  const sections = [
+    {
+      // только сайт ведомства (само сообщение там не найдено) — не называем это официальным источником
+      title: groups.official.some((o) => o.label === 'official') ? L.official[lang] : L.authorityTitle[lang],
+      items: groups.official,
+    },
+    { title: L.organizer[lang], items: groups.organizer },
+    { title: L.additional[lang], items: groups.additional },
+  ].filter((x) => x.items.length > 0);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reason, setReason] = useState<Report['reason']>('false');
+  const [comment, setComment] = useState('');
+  const [contact, setContact] = useState('');
+  const [reportState, setReportState] = useState<'' | 'sending' | 'ok' | 'fail'>('');
+  useEffect(() => {
+    // при переходе к другому событию форма жалобы начинается заново
+    setReportOpen(false);
+    setReportState('');
+    setComment('');
+  }, [a.id]);
+  const sendReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setReportState('sending');
+    try {
+      await api.submitReport(a.id, reason, comment.trim() || undefined, contact.trim() || undefined);
+      setReportState('ok');
+    } catch {
+      setReportState('fail');
+    }
+  };
   // Только ещё не завершившиеся, ближайшие по дате
   const nearby = allAnnouncements
     .filter((x) => x.id !== a.id && x.city === a.city && !isExpired(x))
@@ -241,7 +313,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             >
               <span className="material-symbols-outlined text-[18px]">confirmation_number</span>
               {L.buy[lang]}
-              <span className="text-[11px] font-semibold opacity-75">· {hostOf(tickets.url)}</span>
+              <span className="text-[11px] font-semibold opacity-75">· {govTicket ? 'GovTicket' : hostOf(tickets.url)}</span>
             </a>
           )}
           <a
@@ -284,42 +356,76 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           )}
         </div>
 
-        {/* Первоисточники: отдельные ссылки, а не текст в описании */}
-        {(isEvent || links.length > 0) && (
-          <div className="mx-6 mb-6">
-            <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2">{L.links[lang]}</h3>
-            <ul className="space-y-1.5 text-sm">
-              {links.map((l) => (
-                <li key={l.href}>
-                  <a
-                    href={l.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[#12327A] font-semibold hover:underline break-all"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">{l.icon}</span>
-                    <span>{l.label}</span>
-                    <span className="text-gray-400 font-normal">— {hostOf(l.href)}</span>
-                    <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                  </a>
-                </li>
-              ))}
-              {isEvent && tickets.url && !tickets.verified && (
-                <li className="flex flex-wrap items-center gap-1.5 text-gray-600">
-                  <span className="material-symbols-outlined text-[16px] text-amber-600">help</span>
-                  <span>{L.ticketUnverified[lang]}:</span>
-                  <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="text-gray-600 underline break-all">
-                    {hostOf(tickets.url)}
-                  </a>
-                </li>
-              )}
-              {isEvent && !tickets.url && !freeEntry && (
-                <li className="flex items-center gap-1.5 text-gray-500">
-                  <span className="material-symbols-outlined text-[16px]">info</span>
-                  <span>{L.noTickets[lang]}</span>
-                </li>
-              )}
-            </ul>
+        {a.publishedByGov && (
+          <div className="mx-6 mb-4 p-3 rounded-xl bg-[#eef2f9] text-xs text-[#0f1b33] flex items-start gap-2">
+            <span className="material-symbols-outlined text-[16px] text-[#12327A]">account_balance</span>
+            <span>{L.govPost[lang]}</span>
+          </div>
+        )}
+
+        {/* Источники: официальный, организатор, билеты, дополнительный — отдельными ссылками */}
+        {(isEvent || sections.length > 0 || tickets.url) && (
+          <div className="mx-6 mb-6 space-y-3">
+            <h3 className="text-sm font-extrabold text-[#0f1b33]">{L.links[lang]}</h3>
+            {groups.mediaOnly && !isEvent && (
+              <p className="text-xs text-amber-900 bg-amber-50 rounded-xl p-2.5 flex gap-1.5">
+                <span className="material-symbols-outlined text-[16px]">info</span>
+                {L.mediaOnly[lang]}
+              </p>
+            )}
+            {sections.map((sec) => (
+              <div key={sec.title}>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">{sec.title}</div>
+                <ul className="space-y-1 text-sm">
+                  {sec.items.map((l) => (
+                    <li key={l.href}>
+                      <a
+                        href={l.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[#12327A] font-semibold hover:underline break-all"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">{LINK_META[l.label].icon}</span>
+                        <span>{LINK_META[l.label].text}</span>
+                        <span className="text-gray-400 font-normal">— {hostOf(l.href)}</span>
+                        <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            {(tickets.url || (isEvent && !freeEntry)) && (
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">{L.ticketsTitle[lang]}</div>
+                <ul className="space-y-1 text-sm">
+                  {tickets.url && tickets.verified && (
+                    <li>
+                      <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[#12327A] font-semibold hover:underline break-all">
+                        <span className="material-symbols-outlined text-[16px]">confirmation_number</span>
+                        <span>{govTicket ? L.govTicket[lang] : `${hostOf(tickets.url)} (${L.privateTicket[lang]})`}</span>
+                        <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                      </a>
+                    </li>
+                  )}
+                  {tickets.url && !tickets.verified && (
+                    <li className="flex flex-wrap items-center gap-1.5 text-gray-600">
+                      <span className="material-symbols-outlined text-[16px] text-amber-600">help</span>
+                      <span>{L.ticketUnverified[lang]}:</span>
+                      <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="text-gray-600 underline break-all">
+                        {hostOf(tickets.url)}
+                      </a>
+                    </li>
+                  )}
+                  {!tickets.url && (
+                    <li className="flex items-center gap-1.5 text-gray-500">
+                      <span className="material-symbols-outlined text-[16px]">info</span>
+                      <span>{L.noTickets[lang]}</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
@@ -332,6 +438,39 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             </span>
           </p>
         )}
+
+        <div className="mx-6 mb-6">
+          {!reportOpen ? (
+            <button onClick={() => setReportOpen(true)} className="text-xs font-bold text-gray-500 hover:text-red-700 inline-flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px]">flag</span>
+              {L.report[lang]}
+            </button>
+          ) : reportState === 'ok' ? (
+            <p className="text-xs font-bold text-emerald-700">{L.reportThanks[lang]}</p>
+          ) : (
+            <form onSubmit={sendReport} className="p-3 rounded-xl border border-gray-200 space-y-2 text-sm">
+              <div className="font-bold text-[#0f1b33]">{L.reportTitle[lang]}</div>
+              <select value={reason} onChange={(e) => setReason(e.target.value as Report['reason'])} className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm">
+                {REASONS.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r[lang]}
+                  </option>
+                ))}
+              </select>
+              <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={1000} rows={2} placeholder={L.reportComment[lang]} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" />
+              <input value={contact} onChange={(e) => setContact(e.target.value)} maxLength={120} placeholder={L.reportContact[lang]} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" />
+              {reportState === 'fail' && <p className="text-xs font-bold text-red-700">{L.reportFail[lang]}</p>}
+              <div className="flex gap-2">
+                <button disabled={reportState === 'sending'} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold disabled:opacity-60">
+                  {L.reportSend[lang]}
+                </button>
+                <button type="button" onClick={() => setReportOpen(false)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-bold">
+                  {L.close[lang]}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
 
         {nearby.length > 0 && onSelectOtherNotice && (
           <div className="px-6 pb-6">

@@ -231,7 +231,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         className="relative w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <EventImage item={a} lang={lang} showCredit className="w-full aspect-[16/9] sm:rounded-t-3xl rounded-t-3xl" />
+        <EventImage item={a} lang={lang} showCredit className={`w-full sm:rounded-t-3xl rounded-t-3xl ${a.imageFit === "cover" ? "aspect-[16/9]" : "h-[58vh] max-h-[620px] min-h-[240px]"}`} />
         <div className={`px-6 pt-6 pb-5 text-white ${isEvent ? 'bg-gradient-to-br from-[#12327A] via-[#1d4ed8] to-[#20C7B5]' : 'bg-gradient-to-br from-[#0d2459] to-[#12327A]'}`}>
           <button
             onClick={onClose}

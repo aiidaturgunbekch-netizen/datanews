@@ -42,7 +42,6 @@ const CEC_SITE = 'https://shailoo.gov.kg/';
 /** Отметка редакции: запись внесена вручную по источнику, дата последней проверки */
 const checked = (at: string) => ({ lastCheckedAt: at, dataOrigin: 'manual' as const });
 
-const SHAKIRA_PHOTO = 'Las Mujeres Ya No Lloran World Tour - Rio de Janeiro (8).jpg';
 const ARBENINA_PHOTO = 'Diana Arbenina.jpg';
 
 const L = (ru: string, kg: string, en: string): LocalizedString => ({ ru, kg, en });
@@ -100,10 +99,10 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
       timeRange: '19:00 • 7+',
     },
     // Официальная афиша бишкекского концерта не найдена в открытом доступе — используется фото этого же тура
-    imageUrl: commons(SHAKIRA_PHOTO),
-    imageSourceUrl: commonsPage(SHAKIRA_PHOTO),
-    imageAlt: 'Шакира на концерте тура Las Mujeres Ya No Lloran, Рио-де-Жанейро, 2025',
-    imageCredit: 'Фото: Priscila Bruder / Wikimedia Commons — тур Las Mujeres Ya No Lloran, 2025',
+    // Официальная афиша концерта в Бишкеке (предоставлена владельцем сайта); хранится в public/posters
+    imageUrl: '/posters/shakira-bishkek-2026.jpg',
+    imageAlt: 'Официальная афиша: Shakira, Las Mujeres Ya No Lloran World Tour, 18 октября, Bishkek Arena',
+    imageCredit: 'Официальная афиша концерта в Бишкеке (Gov.ticket, 2Live Entertainment, Baltic Music Group)',
     imageFit: 'contain',
     ticketUrl: 'https://ticket.gov.kg/ru/event/shakira-vpervye-vystupit-v-tsentralnoy-azii-mirovaya-zvezda-priezzhaet-v-bishkek-116',
     ticketUrlVerified: true,

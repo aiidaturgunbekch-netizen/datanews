@@ -1,3 +1,4 @@
+import type { OfficialForecast } from '../config/weather';
 import { Announcement, GovVerification, PaymentStatus, PlanId, PlanUsage, PublicUser, Report, SiteStats } from '../types';
 
 /**
@@ -142,14 +143,18 @@ export interface WeatherResponse {
       id: string;
       fetchedAt?: string;
       error?: string;
-      days: { date: string; tMax: number; tMin: number; precip: number; windMax: number; symbol?: string; flags: string[] }[];
+      days: { date: string; tMax: number; tMin: number; tNight?: number; tDay?: number; precip: number; windMax: number; symbol?: string; flags: string[] }[];
     }[];
   } | null;
   status: { lastAttemptAt?: string; lastSuccessAt?: string; lastError?: string } | null;
+  /** Официальный прогноз Кыргызгидромета, внесённый редакцией (только на сегодня и позже) */
+  official?: OfficialForecast | null;
   refreshAfterHours: number;
   staleAfterHours: number;
 }
 export const fetchWeather = () => request<WeatherResponse>('weather');
+export const saveOfficialForecast = (f: OfficialForecast) => post<{ official: OfficialForecast }>('weather', f);
+export const deleteOfficialForecast = () => request<{ ok: true }>('weather', { method: 'DELETE' });
 
 export interface SourceRow {
   id: string;

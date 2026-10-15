@@ -37,7 +37,6 @@ import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
 import { WeatherSafety } from './components/WeatherSafety';
 import { ChatWidget } from './components/ChatWidget';
-import { ContactButtons } from './components/ContactButtons';
 import { InfoPage, InfoView } from './components/InfoPages';
 
 /** Встроенные проверенные события + одобренные публикации с сервера */
@@ -361,25 +360,6 @@ export default function App() {
             )}
 
             {/* Browse by City / Regional Portals Mosaic */}
-            {/* Связаться с DataNews */}
-            <section className="w-full py-8 bg-white border-t border-gray-100" aria-labelledby="contact-title">
-              <div className="max-w-[1280px] mx-auto px-4 md:px-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h2 id="contact-title" className="text-xl font-bold text-[#0f1b33]">
-                    {currentLanguage === 'kg' ? 'DataNews менен байланышуу' : currentLanguage === 'en' ? 'Contact DataNews' : 'Связаться с DataNews'}
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    {currentLanguage === 'kg'
-                      ? 'Жарыя жайгаштыруу, ката тууралуу кабарлоо же суроо берүү'
-                      : currentLanguage === 'en'
-                      ? 'Post a notice, report a mistake or ask a question'
-                      : 'Разместить объявление, сообщить об ошибке или задать вопрос'}
-                  </p>
-                </div>
-                <ContactButtons lang={currentLanguage} />
-              </div>
-            </section>
-
             <CityMosaic
               announcements={announcements}
               currentLanguage={currentLanguage}

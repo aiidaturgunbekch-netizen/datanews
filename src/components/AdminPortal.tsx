@@ -8,7 +8,10 @@ import { EventImage } from './EventImage';
 import { eventSource, ticketLink } from '../utils/links';
 import { historyLabel, MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
 import { isExpired } from '../utils/urgency';
-import { kgTs } from '../utils/time';
+import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
+import { FORECAST_REGIONS, OfficialForecast } from '../config/weather';
+import { parseOfficialText } from '../utils/officialForecast';
+import { getTranslation } from '../locales/translations';
 
 interface AdminPortalProps {
   currentLanguage: Language;
@@ -88,7 +91,7 @@ const ReportsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
   );
 };
 
-type Tab = 'moderation' | 'posts' | 'users' | 'reports' | 'stats';
+type Tab = 'moderation' | 'posts' | 'users' | 'reports' | 'weather' | 'stats';
 
 const fmt = (iso: string) =>
   iso ? new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -288,6 +291,171 @@ const StatsTab: React.FC = () => {
   );
 };
 
+// ─────────────── Официальный прогноз Кыргызгидромета ───────────────
+type RangeForm = Record<string, { nightFrom: string; nightTo: string; dayFrom: string; dayTo: string }>;
+const emptyRanges = (): RangeForm =>
+  Object.fromEntries(FORECAST_REGIONS.map((r) => [r.id, { nightFrom: '', nightTo: '', dayFrom: '', dayTo: '' }]));
+
+const WeatherTab: React.FC = () => {
+  const { t } = getTranslation('ru');
+  const [current, setCurrent] = useState<OfficialForecast | null>(null);
+  const [date, setDate] = useState(addDaysStr(kgDateStr(), 1));
+  const [sourceName, setSourceName] = useState('Кыргызгидромет');
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [text, setText] = useState('');
+  const [paste, setPaste] = useState('');
+  const [ranges, setRanges] = useState<RangeForm>(emptyRanges());
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api
+      .fetchWeather()
+      .then((r) => setCurrent(r.official || null))
+      .catch(() => {});
+  }, []);
+
+  const fill = () => {
+    const r = parseOfficialText(paste, Number(kgDateStr().slice(0, 4)));
+    if (r.date) setDate(r.date);
+    const next = emptyRanges();
+    Object.entries(r.regions).forEach(([id, v]) => {
+      next[id] = { nightFrom: String(v!.nightFrom), nightTo: String(v!.nightTo), dayFrom: String(v!.dayFrom), dayTo: String(v!.dayTo) };
+    });
+    setRanges(next);
+    if (r.rest) setText(r.rest);
+    const n = Object.keys(r.regions).length;
+    setErr(n ? '' : 'В тексте не найдены строки вида «В Чуйской области ночью +4...+9, днем +17...+22».');
+    setMsg(
+      n
+        ? `Заполнено областей: ${n} из ${FORECAST_REGIONS.length}.${r.date ? ` Дата прогноза из текста: ${r.date}.` : ' Дату в тексте не нашли — укажите вручную.'} Проверьте цифры перед сохранением.`
+        : ''
+    );
+  };
+
+  const save = async () => {
+    setBusy(true);
+    setErr('');
+    setMsg('');
+    try {
+      const regions: OfficialForecast['regions'] = {};
+      for (const [id, v] of Object.entries(ranges)) {
+        const vals = [v.nightFrom, v.nightTo, v.dayFrom, v.dayTo];
+        if (vals.every((x) => x.trim() === '')) continue;
+        if (vals.some((x) => x.trim() === '')) throw new Error(`${t(`cities.${id}`)}: заполните все четыре значения`);
+        const [nightFrom, nightTo, dayFrom, dayTo] = vals.map((x) => Number(x.replace('−', '-')));
+        regions[id as keyof typeof regions] = { nightFrom, nightTo, dayFrom, dayTo };
+      }
+      const r = await api.saveOfficialForecast({ date, sourceName, sourceUrl, text: text || undefined, regions });
+      setCurrent(r.official);
+      setMsg('Официальный прогноз сохранён и показан на сайте (обновление у посетителей — в течение 5 минут).');
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm('Убрать официальный прогноз с сайта? Останется автоматический прогноз.')) return;
+    try {
+      await api.deleteOfficialForecast();
+      setCurrent(null);
+      setMsg('Официальный прогноз убран.');
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  };
+
+  const numCls = 'w-16 px-2 py-1.5 rounded-lg border border-gray-200 text-sm text-center';
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-extrabold text-[#0f1b33]">Официальный прогноз Кыргызгидромета на завтра</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Без него на сайте показывается автоматический прогноз MET Norway с пометкой «не официальный». Когда вносите официальный —
+          он показывается вместо автоматического на указанную дату. Прогноз на прошедшую дату сайт сам скрывает.
+        </p>
+        {current && (
+          <p className="text-sm mt-2 p-2 rounded-lg bg-emerald-50 text-emerald-800">
+            Сейчас на сайте: прогноз на <b>{current.date}</b>, источник — {current.sourceName}.{' '}
+            <button onClick={remove} className="underline font-bold">
+              Убрать
+            </button>
+          </p>
+        )}
+      </div>
+      {msg && <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-semibold">{msg}</div>}
+      {err && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">{err}</div>}
+
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
+        <label className="block text-sm font-bold text-[#0f1b33]">1. Вставьте текст сводки (с meteo.kg или из СМИ со ссылкой на Кыргызгидромет)</label>
+        <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={6} className={inputCls} placeholder="В Чуйской области ночью +4...+9, днем +17...+22. …" />
+        <button type="button" onClick={fill} disabled={!paste.trim()} className="px-4 py-2 rounded-xl bg-[#12327A] text-white font-bold text-sm disabled:opacity-50">
+          Заполнить таблицу из текста
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+        <div className="text-sm font-bold text-[#0f1b33]">2. Проверьте и сохраните</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label className="text-xs font-semibold text-gray-600">
+            Прогноз на дату
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+          </label>
+          <label className="text-xs font-semibold text-gray-600">
+            Источник
+            <input value={sourceName} onChange={(e) => setSourceName(e.target.value)} className={inputCls} />
+          </label>
+          <label className="text-xs font-semibold text-gray-600">
+            Ссылка на сообщение (обязательно)
+            <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://" className={inputCls} />
+          </label>
+        </div>
+        <label className="block text-xs font-semibold text-gray-600">
+          Общий текст (осадки, ветер)
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} className={inputCls} />
+        </label>
+        <div className="overflow-x-auto">
+          <table className="text-sm">
+            <thead>
+              <tr className="text-left text-[11px] uppercase text-gray-500">
+                <th className="pr-3 py-1">Область / город</th>
+                <th className="pr-3 py-1">Ночью от … до, °C</th>
+                <th className="py-1">Днём от … до, °C</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FORECAST_REGIONS.map((r) => {
+                const v = ranges[r.id];
+                const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) =>
+                  setRanges((p) => ({ ...p, [r.id]: { ...p[r.id], [k]: e.target.value } }));
+                return (
+                  <tr key={r.id} className="border-t border-gray-100">
+                    <td className="pr-3 py-1.5 font-semibold whitespace-nowrap">{t(`cities.${r.id}`)}</td>
+                    <td className="pr-3 py-1.5 whitespace-nowrap">
+                      <input inputMode="numeric" aria-label={`${r.id} ночью от`} value={v.nightFrom} onChange={set('nightFrom')} className={numCls} /> …{' '}
+                      <input inputMode="numeric" aria-label={`${r.id} ночью до`} value={v.nightTo} onChange={set('nightTo')} className={numCls} />
+                    </td>
+                    <td className="py-1.5 whitespace-nowrap">
+                      <input inputMode="numeric" aria-label={`${r.id} днём от`} value={v.dayFrom} onChange={set('dayFrom')} className={numCls} /> …{' '}
+                      <input inputMode="numeric" aria-label={`${r.id} днём до`} value={v.dayTo} onChange={set('dayTo')} className={numCls} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <button type="button" onClick={save} disabled={busy} className="px-5 py-2.5 rounded-xl bg-[#20C7B5] text-[#002f29] font-extrabold text-sm disabled:opacity-50">
+          {busy ? 'Сохранение…' : 'Сохранить и показать на сайте'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ─────────────────────────── Панель ───────────────────────────
 export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleChange, onClose }) => {
   const [isAdmin, setIsAdmin] = useState(api.getSession()?.role === 'admin');
@@ -407,6 +575,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     ['posts', 'Публикации', 'article', 0],
     ['users', 'Пользователи', 'group', unpaid.length],
     ['reports', 'Жалобы', 'flag', openReports],
+    ['weather', 'Прогноз погоды', 'thermostat', 0],
     ['stats', 'Статистика', 'monitoring', 0],
   ];
 
@@ -820,6 +989,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                 </>
               ) : tab === 'reports' ? (
                 <ReportsTab onChanged={() => { load(); onRefreshData(); }} />
+              ) : tab === 'weather' ? (
+                <WeatherTab />
               ) : (
                 <StatsTab />
               )}

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Announcement, CityId, Language } from '../types';
 import { normalizeCity } from '../config/regions';
-import { EMERGENCY_NUMBERS, KYRGYZHYDROMET, WEATHER_POINTS } from '../config/weather';
+import { EMERGENCY_NUMBERS, FORECAST_REGIONS, KYRGYZHYDROMET, WEATHER_POINTS } from '../config/weather';
 import { formatDayMonth, formatDayMonthTime, formatWhen } from '../utils/dates';
-import { kgDateStr, kgNowLocal } from '../utils/time';
+import { addDaysStr, kgDateStr, kgNowLocal } from '../utils/time';
 import { isListed } from '../utils/urgency';
 import { eventSource, hostOf } from '../utils/links';
 import { getTranslation } from '../locales/translations';
@@ -27,6 +27,22 @@ const T: Record<string, L3> = {
   level_warning: { ru: 'Предупреждение', kg: 'Эскертүү', en: 'Warning' },
   level_info: { ru: 'Информация', kg: 'Маалымат', en: 'Information' },
   source: { ru: 'Источник', kg: 'Булак', en: 'Source' },
+  todayTitle: { ru: 'Погода на сегодня по областям', kg: 'Бүгүнкү аба ырайы облустар боюнча', en: "Today's weather by region" },
+  tomorrow: { ru: 'Погода на завтра по областям', kg: 'Эртеңки аба ырайы облустар боюнча', en: "Tomorrow's weather by region" },
+  region: { ru: 'Область / город', kg: 'Облус / шаар', en: 'Region / city' },
+  nightCol: { ru: 'Ночью', kg: 'Түнкүсүн', en: 'Night' },
+  dayCol: { ru: 'Днём', kg: 'Күндүз', en: 'Day' },
+  skyCol: { ru: 'Осадки, ветер', kg: 'Жаан-чачын, шамал', en: 'Precipitation, wind' },
+  officialLabel: {
+    ru: 'Официальный прогноз Кыргызгидромета',
+    kg: 'Кыргызгидрометтин расмий божомолу',
+    en: 'Official Kyrgyzhydromet forecast',
+  },
+  modelLabel: {
+    ru: 'Автоматический прогноз (модель MET Norway). Официальный прогноз редакция добавит, когда его опубликует Кыргызгидромет.',
+    kg: 'Автоматтык божомол (MET Norway модели). Кыргызгидромет жарыялаганда редакция расмий божомолду кошот.',
+    en: 'Automatic forecast (MET Norway model). The editors add the official forecast once Kyrgyzhydromet publishes it.',
+  },
   forecast: { ru: 'Прогноз по городам', kg: 'Шаарлар боюнча божомол', en: 'Forecast by town' },
   place: { ru: 'Населённый пункт', kg: 'Калктуу пункт', en: 'Place' },
   modelNote: {
@@ -101,6 +117,10 @@ const levelStyle = (lvl?: string) =>
 
 const fmt = (s: string, vars: Record<string, string>) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
 
+/** Температура со знаком, как в сводках: +5, 0, −3 */
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
+const range = (a: number, b: number) => (a === b ? signed(a) : `${signed(a)}…${signed(b)}`);
+
 const isoToLocal = (iso: string) => kgNowLocal(Date.parse(iso));
 
 export const WeatherSafety: React.FC<{ lang: Language; announcements: Announcement[]; city: CityId; onOpen: (a: Announcement) => void }> = ({
@@ -146,6 +166,34 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
     return Boolean(p?.fetchedAt && Date.now() - Date.parse(p.fetchedAt) < staleMs && p.days.length);
   };
   const lastOk = data?.status?.lastSuccessAt;
+
+  const tomorrow = addDaysStr(today, 1);
+  // Официальный прогноз — на завтра, а если на завтра ещё не внесён — на сегодня
+  const official = data?.official && (data.official.date === tomorrow || data.official.date === today) ? data.official : null;
+  const tableDate = official ? official.date : tomorrow;
+  // Автоматический прогноз на завтра: по каждой области диапазон по её точкам
+  const modelRows = FORECAST_REGIONS.map((r) => {
+    const days = r.points
+      .filter(fresh)
+      .map((id) => pointData(id)!.days.find((d) => d.date === tomorrow))
+      .filter((d): d is NonNullable<typeof d> => Boolean(d));
+    if (!days.length) return { id: r.id, days };
+    const nights = days.map((d) => d.tNight ?? d.tMin);
+    const highs = days.map((d) => d.tDay ?? d.tMax);
+    return {
+      id: r.id,
+      days,
+      night: range(Math.min(...nights), Math.max(...nights)),
+      day: range(Math.min(...highs), Math.max(...highs)),
+      symbol: days[0].symbol,
+      precip: Math.max(...days.map((d) => d.precip)),
+      wind: Math.max(...days.map((d) => d.windMax)),
+    };
+  });
+  const modelUpdated = FORECAST_REGIONS.flatMap((r) => r.points)
+    .filter(fresh)
+    .map((id) => pointData(id)!.fetchedAt!)
+    .sort()[0];
 
   const cities = WEATHER_POINTS.filter((p) => p.kind === 'city');
   const passes = WEATHER_POINTS.filter((p) => p.kind === 'pass');
@@ -236,7 +284,116 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
           )}
         </div>
 
-        {/* 2. Прогноз по городам */}
+        {/* 2. Погода на завтра по областям */}
+        <div>
+          <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[18px] text-[#12327A]">thermostat</span>
+            {tableDate === today ? T.todayTitle[lang] : T.tomorrow[lang]} — {formatDayMonth(tableDate, lang)}
+          </h3>
+          {official ? (
+            <div className="rounded-2xl bg-white border-2 border-emerald-200 p-3 sm:p-4">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold">{T.officialLabel[lang]}</span>
+                <a href={official.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-[#12327A] hover:underline">
+                  {T.source[lang]}: {official.sourceName}
+                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                </a>
+              </div>
+              {official.text && <p className="text-sm text-gray-700 mb-2">{official.text}</p>}
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
+                    <th className="py-1 font-bold">{T.region[lang]}</th>
+                    <th className="py-1 font-bold">{T.nightCol[lang]}</th>
+                    <th className="py-1 font-bold">{T.dayCol[lang]}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {FORECAST_REGIONS.filter((r) => official.regions[r.id]).map((r) => {
+                    const v = official.regions[r.id]!;
+                    return (
+                      <tr key={r.id} className="border-t border-gray-100">
+                        <td className="py-1.5 pr-2 font-semibold text-[#0f1b33]">{t(`cities.${r.id}`)}</td>
+                        <td className="py-1.5 pr-2 whitespace-nowrap">{range(v.nightFrom, v.nightTo)} °C</td>
+                        <td className="py-1.5 whitespace-nowrap font-bold">{range(v.dayFrom, v.dayTo)} °C</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {official.updatedAt && (
+                <p className="text-[11px] text-gray-500 mt-2">
+                  {T.updated[lang]}: {formatDayMonthTime(isoToLocal(official.updatedAt), lang)}
+                </p>
+              )}
+            </div>
+          ) : !data && !loadErr ? (
+            <p className="text-sm text-gray-500">{T.loading[lang]}</p>
+          ) : modelRows.every((r) => !r.days.length) ? (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900">
+              <b>{T.failed[lang]}</b>{' '}
+              <a href={KYRGYZHYDROMET.site} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline">
+                meteo.kg
+              </a>
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-white border border-gray-100 p-3 sm:p-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
+                    <th className="py-1 font-bold">{T.region[lang]}</th>
+                    <th className="py-1 font-bold">{T.nightCol[lang]}</th>
+                    <th className="py-1 font-bold">{T.dayCol[lang]}</th>
+                    <th className="py-1 font-bold hidden sm:table-cell">{T.skyCol[lang]}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modelRows.map((r) => {
+                    const sym = 'symbol' in r ? symbolOf(r.symbol) : undefined;
+                    return (
+                      <tr key={r.id} className="border-t border-gray-100 align-middle">
+                        <td className="py-1.5 pr-2 font-semibold text-[#0f1b33]">
+                          <span className="inline-flex items-center gap-1">
+                            {sym && (
+                              <span className="material-symbols-outlined text-[18px] text-[#12327A]" title={sym.label[lang]} aria-label={sym.label[lang]}>
+                                {sym.icon}
+                              </span>
+                            )}
+                            {t(`cities.${r.id}`)}
+                          </span>
+                        </td>
+                        {'night' in r ? (
+                          <>
+                            <td className="py-1.5 pr-2 whitespace-nowrap">{r.night} °C</td>
+                            <td className="py-1.5 pr-2 whitespace-nowrap font-bold">{r.day} °C</td>
+                            <td className="py-1.5 text-xs text-gray-600 hidden sm:table-cell">
+                              {sym?.label[lang]}
+                              {sym ? ', ' : ''}
+                              {r.precip} {T.mm[lang]}, {T.wind[lang].toLowerCase()} {r.wind} {T.ms[lang]}
+                            </td>
+                          </>
+                        ) : (
+                          <td colSpan={3} className="py-1.5 text-xs text-amber-800">
+                            {T.failed[lang]}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="text-[11px] text-gray-500 mt-2">
+                {modelUpdated && `${T.updated[lang]}: ${formatDayMonthTime(isoToLocal(modelUpdated), lang)} • `}
+                {T.modelLabel[lang]}{' '}
+                <a href="https://api.met.no/" target="_blank" rel="noopener noreferrer" className="underline">
+                  Based on data from MET Norway
+                </a>
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* 3. Прогноз по городам */}
         <div>
           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <h3 className="text-sm font-extrabold text-[#0f1b33]">{T.forecast[lang]}</h3>
@@ -280,7 +437,7 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
           )}
         </div>
 
-        {/* 3. Перевалы */}
+        {/* 4. Перевалы */}
         <div>
           <h3 className="text-sm font-extrabold text-[#0f1b33] mb-1 flex items-center gap-1.5">
             <span className="material-symbols-outlined text-[18px] text-[#12327A]">landscape</span>
@@ -336,7 +493,7 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
           </div>
         </div>
 
-        {/* 4. Официальный источник и контакты */}
+        {/* 5. Официальный источник и контакты */}
         <div className="rounded-2xl bg-white border border-gray-100 p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
             <h3 className="font-extrabold text-[#0f1b33] mb-2">{T.official[lang]}</h3>

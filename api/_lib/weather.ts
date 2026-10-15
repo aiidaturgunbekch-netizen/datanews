@@ -12,6 +12,10 @@ export interface DayForecast {
   date: string;
   tMax: number;
   tMin: number;
+  /** Ночью: минимум с 21:00 накануне до 09:00 (как «ночью» в сводках Кыргызгидромета) */
+  tNight?: number;
+  /** Днём: максимум с 09:00 до 21:00 */
+  tDay?: number;
   /** Осадки за сутки, мм */
   precip: number;
   /** Максимальная скорость ветра, м/с */
@@ -87,8 +91,22 @@ export const aggregateDays = (res: MetResponse, maxDays = 4): DayForecast[] => {
       return Math.abs(h - 12) < Math.abs(bh - 12) ? s : best;
     }, steps[0]);
     const symbol = noon.data.next_6_hours?.summary?.symbol_code || noon.data.next_1_hours?.summary?.symbol_code;
+    // Ночь и день по Бишкеку — по всему ряду, т.к. ночь начинается накануне вечером
+    const dayStart = Date.parse(`${date}T00:00:00Z`) - KG_OFFSET_MS;
+    const inWindow = (from: number, to: number) =>
+      (res.properties.timeseries || [])
+        .filter((s) => {
+          const t = Date.parse(s.time);
+          return t >= dayStart + from * 3600_000 && t < dayStart + to * 3600_000;
+        })
+        .map((s) => s.data.instant.details.air_temperature)
+        .filter((v): v is number => typeof v === 'number');
+    const night = inWindow(-3, 9);
+    const daytime = inWindow(9, 21);
     const day: DayForecast = {
       date,
+      tNight: night.length >= 3 ? Math.round(Math.min(...night)) : undefined,
+      tDay: daytime.length >= 3 ? Math.round(Math.max(...daytime)) : undefined,
       tMax: Math.round(Math.max(...temps)),
       tMin: Math.round(Math.min(...temps)),
       precip: Math.round(precip * 10) / 10,

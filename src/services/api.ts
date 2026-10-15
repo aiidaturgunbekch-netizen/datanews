@@ -133,6 +133,37 @@ export const setGovStatus = (email: string, gov: 'verify' | 'reject' | 'revoke',
 
 export const fetchStats = (days: number) => request<SiteStats>(`stats?days=${days}`);
 
+// ---------- погода и источники ----------
+export interface WeatherResponse {
+  snapshot: {
+    provider: string;
+    fetchedAt: string;
+    points: {
+      id: string;
+      fetchedAt?: string;
+      error?: string;
+      days: { date: string; tMax: number; tMin: number; precip: number; windMax: number; symbol?: string; flags: string[] }[];
+    }[];
+  } | null;
+  status: { lastAttemptAt?: string; lastSuccessAt?: string; lastError?: string } | null;
+  refreshAfterHours: number;
+  staleAfterHours: number;
+}
+export const fetchWeather = () => request<WeatherResponse>('weather');
+
+export interface SourceRow {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  automatic: boolean;
+  method: string;
+  frequency: string;
+  note?: string;
+  status: { lastAttemptAt?: string; lastSuccessAt?: string; lastError?: string; items?: number } | null;
+}
+export const fetchSources = () => request<{ sources: SourceRow[] }>('sources').then((r) => r.sources);
+
 // ---------- helpers ----------
 /** Сжимает фото в браузере до JPEG ≤ maxSide px, чтобы публикация грузилась быстро */
 export const compressImage = (file: File, maxSide = 1400, quality = 0.82): Promise<string> =>

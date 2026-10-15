@@ -35,6 +35,7 @@ import { AdminPortal } from './components/AdminPortal';
 import { SearchModal } from './components/SearchModal';
 import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
+import { WeatherSafety } from './components/WeatherSafety';
 
 /** Встроенные проверенные события + одобренные публикации с сервера */
 const mergeAnnouncements = (server: Announcement[], hidden: string[]) => {
@@ -278,6 +279,16 @@ export default function App() {
                 items={filteredAnnouncements}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}
+              />
+            )}
+
+            {/* Погода и безопасность: официальные предупреждения, прогноз, перевалы — выше обычных новостей */}
+            {selectedCategory === 'all' && (
+              <WeatherSafety
+                lang={currentLanguage}
+                announcements={announcements}
+                city={selectedCity}
+                onOpen={setActiveNoticeDetail}
               />
             )}
 

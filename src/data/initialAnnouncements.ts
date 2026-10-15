@@ -1137,4 +1137,89 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ...illus('cinema', 'Кинозал с экраном и кинолентой'),
     isDemo: false,
   },
+  {
+    id: 'ann-frost-warning-2026-10-17',
+    protocolCode: '#KG-HZ-FROST1718',
+    title: L(
+      'Штормовое предупреждение: заморозки до 0…−2° 17–18 октября',
+      'Бороондук эскертүү: 17–18-октябрда 0…−2° чейин үшүк',
+      'Storm warning: frost down to 0…−2° on 17–18 October'
+    ),
+    summary: L(
+      'Ночью и утром заморозки на севере Чуйской области, в Таласской и Иссык-Кульской областях. Опасно для урожая.',
+      'Түнкүсүн жана эртең менен Чүй облусунун түндүгүндө, Талас жана Ысык-Көл облустарында үшүк. Түшүмгө коркунучтуу.',
+      'Night and morning frost in northern Chui, Talas and Issyk-Kul regions. Risk to crops.'
+    ),
+    description: L(
+      'По сообщению МЧС (со ссылкой на Кыргызгидромет), 17–18 октября ночью и утром ожидаются заморозки до 0…−2 °C в северной части Чуйской области, в Таласской области и в Тюпском районе Иссык-Кульской области. Для Таласской области источники называют разные районы: Айтматовский (АКИpress, Kaktus.media) и Кара-Бууринский (For.kg). Заморозки опасны для фруктов, овощей, выкопанного картофеля и сахарной свёклы. Уточняйте на meteo.kg.',
+      'ӨКМдин билдирүүсү боюнча (Кыргызгидрометке шилтеме менен), 17–18-октябрда түнкүсүн жана эртең менен Чүй облусунун түндүк бөлүгүндө, Талас облусунда жана Ысык-Көл облусунун Түп районунда 0…−2 °C чейин үшүк күтүлөт. Талас облусу боюнча булактар ар кайсы райондорду атайт: Айтматов (АКИpress, Kaktus.media) жана Кара-Буура (For.kg). Үшүк жемиштерге, жашылчаларга, казылган картошкага жана кант кызылчасына коркунучтуу. meteo.kg сайтынан тактаңыз.',
+      'According to the Emergency Ministry (citing Kyrgyzhydromet), night and morning frost down to 0…−2 °C is expected on 17–18 October in northern Chui Region, Talas Region and Tup District of Issyk-Kul Region. Sources name different districts of Talas Region: Aitmatov (AKIpress, Kaktus.media) and Kara-Buura (For.kg). Frost endangers fruit, vegetables, dug potatoes and sugar beet. Check meteo.kg.'
+    ),
+    category: 'hazard',
+    city: 'all',
+    locality: 'север Чуйской обл.; Таласская обл.; Тюпский р-н Иссык-Кульской обл.',
+    location: L(
+      'Север Чуйской области, Таласская область, Тюпский район Иссык-Кульской области',
+      'Чүй облусунун түндүгү, Талас облусу, Ысык-Көл облусунун Түп району',
+      'Northern Chui Region, Talas Region, Tup District of Issyk-Kul Region'
+    ),
+    startDate: '2026-10-17T00:00',
+    endDate: '2026-10-18T10:00',
+    urgency: 'planned',
+    status: 'scheduled',
+    dangerLevel: 'warning',
+    sourceName: 'Kaktus.media, АКИpress (со ссылкой на МЧС и Кыргызгидромет)',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://kaktus.media/doc/555082_mchs_rasprostranilo_shtormovoe_predyprejdenie_na_17_i_18_oktiabria.html',
+    sourceKind: 'media',
+    additionalSourceUrl: 'https://eco.akipress.org/news:2551324',
+    authorityUrl: 'https://www.meteo.kg/ru/',
+    isVerified: true,
+    publishedAt: '2026-10-15T12:00',
+    updatedAt: '2026-10-15T12:00',
+    ...illus('hazard', 'Грозовая туча — погодное предупреждение'),
+    ...checked('2026-10-15T14:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-too-ashuu-minibus-2026',
+    protocolCode: '#KG-RD-TOOASHUU',
+    title: L(
+      'Перевал Тоо-Ашуу: до 15 мая ограничен проезд пассажирских микроавтобусов',
+      'Төө-Ашуу ашуусу: 15-майга чейин жүргүнчү микроавтобустарынын өтүүсү чектелди',
+      'Too-Ashuu Pass: passenger minibuses restricted until 15 May'
+    ),
+    summary: L(
+      'На трассе Бишкек — Ош введено сезонное ограничение для пассажирских микроавтобусов.',
+      'Бишкек — Ош трассасында жүргүнчү микроавтобустары үчүн мезгилдик чектөө киргизилди.',
+      'A seasonal restriction for passenger minibuses applies on the Bishkek – Osh road.'
+    ),
+    description: L(
+      'По данным Kaktus.media и For.kg со ссылкой на УОБДД МВД, на перевале Тоо-Ашуу (трасса Бишкек — Ош) введено временное ограничение движения пассажирских микроавтобусов; оно продлится до 15 мая 2027 года. Подробности (исключения, участки, посты) уточняйте в официальных сообщениях УОБДД и Минтранса. Водителям советуют планировать поездки заранее.',
+      'Kaktus.media жана For.kg ИИМдин ЖКККБсына шилтеме кылып билдиргендей, Төө-Ашуу ашуусунда (Бишкек — Ош трассасы) жүргүнчү микроавтобустарынын кыймылына убактылуу чектөө киргизилди; ал 2027-жылдын 15-майына чейин уланат. Чоо-жайын (өзгөчөлүктөр, участоктор, посттор) ЖКККБ жана Минтранстын расмий билдирүүлөрүнөн тактаңыз.',
+      'Kaktus.media and For.kg, citing the road safety department of the Interior Ministry, report a temporary restriction on passenger minibuses over Too-Ashuu Pass (Bishkek – Osh road) until 15 May 2027. Check official road police and Transport Ministry notices for details.'
+    ),
+    category: 'roads',
+    city: 'chui',
+    locality: 'перевал Тоо-Ашуу, трасса Бишкек — Ош',
+    location: L('Перевал Тоо-Ашуу, трасса Бишкек — Ош', 'Төө-Ашуу ашуусу, Бишкек — Ош трассасы', 'Too-Ashuu Pass, Bishkek – Osh road'),
+    startDate: '2026-10-15T00:00',
+    endDate: '2027-05-15T23:59',
+    allDay: true,
+    urgency: 'planned',
+    status: 'active',
+    dangerLevel: 'info',
+    sourceName: 'Kaktus.media, For.kg (со ссылкой на УОБДД МВД)',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://kaktus.media/doc/555085_do_maia_vvedeno_ogranichenie_na_dvijenie_passajirskih_bysov_po_doroge_bishkek_osh.html',
+    sourceKind: 'media',
+    additionalSourceUrl: 'https://www.for.kg/news-930514-ru.html',
+    authorityUrl: 'https://mtd.gov.kg/',
+    isVerified: true,
+    publishedAt: '2026-10-15T12:00',
+    updatedAt: '2026-10-15T12:00',
+    ...illus('pass', 'Горная дорога через перевал'),
+    ...checked('2026-10-15T14:00'),
+    isDemo: false,
+  },
 ];

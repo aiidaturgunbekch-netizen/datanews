@@ -2,10 +2,12 @@ import React from 'react';
 
 interface LogoProps {
   className?: string;
+  /** На узких экранах (до 420px) показывать только значок */
+  compactOnMobile?: boolean;
   isLightMode?: boolean; // if on dark background
 }
 
-export const Logo: React.FC<LogoProps> = ({ className = 'h-11', isLightMode = false }) => {
+export const Logo: React.FC<LogoProps> = ({ className = 'h-11', isLightMode = false, compactOnMobile = false }) => {
   const navyColor = isLightMode ? '#ffffff' : '#12327A';
   const turquoiseColor = '#20C7B5';
   const subtextColor = isLightMode ? '#dbe1ff' : '#1b3f94';
@@ -63,7 +65,7 @@ export const Logo: React.FC<LogoProps> = ({ className = 'h-11', isLightMode = fa
       </svg>
 
       {/* Typography: DataNews + КЫРГЫЗСТАН */}
-      <div className="flex flex-col justify-center leading-none">
+      <div className={`${compactOnMobile ? 'hidden min-[420px]:flex' : 'flex'} flex-col justify-center leading-none`}>
         <div className="flex items-baseline font-black tracking-tight text-[22px] sm:text-[24px]">
           <span style={{ color: navyColor }}>Data</span>
           <span style={{ color: turquoiseColor }}>News</span>

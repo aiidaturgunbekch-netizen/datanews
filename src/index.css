@@ -61,3 +61,22 @@ body {
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
 }
+
+/* Срочные предупреждения (0–3 дня до начала): мягкое мигание только бейджа/индикатора, не всей карточки */
+@keyframes dn-urgent-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.dn-urgent-blink {
+  animation: dn-urgent-blink 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dn-urgent-blink {
+    animation: none;
+  }
+}

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Урна для голосования и бюллетень — выборы">
+<title>Урна для голосования и бюллетень — выборы</title>
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1e3a8a"/><stop offset="1" stop-color="#0ea5e9"/></linearGradient>
+<radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient></defs>
+<rect width="1600" height="900" fill="url(#bg)"/><rect width="1600" height="900" fill="url(#glow)"/>
+<circle cx="1420" cy="120" r="220" fill="#fff" opacity="0.06"/><circle cx="160" cy="820" r="260" fill="#fff" opacity="0.05"/>
+
+<g transform="translate(520,220)">
+ <rect x="0" y="160" width="560" height="420" rx="24" fill="#f8fafc"/><rect x="0" y="160" width="560" height="70" rx="24" fill="#e2e8f0"/>
+ <rect x="170" y="182" width="220" height="24" rx="12" fill="#1e3a8a"/>
+ <g transform="rotate(-8 280 80)"><rect x="180" y="-10" width="200" height="250" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="6"/>
+  <rect x="210" y="30" width="30" height="30" rx="4" fill="none" stroke="#1e3a8a" stroke-width="6"/><path d="M215 45 l10 10 l20 -24" stroke="#16a34a" stroke-width="8" fill="none"/>
+  <rect x="260" y="38" width="90" height="14" rx="7" fill="#cbd5e1"/><rect x="210" y="90" width="30" height="30" rx="4" fill="none" stroke="#1e3a8a" stroke-width="6"/><rect x="260" y="98" width="90" height="14" rx="7" fill="#cbd5e1"/></g>
+ <circle cx="280" cy="400" r="80" fill="#0ea5e9" opacity=".25"/><path d="M240 400 l30 30 l60 -70" stroke="#1e3a8a" stroke-width="20" fill="none" stroke-linecap="round"/></g>
+</svg>

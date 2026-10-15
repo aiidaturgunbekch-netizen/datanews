@@ -11,7 +11,12 @@ import {
   Language,
   ViewMode,
 } from './types';
-import { StorageService } from './services/storage';
+import { INITIAL_ANNOUNCEMENTS } from './data/initialAnnouncements';
+import * as api from './services/api';
+import { trackView } from './services/analytics';
+import { addDaysStr, kgDateStr, kgTs } from './utils/time';
+import { alertLevel, isAlert, isExpired, isListed } from './utils/urgency';
+import { CATEGORY_IDS, normalizeCity, REGIONS } from './config/regions';
 import { Header } from './components/Header';
 import { UrgentTicker } from './components/UrgentTicker';
 import { HeroFilter } from './components/HeroFilter';
@@ -28,14 +33,23 @@ import { CitiesPage } from './components/CitiesPage';
 import { OrganizationsPage } from './components/OrganizationsPage';
 import { AdminPortal } from './components/AdminPortal';
 import { SearchModal } from './components/SearchModal';
+import { AccountPortal } from './components/AccountPortal';
+import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
+import { WeatherSafety } from './components/WeatherSafety';
+import { ChatWidget } from './components/ChatWidget';
+import { InfoPage, InfoView } from './components/InfoPages';
 
-const toDateStr = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const addDays = (d: Date, n: number) => {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
+/** Встроенные проверенные события + одобренные публикации с сервера */
+const mergeAnnouncements = (server: Announcement[], hidden: string[]) => {
+  const byId = new Map<string, Announcement>();
+  INITIAL_ANNOUNCEMENTS.forEach((a) => byId.set(a.id, a));
+  server.forEach((a) => byId.set(a.id, a));
+  hidden.forEach((id) => byId.delete(id));
+  return [...byId.values()];
 };
+
+const isAdminHash = () => window.location.hash.replace('#', '').toLowerCase() === 'admin';
+
 
 export default function App() {
   // Multilingual State
@@ -56,129 +70,141 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
-  const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toDateStr(new Date()));
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => kgDateStr());
 
-  // Data Store
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  // Data Store: встроенные события показываются сразу, публикации с сервера догружаются
+  const [announcements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
+
+  // Роль: гость / зарегистрированный пользователь / администратор
+  const [role, setRole] = useState<api.Role>(() => api.getSession()?.role || 'guest');
 
   // Modals
   const [activeNoticeDetail, setActiveNoticeDetail] = useState<Announcement | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  // Панель управления открывается только по адресу сайта с #admin и только после входа админа
+  const [isAdminOpen, setIsAdminOpen] = useState(isAdminHash);
+  const [accountMode, setAccountMode] = useState<null | 'cabinet' | 'publish'>(null);
+  const [statsMode, setStatsMode] = useState<StatsMode | null>(null);
 
-  // Load persistent announcements on mount
   const refreshData = () => {
-    const list = StorageService.getAnnouncements();
-    setAnnouncements(list);
+    api
+      .fetchPublicAnnouncements()
+      .then((r) => setAnnouncements(mergeAnnouncements(r.items, r.hidden)))
+      .catch(() => setAnnouncements(INITIAL_ANNOUNCEMENTS));
   };
 
   useEffect(() => {
     refreshData();
+    if (api.getSession()) {
+      api
+        .me()
+        .then((r) => setRole(r.role))
+        .catch(() => {});
+    }
+    const onHash = () => isAdminHash() && setIsAdminOpen(true);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  // Filtered announcements
-  const filteredAnnouncements = useMemo(() => {
-    return announcements.filter((item) => {
-      // City filter
-      if (selectedCity !== 'all' && item.city !== selectedCity) {
-        return false;
+  // Отдельная ссылка на каждую публикацию: /#/n/<id> (короткая ссылка для мессенджеров — /n/<id>, см. api/share.ts)
+  useEffect(() => {
+    const openFromHash = () => {
+      const m = window.location.hash.match(/^#\/n\/([\w-]+)/);
+      if (m) {
+        const found = announcements.find((a) => a.id === m[1]);
+        if (found) setActiveNoticeDetail(found);
       }
-
-      // Category filter
-      if (selectedCategory !== 'all' && item.category !== selectedCategory) {
-        return false;
-      }
-
-      // Date filters are computed from the real current date
-      const itemStart = item.startDate.split('T')[0];
-      const itemEnd = item.endDate ? item.endDate.split('T')[0] : itemStart;
-      const overlaps = (from: string, to: string) => itemStart <= to && itemEnd >= from;
-
-      const now = new Date();
-      const todayStr = toDateStr(now);
-      const tomorrowStr = toDateStr(addDays(now, 1));
-
-      if (dateFilter === 'today') {
-        if (!overlaps(todayStr, todayStr)) return false;
-      } else if (dateFilter === 'tomorrow') {
-        if (!overlaps(tomorrowStr, tomorrowStr)) return false;
-      } else if (dateFilter === 'weekend') {
-        // nearest Saturday–Sunday (if today is Sunday, just today)
-        const dow = now.getDay();
-        const sat = dow === 0 ? addDays(now, -1) : addDays(now, 6 - dow);
-        if (!overlaps(toDateStr(sat), toDateStr(addDays(sat, 1)))) return false;
-      } else if (dateFilter === 'week') {
-        if (!overlaps(todayStr, toDateStr(addDays(now, 7)))) return false;
-      }
-
-      // Search Query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const titleRu = item.title.ru.toLowerCase();
-        const titleKg = (item.title.kg || '').toLowerCase();
-        const titleEn = (item.title.en || '').toLowerCase();
-        const loc = item.location.ru.toLowerCase();
-        const proto = item.protocolCode.toLowerCase();
-        const sum = item.summary.ru.toLowerCase();
-
-        if (
-          !titleRu.includes(q) &&
-          !titleKg.includes(q) &&
-          !titleEn.includes(q) &&
-          !loc.includes(q) &&
-          !proto.includes(q) &&
-          !sum.includes(q)
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [announcements, selectedCity, selectedCategory, dateFilter, searchQuery]);
-
-  // Split into Alerts vs Events
-  const alertsList = useMemo(() => {
-    return filteredAnnouncements.filter(
-      (a) =>
-        a.urgency === 'emergency' ||
-        a.urgency === 'planned' ||
-        a.category === 'roads' ||
-        a.category === 'water' ||
-        a.category === 'electricity' ||
-        a.category === 'repairs'
-    );
-  }, [filteredAnnouncements]);
-
-  const eventsList = useMemo(() => {
-    return filteredAnnouncements.filter(
-      (a) =>
-        a.urgency === 'event' ||
-        a.category === 'concerts' ||
-        a.category === 'festivals' ||
-        a.category === 'education' ||
-        a.category === 'gov'
-    );
-  }, [filteredAnnouncements]);
-
-  // Compute category counts
-  const categoryCounts = useMemo(() => {
-    const baseList = selectedCity === 'all'
-      ? announcements
-      : announcements.filter((a) => a.city === selectedCity);
-
-    const counts: Record<CategoryId, number> = {
-      all: baseList.length,
-      water: baseList.filter((a) => a.category === 'water').length,
-      electricity: baseList.filter((a) => a.category === 'electricity').length,
-      roads: baseList.filter((a) => a.category === 'roads').length,
-      repairs: baseList.filter((a) => a.category === 'repairs').length,
-      concerts: baseList.filter((a) => a.category === 'concerts').length,
-      festivals: baseList.filter((a) => a.category === 'festivals').length,
-      education: baseList.filter((a) => a.category === 'education').length,
-      gov: baseList.filter((a) => a.category === 'gov').length,
     };
+    openFromHash();
+    window.addEventListener('hashchange', openFromHash);
+    return () => window.removeEventListener('hashchange', openFromHash);
+  }, [announcements]);
+  useEffect(() => {
+    const base = window.location.pathname + window.location.search;
+    if (activeNoticeDetail) {
+      if (window.location.hash !== `#/n/${activeNoticeDetail.id}`) history.replaceState(null, '', `${base}#/n/${activeNoticeDetail.id}`);
+      document.title = `${activeNoticeDetail.title[currentLanguage]} — DataNews Kyrgyzstan`;
+    } else {
+      if (window.location.hash.startsWith('#/n/')) history.replaceState(null, '', base);
+      if (currentView === 'home') document.title = 'DataNews Кыргызстан — Что, где и когда в Кыргызстане';
+    }
+  }, [activeNoticeDetail, currentLanguage, currentView]);
+
+  // Статистика посещений: один просмотр на каждый открытый раздел (админа не считаем)
+  useEffect(() => {
+    if (role !== 'admin') trackView(currentView, currentLanguage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView]);
+
+  const closeAdmin = () => {
+    setIsAdminOpen(false);
+    if (isAdminHash()) history.replaceState(null, '', window.location.pathname + window.location.search);
+  };
+
+  /**
+   * Один общий фильтр для счётчиков и списков (город, дата, поиск) — чтобы число на чипе категории
+   * всегда совпадало с тем, что открывается по нажатию. Завершённые предупреждения не показываются.
+   */
+  const matchesScope = (item: Announcement, ignoreCategory = false) => {
+    if (!isListed(item)) return false;
+    // Город: публикации «Весь Кыргызстан» (city = 'all') видны в любом городе
+    const city = normalizeCity(item.city);
+    if (selectedCity !== 'all' && city !== selectedCity && city !== 'all') return false;
+    if (!ignoreCategory && selectedCategory !== 'all' && item.category !== selectedCategory) return false;
+
+    // Даты считаются по календарю Бишкека
+    const itemStart = item.startDate.slice(0, 10);
+    const itemEnd = item.endDate ? item.endDate.slice(0, 10) : itemStart;
+    const overlaps = (from: string, to: string) => itemStart <= to && itemEnd >= from;
+    const today = kgDateStr();
+    if (dateFilter === 'today' && !overlaps(today, today)) return false;
+    if (dateFilter === 'tomorrow' && !overlaps(addDaysStr(today, 1), addDaysStr(today, 1))) return false;
+    if (dateFilter === 'weekend') {
+      const dow = new Date(`${today}T00:00:00Z`).getUTCDay();
+      const sat = addDaysStr(today, dow === 0 ? -1 : 6 - dow);
+      if (!overlaps(sat, addDaysStr(sat, 1))) return false;
+    }
+    if (dateFilter === 'week' && !overlaps(today, addDaysStr(today, 7))) return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const hay = [item.title.ru, item.title.kg, item.title.en, item.location.ru, item.district, item.locality, item.protocolCode, item.summary.ru, item.description.ru, item.sourceName]
+        .join(' ')
+        .toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  };
+
+  const filteredAnnouncements = useMemo(
+    () => announcements.filter((a) => matchesScope(a)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [announcements, selectedCity, selectedCategory, dateFilter, searchQuery]
+  );
+
+  // Предупреждения и афиша делят список без пропусков: всё, что не предупреждение, — в афише
+  const alertsList = useMemo(() => filteredAnnouncements.filter(isAlert), [filteredAnnouncements]);
+  const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
+
+  // Счётчики категорий — по тем же правилам, что и список (кроме самой категории)
+  const categoryCounts = useMemo(() => {
+    const base = announcements.filter((a) => matchesScope(a, true));
+    const counts = { all: base.length } as Record<CategoryId, number>;
+    CATEGORY_IDS.forEach((c) => (counts[c] = base.filter((a) => a.category === c).length));
     return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [announcements, selectedCity, dateFilter, searchQuery]);
+
+  // Показатели в шапке — по фактическим данным
+  const heroStats = useMemo(() => {
+    const scoped = announcements.filter(
+      (a) => isListed(a) && (selectedCity === 'all' || normalizeCity(a.city) === selectedCity || a.city === 'all')
+    );
+    return {
+      publications: scoped.length,
+      activeAlerts: scoped.filter((a) => alertLevel(a) === 'urgent' || alertLevel(a) === 'soon').length,
+      regions: REGIONS.length,
+    };
   }, [announcements, selectedCity]);
 
   // Featured notice for the top strip: nearest non-finished item flagged for the ticker
@@ -186,8 +212,8 @@ export default function App() {
     const nowTs = Date.now();
     const pool = announcements
       .filter((a) => a.isUrgentTicker && a.status !== 'cancelled' && a.status !== 'archived' && a.status !== 'completed')
-      .filter((a) => new Date(a.endDate || a.startDate).getTime() + 4 * 3600 * 1000 >= nowTs)
-      .sort((x, y) => new Date(x.startDate).getTime() - new Date(y.startDate).getTime());
+      .filter((a) => !isExpired(a, nowTs))
+      .sort((x, y) => kgTs(x.startDate) - kgTs(y.startDate));
     return pool[0] || null;
   }, [announcements]);
 
@@ -195,21 +221,26 @@ export default function App() {
     if (featuredNotice) setActiveNoticeDetail(featuredNotice);
   };
 
-  const handleTagClick = (tag: string) => {
-    if (tag.includes('Света') || tag.includes('Өчүрүү')) {
-      setSelectedCategory('electricity');
-    } else if (tag.includes('Дорог') || tag.includes('Жол')) {
-      setSelectedCategory('roads');
-    } else if (tag.includes('Концерт')) {
-      setSelectedCategory('concerts');
-    } else if (tag.includes('Ярмарк')) {
-      setSelectedCategory('festivals');
-    } else if (tag.includes('Бишкек')) {
-      setSelectedCity('bishkek');
-    } else if (tag.includes('Ош')) {
-      setSelectedCity('osh');
-    }
+  /** Быстрые переходы под поиском */
+  const handleTagClick = (key: string) => {
+    const scrollTo = (id: string) => setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     setSearchQuery('');
+    if (key === 'today' || key === 'tomorrow' || key === 'week') {
+      setDateFilter(key);
+      setSelectedCategory('all');
+      scrollTo('alerts-feed');
+    } else if (key === 'alerts') {
+      setSelectedCategory('all');
+      scrollTo('alerts-feed');
+    } else if (key === 'weather') {
+      scrollTo('weather-safety');
+    } else if (key === 'state' || key === 'laws') {
+      setSelectedCategory(key);
+      scrollTo('category-results');
+    } else if (key === 'shows') {
+      setSelectedCategory('all');
+      setCurrentView('events');
+    }
   };
 
   return (
@@ -225,7 +256,10 @@ export default function App() {
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenUrgentNotice={handleOpenUrgentKyivNotice}
         featuredNotice={featuredNotice}
+        role={role}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAccount={() => setAccountMode('cabinet')}
+        onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
       />
 
       {/* Main Content Area (padding-top accounts for header + urgent ticker) */}
@@ -251,8 +285,8 @@ export default function App() {
               onDateFilterChange={setDateFilter}
               onSearchSubmit={() => {}}
               onTagClick={handleTagClick}
-              totalEventsCount={eventsList.length + alertsList.length}
-              totalAlertsCount={alertsList.length}
+              stats={heroStats}
+              onOpenStats={setStatsMode}
             />
 
             {/* Quick Category Filter Chips Bar */}
@@ -263,7 +297,29 @@ export default function App() {
               categoryCounts={categoryCounts}
             />
 
+            {/* Выбрана категория — показываем ровно те публикации, что учтены в счётчике чипа */}
+            {selectedCategory !== 'all' && (
+              <CategoryResults
+                lang={currentLanguage}
+                category={selectedCategory}
+                items={filteredAnnouncements}
+                onOpen={setActiveNoticeDetail}
+                onReset={() => setSelectedCategory('all')}
+              />
+            )}
+
+            {/* Погода и безопасность: официальные предупреждения, прогноз, перевалы — выше обычных новостей */}
+            {selectedCategory === 'all' && (
+              <WeatherSafety
+                lang={currentLanguage}
+                announcements={announcements}
+                city={selectedCity}
+                onOpen={setActiveNoticeDetail}
+              />
+            )}
+
             {/* Urgent & Important Alerts Section */}
+            {selectedCategory === 'all' && (
             <AlertsGrid
               currentLanguage={currentLanguage}
               alerts={alertsList}
@@ -271,8 +327,10 @@ export default function App() {
               onCityFilterChange={setSelectedCity}
               onSelectAnnouncement={setActiveNoticeDetail}
             />
+            )}
 
             {/* Upcoming Events Feed & Interactive Calendar Mosaic */}
+            {selectedCategory === 'all' && (
             <section className="w-full py-10 sm:py-14 bg-[#eef2f9] border-t border-gray-200">
               <div className="max-w-[1280px] mx-auto px-4 md:px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -299,9 +357,11 @@ export default function App() {
                 </div>
               </div>
             </section>
+            )}
 
             {/* Browse by City / Regional Portals Mosaic */}
             <CityMosaic
+              announcements={announcements}
               currentLanguage={currentLanguage}
               onSelectCity={(cityId) => {
                 setSelectedCity(cityId);
@@ -313,7 +373,7 @@ export default function App() {
             {/* For Municipalities & Organizations Section */}
             <ForOrganizationsSection
               currentLanguage={currentLanguage}
-              onOpenPublish={() => setIsAdminOpen(true)}
+              onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
               onOpenPricing={() => setCurrentView('pricing')}
             />
           </div>
@@ -337,7 +397,7 @@ export default function App() {
               className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4"
             >
               <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-              <span>Главная</span>
+              <span>{currentLanguage === 'kg' ? 'Башкы бет' : currentLanguage === 'en' ? 'Home' : 'Главная'}</span>
             </button>
             <CategoryChips
               currentLanguage={currentLanguage}
@@ -345,13 +405,23 @@ export default function App() {
               onSelectCategory={setSelectedCategory}
               categoryCounts={categoryCounts}
             />
-            <AlertsGrid
-              currentLanguage={currentLanguage}
-              alerts={alertsList}
-              selectedCity={selectedCity}
-              onCityFilterChange={setSelectedCity}
-              onSelectAnnouncement={setActiveNoticeDetail}
-            />
+            {selectedCategory !== 'all' ? (
+              <CategoryResults
+                lang={currentLanguage}
+                category={selectedCategory}
+                items={filteredAnnouncements}
+                onOpen={setActiveNoticeDetail}
+                onReset={() => setSelectedCategory('all')}
+              />
+            ) : (
+              <AlertsGrid
+                currentLanguage={currentLanguage}
+                alerts={alertsList}
+                selectedCity={selectedCity}
+                onCityFilterChange={setSelectedCity}
+                onSelectAnnouncement={setActiveNoticeDetail}
+              />
+            )}
           </div>
         )}
 
@@ -363,7 +433,7 @@ export default function App() {
               className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4"
             >
               <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-              <span>Главная</span>
+              <span>{currentLanguage === 'kg' ? 'Башкы бет' : currentLanguage === 'en' ? 'Home' : 'Главная'}</span>
             </button>
             <EventsFeed
               currentLanguage={currentLanguage}
@@ -392,14 +462,22 @@ export default function App() {
         {(currentView === 'organizations' || currentView === 'pricing') && (
           <OrganizationsPage
             currentLanguage={currentLanguage}
-            onOpenPublish={() => setIsAdminOpen(true)}
+            onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
             onBackToHome={() => setCurrentView('home')}
           />
+        )}
+
+        {/* О проекте, источники, правила, конфиденциальность, контакты */}
+        {(['about', 'sources', 'privacy', 'rules', 'contacts'] as const).includes(currentView as InfoView) && (
+          <InfoPage view={currentView as InfoView} lang={currentLanguage} onNavigate={setCurrentView} />
         )}
       </main>
 
       {/* Footer */}
-      <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} />
+      <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} onOpenAccount={() => setAccountMode('cabinet')} />
+
+      {/* Ассистент DataNews AI — на всех страницах */}
+      <ChatWidget lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
 
       {/* Modals & Overlays */}
       {/* 1. Full Announcement Detail Modal (Image 5 reference) */}
@@ -426,13 +504,34 @@ export default function App() {
         />
       )}
 
-      {/* 3. Secure Admin Portal Modal */}
+      {/* Списки по показателям в шапке */}
+      {statsMode && (
+        <StatsPanel
+          mode={statsMode}
+          lang={currentLanguage}
+          announcements={announcements.filter((a) => selectedCity === 'all' || a.city === selectedCity || a.city === 'all' || statsMode === 'regions')}
+          onOpen={setActiveNoticeDetail}
+          onClose={() => setStatsMode(null)}
+        />
+      )}
+
+      {/* 3. Панель управления — только для администратора */}
       {isAdminOpen && (
         <AdminPortal
           currentLanguage={currentLanguage}
-          announcements={announcements}
           onRefreshData={refreshData}
-          onClose={() => setIsAdminOpen(false)}
+          onRoleChange={setRole}
+          onClose={closeAdmin}
+        />
+      )}
+
+      {/* 4. Личный кабинет гостя: регистрация, оплата, публикации на модерацию */}
+      {accountMode && (
+        <AccountPortal
+          lang={currentLanguage}
+          initialTab={accountMode}
+          onRoleChange={setRole}
+          onClose={() => setAccountMode(null)}
         />
       )}
     </div>

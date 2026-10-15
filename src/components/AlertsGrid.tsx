@@ -2,6 +2,10 @@ import React from 'react';
 import { Announcement, Language, CityId } from '../types';
 import { getTranslation } from '../locales/translations';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+import { formatWhen } from '../utils/dates';
+import { UrgencyBadge } from './UrgencyBadge';
+import { alertLevel } from '../utils/urgency';
+import { EventImage } from './EventImage';
 
 interface AlertsGridProps {
   currentLanguage: Language;
@@ -10,6 +14,16 @@ interface AlertsGridProps {
   onCityFilterChange: (city: CityId) => void;
   onSelectAnnouncement: (announcement: Announcement) => void;
 }
+
+/** Короткая метка типа источника на языке интерфейса */
+const ORG_TYPES: Record<string, { ru: string; kg: string; en: string }> = {
+  МБ: { ru: 'Мэрия', kg: 'Мэрия', en: 'City Hall' },
+  СМИ: { ru: 'СМИ', kg: 'ЖМК', en: 'Media' },
+  НЭ: { ru: 'Электросети', kg: 'Электр тармагы', en: 'Power grid' },
+  ВК: { ru: 'Водоканал', kg: 'Водоканал', en: 'Water utility' },
+  ГОС: { ru: 'Госорган', kg: 'Мамлекеттик орган', en: 'Government' },
+};
+const orgTypeLabel = (code: string, lang: 'ru' | 'kg' | 'en') => ORG_TYPES[code]?.[lang] || code || 'KG';
 
 export const AlertsGrid: React.FC<AlertsGridProps> = ({
   currentLanguage,
@@ -154,7 +168,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {alerts.slice(0, 6).map((ann) => {
+            {alerts.map((ann) => {
               const cfg = getUrgencyConfig(ann);
               const displayStatus = getAnnouncementDisplayStatus(ann);
               const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
@@ -174,7 +188,14 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                   }`}
                 >
                   {/* Left Colored Accent Bar */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${cfg.barColor}`} />
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                      alertLevel(ann) === 'urgent' ? 'bg-red-600' : alertLevel(ann) === 'soon' ? 'bg-amber-400' : cfg.barColor
+                    }`}
+                  />
+
+                  {/* Фото — то же поле imageUrl, что и в подробном окне; отдельный блок, не внутри текста */}
+                  <EventImage item={ann} lang={currentLanguage} className="-mx-5 -mt-5 mb-4 h-40 sm:h-44" />
 
                   <div className="pl-1">
                     {/* Card Header Badge & Lifecycle Status */}
@@ -182,22 +203,23 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                       <span
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${cfg.badgeBg} ${cfg.badgeText} text-[11px] font-bold uppercase tracking-wide`}
                       >
-                        {ann.urgency === 'emergency' && displayStatus === 'active' && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] animate-ping" />
-                        )}
                         <span className={`material-symbols-outlined text-[14px] ${cfg.iconColor}`}>
                           {cfg.icon}
                         </span>
                         <span>{cfg.badgeLabel}</span>
                       </span>
 
-                      {/* Explicit Status Pill (Active / Upcoming / Completed / Cancelled / Rescheduled) */}
+                      {/* Срочность: красный мигающий за 0–3 дня, жёлтый — если дольше; иначе — обычный статус */}
+                      {alertLevel(ann) === 'urgent' || alertLevel(ann) === 'soon' ? (
+                        <UrgencyBadge item={ann} lang={currentLanguage} />
+                      ) : (
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                         <span>{statusCfg.label}</span>
                       </span>
+                      )}
                     </div>
 
                     {/* Title & Summary */}
@@ -219,20 +241,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                             : 'event_busy'}
                         </span>
                         <span className="truncate">
-                          {new Date(ann.startDate).toLocaleDateString(
-                            currentLanguage === 'en' ? 'en-US' : 'ru-RU',
-                            { day: 'numeric', month: 'short', year: 'numeric' }
-                          )}
-                          ,{' '}
-                          {new Date(ann.startDate).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}{' '}
-                          —{' '}
-                          {new Date(ann.endDate).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {formatWhen(ann.startDate, ann.endDate, currentLanguage, false, ann.timeTBA, ann.allDay)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-500">
@@ -248,7 +257,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                   <div className="pl-1 pt-2 flex items-center justify-between mt-auto border-t border-gray-100">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-6 h-6 rounded-full bg-blue-50 text-[#12327A] flex items-center justify-center font-bold text-[10px] flex-shrink-0 border border-blue-100">
-                        {ann.sourceOrgType || 'KG'}
+                        {orgTypeLabel(ann.sourceOrgType, currentLanguage)}
                       </span>
                       <span className="text-xs text-gray-500 truncate max-w-[140px]">
                         {ann.sourceName}

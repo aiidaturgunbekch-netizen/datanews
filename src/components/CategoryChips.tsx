@@ -19,20 +19,29 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
 
   const categories: { id: CategoryId; label: string; icon: string; iconColor?: string }[] = [
     { id: 'all', label: t('categories.all'), icon: 'grid_view' },
+    { id: 'hazard', label: t('categories.hazard'), icon: 'thunderstorm', iconColor: 'text-red-500' },
     { id: 'water', label: t('categories.water'), icon: 'water_drop', iconColor: 'text-blue-500' },
     { id: 'electricity', label: t('categories.electricity'), icon: 'bolt', iconColor: 'text-amber-500' },
     { id: 'roads', label: t('categories.roads'), icon: 'traffic', iconColor: 'text-emerald-500' },
     { id: 'repairs', label: t('categories.repairs'), icon: 'construction', iconColor: 'text-orange-500' },
     { id: 'concerts', label: t('categories.concerts'), icon: 'theater_comedy', iconColor: 'text-indigo-500' },
     { id: 'festivals', label: t('categories.festivals'), icon: 'festival', iconColor: 'text-teal-500' },
+    { id: 'fairs', label: t('categories.fairs'), icon: 'storefront', iconColor: 'text-lime-600' },
+    { id: 'exhibitions', label: t('categories.exhibitions'), icon: 'museum', iconColor: 'text-cyan-600' },
+    { id: 'culture', label: t('categories.culture'), icon: 'theaters', iconColor: 'text-fuchsia-600' },
+    { id: 'sport', label: t('categories.sport'), icon: 'sports_soccer', iconColor: 'text-green-600' },
+    { id: 'cinema', label: t('categories.cinema'), icon: 'movie', iconColor: 'text-rose-500' },
     { id: 'education', label: t('categories.education'), icon: 'school', iconColor: 'text-sky-500' },
     { id: 'gov', label: t('categories.gov'), icon: 'campaign', iconColor: 'text-purple-500' },
+    { id: 'state', label: t('categories.state'), icon: 'account_balance', iconColor: 'text-[#12327A]' },
+    { id: 'laws', label: t('categories.laws'), icon: 'gavel', iconColor: 'text-slate-600' },
   ];
 
   return (
     <section className="w-full py-3 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.03)] sticky top-24 z-30 backdrop-blur-md bg-white/95 border-b border-gray-100">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 overflow-x-auto scrollbar-none">
-        <div className="flex items-center gap-2 whitespace-nowrap min-w-max py-0.5">
+      {/* На телефоне — горизонтальная прокрутка, на компьютере — перенос в несколько строк, без обрезки */}
+      <div className="max-w-[1280px] mx-auto px-4 md:px-6 overflow-x-auto md:overflow-visible scrollbar-none">
+        <div className="flex items-center gap-2 whitespace-nowrap min-w-max md:min-w-0 md:flex-wrap py-0.5 pr-4 md:pr-0">
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.id;
             const count = categoryCounts[cat.id] ?? 0;

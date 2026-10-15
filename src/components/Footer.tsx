@@ -1,3 +1,4 @@
+import { ContactButtons } from './ContactButtons';
 import React from 'react';
 import { Language, ViewMode } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -6,9 +7,10 @@ import { Logo } from './Logo';
 interface FooterProps {
   currentLanguage: Language;
   onNavigate: (view: ViewMode) => void;
+  onOpenAccount: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate }) => {
+export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onOpenAccount }) => {
   const { t } = getTranslation(currentLanguage);
 
   return (
@@ -112,16 +114,16 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate }) =
               <li>
                 <button
                   type="button"
-                  onClick={() => onNavigate('admin')}
+                  onClick={onOpenAccount}
                   className="hover:text-[#12327A] transition-colors text-left"
                 >
-                  {currentLanguage === 'kg' ? 'Өнөктөштүн жеке кабинети' : currentLanguage === 'en' ? 'Partner Dashboard' : 'Личный кабинет партнера'}
+                  {currentLanguage === 'kg' ? 'Жеке кабинет' : currentLanguage === 'en' ? 'My account' : 'Личный кабинет'}
                 </button>
               </li>
               <li>
-                <span className="text-gray-400">
+                <button type="button" onClick={() => onNavigate('rules')} className="hover:text-[#12327A] transition-colors text-left">
                   {currentLanguage === 'kg' ? 'Модерация регламенти' : currentLanguage === 'en' ? 'Moderation Policy' : 'Регламент модерации'}
-                </span>
+                </button>
               </li>
             </ul>
           </div>
@@ -131,35 +133,23 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate }) =
             <h4 className="text-xs font-bold text-[#0f1b33] mb-4 uppercase tracking-wider">
               {currentLanguage === 'kg' ? 'Байланыштар жана каналдар' : currentLanguage === 'en' ? 'Contacts & Channels' : 'Контакты и каналы'}
             </h4>
-            <ul className="space-y-2.5 text-xs sm:text-sm text-gray-600 mb-4">
-              <li>
-                <a
-                  href="https://t.me/datanewskg"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-[#12327A] transition-colors flex items-center gap-1.5"
-                >
-                  <span className="material-symbols-outlined text-[16px] text-[#0088cc]">send</span>
-                  <span>Telegram бот уведомлений</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://wa.me/996"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-[#12327A] transition-colors flex items-center gap-1.5"
-                >
-                  <span className="material-symbols-outlined text-[16px] text-[#25d366]">chat</span>
-                  <span>WhatsApp оперативный канал</span>
-                </a>
-              </li>
-              <li className="text-gray-400 text-xs">
-                {currentLanguage === 'kg' ? 'Жарыялоо эрежелери' : currentLanguage === 'en' ? 'Publishing Rules' : 'Правила публикации'}
-              </li>
-              <li className="text-gray-400 text-xs">
-                {currentLanguage === 'kg' ? 'Купуялуулук саясаты' : currentLanguage === 'en' ? 'Privacy Policy' : 'Политика конфиденциальности'}
-              </li>
+            <ContactButtons lang={currentLanguage} compact className="mb-4" />
+            <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
+              {(
+                [
+                  ['contacts', { ru: 'Связаться с DataNews', kg: 'DataNews менен байланышуу', en: 'Contact DataNews' }],
+                  ['about', { ru: 'О проекте', kg: 'Долбоор жөнүндө', en: 'About' }],
+                  ['sources', { ru: 'Источники информации', kg: 'Маалымат булактары', en: 'Information sources' }],
+                  ['rules', { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' }],
+                  ['privacy', { ru: 'Политика конфиденциальности', kg: 'Купуялуулук саясаты', en: 'Privacy policy' }],
+                ] as [ViewMode, Record<Language, string>][]
+              ).map(([v, l]) => (
+                <li key={v}>
+                  <button type="button" onClick={() => onNavigate(v)} className="hover:text-[#12327A] transition-colors text-left">
+                    {l[currentLanguage]}
+                  </button>
+                </li>
+              ))}
             </ul>
           </div>
         </div>

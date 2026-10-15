@@ -129,7 +129,7 @@ export const siteFacts = () => ({
     officialSource: KYRGYZHYDROMET.site,
     contactsPage: KYRGYZHYDROMET.contactsPage,
     forecasterPhones: KYRGYZHYDROMET.forecasterPhones,
-    note: 'На главной странице DataNews в разделе «Погода и безопасность» — автоматический прогноз MET Norway (не официальный) и официальные предупреждения, внесённые редакцией.',
+    note: 'В разделе «Погода и безопасность» — официальные предупреждения и официальный прогноз Кыргызгидромета по областям, если редакция его внесла. Автоматического прогноза на сайте нет.',
   },
   emergencyNumbers: EMERGENCY_NUMBERS.map((e) => `${e.phone} — ${e.name.ru}`),
 });

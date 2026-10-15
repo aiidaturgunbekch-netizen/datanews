@@ -35,16 +35,6 @@ const STATUS_KEY = 'dn:src:status';
 
 export const SOURCES: SourceInfo[] = [
   {
-    id: 'met-norway',
-    name: 'MET Norway (Норвежский метеорологический институт) — Locationforecast 2.0',
-    url: 'https://api.met.no/weatherapi/locationforecast/2.0/',
-    type: 'Численный прогноз погоды (открытые данные, CC BY 4.0)',
-    automatic: true,
-    method: 'api',
-    frequency: 'не чаще 1 раза в 3 часа при обращении к сайту',
-    note: 'Не официальный прогноз Кыргызгидромета. Используется как автоматический прогноз по точкам; официальный прогноз — meteo.kg.',
-  },
-  {
     id: 'kyrgyzhydromet',
     name: 'Кыргызгидромет (Гидрометеорологическая служба при МЧС КР)',
     url: 'https://www.meteo.kg/ru/',

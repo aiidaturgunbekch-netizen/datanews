@@ -1,6 +1,7 @@
 /**
  * /api/weather — автоматический прогноз по городам и перевалам (MET Norway) + состояние обновления.
- *   GET                 последние сохранённые данные; если им больше 3 часов — сервер обновляет их
+ *   GET                 официальный прогноз, внесённый редакцией (без обращения к MET Norway)
+ *   GET ?model=1        плюс автоматический прогноз MET Norway; если ему больше 3 часов — сервер обновляет его
  *                       (одновременно только один запрос обновления, блокировка в Redis)
  *   GET ?refresh=1      принудительное обновление (только администратор)
  *   POST                официальный прогноз Кыргызгидромета на день, внесённый редакцией (только администратор)
@@ -72,8 +73,10 @@ export default handler(async (req) => {
   let snap: WeatherSnapshot | null = raw ? JSON.parse(raw) : null;
 
   const force = url.searchParams.get('refresh') === '1' && (await readSession(req))?.role === 'admin';
+  // Автоматический прогноз на сайте сейчас не показывается — MET Norway запрашивается только по ?model=1
+  const wantModel = url.searchParams.get('model') === '1';
   const old = !snap || Date.now() - Date.parse(snap.fetchedAt) > REFRESH_AFTER_MS;
-  if (force || old) {
+  if (force || (wantModel && old)) {
     const lock = await cmd<string | null>('SET', 'dn:weather:lock', '1', 'NX', 'EX', 60);
     if (lock === 'OK') {
       try {
@@ -110,7 +113,7 @@ export default handler(async (req) => {
   // Прогноз на прошедшую дату не показываем
   const official = offParsed && offParsed.date >= kgDateStr() ? offParsed : null;
   return json(
-    { snapshot: snap, status, official, refreshAfterHours: 3, staleAfterHours: 12 },
+    { snapshot: wantModel || force ? snap : null, status: wantModel || force ? status : null, official, refreshAfterHours: 3, staleAfterHours: 12 },
     200,
     { 'Cache-Control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=600' }
   );

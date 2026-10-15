@@ -34,7 +34,7 @@ const QUICK: L3[] = [
   { ru: 'Что сегодня происходит в Бишкеке?', kg: 'Бүгүн Бишкекте эмне болуп жатат?', en: 'What is happening in Bishkek today?' },
   { ru: 'Какие предупреждения сейчас действуют?', kg: 'Азыр кайсы эскертүүлөр күчүндө?', en: 'Which warnings are active now?' },
   { ru: 'Какие изменения законов вступают в силу?', kg: 'Мыйзамдардын кайсы өзгөрүүлөрү күчүнө кирет?', en: 'Which law changes come into force?' },
-  { ru: 'Какая погода на перевалах?', kg: 'Ашууларда аба ырайы кандай?', en: 'What is the weather on the passes?' },
+  { ru: 'Какая погода завтра по областям?', kg: 'Эртең облустарда аба ырайы кандай?', en: 'What is the weather tomorrow by region?' },
   { ru: 'Как добавить объявление и сколько стоит?', kg: 'Жарыяны кантип кошом жана канча турат?', en: 'How do I post a notice and what does it cost?' },
 ];
 

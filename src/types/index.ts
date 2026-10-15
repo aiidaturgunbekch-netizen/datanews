@@ -349,4 +349,4 @@ export interface SiteStats {
   cities: { key: string; count: number }[];
 }
 
-export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'admin';
+export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'admin' | 'about' | 'sources' | 'privacy' | 'rules' | 'contacts';

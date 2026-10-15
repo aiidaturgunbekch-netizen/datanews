@@ -36,6 +36,9 @@ import { SearchModal } from './components/SearchModal';
 import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
 import { WeatherSafety } from './components/WeatherSafety';
+import { ChatWidget } from './components/ChatWidget';
+import { ContactButtons } from './components/ContactButtons';
+import { InfoPage, InfoView } from './components/InfoPages';
 
 /** Встроенные проверенные события + одобренные публикации с сервера */
 const mergeAnnouncements = (server: Announcement[], hidden: string[]) => {
@@ -103,6 +106,30 @@ export default function App() {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  // Отдельная ссылка на каждую публикацию: /#/n/<id> (короткая ссылка для мессенджеров — /n/<id>, см. api/share.ts)
+  useEffect(() => {
+    const openFromHash = () => {
+      const m = window.location.hash.match(/^#\/n\/([\w-]+)/);
+      if (m) {
+        const found = announcements.find((a) => a.id === m[1]);
+        if (found) setActiveNoticeDetail(found);
+      }
+    };
+    openFromHash();
+    window.addEventListener('hashchange', openFromHash);
+    return () => window.removeEventListener('hashchange', openFromHash);
+  }, [announcements]);
+  useEffect(() => {
+    const base = window.location.pathname + window.location.search;
+    if (activeNoticeDetail) {
+      if (window.location.hash !== `#/n/${activeNoticeDetail.id}`) history.replaceState(null, '', `${base}#/n/${activeNoticeDetail.id}`);
+      document.title = `${activeNoticeDetail.title[currentLanguage]} — DataNews Kyrgyzstan`;
+    } else {
+      if (window.location.hash.startsWith('#/n/')) history.replaceState(null, '', base);
+      if (currentView === 'home') document.title = 'DataNews Кыргызстан — Что, где и когда в Кыргызстане';
+    }
+  }, [activeNoticeDetail, currentLanguage, currentView]);
 
   // Статистика посещений: один просмотр на каждый открытый раздел (админа не считаем)
   useEffect(() => {
@@ -334,6 +361,25 @@ export default function App() {
             )}
 
             {/* Browse by City / Regional Portals Mosaic */}
+            {/* Связаться с DataNews */}
+            <section className="w-full py-8 bg-white border-t border-gray-100" aria-labelledby="contact-title">
+              <div className="max-w-[1280px] mx-auto px-4 md:px-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 id="contact-title" className="text-xl font-bold text-[#0f1b33]">
+                    {currentLanguage === 'kg' ? 'DataNews менен байланышуу' : currentLanguage === 'en' ? 'Contact DataNews' : 'Связаться с DataNews'}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {currentLanguage === 'kg'
+                      ? 'Жарыя жайгаштыруу, ката тууралуу кабарлоо же суроо берүү'
+                      : currentLanguage === 'en'
+                      ? 'Post a notice, report a mistake or ask a question'
+                      : 'Разместить объявление, сообщить об ошибке или задать вопрос'}
+                  </p>
+                </div>
+                <ContactButtons lang={currentLanguage} />
+              </div>
+            </section>
+
             <CityMosaic
               announcements={announcements}
               currentLanguage={currentLanguage}
@@ -440,10 +486,18 @@ export default function App() {
             onBackToHome={() => setCurrentView('home')}
           />
         )}
+
+        {/* О проекте, источники, правила, конфиденциальность, контакты */}
+        {(['about', 'sources', 'privacy', 'rules', 'contacts'] as const).includes(currentView as InfoView) && (
+          <InfoPage view={currentView as InfoView} lang={currentLanguage} onNavigate={setCurrentView} />
+        )}
       </main>
 
       {/* Footer */}
       <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} onOpenAccount={() => setAccountMode('cabinet')} />
+
+      {/* Ассистент DataNews AI — на всех страницах */}
+      <ChatWidget lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
 
       {/* Modals & Overlays */}
       {/* 1. Full Announcement Detail Modal (Image 5 reference) */}

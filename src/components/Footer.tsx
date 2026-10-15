@@ -1,3 +1,4 @@
+import { ContactButtons } from './ContactButtons';
 import React from 'react';
 import { Language, ViewMode } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -120,9 +121,9 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onO
                 </button>
               </li>
               <li>
-                <span className="text-gray-400">
+                <button type="button" onClick={() => onNavigate('rules')} className="hover:text-[#12327A] transition-colors text-left">
                   {currentLanguage === 'kg' ? 'Модерация регламенти' : currentLanguage === 'en' ? 'Moderation Policy' : 'Регламент модерации'}
-                </span>
+                </button>
               </li>
             </ul>
           </div>
@@ -132,30 +133,23 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onO
             <h4 className="text-xs font-bold text-[#0f1b33] mb-4 uppercase tracking-wider">
               {currentLanguage === 'kg' ? 'Байланыштар жана каналдар' : currentLanguage === 'en' ? 'Contacts & Channels' : 'Контакты и каналы'}
             </h4>
-            <ul className="space-y-2.5 text-xs sm:text-sm text-gray-600 mb-4">
-              <li>
-                {/* Ссылки на каналы появятся после их создания — ведущие в никуда адреса убраны */}
-                <span className="flex items-center gap-1.5 text-gray-500">
-                  <span className="material-symbols-outlined text-[16px] text-[#0088cc]">send</span>
-                  <span>
-                    {currentLanguage === 'kg' ? 'Telegram-бот (жакында)' : currentLanguage === 'en' ? 'Telegram bot (soon)' : 'Telegram-бот (скоро)'}
-                  </span>
-                </span>
-              </li>
-              <li>
-                <span className="flex items-center gap-1.5 text-gray-500">
-                  <span className="material-symbols-outlined text-[16px] text-[#25d366]">chat</span>
-                  <span>
-                    {currentLanguage === 'kg' ? 'WhatsApp-канал (жакында)' : currentLanguage === 'en' ? 'WhatsApp channel (soon)' : 'WhatsApp-канал (скоро)'}
-                  </span>
-                </span>
-              </li>
-              <li className="text-gray-400 text-xs">
-                {currentLanguage === 'kg' ? 'Жарыялоо эрежелери' : currentLanguage === 'en' ? 'Publishing Rules' : 'Правила публикации'}
-              </li>
-              <li className="text-gray-400 text-xs">
-                {currentLanguage === 'kg' ? 'Купуялуулук саясаты' : currentLanguage === 'en' ? 'Privacy Policy' : 'Политика конфиденциальности'}
-              </li>
+            <ContactButtons lang={currentLanguage} compact className="mb-4" />
+            <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
+              {(
+                [
+                  ['contacts', { ru: 'Связаться с DataNews', kg: 'DataNews менен байланышуу', en: 'Contact DataNews' }],
+                  ['about', { ru: 'О проекте', kg: 'Долбоор жөнүндө', en: 'About' }],
+                  ['sources', { ru: 'Источники информации', kg: 'Маалымат булактары', en: 'Information sources' }],
+                  ['rules', { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' }],
+                  ['privacy', { ru: 'Политика конфиденциальности', kg: 'Купуялуулук саясаты', en: 'Privacy policy' }],
+                ] as [ViewMode, Record<Language, string>][]
+              ).map(([v, l]) => (
+                <li key={v}>
+                  <button type="button" onClick={() => onNavigate(v)} className="hover:text-[#12327A] transition-colors text-left">
+                    {l[currentLanguage]}
+                  </button>
+                </li>
+              ))}
             </ul>
           </div>
         </div>

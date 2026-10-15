@@ -220,7 +220,8 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   };
 
   const share = async () => {
-    const data = { title: a.title[lang], text: a.summary[lang], url: eventSource(a) || window.location.href };
+    // Ссылка на саму публикацию DataNews — мессенджеры покажут заголовок, описание и картинку (api/share.ts)
+    const data = { title: a.title[lang], text: a.summary[lang], url: `${window.location.origin}/n/${a.id}` };
     try {
       if (navigator.share) {
         await navigator.share(data);

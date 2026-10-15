@@ -97,8 +97,8 @@ export const fetchMyAnnouncements = () => request<{ items: Announcement[] }>('an
 export const fetchAllAnnouncements = () => request<{ items: Announcement[]; hidden: string[] }>('announcements?scope=all');
 
 /** item может содержать imageData (data:image/...) — фото сохранится на сервере */
-export const submitAnnouncement = (item: Record<string, unknown>) =>
-  post<{ item: Announcement }>('announcements', { item }).then((r) => r.item);
+export const submitAnnouncement = (item: Record<string, unknown>, force = false) =>
+  post<{ item: Announcement }>('announcements', { item, force }).then((r) => r.item);
 
 export const updateAnnouncement = (id: string, item: Record<string, unknown>) =>
   post<{ item: Announcement }>('announcements', { id, item }, 'PATCH').then((r) => r.item);

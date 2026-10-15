@@ -2,7 +2,7 @@ import { Announcement, Language } from '../types';
 import { kgTs } from './time';
 import { endTs } from './urgency';
 
-export type DisplayStatus = 'upcoming' | 'active' | 'completed' | 'cancelled' | 'rescheduled';
+export type DisplayStatus = 'upcoming' | 'active' | 'completed' | 'cancelled' | 'rescheduled' | 'inForce' | 'notYet' | 'published';
 
 /**
  * Returns the effective lifecycle status of an announcement for October 2026 demonstration period.
@@ -12,6 +12,12 @@ export function getAnnouncementDisplayStatus(
   ann: Announcement,
   referenceDate: Date = new Date()
 ): DisplayStatus {
+  // Законы и госрешения: статус по дате вступления в силу, а не «завершено»
+  if (ann.category === 'laws' || ann.category === 'state' || ann.legal) {
+    const eff = ann.legal?.effectiveFrom;
+    if (!eff) return 'published';
+    return kgTs(eff) <= referenceDate.getTime() ? 'inForce' : 'notYet';
+  }
   // Explicit administrative overrides take precedence
   if (ann.status === 'cancelled') return 'cancelled';
   if (ann.status === 'rescheduled') return 'rescheduled';
@@ -33,6 +39,21 @@ export function getAnnouncementDisplayStatus(
 
 export function getStatusBadgeConfig(status: DisplayStatus, language: Language) {
   switch (status) {
+    case 'inForce':
+      return {
+        label: language === 'kg' ? 'Күчүндө' : language === 'en' ? 'In force' : 'Действует',
+        bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500', icon: 'gavel',
+      };
+    case 'notYet':
+      return {
+        label: language === 'kg' ? 'Азырынча күчүндө эмес' : language === 'en' ? 'Not yet in force' : 'Ещё не вступил в силу',
+        bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-500', icon: 'schedule',
+      };
+    case 'published':
+      return {
+        label: language === 'kg' ? 'Жарыяланды' : language === 'en' ? 'Published' : 'Опубликовано',
+        bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-500', icon: 'description',
+      };
     case 'active':
       return {
         label:

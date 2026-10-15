@@ -23,8 +23,24 @@ import { ANN_KEY, HIDDEN_KEY, publicView, sanitize, saveAnnouncement, withHistor
 import { StoredUser, USERS_KEY } from './_lib/users';
 import { getUsage, isGovVerified, reservePost } from './_lib/quota';
 import { kgNowLocal } from '../src/utils/time';
+import { INITIAL_ANNOUNCEMENTS } from '../src/data/initialAnnouncements';
 
 export const config = { runtime: 'edge' };
+
+const norm = (t: string) => t.toLowerCase().replace(/[«»"'.,:;!?()—–-]/g, ' ').replace(/\s+/g, ' ').trim();
+/** Дубль: совпадает ссылка на первоисточник, либо совпадает дата и заголовки почти одинаковые (≥ 80% общих слов) */
+const findDuplicate = (a: Announcement, pool: Announcement[]) => {
+  const words = new Set(norm(a.title.ru).split(' ').filter((w) => w.length > 2));
+  return pool.find((b) => {
+    if (b.id === a.id) return false;
+    if (a.eventSourceUrl && b.eventSourceUrl && a.eventSourceUrl === b.eventSourceUrl) return true;
+    if (a.startDate.slice(0, 10) !== b.startDate.slice(0, 10)) return false;
+    const bw = norm(b.title.ru).split(' ').filter((w) => w.length > 2);
+    if (!bw.length || !words.size) return false;
+    const common = bw.filter((w) => words.has(w)).length;
+    return common / Math.max(bw.length, words.size) >= 0.8;
+  });
+};
 
 const isPublic = (a: Announcement) => !a.moderationStatus || a.moderationStatus === 'approved';
 
@@ -72,6 +88,11 @@ export default handler(async (req) => {
       const existing = typeof body.item.id === 'string' ? await hgetJson<Announcement>(ANN_KEY, body.item.id) : null;
       const base = existing || (typeof body.item.id === 'string' ? ({ id: body.item.id } as Announcement) : undefined);
       let item = await sanitize(body.item as Record<string, any>, base);
+      // Защита от дублей: та же новость, перепечатанная с другого сайта (заголовок + дата, или та же ссылка на источник)
+      if (!base && !(body as { force?: boolean }).force) {
+        const dup = findDuplicate(item, [...(await hvalsJson<Announcement>(ANN_KEY)), ...INITIAL_ANNOUNCEMENTS]);
+        if (dup) throw new HttpError('duplicate', 409, `Похожая публикация уже есть: «${dup.title.ru}» (${dup.startDate.slice(0, 10)})`);
+      }
       item.moderationStatus = 'approved';
       item.dataOrigin = item.dataOrigin || 'manual';
       item.lastCheckedAt = item.updatedAt;

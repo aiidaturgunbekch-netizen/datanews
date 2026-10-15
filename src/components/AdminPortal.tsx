@@ -7,6 +7,8 @@ import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './An
 import { EventImage } from './EventImage';
 import { eventSource, ticketLink } from '../utils/links';
 import { historyLabel, MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
+import { isExpired } from '../utils/urgency';
+import { kgTs } from '../utils/time';
 
 interface AdminPortalProps {
   currentLanguage: Language;
@@ -486,7 +488,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     submitLabel={editing === 'new' ? 'Опубликовать' : 'Сохранить'}
                     onCancel={() => setEditing(null)}
                     onSubmit={async (item) => {
-                      if (editing === 'new') await api.submitAnnouncement(item);
+                      if (editing === 'new') {
+                        try {
+                          await api.submitAnnouncement(item);
+                        } catch (e) {
+                          // Похожая публикация уже есть — спрашиваем, не дубль ли это
+                          if ((e as api.ApiError).code === 'duplicate' && window.confirm(`${(e as Error).message}\n\nВсё равно добавить?`)) {
+                            await api.submitAnnouncement(item, true);
+                          } else throw e;
+                        }
+                      }
                       else if (serverItems.some((s) => s.id === editing.id)) await api.updateAnnouncement(editing.id, item);
                       else await api.submitAnnouncement({ ...item, id: editing.id }); // правка встроенного события
                       setEditing(null);
@@ -575,6 +586,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
                               <span className={`px-2 py-0.5 rounded-full ${b.cls}`}>{b.label}</span>
                               {a.publishedByGov && <span className="px-2 py-0.5 rounded-full bg-[#e6ecf8] text-[#12327A]">Госорган, без премодерации</span>}
+                              {!isExpired(a) && (!a.lastCheckedAt || Date.now() - kgTs(a.lastCheckedAt) > 3 * 86400_000) && (
+                                <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800" title="Действующая публикация давно не проверялась: сверьте с первоисточником и обновите дату проверки (кнопка «Редактировать» → «Сохранить»)">
+                                  Перепроверить{a.lastCheckedAt ? ` (проверено ${fmt(a.lastCheckedAt)})` : ''}
+                                </span>
+                              )}
                               {(!a.imageUrl || a.imageUrl.startsWith('/illustrations/')) && (
                                 <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" title="Сейчас показывается иллюстрация. Загрузите официальную афишу или фото через «Редактировать».">
                                   Нужна афиша / фото

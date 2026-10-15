@@ -1222,4 +1222,228 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ...checked('2026-10-15T14:00'),
     isDemo: false,
   },
+  {
+    id: 'ann-pensions-indexation-2026-10',
+    protocolCode: '#KG-LAW-PENSION601',
+    title: L(
+      'С 1 октября проиндексированы страховые части пенсий (коэффициент 1,20)',
+      '1-октябрдан тартып пенсиялардын камсыздандыруу бөлүгү индексацияланды (1,20 коэффициенти)',
+      'Insurance part of pensions indexed by 1.20 from 1 October'
+    ),
+    summary: L(
+      'Постановление Кабинета Министров № 601 от 5 сентября 2026 года. Прибавка — от 1 000 до 10 000 сомов.',
+      'Министрлер Кабинетинин 2026-жылдын 5-сентябрындагы № 601 токтому. Кошумча — 1 000ден 10 000 сомго чейин.',
+      'Cabinet of Ministers Resolution No. 601 of 5 September 2026. Increase from 1,000 to 10,000 KGS.'
+    ),
+    description: L(
+      'Кабинет Министров постановлением № 601 от 5 сентября 2026 года установил коэффициент индексации страховых частей пенсий 1,20; постановление вступило в силу 1 октября 2026 года. Базовая часть пенсии не индексируется, поэтому вся выплата вырастает меньше чем на 20% (по оценке Economist.kg — около 15%).',
+      'Министрлер Кабинети 2026-жылдын 5-сентябрындагы № 601 токтому менен пенсиялардын камсыздандыруу бөлүктөрүн индексациялоо коэффициентин 1,20 деп белгиледи; токтом 2026-жылдын 1-октябрында күчүнө кирди. Пенсиянын базалык бөлүгү индексацияланбайт, ошондуктан бүт төлөм 20%дан азыраак өсөт (Economist.kg баалоосу боюнча — болжол менен 15%).',
+      'By Resolution No. 601 of 5 September 2026 the Cabinet set an indexation factor of 1.20 for the insurance part of pensions, in force from 1 October 2026. The base part is not indexed, so the total payment rises by less than 20% (about 15%, according to Economist.kg).'
+    ),
+    category: 'laws',
+    city: 'all',
+    location: L('Весь Кыргызстан', 'Бүт Кыргызстан', 'All of Kyrgyzstan'),
+    startDate: '2026-10-01T00:00',
+    endDate: '2026-10-01T23:59',
+    allDay: true,
+    urgency: 'regular',
+    status: 'completed',
+    newsKind: 'decision',
+    legal: {
+      docTitle: L('Постановление Кабинета Министров КР № 601 от 5 сентября 2026 года', 'КР Министрлер Кабинетинин 2026-жылдын 5-сентябрындагы № 601 токтому', 'Cabinet of Ministers Resolution No. 601 of 5 September 2026'),
+      adoptedAt: '2026-09-05',
+      effectiveFrom: '2026-10-01',
+      whatChanged: L(
+        'Страховые части пенсий умножены на 1,20. Прибавка к одной пенсии — не меньше 1 000 и не больше 10 000 сомов. Общий размер пенсии после перерасчёта — не ниже 8 800 сомов (без надбавок).',
+        'Пенсиялардын камсыздандыруу бөлүктөрү 1,20га көбөйтүлдү. Бир пенсияга кошумча — 1 000 сомдон кем эмес жана 10 000 сомдон ашпайт. Кайра эсептөөдөн кийин пенсиянын жалпы өлчөмү — 8 800 сомдон кем эмес (кошумчаларсыз).',
+        'Insurance parts of pensions are multiplied by 1.20. The increase per pension is at least 1,000 and at most 10,000 KGS. After recalculation a pension is at least 8,800 KGS (excluding supplements).'
+      ),
+      whoAffected: L('Получатели пенсий по государственному социальному страхованию.', 'Мамлекеттик социалдык камсыздандыруу боюнча пенсия алуучулар.', 'Recipients of state social insurance pensions.'),
+      whatToDo: L(
+        'Ничего подавать не нужно — перерасчёт делает Социальный фонд. Вопросы — в отделение Соцфонда по месту получения пенсии.',
+        'Эч нерсе тапшыруунун кереги жок — кайра эсептөөнү Социалдык фонд жүргүзөт. Суроолор — пенсия алган жердеги Соцфонддун бөлүмүнө.',
+        'Nothing to file — the Social Fund recalculates automatically. Questions: your local Social Fund office.'
+      ),
+    },
+    sourceName: 'Economist.kg (по постановлению Кабинета Министров № 601)',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://economist.kg/pravo-znat/2026/10/01/pensii-1-oktyabrya-kak-poschitat/',
+    sourceKind: 'media',
+    additionalSourceUrl: 'https://economist.kg/society/2026/09/07/strahovaya-chast-pensii-20-protsentov/',
+    authorityUrl: 'https://www.gov.kg/',
+    isVerified: true,
+    publishedAt: '2026-09-07T12:00',
+    updatedAt: '2026-10-15T12:00',
+    ...illus('law', 'Документ с печатью — нормативный акт'),
+    ...checked('2026-10-15T15:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-law-personal-data-fines-2026',
+    protocolCode: '#KG-LAW-PDATA150',
+    title: L(
+      'Штрафы до 140 000 сомов за нарушения при работе с персональными данными: закон подписан',
+      'Жеке маалыматтар менен иштөөдөгү бузуулар үчүн 140 000 сомго чейин айып: мыйзамга кол коюлду',
+      'Fines of up to 140,000 KGS for personal-data violations: law signed'
+    ),
+    summary: L(
+      'Поправки в Кодекс о правонарушениях. Вступят в силу через 10 дней после официального опубликования.',
+      'Укук бузуулар жөнүндө кодекске өзгөртүүлөр. Расмий жарыялангандан 10 күн өткөндөн кийин күчүнө кирет.',
+      'Amendments to the Code of Offences, in force 10 days after official publication.'
+    ),
+    description: L(
+      'Президент подписал закон № 150 от 9 октября 2026 года о поправках в Кодекс о правонарушениях: вводятся штрафы за нарушения при обработке и защите персональных данных — для юридических лиц до 80 000 сомов, при повторных нарушениях и нарушениях с данными детей — до 140 000 сомов. Жогорку Кенеш одобрил закон 16 сентября 2026 года. Суммы для отдельных составов в СМИ приводятся по-разному — точные цифры сверяйте с официальным текстом.',
+      'Президент Укук бузуулар жөнүндө кодекске өзгөртүүлөр тууралуу 2026-жылдын 9-октябрындагы № 150 мыйзамга кол койду: жеке маалыматтарды иштетүүдө жана коргоодо бузуулар үчүн айыптар киргизилет — юридикалык жактар үчүн 80 000 сомго чейин, кайталап бузганда жана балдардын маалыматтары менен бузууда — 140 000 сомго чейин. Жогорку Кеңеш мыйзамды 2026-жылдын 16-сентябрында жактырган. Айрым курамдар боюнча суммалар ЖМКда ар башка берилет — так сандарды расмий тексттен текшериңиз.',
+      'The President signed Law No. 150 of 9 October 2026 amending the Code of Offences: fines for violations in processing and protecting personal data — up to 80,000 KGS for legal entities and up to 140,000 KGS for repeat violations and violations involving children’s data. Parliament approved it on 16 September 2026. Media report different amounts for some offences — check the official text.'
+    ),
+    category: 'laws',
+    city: 'all',
+    location: L('Весь Кыргызстан', 'Бүт Кыргызстан', 'All of Kyrgyzstan'),
+    startDate: '2026-10-09T00:00',
+    endDate: '2026-10-09T23:59',
+    allDay: true,
+    urgency: 'regular',
+    status: 'completed',
+    newsKind: 'law',
+    legal: {
+      docTitle: L('Закон КР № 150 от 9 октября 2026 года (изменения в Кодекс о правонарушениях)', 'КР 2026-жылдын 9-октябрындагы № 150 мыйзамы (Укук бузуулар жөнүндө кодекске өзгөртүүлөр)', 'Law No. 150 of 9 October 2026 (amendments to the Code of Offences)'),
+      adoptedAt: '2026-10-09',
+      whatChanged: L(
+        'Появились штрафы за нарушения при обработке, защите и передаче за границу персональных данных; повышенная ответственность — за повторные нарушения и данные детей.',
+        'Жеке маалыматтарды иштетүүдө, коргоодо жана чет өлкөгө берүүдө бузуулар үчүн айыптар киргизилди; кайталап бузуу жана балдардын маалыматтары үчүн жоопкерчилик жогорулатылды.',
+        'Fines for violations in processing, protecting and transferring personal data abroad; higher liability for repeat violations and children’s data.'
+      ),
+      whoAffected: L(
+        'Компании, госорганы и ИП, которые собирают и хранят данные клиентов и сотрудников; их должностные лица.',
+        'Кардарлардын жана кызматкерлердин маалыматтарын чогулткан жана сактаган компаниялар, мамлекеттик органдар жана ЖИ; алардын кызмат адамдары.',
+        'Companies, state bodies and sole traders that collect and store customer or staff data, and their officials.'
+      ),
+      whatToDo: L(
+        'Проверить, на каком основании собираются данные, кто к ним имеет доступ и передаются ли они за границу.',
+        'Маалыматтар кандай негизде чогултулуп жатканын, ага кимдин жетүүсү бар экенин жана чет өлкөгө берилип жатабы — текшерүү.',
+        'Check the legal basis for collecting data, who has access, and whether data is transferred abroad.'
+      ),
+      transitional: L(
+        'Вступает в силу через 10 дней после официального опубликования (по данным naq.media); дата опубликования на момент проверки не найдена.',
+        'Расмий жарыялангандан 10 күн өткөндөн кийин күчүнө кирет (naq.media маалыматы боюнча); текшерүү учурунда жарыяланган күнү табылган жок.',
+        'Comes into force 10 days after official publication (per naq.media); the publication date had not been found at the time of checking.'
+      ),
+    },
+    sourceName: 'Economist.kg, Reporter.kg (со ссылкой на пресс-службу Президента)',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://economist.kg/vlast/2026/10/13/personalnye-dannye-shtrafy-140-tys-2/',
+    sourceKind: 'media',
+    additionalSourceUrl: 'https://reporter.kg/ru/v-kyrgyzstane-vveli-shtrafy-do-140-tysyach-somov-za-utechku-personalnykh-dannykh/',
+    authorityUrl: 'https://www.president.kg/',
+    isVerified: true,
+    publishedAt: '2026-10-13T12:00',
+    updatedAt: '2026-10-15T12:00',
+    ...illus('law', 'Документ с печатью — нормативный акт'),
+    ...checked('2026-10-15T15:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-law-littering-public-works-2026',
+    protocolCode: '#KG-LAW-MUSOR',
+    title: L(
+      'За повторный выброс и сжигание мусора — до 30 часов общественных работ: закон подписан',
+      'Таштандыны кайталап ыргытуу жана өрттөө үчүн — 30 саатка чейин коомдук иштер: мыйзамга кол коюлду',
+      'Up to 30 hours of community service for repeat littering and rubbish burning: law signed'
+    ),
+    summary: L(
+      'Поправки в Кодекс о правонарушениях: общественные работы за повторные нарушения правил чистоты в течение года.',
+      'Укук бузуулар жөнүндө кодекске өзгөртүүлөр: бир жылдын ичинде тазалык эрежелерин кайталап бузгандыгы үчүн коомдук иштер.',
+      'Code of Offences amendments: community service for repeat cleanliness violations within a year.'
+    ),
+    description: L(
+      'Президент подписал закон о поправках в Кодекс о правонарушениях (Жогорку Кенеш одобрил его 16 сентября 2026 года; о подписании сообщено 7 октября). За повторное в течение года нарушение правил благоустройства — 20 часов общественных работ, за повторный выброс, складирование или сжигание мусора в неустановленных местах — от 20 до 30 часов. Дата вступления в силу в найденных публикациях не указана.',
+      'Президент Укук бузуулар жөнүндө кодекске өзгөртүүлөр тууралуу мыйзамга кол койду (Жогорку Кеңеш аны 2026-жылдын 16-сентябрында жактырган; кол коюлганы 7-октябрда билдирилген). Бир жылдын ичинде абаттандыруу эрежелерин кайталап бузганы үчүн — 20 саат коомдук иштер, таштандыны белгиленбеген жерге кайталап ыргытуу, сактоо же өрттөө үчүн — 20дан 30 саатка чейин. Күчүнө кирген күнү табылган жарыяларда көрсөтүлгөн эмес.',
+      'The President signed amendments to the Code of Offences (approved by Parliament on 16 September 2026; signing reported on 7 October): 20 hours of community service for a repeat breach of public-amenity rules within a year, and 20–30 hours for repeat dumping, storing or burning of rubbish in unauthorised places. The entry-into-force date is not given in the reports found.'
+    ),
+    category: 'laws',
+    city: 'all',
+    location: L('Весь Кыргызстан', 'Бүт Кыргызстан', 'All of Kyrgyzstan'),
+    startDate: '2026-10-07T00:00',
+    endDate: '2026-10-07T23:59',
+    allDay: true,
+    urgency: 'regular',
+    status: 'completed',
+    newsKind: 'law',
+    legal: {
+      docTitle: L('Закон о внесении изменений в Кодекс о правонарушениях (благоустройство, мусор)', 'Укук бузуулар жөнүндө кодекске өзгөртүүлөрдү киргизүү тууралуу мыйзам (абаттандыруу, таштанды)', 'Law amending the Code of Offences (public amenities, rubbish)'),
+      whatChanged: L(
+        'Повторное в течение года нарушение (после уже наложенного штрафа) наказывается общественными работами: 20 часов — за нарушение правил благоустройства, 20–30 часов — за выброс или сжигание мусора в неустановленных местах. Работы не проводятся ночью.',
+        'Бир жылдын ичинде кайталап бузуу (мурда айып салынгандан кийин) коомдук иштер менен жазаланат: абаттандыруу эрежелерин бузганы үчүн — 20 саат, таштандыны белгиленбеген жерге ыргытуу же өрттөө үчүн — 20–30 саат. Иштер түнкүсүн жүргүзүлбөйт.',
+        'A repeat violation within a year (after a fine) is punished with community service: 20 hours for breaching public-amenity rules, 20–30 hours for dumping or burning rubbish in unauthorised places. No night work.'
+      ),
+      whoAffected: L('Граждане, которые повторно нарушают правила чистоты в населённых пунктах.', 'Калктуу конуштарда тазалык эрежелерин кайталап бузган жарандар.', 'People who repeatedly break cleanliness rules in towns and villages.'),
+      transitional: L(
+        'Исключения: женщины старше 55 лет, мужчины старше 60 лет, беременные, женщины с детьми до 3 лет, лица с инвалидностью I и II групп — им назначается другое наказание или штраф. Дата вступления в силу — уточняйте в официальном тексте.',
+        'Өзгөчөлүктөр: 55 жаштан улуу аялдар, 60 жаштан улуу эркектер, кош бойлуулар, 3 жашка чейинки балдары бар аялдар, I жана II топтогу майыптыгы бар адамдар — аларга башка жаза же айып дайындалат. Күчүнө кирген күнүн расмий тексттен тактаңыз.',
+        'Exceptions: women over 55, men over 60, pregnant women, women with children under 3, people with group I or II disabilities — they get another penalty or a fine. Check the official text for the date of entry into force.'
+      ),
+    },
+    sourceName: 'Kaktus.media, АКИpress (со ссылкой на пресс-службу Президента)',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://kaktus.media/doc/554774_nesobludaushie_chistoty_bydyt_rabotat._sadyr_japarov_podpisal_zakon.html',
+    sourceKind: 'media',
+    additionalSourceUrl: 'https://eco.akipress.org/news:2546444',
+    authorityUrl: 'https://www.president.kg/',
+    isVerified: true,
+    publishedAt: '2026-10-07T12:00',
+    updatedAt: '2026-10-15T12:00',
+    ...illus('law', 'Документ с печатью — нормативный акт'),
+    ...checked('2026-10-15T15:00'),
+    isDemo: false,
+  },
+  {
+    id: 'ann-decree-taxpayers-343-2026',
+    protocolCode: '#KG-ST-UKAZ343',
+    title: L(
+      'Указ Президента о защите добросовестных налогоплательщиков',
+      'Ак ниеттүү салык төлөөчүлөрдү коргоо тууралуу Президенттин Жарлыгы',
+      'Presidential decree on protecting honest taxpayers'
+    ),
+    summary: L(
+      'Указ № 343 от 8 октября 2026 года: реестр недобросовестных налогоплательщиков, ограничения для них и снижение налоговой нагрузки.',
+      '2026-жылдын 8-октябрындагы № 343 Жарлык: ак ниетсиз салык төлөөчүлөрдүн реестри, аларга чектөөлөр жана салык жүгүн азайтуу.',
+      'Decree No. 343 of 8 October 2026: a register of dishonest taxpayers, restrictions on them and lower tax burden.'
+    ),
+    description: L(
+      'Президент подписал указ № 343 «О мерах по совершенствованию правовых гарантий защиты добросовестных налогоплательщиков» от 8 октября 2026 года. Указ поручает подготовить меры: ведение Государственной налоговой службой реестра недобросовестных налогоплательщиков, ограничения на регистрацию и перерегистрацию компаний и ИП для включённых в реестр, ответственность фактических бенефициаров, контроль доверенностей и электронных подписей, а также поэтапное снижение налоговой нагрузки. Это поручения: конкретные нормы появятся после принятия соответствующих актов.',
+      'Президент 2026-жылдын 8-октябрындагы «Ак ниеттүү салык төлөөчүлөрдү коргоонун укуктук кепилдиктерин өркүндөтүү чаралары жөнүндө» № 343 Жарлыкка кол койду. Жарлык чараларды даярдоону тапшырат: Мамлекеттик салык кызматы ак ниетсиз салык төлөөчүлөрдүн реестрин жүргүзөт, реестрге киргендерге компания жана ЖИ каттоого жана кайра каттоого чектөөлөр, иш жүзүндөгү бенефициарлардын жоопкерчилиги, ишеним каттарды жана электрондук колдорду көзөмөлдөө, ошондой эле салык жүгүн этап менен азайтуу. Булар тапшырмалар: конкреттүү ченемдер тиешелүү актылар кабыл алынгандан кийин пайда болот.',
+      'The President signed Decree No. 343 of 8 October 2026 “On measures to improve legal guarantees for honest taxpayers”. It instructs the government to prepare measures: a register of dishonest taxpayers kept by the State Tax Service, bans on registering or re-registering companies and sole traders for those listed, liability for beneficial owners, control over powers of attorney and e-signatures, and gradual reduction of the tax burden. These are instructions: specific rules will follow in separate acts.'
+    ),
+    category: 'state',
+    city: 'all',
+    location: L('Весь Кыргызстан', 'Бүт Кыргызстан', 'All of Kyrgyzstan'),
+    startDate: '2026-10-08T00:00',
+    endDate: '2026-10-08T23:59',
+    allDay: true,
+    urgency: 'regular',
+    status: 'completed',
+    newsKind: 'instruction',
+    legal: {
+      docTitle: L('Указ Президента КР № 343 от 8 октября 2026 года', 'КР Президентинин 2026-жылдын 8-октябрындагы № 343 Жарлыгы', 'Presidential Decree No. 343 of 8 October 2026'),
+      adoptedAt: '2026-10-08',
+      whoAffected: L('Предприниматели и компании; налоговые органы.', 'Ишкерлер жана компаниялар; салык органдары.', 'Businesses and companies; tax authorities.'),
+      whatToDo: L(
+        'Сейчас действий не требуется: конкретные правила (реестр, ограничения) будут установлены отдельными актами — следите за публикациями ГНС.',
+        'Азыр эч нерсе кылуунун кереги жок: конкреттүү эрежелер (реестр, чектөөлөр) өзүнчө актылар менен белгиленет — МСКнын жарыяларын көз салыңыз.',
+        'No action needed yet: the specific rules (register, restrictions) will be set by separate acts — follow the State Tax Service.'
+      ),
+    },
+    sourceName: 'Knews.kg, Tazabek (со ссылкой на пресс-службу Президента)',
+    sourceOrgType: 'СМИ',
+    eventSourceUrl: 'https://knews.kg/2026/10/09/sadyr-zhaparov-podpisal-ukaz-o-zashhite-dobrosovestnyh-nalogoplatelshhikov/',
+    sourceKind: 'media',
+    additionalSourceUrl: 'https://www.tazabek.kg/news:2547854',
+    authorityUrl: 'https://www.president.kg/',
+    isVerified: true,
+    publishedAt: '2026-10-09T12:00',
+    updatedAt: '2026-10-15T12:00',
+    ...illus('gov', 'Здание государственного учреждения'),
+    ...checked('2026-10-15T15:00'),
+    isDemo: false,
+  },
 ];

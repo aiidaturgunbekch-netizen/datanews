@@ -69,7 +69,7 @@ export const translations = {
     popularTags: { ru: 'Популярное:', kg: 'Популярдуу:', en: 'Trending:' },
     eventsOnDate: { ru: 'Публикации', kg: 'Жарыялар', en: 'Posts' },
     activeAlerts: { ru: 'Предупреждения', kg: 'Эскертүүлөр', en: 'Alerts' },
-    regionsCount: { ru: 'Областей', kg: 'Облус', en: 'Regions' },
+    regionsCount: { ru: 'Регионов', kg: 'Аймак', en: 'Regions' },
   },
 
   // Categories
@@ -88,18 +88,24 @@ export const translations = {
     cinema: { ru: 'Кино и показы', kg: 'Кино жана көрсөтүүлөр', en: 'Cinema & Screenings' },
     education: { ru: 'Лекции и IT', kg: 'Лекциялар жана IT', en: 'Lectures & Tech' },
     gov: { ru: 'Гос. оповещения', kg: 'Мамлекеттик билдирүүлөр', en: 'Gov Notices' },
+    hazard: { ru: 'Погода и опасные явления', kg: 'Аба ырайы жана коркунучтуу кубулуштар', en: 'Weather & Hazards' },
+    state: { ru: 'Государство и решения', kg: 'Мамлекет жана чечимдер', en: 'State & Decisions' },
+    laws: { ru: 'Законы и правила', kg: 'Мыйзамдар жана эрежелер', en: 'Laws & Rules' },
   },
 
   // Cities
   cities: {
     all: { ru: 'Весь Кыргызстан', kg: 'Бүт Кыргызстан', en: 'All of Kyrgyzstan' },
     bishkek: { ru: 'г. Бишкек', kg: 'Бишкек ш.', en: 'Bishkek' },
-    osh: { ru: 'г. Ош', kg: 'Ош ш.', en: 'Osh' },
-    jalalabad: { ru: 'г. Жалал-Абад', kg: 'Жалал-Абад ш.', en: 'Jalal-Abad' },
-    karakol: { ru: 'г. Каракол', kg: 'Каракол ш.', en: 'Karakol' },
-    talas: { ru: 'г. Талас', kg: 'Талас ш.', en: 'Talas' },
-    naryn: { ru: 'г. Нарын', kg: 'Нарын ш.', en: 'Naryn' },
-    batken: { ru: 'г. Баткен', kg: 'Баткен ш.', en: 'Batken' },
+    osh: { ru: 'г. Ош', kg: 'Ош ш.', en: 'Osh City' },
+    chui: { ru: 'Чуйская обл.', kg: 'Чүй облусу', en: 'Chui Region' },
+    osh_region: { ru: 'Ошская обл.', kg: 'Ош облусу', en: 'Osh Region' },
+    issykkul: { ru: 'Иссык-Кульская обл.', kg: 'Ысык-Көл облусу', en: 'Issyk-Kul Region' },
+    jalalabad: { ru: 'Джалал-Абадская обл.', kg: 'Жалал-Абад облусу', en: 'Jalal-Abad Region' },
+    talas: { ru: 'Таласская обл.', kg: 'Талас облусу', en: 'Talas Region' },
+    naryn: { ru: 'Нарынская обл.', kg: 'Нарын облусу', en: 'Naryn Region' },
+    batken: { ru: 'Баткенская обл.', kg: 'Баткен облусу', en: 'Batken Region' },
+    karakol: { ru: 'Иссык-Кульская обл.', kg: 'Ысык-Көл облусу', en: 'Issyk-Kul Region' },
   },
 
   // Section Headers

@@ -2,6 +2,7 @@ import { CategoryId, CityId, LocalizedString } from '../types';
 
 /** Все категории публикаций (кроме служебной 'all') — в порядке показа */
 export const CATEGORY_IDS: Exclude<CategoryId, 'all'>[] = [
+  'hazard',
   'water',
   'electricity',
   'roads',
@@ -15,18 +16,38 @@ export const CATEGORY_IDS: Exclude<CategoryId, 'all'>[] = [
   'sport',
   'cinema',
   'education',
+  'state',
+  'laws',
 ];
 
 /**
- * Семь областей Кыргызстана и города, которые сайт к ним относит.
- * Бишкек и Ош — города республиканского значения; для удобства они показаны вместе с Чуйской и Ошской областями.
- * Публикации с city = 'all' относятся ко всей стране и видны в каждой области.
+ * Места для фильтров: Бишкек и Ош (города республиканского значения) отдельно от областей,
+ * затем семь областей. Публикации с city = 'all' относятся ко всей стране и видны везде.
  */
+export const PLACE_IDS: Exclude<CityId, 'karakol'>[] = [
+  'all',
+  'bishkek',
+  'osh',
+  'chui',
+  'osh_region',
+  'issykkul',
+  'jalalabad',
+  'talas',
+  'naryn',
+  'batken',
+];
+
+/** Старые значения → новые */
+export const normalizeCity = (c: string | undefined): CityId => (c === 'karakol' ? 'issykkul' : ((c as CityId) || 'bishkek'));
+
+/** Регионы для статистики: 2 города республиканского значения и 7 областей (без «Весь Кыргызстан») */
 export const REGIONS: { id: string; name: LocalizedString; cities: CityId[] }[] = [
-  { id: 'chui', name: { ru: 'Чуйская область и г. Бишкек', kg: 'Чүй облусу жана Бишкек ш.', en: 'Chui Region & Bishkek' }, cities: ['bishkek'] },
-  { id: 'osh', name: { ru: 'Ошская область и г. Ош', kg: 'Ош облусу жана Ош ш.', en: 'Osh Region & Osh' }, cities: ['osh'] },
+  { id: 'bishkek', name: { ru: 'г. Бишкек', kg: 'Бишкек ш.', en: 'Bishkek City' }, cities: ['bishkek'] },
+  { id: 'osh', name: { ru: 'г. Ош', kg: 'Ош ш.', en: 'Osh City' }, cities: ['osh'] },
+  { id: 'chui', name: { ru: 'Чуйская область', kg: 'Чүй облусу', en: 'Chui Region' }, cities: ['chui'] },
+  { id: 'osh_region', name: { ru: 'Ошская область', kg: 'Ош облусу', en: 'Osh Region' }, cities: ['osh_region'] },
+  { id: 'issykkul', name: { ru: 'Иссык-Кульская область', kg: 'Ысык-Көл облусу', en: 'Issyk-Kul Region' }, cities: ['issykkul', 'karakol'] },
   { id: 'jalalabad', name: { ru: 'Джалал-Абадская область', kg: 'Жалал-Абад облусу', en: 'Jalal-Abad Region' }, cities: ['jalalabad'] },
-  { id: 'issykkul', name: { ru: 'Иссык-Кульская область', kg: 'Ысык-Көл облусу', en: 'Issyk-Kul Region' }, cities: ['karakol'] },
   { id: 'talas', name: { ru: 'Таласская область', kg: 'Талас облусу', en: 'Talas Region' }, cities: ['talas'] },
   { id: 'naryn', name: { ru: 'Нарынская область', kg: 'Нарын облусу', en: 'Naryn Region' }, cities: ['naryn'] },
   { id: 'batken', name: { ru: 'Баткенская область', kg: 'Баткен облусу', en: 'Batken Region' }, cities: ['batken'] },

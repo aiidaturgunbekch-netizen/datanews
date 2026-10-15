@@ -14,17 +14,28 @@ export type CategoryId =
   | 'sport'
   | 'cinema'
   | 'education'
-  | 'gov';
+  | 'gov'
+  | 'hazard'
+  | 'state'
+  | 'laws';
 
+/**
+ * Где действует публикация. Бишкек и Ош — города республиканского значения, отдельно от областей;
+ * остальные — области (конкретный город, район или айыл аймак указывается в district / locality).
+ * 'karakol' — устаревшее значение, приводится к 'issykkul' (normalizeCity).
+ */
 export type CityId =
   | 'all'
   | 'bishkek'
   | 'osh'
+  | 'chui'
+  | 'osh_region'
+  | 'issykkul'
   | 'jalalabad'
-  | 'karakol'
   | 'talas'
   | 'naryn'
-  | 'batken';
+  | 'batken'
+  | 'karakol';
 
 export type UrgencyType = 'emergency' | 'planned' | 'regular' | 'event';
 
@@ -80,6 +91,8 @@ export interface Announcement {
   description: LocalizedString;
   category: CategoryId;
   city: CityId;
+  /** Населённый пункт: город, село, айыл аймак (например, «Чолпон-Ата», «Кара-Кульджинский айыл аймак») */
+  locality?: string;
   district?: string;
   location: LocalizedString;
   coordinates?: {
@@ -185,6 +198,16 @@ export interface Announcement {
    */
   dataOrigin?: 'manual' | 'user' | 'auto';
 
+  /**
+   * Официальный уровень опасности (только по сообщению ответственного ведомства):
+   * 'high' — высокая / непосредственная опасность (красный), 'warning' — потенциальная (жёлтый), 'info' — без опасности (нейтральный).
+   */
+  dangerLevel?: 'high' | 'warning' | 'info';
+  /** Вид госновости: решение, заявление, поручение / обещание, встреча / визит, заседание, закон / акт */
+  newsKind?: 'decision' | 'statement' | 'instruction' | 'meeting' | 'session' | 'law' | 'program';
+  /** Юридические подробности для «Законы и изменения правил» и решений */
+  legal?: LegalInfo;
+
   /** Опубликовано подтверждённым госорганом без предварительной модерации; организация отвечает за сведения сама */
   publishedByGov?: boolean;
   /** История изменений (создание, правки, модерация, жалобы, снятие) */
@@ -193,6 +216,22 @@ export interface Announcement {
   reportsCount?: number;
 
   isDemo: boolean;
+}
+
+export interface LegalInfo {
+  /** Название и номер документа */
+  docTitle?: LocalizedString;
+  /** Даты: принятие / подписание, официальное опубликование, вступление в силу (YYYY-MM-DD) */
+  adoptedAt?: string;
+  officialPublishedAt?: string;
+  effectiveFrom?: string;
+  /** Что изменилось, кого касается, что делать на практике, переходный период / исключения */
+  whatChanged?: LocalizedString;
+  whoAffected?: LocalizedString;
+  whatToDo?: LocalizedString;
+  transitional?: LocalizedString;
+  /** Ссылка на официальный текст документа */
+  docUrl?: string;
 }
 
 export type SourceKind = 'official' | 'organizer' | 'ticket' | 'media';

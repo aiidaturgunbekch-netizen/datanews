@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PLACE_IDS } from '../config/regions';
 import { Language, CityId, ViewMode, Announcement } from '../types';
 import { getTranslation } from '../locales/translations';
 import { Logo } from './Logo';
@@ -38,16 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const cityLabels: Record<CityId, string> = {
-    bishkek: t('cities.bishkek'),
-    osh: t('cities.osh'),
-    jalalabad: t('cities.jalalabad'),
-    karakol: t('cities.karakol'),
-    talas: t('cities.talas'),
-    naryn: t('cities.naryn'),
-    batken: t('cities.batken'),
-    all: t('cities.all'),
-  };
+  const cityLabels = Object.fromEntries([...PLACE_IDS, 'karakol'].map((id) => [id, t(`cities.${id}`)])) as Record<CityId, string>;
 
   const navItems: { view: ViewMode; label: string }[] = [
     { view: 'calendar', label: t('nav.calendar') },
@@ -116,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase tracking-wider">
                     {t('search.whereLabel')}
                   </div>
-                  {(['all', 'bishkek', 'osh', 'jalalabad', 'karakol', 'talas', 'naryn', 'batken'] as CityId[]).map(
+                  {(PLACE_IDS as CityId[]).map(
                     (cityId) => (
                       <button
                         key={cityId}

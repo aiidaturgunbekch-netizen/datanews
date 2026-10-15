@@ -259,7 +259,7 @@ export const CategoryResults: React.FC<{
   };
   const all = { ru: 'Показать все категории', kg: 'Бардык категорияларды көрсөтүү', en: 'Show all categories' };
   return (
-    <section className="w-full py-8 bg-white border-b border-gray-100">
+    <section id="category-results" className="w-full py-8 bg-white border-b border-gray-100">
       <div className="max-w-[1280px] mx-auto px-4 md:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#0f1b33]">

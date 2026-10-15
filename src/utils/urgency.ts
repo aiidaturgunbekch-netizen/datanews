@@ -2,7 +2,7 @@ import { Announcement } from '../types';
 import { kgDaysUntil, kgTs } from './time';
 
 /** Категории-предупреждения (коммунальные и дорожные) */
-const ALERT_CATEGORIES = ['water', 'electricity', 'roads', 'repairs'];
+const ALERT_CATEGORIES = ['water', 'electricity', 'roads', 'repairs', 'hazard'];
 
 /** Публикация — предупреждение (отключение, перекрытие, срочное/плановое уведомление) */
 export const isAlert = (a: Announcement) =>
@@ -32,6 +32,10 @@ export type AlertLevel = 'urgent' | 'soon' | 'expired' | null;
 export const alertLevel = (a: Announcement, now = Date.now()): AlertLevel => {
   if (!isAlert(a)) return null;
   if (isExpired(a, now)) return 'expired';
+  // Официальный уровень опасности важнее близости даты: красный — только для высокой опасности
+  if (a.dangerLevel === 'high') return 'urgent';
+  if (a.dangerLevel === 'warning') return 'soon';
+  if (a.dangerLevel === 'info') return null;
   if (kgTs(a.startDate) <= now) return 'urgent';
   return kgDaysUntil(a.startDate, now) <= 3 ? 'urgent' : 'soon';
 };

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { PLACE_IDS } from '../config/regions';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 
@@ -82,14 +83,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             onChange={(e) => setSelectedCity(e.target.value as CityId)}
             className="px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 font-semibold focus:outline-none"
           >
-            <option value="all">{t('cities.all')}</option>
-            <option value="bishkek">{t('cities.bishkek')}</option>
-            <option value="osh">{t('cities.osh')}</option>
-            <option value="jalalabad">{t('cities.jalalabad')}</option>
-            <option value="karakol">{t('cities.karakol')}</option>
-            <option value="talas">{t('cities.talas')}</option>
-            <option value="naryn">{t('cities.naryn')}</option>
-            <option value="batken">{t('cities.batken')}</option>
+            {PLACE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {t(`cities.${id}`)}
+              </option>
+            ))}
           </select>
 
           <select

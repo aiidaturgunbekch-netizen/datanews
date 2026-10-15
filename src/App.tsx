@@ -16,7 +16,7 @@ import * as api from './services/api';
 import { trackView } from './services/analytics';
 import { addDaysStr, kgDateStr, kgTs } from './utils/time';
 import { alertLevel, isAlert, isExpired, isListed } from './utils/urgency';
-import { CATEGORY_IDS, REGIONS } from './config/regions';
+import { CATEGORY_IDS, normalizeCity, REGIONS } from './config/regions';
 import { Header } from './components/Header';
 import { UrgentTicker } from './components/UrgentTicker';
 import { HeroFilter } from './components/HeroFilter';
@@ -121,7 +121,8 @@ export default function App() {
   const matchesScope = (item: Announcement, ignoreCategory = false) => {
     if (!isListed(item)) return false;
     // Город: публикации «Весь Кыргызстан» (city = 'all') видны в любом городе
-    if (selectedCity !== 'all' && item.city !== selectedCity && item.city !== 'all') return false;
+    const city = normalizeCity(item.city);
+    if (selectedCity !== 'all' && city !== selectedCity && city !== 'all') return false;
     if (!ignoreCategory && selectedCategory !== 'all' && item.category !== selectedCategory) return false;
 
     // Даты считаются по календарю Бишкека
@@ -140,7 +141,7 @@ export default function App() {
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const hay = [item.title.ru, item.title.kg, item.title.en, item.location.ru, item.protocolCode, item.summary.ru]
+      const hay = [item.title.ru, item.title.kg, item.title.en, item.location.ru, item.district, item.locality, item.protocolCode, item.summary.ru, item.description.ru, item.sourceName]
         .join(' ')
         .toLowerCase();
       if (!hay.includes(q)) return false;
@@ -170,7 +171,7 @@ export default function App() {
   // Показатели в шапке — по фактическим данным
   const heroStats = useMemo(() => {
     const scoped = announcements.filter(
-      (a) => isListed(a) && (selectedCity === 'all' || a.city === selectedCity || a.city === 'all')
+      (a) => isListed(a) && (selectedCity === 'all' || normalizeCity(a.city) === selectedCity || a.city === 'all')
     );
     return {
       publications: scoped.length,
@@ -193,23 +194,26 @@ export default function App() {
     if (featuredNotice) setActiveNoticeDetail(featuredNotice);
   };
 
-  const handleTagClick = (tag: string) => {
-    if (tag.includes('Света') || tag.includes('Өчүрүү')) {
-      setSelectedCategory('electricity');
-    } else if (tag.includes('Дорог') || tag.includes('Жол')) {
-      setSelectedCategory('roads');
-    } else if (tag.includes('Концерт')) {
-      setSelectedCategory('concerts');
-    } else if (tag.includes('Ярмарк')) {
-      setSelectedCategory('fairs');
-    } else if (tag.includes('Кино')) {
-      setSelectedCategory('cinema');
-    } else if (tag.includes('Бишкек')) {
-      setSelectedCity('bishkek');
-    } else if (tag.includes('Ош')) {
-      setSelectedCity('osh');
-    }
+  /** Быстрые переходы под поиском */
+  const handleTagClick = (key: string) => {
+    const scrollTo = (id: string) => setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     setSearchQuery('');
+    if (key === 'today' || key === 'tomorrow' || key === 'week') {
+      setDateFilter(key);
+      setSelectedCategory('all');
+      scrollTo('alerts-feed');
+    } else if (key === 'alerts') {
+      setSelectedCategory('all');
+      scrollTo('alerts-feed');
+    } else if (key === 'weather') {
+      scrollTo('weather-safety');
+    } else if (key === 'state' || key === 'laws') {
+      setSelectedCategory(key);
+      scrollTo('category-results');
+    } else if (key === 'shows') {
+      setSelectedCategory('all');
+      setCurrentView('events');
+    }
   };
 
   return (

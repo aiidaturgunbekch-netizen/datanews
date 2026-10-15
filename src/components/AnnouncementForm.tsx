@@ -18,6 +18,9 @@ export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
   { id: 'cinema', label: 'Кино и показы' },
   { id: 'education', label: 'Лекции и IT' },
   { id: 'gov', label: 'Гос. оповещения' },
+  { id: 'state', label: 'Государство и решения' },
+  { id: 'laws', label: 'Законы и правила' },
+  { id: 'hazard', label: 'Погода и опасные явления' },
   { id: 'water', label: 'Отключение воды' },
   { id: 'electricity', label: 'Отключение электричества' },
   { id: 'roads', label: 'Дороги и транспорт' },
@@ -25,13 +28,15 @@ export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
 ];
 
 export const CITY_OPTIONS: { id: CityId; label: string }[] = [
-  { id: 'bishkek', label: 'Бишкек' },
-  { id: 'osh', label: 'Ош' },
-  { id: 'jalalabad', label: 'Жалал-Абад' },
-  { id: 'karakol', label: 'Каракол' },
-  { id: 'talas', label: 'Талас' },
-  { id: 'naryn', label: 'Нарын' },
-  { id: 'batken', label: 'Баткен' },
+  { id: 'bishkek', label: 'г. Бишкек' },
+  { id: 'osh', label: 'г. Ош' },
+  { id: 'chui', label: 'Чуйская область' },
+  { id: 'osh_region', label: 'Ошская область' },
+  { id: 'issykkul', label: 'Иссык-Кульская область' },
+  { id: 'jalalabad', label: 'Джалал-Абадская область' },
+  { id: 'talas', label: 'Таласская область' },
+  { id: 'naryn', label: 'Нарынская область' },
+  { id: 'batken', label: 'Баткенская область' },
   { id: 'all', label: 'Весь Кыргызстан' },
 ];
 
@@ -98,6 +103,22 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [urgency, setUrgency] = useState<UrgencyType>(initial?.urgency || 'event');
   const [status, setStatus] = useState<AnnouncementStatus>(initial?.status || 'scheduled');
   const [isTicker, setIsTicker] = useState(Boolean(initial?.isUrgentTicker));
+  const [locality, setLocality] = useState(initial?.locality || '');
+  const [district, setDistrict] = useState(initial?.district || '');
+  const [dangerLevel, setDangerLevel] = useState<'' | 'high' | 'warning' | 'info'>(initial?.dangerLevel || '');
+  const [newsKind, setNewsKind] = useState<string>(initial?.newsKind || '');
+  const [legal, setLegal] = useState<Record<string, string>>({
+    docTitle: initial?.legal?.docTitle?.ru || '',
+    adoptedAt: initial?.legal?.adoptedAt || '',
+    officialPublishedAt: initial?.legal?.officialPublishedAt || '',
+    effectiveFrom: initial?.legal?.effectiveFrom || '',
+    whatChanged: initial?.legal?.whatChanged?.ru || '',
+    whoAffected: initial?.legal?.whoAffected?.ru || '',
+    whatToDo: initial?.legal?.whatToDo?.ru || '',
+    transitional: initial?.legal?.transitional?.ru || '',
+    docUrl: initial?.legal?.docUrl || '',
+  });
+  const setL = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setLegal({ ...legal, [k]: e.target.value });
   const [sourceKind, setSourceKind] = useState<SourceKind | ''>(initial?.sourceKind || '');
   const [additionalSourceUrl, setAdditionalSourceUrl] = useState(initial?.additionalSourceUrl || '');
   const [authorityUrl, setAuthorityUrl] = useState(initial?.authorityUrl || '');
@@ -201,6 +222,24 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       category,
       city,
       location: { ru: location.trim() },
+      locality: locality.trim(),
+      district: district.trim(),
+      dangerLevel: mode === 'admin' && dangerLevel ? dangerLevel : undefined,
+      newsKind: mode === 'admin' && newsKind ? newsKind : undefined,
+      legal:
+        mode === 'admin'
+          ? {
+              docTitle: legal.docTitle.trim() ? { ru: legal.docTitle.trim() } : undefined,
+              adoptedAt: legal.adoptedAt || undefined,
+              officialPublishedAt: legal.officialPublishedAt || undefined,
+              effectiveFrom: legal.effectiveFrom || undefined,
+              whatChanged: legal.whatChanged.trim() ? { ru: legal.whatChanged.trim() } : undefined,
+              whoAffected: legal.whoAffected.trim() ? { ru: legal.whoAffected.trim() } : undefined,
+              whatToDo: legal.whatToDo.trim() ? { ru: legal.whatToDo.trim() } : undefined,
+              transitional: legal.transitional.trim() ? { ru: legal.transitional.trim() } : undefined,
+              docUrl: legal.docUrl.trim() || undefined,
+            }
+          : undefined,
       startDate,
       endDate,
       timeTBA,
@@ -320,6 +359,10 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         tr('fLocation'),
         <input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} placeholder={tr('fLocationPh')} maxLength={300} required />
       )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {field(tr('fLocality'), <input className={inputCls} value={locality} onChange={(e) => setLocality(e.target.value)} maxLength={120} placeholder={tr('fLocalityPh')} />)}
+        {field(tr('fDistrict'), <input className={inputCls} value={district} onChange={(e) => setDistrict(e.target.value)} maxLength={120} placeholder={tr('fDistrictPh')} />)}
+      </div>
       {field(tr('fDescriptionReq'), <textarea className={inputCls} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} required />)}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {field(tr('fPhone'), <input className={inputCls} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+996 ..." />)}
@@ -437,6 +480,42 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
             <label className={labelCls}>Официальный сайт ведомства</label>
             <input className={inputCls} value={authorityUrl} onChange={(e) => setAuthorityUrl(e.target.value)} placeholder="https://bishkek.gov.kg" />
           </div>
+          <div>
+            <label className={labelCls}>Официальный уровень опасности</label>
+            <select className={inputCls} value={dangerLevel} onChange={(e) => setDangerLevel(e.target.value as typeof dangerLevel)}>
+              <option value="">Не указан (для отключений — по близости даты)</option>
+              <option value="high">Высокая / непосредственная (красный)</option>
+              <option value="warning">Потенциальная — предупреждение (жёлтый)</option>
+              <option value="info">Информация без опасности (нейтральный)</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Тип госсообщения</label>
+            <select className={inputCls} value={newsKind} onChange={(e) => setNewsKind(e.target.value)}>
+              <option value="">—</option>
+              <option value="decision">Принятое решение</option>
+              <option value="statement">Заявление (не решение)</option>
+              <option value="instruction">Поручение / обещание</option>
+              <option value="meeting">Встреча / визит</option>
+              <option value="session">Заседание</option>
+              <option value="law">Закон / нормативный акт</option>
+              <option value="program">Государственная программа</option>
+            </select>
+          </div>
+          <details className="sm:col-span-2 rounded-xl bg-white p-3" open={Boolean(initial?.legal)}>
+            <summary className="cursor-pointer text-sm font-bold text-[#12327A]">Закон / решение: даты и пояснения</summary>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+              <input className={`${inputCls} sm:col-span-3`} placeholder="Название и номер документа" value={legal.docTitle} onChange={setL('docTitle')} />
+              <label className="text-xs text-gray-600">Принят / подписан<input type="date" className={inputCls} value={legal.adoptedAt} onChange={setL('adoptedAt')} /></label>
+              <label className="text-xs text-gray-600">Официально опубликован<input type="date" className={inputCls} value={legal.officialPublishedAt} onChange={setL('officialPublishedAt')} /></label>
+              <label className="text-xs text-gray-600">Вступает в силу<input type="date" className={inputCls} value={legal.effectiveFrom} onChange={setL('effectiveFrom')} /></label>
+              <textarea className={`${inputCls} sm:col-span-3`} rows={2} placeholder="Что изменилось" value={legal.whatChanged} onChange={setL('whatChanged')} />
+              <textarea className={`${inputCls} sm:col-span-3`} rows={2} placeholder="Кого касается" value={legal.whoAffected} onChange={setL('whoAffected')} />
+              <textarea className={`${inputCls} sm:col-span-3`} rows={2} placeholder="Что делать на практике" value={legal.whatToDo} onChange={setL('whatToDo')} />
+              <textarea className={`${inputCls} sm:col-span-3`} rows={2} placeholder="Переходный период и исключения (если указаны в документе)" value={legal.transitional} onChange={setL('transitional')} />
+              <input className={`${inputCls} sm:col-span-3`} placeholder="Ссылка на официальный текст (cbd.minjust.gov.kg и т. п.)" value={legal.docUrl} onChange={setL('docUrl')} />
+            </div>
+          </details>
           <label className="flex items-center gap-2 text-sm font-semibold text-[#0f1b33] mt-5">
             <input type="checkbox" checked={isTicker} onChange={(e) => setIsTicker(e.target.checked)} />
             Показать в бегущей строке «Срочно»

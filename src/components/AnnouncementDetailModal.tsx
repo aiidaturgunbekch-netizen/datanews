@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { EventImage } from './EventImage';
-import { formatDayMonthTime, formatWhen } from '../utils/dates';
+import { getTranslation } from '../locales/translations';
+import { formatDate, formatDayMonthTime, formatWhen } from '../utils/dates';
 import { eventSource, groupedSources, hostOf, isGovTicket, SourceLink, ticketLink } from '../utils/links';
 import * as api from '../services/api';
 import { Report } from '../types';
 import { isExpired } from '../utils/urgency';
-import { kgTs } from '../utils/time';
+import { kgDateStr, kgTs } from '../utils/time';
 
 interface Props {
   announcement: Announcement;
@@ -57,6 +58,29 @@ const L = {
   checkedAt: { ru: 'проверено', kg: 'текшерилген', en: 'checked' },
   official: { ru: 'Официальный источник', kg: 'Расмий булак', en: 'Official source' },
   authority: { ru: 'Официальный сайт ведомства', kg: 'Мекеменин расмий сайты', en: 'Official website of the agency' },
+  dangerLevel: { ru: 'Уровень опасности (по данным ведомства)', kg: 'Коркунучтун деңгээли (мекеменин маалыматы боюнча)', en: 'Danger level (per the agency)' },
+  danger_high: { ru: 'Высокая / непосредственная опасность', kg: 'Жогорку / түз коркунуч', en: 'High / immediate danger' },
+  danger_warning: { ru: 'Потенциальная опасность — предупреждение', kg: 'Мүмкүн болгон коркунуч — эскертүү', en: 'Potential danger — warning' },
+  danger_info: { ru: 'Информация, опасность не установлена', kg: 'Маалымат, коркунуч белгиленген эмес', en: 'Information, no danger declared' },
+  kind: { ru: 'Тип сообщения', kg: 'Билдирүүнүн түрү', en: 'Type' },
+  kind_decision: { ru: 'Принятое решение', kg: 'Кабыл алынган чечим', en: 'Decision taken' },
+  kind_statement: { ru: 'Заявление (не решение)', kg: 'Билдирүү (чечим эмес)', en: 'Statement (not a decision)' },
+  kind_instruction: { ru: 'Поручение / обещание (ещё не выполнено)', kg: 'Тапшырма / убада (али аткарыла элек)', en: 'Instruction / promise (not yet carried out)' },
+  kind_meeting: { ru: 'Встреча / визит', kg: 'Жолугушуу / сапар', en: 'Meeting / visit' },
+  kind_session: { ru: 'Заседание', kg: 'Жыйын', en: 'Session' },
+  kind_law: { ru: 'Закон / нормативный акт', kg: 'Мыйзам / ченемдик акт', en: 'Law / regulation' },
+  kind_program: { ru: 'Государственная программа', kg: 'Мамлекеттик программа', en: 'State programme' },
+  publishedOn: { ru: 'Дата публикации', kg: 'Жарыяланган күнү', en: 'Published' },
+  adopted: { ru: 'Принят / подписан', kg: 'Кабыл алынган / кол коюлган', en: 'Adopted / signed' },
+  officialPub: { ru: 'Официально опубликован', kg: 'Расмий жарыяланган', en: 'Officially published' },
+  effective: { ru: 'Вступает в силу', kg: 'Күчүнө кирет', en: 'In force from' },
+  notYet: { ru: 'ещё не действует', kg: 'азырынча күчүндө эмес', en: 'not yet in force' },
+  notSet: { ru: 'не указано в источнике', kg: 'булакта көрсөтүлгөн эмес', en: 'not stated in the source' },
+  whatChanged: { ru: 'Что изменилось', kg: 'Эмне өзгөрдү', en: 'What changed' },
+  whoAffected: { ru: 'Кого касается', kg: 'Кимге тиешелүү', en: 'Who is affected' },
+  whatToDo: { ru: 'Что делать на практике', kg: 'Иш жүзүндө эмне кылуу керек', en: 'What to do' },
+  transitional: { ru: 'Переходный период и исключения', kg: 'Өткөөл мезгил жана өзгөчөлүктөр', en: 'Transition period & exceptions' },
+  docText: { ru: 'Официальный текст документа', kg: 'Документтин расмий тексти', en: 'Official text of the document' },
   authorityTitle: { ru: 'Ответственное ведомство', kg: 'Жооптуу мекеме', en: 'Responsible agency' },
   additional: { ru: 'Дополнительный источник', kg: 'Кошумча булак', en: 'Additional source' },
   media: { ru: 'Публикация СМИ / афиши', kg: 'ЖМКнын / афишанын жарыясы', en: 'News or listings report' },
@@ -113,6 +137,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     };
   }, [onClose]);
 
+  const { t } = getTranslation(lang);
   const status = getAnnouncementDisplayStatus(a);
   const badge = getStatusBadgeConfig(status, lang);
   const isEvent = a.urgency === 'event';
@@ -264,7 +289,68 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
 
         <div className="px-6 py-4">
           <Row icon="event" label={L.when[lang]}>{whenText}</Row>
-          <Row icon="location_on" label={L.where[lang]}>{a.location[lang]}</Row>
+          <Row icon="location_on" label={L.where[lang]}>
+            {a.location[lang]}
+            {(a.locality || a.district) && (
+              <span className="block text-xs text-gray-500">{[a.locality, a.district].filter(Boolean).join(' • ')}</span>
+            )}
+            <span className="block text-xs text-gray-500">{t(`cities.${a.city === 'karakol' ? 'issykkul' : a.city}`)}</span>
+          </Row>
+          {a.dangerLevel && (
+            <Row icon="emergency_home" label={L.dangerLevel[lang]}>
+              <span
+                className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                  a.dangerLevel === 'high' ? 'bg-red-600 text-white' : a.dangerLevel === 'warning' ? 'bg-amber-300 text-[#3b2a00]' : 'bg-gray-200 text-gray-800'
+                }`}
+              >
+                {L[`danger_${a.dangerLevel}` as const][lang]}
+              </span>
+            </Row>
+          )}
+          {a.newsKind && <Row icon="label" label={L.kind[lang]}>{L[`kind_${a.newsKind}` as const][lang]}</Row>}
+          {a.publishedAt && <Row icon="history_edu" label={L.publishedOn[lang]}>{formatDayMonthTime(a.publishedAt, lang)}</Row>}
+          {a.legal && (
+            <div className="my-3 p-4 rounded-2xl bg-[#f6f8fd] border border-[#12327A]/10 space-y-2 text-sm">
+              {a.legal.docTitle && <div className="font-extrabold text-[#0f1b33]">{a.legal.docTitle[lang]}</div>}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                {a.legal.adoptedAt && (
+                  <div>
+                    <div className="text-gray-500">{L.adopted[lang]}</div>
+                    <b>{formatDate(a.legal.adoptedAt, lang)}</b>
+                  </div>
+                )}
+                {a.legal.officialPublishedAt && (
+                  <div>
+                    <div className="text-gray-500">{L.officialPub[lang]}</div>
+                    <b>{formatDate(a.legal.officialPublishedAt, lang)}</b>
+                  </div>
+                )}
+                <div>
+                  <div className="text-gray-500">{L.effective[lang]}</div>
+                  <b className={a.legal.effectiveFrom && a.legal.effectiveFrom > kgDateStr() ? 'text-amber-700' : ''}>
+                    {a.legal.effectiveFrom
+                      ? `${formatDate(a.legal.effectiveFrom, lang)}${a.legal.effectiveFrom > kgDateStr() ? ` — ${L.notYet[lang]}` : ''}`
+                      : L.notSet[lang]}
+                  </b>
+                </div>
+              </div>
+              {(['whatChanged', 'whoAffected', 'whatToDo', 'transitional'] as const).map((k) =>
+                a.legal?.[k] ? (
+                  <div key={k}>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{L[k][lang]}</div>
+                    <p className="text-gray-800">{a.legal[k]![lang]}</p>
+                  </div>
+                ) : null
+              )}
+              {a.legal.docUrl && (
+                <a href={a.legal.docUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#12327A] font-bold hover:underline">
+                  <span className="material-symbols-outlined text-[16px]">description</span>
+                  {L.docText[lang]} — {hostOf(a.legal.docUrl)}
+                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                </a>
+              )}
+            </div>
+          )}
           {a.eventDetails?.priceText && (
             <Row icon="confirmation_number" label={L.price[lang]}>{a.eventDetails.priceText[lang]}</Row>
           )}

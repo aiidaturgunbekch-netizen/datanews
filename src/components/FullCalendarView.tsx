@@ -1,4 +1,5 @@
 import { EventImage } from './EventImage';
+import { PLACE_IDS } from '../config/regions';
 import React, { useState } from 'react';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -137,14 +138,11 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
             onChange={(e) => setSelectedCity(e.target.value as CityId)}
             className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#20C7B5]"
           >
-            <option value="all">{t('cities.all')}</option>
-            <option value="bishkek">{t('cities.bishkek')}</option>
-            <option value="osh">{t('cities.osh')}</option>
-            <option value="jalalabad">{t('cities.jalalabad')}</option>
-            <option value="karakol">{t('cities.karakol')}</option>
-            <option value="talas">{t('cities.talas')}</option>
-            <option value="naryn">{t('cities.naryn')}</option>
-            <option value="batken">{t('cities.batken')}</option>
+            {PLACE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {t(`cities.${id}`)}
+              </option>
+            ))}
           </select>
         </div>
 

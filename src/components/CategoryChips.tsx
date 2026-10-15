@@ -19,6 +19,7 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
 
   const categories: { id: CategoryId; label: string; icon: string; iconColor?: string }[] = [
     { id: 'all', label: t('categories.all'), icon: 'grid_view' },
+    { id: 'hazard', label: t('categories.hazard'), icon: 'thunderstorm', iconColor: 'text-red-500' },
     { id: 'water', label: t('categories.water'), icon: 'water_drop', iconColor: 'text-blue-500' },
     { id: 'electricity', label: t('categories.electricity'), icon: 'bolt', iconColor: 'text-amber-500' },
     { id: 'roads', label: t('categories.roads'), icon: 'traffic', iconColor: 'text-emerald-500' },
@@ -32,6 +33,8 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
     { id: 'cinema', label: t('categories.cinema'), icon: 'movie', iconColor: 'text-rose-500' },
     { id: 'education', label: t('categories.education'), icon: 'school', iconColor: 'text-sky-500' },
     { id: 'gov', label: t('categories.gov'), icon: 'campaign', iconColor: 'text-purple-500' },
+    { id: 'state', label: t('categories.state'), icon: 'account_balance', iconColor: 'text-[#12327A]' },
+    { id: 'laws', label: t('categories.laws'), icon: 'gavel', iconColor: 'text-slate-600' },
   ];
 
   return (

@@ -15,12 +15,16 @@ const CATEGORY_STYLE: Record<string, { icon: string; bg: string }> = {
   electricity: { icon: 'bolt', bg: 'from-[#78350f] via-[#d97706] to-[#fde047]' },
   roads: { icon: 'traffic', bg: 'from-[#064e3b] via-[#059669] to-[#34d399]' },
   repairs: { icon: 'construction', bg: 'from-[#7c2d12] via-[#ea580c] to-[#fdba74]' },
+  hazard: { icon: 'thunderstorm', bg: 'from-[#1e293b] via-[#475569] to-[#94a3b8]' },
+  state: { icon: 'account_balance', bg: 'from-[#0d2459] via-[#12327A] to-[#3b82f6]' },
+  laws: { icon: 'gavel', bg: 'from-[#334155] via-[#64748b] to-[#cbd5e1]' },
 };
 
 /** Тематическая иллюстрация категории — запасной вариант, если фото не загрузилось */
 const CATEGORY_ILLUSTRATION: Record<string, string> = {
   concerts: 'concert', festivals: 'festival', fairs: 'fair', exhibitions: 'exhibition', culture: 'culture', sport: 'sport',
   cinema: 'cinema', education: 'education', gov: 'gov', water: 'water', electricity: 'power', roads: 'roads', repairs: 'repairs',
+  hazard: 'hazard', state: 'gov', laws: 'law',
 };
 
 /**

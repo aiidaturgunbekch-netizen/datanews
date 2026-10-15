@@ -7,8 +7,8 @@ export const ANN_KEY = 'dn:ann'; // id → JSON объявления (публи
 export const HIDDEN_KEY = 'dn:ann:hidden'; // id встроенных объявлений, удалённых админом
 export const IMG_KEY = 'dn:img'; // id → data:image/...;base64
 
-const CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs', 'concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education', 'gov'];
-const CITIES: CityId[] = ['all', 'bishkek', 'osh', 'jalalabad', 'karakol', 'talas', 'naryn', 'batken'];
+const CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs', 'concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education', 'gov', 'hazard', 'state', 'laws'];
+const CITIES: CityId[] = ['all', 'bishkek', 'osh', 'chui', 'osh_region', 'issykkul', 'jalalabad', 'talas', 'naryn', 'batken'];
 const URGENCY: UrgencyType[] = ['emergency', 'planned', 'regular', 'event'];
 
 const str = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
@@ -18,6 +18,27 @@ const loc = (v: unknown, max: number, required = false): LocalizedString => {
   const ru = str(o.ru, max);
   if (required && !ru) throw new HttpError('missing_field', 400, 'Заполните обязательные поля');
   return { ru, kg: str(o.kg, max) || ru, en: str(o.en, max) || ru };
+};
+
+const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) ? String(v) : undefined);
+const optLoc = (v: unknown, max: number) => {
+  const l = loc(v, max);
+  return l.ru ? l : undefined;
+};
+/** Юридические подробности: даты принятия / опубликования / вступления в силу и пояснения */
+const sanitizeLegal = (r: Record<string, unknown>) => {
+  const out = {
+    docTitle: optLoc(r.docTitle, 300),
+    adoptedAt: day(r.adoptedAt),
+    officialPublishedAt: day(r.officialPublishedAt),
+    effectiveFrom: day(r.effectiveFrom),
+    whatChanged: optLoc(r.whatChanged, 2000),
+    whoAffected: optLoc(r.whoAffected, 1000),
+    whatToDo: optLoc(r.whatToDo, 1000),
+    transitional: optLoc(r.transitional, 1000),
+    docUrl: httpUrl(r.docUrl) || undefined,
+  };
+  return Object.values(out).some(Boolean) ? out : undefined;
 };
 
 /** Краткий текст карточки; если не задан — начало основного описания */
@@ -61,7 +82,8 @@ export const storeImage = async (dataUrl: string) => {
  */
 export const sanitize = async (raw: Record<string, any>, base?: Announcement): Promise<Announcement> => {
   const category = CATEGORIES.includes(raw.category) ? (raw.category as CategoryId) : base?.category || 'concerts';
-  const city = CITIES.includes(raw.city) ? (raw.city as CityId) : base?.city || 'bishkek';
+  const rawCity = raw.city === 'karakol' ? 'issykkul' : raw.city;
+  const city = CITIES.includes(rawCity) ? (rawCity as CityId) : base?.city === 'karakol' ? 'issykkul' : base?.city || 'bishkek';
   const urgency = URGENCY.includes(raw.urgency) ? (raw.urgency as UrgencyType) : base?.urgency || 'event';
   const now = kgNowLocal();
 
@@ -81,6 +103,7 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     category,
     city,
     district: str(raw.district, 120) || undefined,
+    locality: str(raw.locality, 120) || undefined,
     location: loc(raw.location, 300, true),
     startDate: isoLocal(raw.startDate, true),
     endDate: isoLocal(raw.endDate, false),
@@ -117,6 +140,9 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     sourceKind: (['official', 'organizer', 'ticket', 'media'] as SourceKind[]).includes(raw.sourceKind) ? raw.sourceKind : undefined,
     additionalSourceUrl: httpUrl(raw.additionalSourceUrl) || undefined,
     authorityUrl: httpUrl(raw.authorityUrl) || undefined,
+    dangerLevel: ['high', 'warning', 'info'].includes(raw.dangerLevel) ? raw.dangerLevel : undefined,
+    newsKind: ['decision', 'statement', 'instruction', 'meeting', 'session', 'law', 'program'].includes(raw.newsKind) ? raw.newsKind : undefined,
+    legal: raw.legal && typeof raw.legal === 'object' ? sanitizeLegal(raw.legal) : undefined,
     timeTBA: Boolean(raw.timeTBA) || undefined,
     allDay: Boolean(raw.allDay) || undefined,
     // когда и кем проверено — выставляют обработчики (админ / модерация), а не присланные данные

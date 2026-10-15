@@ -54,6 +54,28 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
       },
     },
     {
+      id: 'chui',
+      regionTitle: { ru: 'Окружает г. Бишкек • 8 районов', kg: 'Бишкек шаарын курчайт • 8 район', en: 'Surrounds Bishkek • 8 districts' },
+      population: { ru: 'Аламүдүнский, Жайылский, Кеминский, Московский, Панфиловский, Сокулукский, Ысык-Атинский, Чуйский районы', kg: 'Аламүдүн, Жайыл, Кемин, Москва, Панфилов, Сокулук, Ысык-Ата, Чүй райондору', en: 'Alamudun, Jaiyl, Kemin, Moskva, Panfilov, Sokuluk, Ysyk-Ata and Chui districts' },
+      desc: {
+        ru: 'Самая населённая область страны. Здесь — пригородные сёла и айылные аймаки вокруг Бишкека, трассы на Талас, Иссык-Куль и в Казахстан.',
+        kg: 'Өлкөнүн эң калктуу облусу: Бишкектин айланасындагы айылдар жана айыл аймактар, Таласка, Ысык-Көлгө жана Казакстанга кеткен трассалар.',
+        en: 'The most populous region: the villages and aiyl aimaks around Bishkek and the roads to Talas, Issyk-Kul and Kazakhstan.',
+      },
+      mayorInfo: { ru: 'Полномочное представительство Президента в Чуйской области', kg: 'Президенттин Чүй облусундагы ыйгарым укуктуу өкүлчүлүгү', en: 'Presidential Plenipotentiary Office in Chui Region' },
+    },
+    {
+      id: 'osh_region',
+      regionTitle: { ru: 'Отдельно от г. Ош • 7 районов', kg: 'Ош шаарынан өзүнчө • 7 район', en: 'Separate from Osh City • 7 districts' },
+      population: { ru: 'Алайский, Араванский, Кара-Кулжинский, Кара-Суйский, Ноокатский, Узгенский, Чон-Алайский районы', kg: 'Алай, Араван, Кара-Кулжа, Кара-Суу, Ноокат, Өзгөн, Чоң-Алай райондору', en: 'Alay, Aravan, Kara-Kulja, Kara-Suu, Nookat, Uzgen and Chon-Alay districts' },
+      desc: {
+        ru: 'Горные районы юга страны, трасса Ош — Сары-Таш — Иркештам и перевалы Памиро-Алая. Объявления города Ош смотрите отдельно.',
+        kg: 'Өлкөнүн түштүгүндөгү тоолуу райондор, Ош — Сары-Таш — Эркечтам трассасы жана Памир-Алайдын ашуулары. Ош шаарынын жарыяларын өзүнчө караңыз.',
+        en: 'The mountain districts of the south, the Osh – Sary-Tash – Irkeshtam road and the Pamir-Alay passes. Osh City notices are listed separately.',
+      },
+      mayorInfo: { ru: 'Полномочное представительство Президента в Ошской области', kg: 'Президенттин Ош облусундагы ыйгарым укуктуу өкүлчүлүгү', en: 'Presidential Plenipotentiary Office in Osh Region' },
+    },
+    {
       id: 'jalalabad',
       regionTitle: { ru: 'Жалал-Абадская область • Курортный кластер', kg: 'Жалал-Абад облусу • Курорттук аймак', en: 'Jalal-Abad Region • Resort cluster' },
       population: { ru: '120 000+ жителей', kg: '120 000+ тургун', en: '120,000+ residents' },
@@ -65,9 +87,9 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
       mayorInfo: { ru: 'Мэрия города Жалал-Абад', kg: 'Жалал-Абад шаарынын мэриясы', en: 'Jalal-Abad City Hall' },
     },
     {
-      id: 'karakol',
-      regionTitle: { ru: 'Иссык-Кульская область • Восточное Прииссыккулье', kg: 'Ысык-Көл облусу • Ысык-Көлдүн чыгыш жээги', en: 'Issyk-Kul Region • Eastern Issyk-Kul' },
-      population: { ru: '85 000+ жителей', kg: '85 000+ тургун', en: '85,000+ residents' },
+      id: 'issykkul',
+      regionTitle: { ru: 'Административный центр — г. Каракол', kg: 'Административдик борбору — Каракол ш.', en: 'Administrative centre: Karakol' },
+      population: { ru: 'Каракол: 85 000+ жителей', kg: 'Каракол: 85 000+ тургун', en: 'Karakol: 85,000+ residents' },
       desc: {
         ru: 'Туристическая столица восточного Тянь-Шаня, отправная точка для треккинговых маршрутов, горнолыжной базы Каракол и ущелий Ала-Куль и Алтын-Арашан.',
         kg: 'Чыгыш Теңир-Тоонун туристтик борбору: треккинг маршруттарынын, Каракол тоо лыжа базасынын, Ала-Көл жана Алтын-Арашан капчыгайларынын башталышы.',

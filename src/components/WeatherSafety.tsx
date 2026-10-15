@@ -25,7 +25,12 @@ const T: Record<string, L3> = {
   officialLabel: { ru: 'Официальный прогноз Кыргызгидромета', kg: 'Кыргызгидрометтин расмий божомолу', en: 'Official Kyrgyzhydromet forecast' },
   updated: { ru: 'Обновлено', kg: 'Жаңыланды', en: 'Updated' },
   emergency: { ru: 'Экстренные службы', kg: 'Шашылыш кызматтар', en: 'Emergency' },
-  hydromet: { ru: 'Кыргызгидромет (не экстренная служба)', kg: 'Кыргызгидромет (шашылыш кызмат эмес)', en: 'Kyrgyzhydromet (not an emergency service)' },
+  hydromet: { ru: 'Кыргызгидромет — о погоде', kg: 'Кыргызгидромет — аба ырайы боюнча', en: 'Kyrgyzhydromet — weather information' },
+  noInfo: {
+    ru: 'Сейчас нет действующих официальных предупреждений.',
+    kg: 'Азыр күчүндөгү расмий эскертүүлөр жок.',
+    en: 'There are no active official warnings right now.',
+  },
 };
 
 const levelStyle = (lvl?: string) =>
@@ -42,33 +47,42 @@ const range = (a: number, b: number) => (a === b ? signed(a) : `${signed(a)}…$
 const isoToLocal = (iso: string) => kgNowLocal(Date.parse(iso));
 const tel = (s: string) => `tel:${s.replace(/[^\d+]/g, '')}`;
 
-/** Короткая строка: экстренные номера и один номер Кыргызгидромета */
-const EmergencyStrip: React.FC<{ lang: Language }> = ({ lang }) => (
-  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-600">
-    <span className="inline-flex items-center gap-1.5">
-      <span className="material-symbols-outlined text-[16px] text-red-600" aria-hidden="true">
+/** Экстренные службы — отдельный квадрат с номерами и названиями */
+const EmergencyBox: React.FC<{ lang: Language }> = ({ lang }) => (
+  <div className="rounded-2xl bg-white border border-gray-100 p-4">
+    <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2 flex items-center gap-1.5">
+      <span className="material-symbols-outlined text-[18px] text-red-600" aria-hidden="true">
         emergency
       </span>
-      <b className="text-[#0f1b33]">{T.emergency[lang]}:</b>
+      {T.emergency[lang]}
+    </h3>
+    <ul className="grid grid-cols-2 gap-2">
       {EMERGENCY_NUMBERS.map((e) => (
-        <a key={e.phone} href={`tel:${e.phone}`} title={e.name[lang]} className="font-black text-red-700 hover:underline">
-          {e.phone}
-        </a>
+        <li key={e.phone}>
+          <a href={`tel:${e.phone}`} className="flex items-center gap-2 h-full rounded-xl bg-red-50 hover:bg-red-100 px-3 py-2">
+            <span className="text-lg font-black text-red-700">{e.phone}</span>
+            <span className="text-xs text-gray-700 leading-tight">{e.name[lang]}</span>
+          </a>
+        </li>
       ))}
-    </span>
-    <span className="inline-flex items-center gap-1.5">
-      <span className="material-symbols-outlined text-[16px] text-[#12327A]" aria-hidden="true">
-        partly_cloudy_day
-      </span>
-      {T.hydromet[lang]}:
-      <a href={tel(KYRGYZHYDROMET.forecasterPhones[0])} className="font-bold text-[#12327A] hover:underline whitespace-nowrap">
-        {KYRGYZHYDROMET.forecasterPhones[0]}
-      </a>
-      <a href={KYRGYZHYDROMET.site} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline">
-        meteo.kg
-      </a>
-    </span>
+    </ul>
   </div>
+);
+
+/** Контакт Кыргызгидромета — одна строка */
+const HydrometLine: React.FC<{ lang: Language }> = ({ lang }) => (
+  <p className="text-xs text-gray-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+    <span className="material-symbols-outlined text-[16px] text-[#12327A]" aria-hidden="true">
+      partly_cloudy_day
+    </span>
+    {T.hydromet[lang]}:
+    <a href={tel(KYRGYZHYDROMET.forecasterPhones[0])} className="font-bold text-[#12327A] hover:underline whitespace-nowrap">
+      {KYRGYZHYDROMET.forecasterPhones[0]}
+    </a>
+    <a href={KYRGYZHYDROMET.site} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline">
+      meteo.kg
+    </a>
+  </p>
 );
 
 /**
@@ -105,94 +119,95 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
     [announcements, city]
   );
 
-  const hasInfo = warnings.length > 0 || Boolean(forecast);
 
   return (
-    <section id="weather-safety" className={`w-full border-b border-gray-100 ${hasInfo ? 'py-6 bg-[#f6f8fd]' : 'py-3 bg-white'}`}>
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 space-y-4">
-        {hasInfo && (
+    <section id="weather-safety" className="w-full border-b border-gray-100 py-6 bg-[#f6f8fd]">
+      <div className="max-w-[1280px] mx-auto px-4 md:px-6 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 lg:gap-6 items-start">
+        <div className="space-y-4 min-w-0">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[#12327A] text-[22px]">partly_cloudy_day</span>
             <h2 className="text-lg sm:text-xl font-bold text-[#0f1b33]">{T.title[lang]}</h2>
           </div>
-        )}
+          {warnings.length === 0 && !forecast && <p className="text-sm text-gray-600">{T.noInfo[lang]}</p>}
 
-        {warnings.length > 0 && (
-          <div>
-            <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2">{T.warnings[lang]}</h3>
-            <ul className="space-y-2">
-              {warnings.map((w) => {
-                const st = levelStyle(w.dangerLevel);
-                const src = eventSource(w);
-                return (
-                  <li key={w.id} className={`rounded-xl border p-3 text-sm ${st.box}`}>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${st.badge}`}>{T[`level_${w.dangerLevel || 'info'}`][lang]}</span>
-                      <button onClick={() => onOpen(w)} className="text-left font-bold text-[#0f1b33] hover:underline">
-                        {w.title[lang]}
-                      </button>
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">
-                      {formatWhen(w.startDate, w.endDate, lang, false, w.timeTBA, w.allDay)} • {t(`cities.${w.city}`)}
-                      {src && (
-                        <>
-                          {' • '}
-                          <a href={src} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline">
-                            {T.source[lang]}: {w.sourceName || hostOf(src)}
-                          </a>
-                        </>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-
-        {forecast && (
-          <div className="rounded-2xl bg-white border-2 border-emerald-200 p-3 sm:p-4 max-w-2xl">
-            <h3 className="text-sm font-extrabold text-[#0f1b33] mb-1">
-              {forecast.date === today ? T.todayTitle[lang] : T.tomorrow[lang]} — {formatDayMonth(forecast.date, lang)}
-            </h3>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold">{T.officialLabel[lang]}</span>
-              <a href={forecast.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-[#12327A] hover:underline">
-                {T.source[lang]}: {forecast.sourceName}
-                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-              </a>
-            </div>
-            {forecast.text && <p className="text-sm text-gray-700 mb-2">{forecast.text}</p>}
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
-                  <th className="py-1 font-bold">{T.region[lang]}</th>
-                  <th className="py-1 font-bold">{T.nightCol[lang]}</th>
-                  <th className="py-1 font-bold">{T.dayCol[lang]}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {FORECAST_REGIONS.filter((r) => forecast.regions[r.id]).map((r) => {
-                  const v = forecast.regions[r.id]!;
+          {warnings.length > 0 && (
+            <div>
+              <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2">{T.warnings[lang]}</h3>
+              <ul className="space-y-2">
+                {warnings.map((w) => {
+                  const st = levelStyle(w.dangerLevel);
+                  const src = eventSource(w);
                   return (
-                    <tr key={r.id} className="border-t border-gray-100">
-                      <td className="py-1.5 pr-2 font-semibold text-[#0f1b33]">{t(`cities.${r.id}`)}</td>
-                      <td className="py-1.5 pr-2 whitespace-nowrap">{range(v.nightFrom, v.nightTo)} °C</td>
-                      <td className="py-1.5 whitespace-nowrap font-bold">{range(v.dayFrom, v.dayTo)} °C</td>
-                    </tr>
+                    <li key={w.id} className={`rounded-xl border p-3 text-sm ${st.box}`}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${st.badge}`}>{T[`level_${w.dangerLevel || 'info'}`][lang]}</span>
+                        <button onClick={() => onOpen(w)} className="text-left font-bold text-[#0f1b33] hover:underline">
+                          {w.title[lang]}
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {formatWhen(w.startDate, w.endDate, lang, false, w.timeTBA, w.allDay)} • {t(`cities.${w.city}`)}
+                        {src && (
+                          <>
+                            {' • '}
+                            <a href={src} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline">
+                              {T.source[lang]}: {w.sourceName || hostOf(src)}
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </li>
                   );
                 })}
-              </tbody>
-            </table>
-            {forecast.updatedAt && (
-              <p className="text-[11px] text-gray-500 mt-2">
-                {T.updated[lang]}: {formatDayMonthTime(isoToLocal(forecast.updatedAt), lang)}
-              </p>
-            )}
-          </div>
-        )}
+              </ul>
+            </div>
+          )}
 
-        <EmergencyStrip lang={lang} />
+          {forecast && (
+            <div className="rounded-2xl bg-white border-2 border-emerald-200 p-3 sm:p-4 max-w-2xl">
+              <h3 className="text-sm font-extrabold text-[#0f1b33] mb-1">
+                {forecast.date === today ? T.todayTitle[lang] : T.tomorrow[lang]} — {formatDayMonth(forecast.date, lang)}
+              </h3>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold">{T.officialLabel[lang]}</span>
+                <a href={forecast.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-[#12327A] hover:underline">
+                  {T.source[lang]}: {forecast.sourceName}
+                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                </a>
+              </div>
+              {forecast.text && <p className="text-sm text-gray-700 mb-2">{forecast.text}</p>}
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
+                    <th className="py-1 font-bold">{T.region[lang]}</th>
+                    <th className="py-1 font-bold">{T.nightCol[lang]}</th>
+                    <th className="py-1 font-bold">{T.dayCol[lang]}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {FORECAST_REGIONS.filter((r) => forecast.regions[r.id]).map((r) => {
+                    const v = forecast.regions[r.id]!;
+                    return (
+                      <tr key={r.id} className="border-t border-gray-100">
+                        <td className="py-1.5 pr-2 font-semibold text-[#0f1b33]">{t(`cities.${r.id}`)}</td>
+                        <td className="py-1.5 pr-2 whitespace-nowrap">{range(v.nightFrom, v.nightTo)} °C</td>
+                        <td className="py-1.5 whitespace-nowrap font-bold">{range(v.dayFrom, v.dayTo)} °C</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {forecast.updatedAt && (
+                <p className="text-[11px] text-gray-500 mt-2">
+                  {T.updated[lang]}: {formatDayMonthTime(isoToLocal(forecast.updatedAt), lang)}
+                </p>
+              )}
+            </div>
+          )}
+
+          <HydrometLine lang={lang} />
+        </div>
+        <EmergencyBox lang={lang} />
       </div>
     </section>
   );

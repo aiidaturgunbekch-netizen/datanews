@@ -136,15 +136,24 @@ export const translations = {
     recordsCount: { ru: 'записей', kg: 'жазуу', en: 'records' },
   },
 
-  // Days of week short
+  // Days of week short — только для узких заголовков календаря (полное название — во всплывающей подсказке daysFull)
   days: {
-    mon: { ru: 'ПН', kg: 'Дүйшөмбү', en: 'MO' },
-    tue: { ru: 'ВТ', kg: 'Шейшемби', en: 'TU' },
-    wed: { ru: 'СР', kg: 'Шаршемби', en: 'WE' },
-    thu: { ru: 'ЧТ', kg: 'Бейшемби', en: 'TH' },
-    fri: { ru: 'ПТ', kg: 'Жума', en: 'FR' },
-    sat: { ru: 'СБ', kg: 'Ишемби', en: 'SA' },
-    sun: { ru: 'ВС', kg: 'Жекшемби', en: 'SU' },
+    mon: { ru: 'ПН', kg: 'ДШ', en: 'MO' },
+    tue: { ru: 'ВТ', kg: 'ШШ', en: 'TU' },
+    wed: { ru: 'СР', kg: 'ШР', en: 'WE' },
+    thu: { ru: 'ЧТ', kg: 'БШ', en: 'TH' },
+    fri: { ru: 'ПТ', kg: 'ЖМ', en: 'FR' },
+    sat: { ru: 'СБ', kg: 'ИШ', en: 'SA' },
+    sun: { ru: 'ВС', kg: 'ЖК', en: 'SU' },
+  },
+  daysFull: {
+    mon: { ru: 'Понедельник', kg: 'Дүйшөмбү', en: 'Monday' },
+    tue: { ru: 'Вторник', kg: 'Шейшемби', en: 'Tuesday' },
+    wed: { ru: 'Среда', kg: 'Шаршемби', en: 'Wednesday' },
+    thu: { ru: 'Четверг', kg: 'Бейшемби', en: 'Thursday' },
+    fri: { ru: 'Пятница', kg: 'Жума', en: 'Friday' },
+    sat: { ru: 'Суббота', kg: 'Ишемби', en: 'Saturday' },
+    sun: { ru: 'Воскресенье', kg: 'Жекшемби', en: 'Sunday' },
   },
 
   // Announcement Detail Specifics (from Image 5)

@@ -128,16 +128,13 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
 
       {/* Weekday Names (Monday-start) */}
       <div
-        className={`grid grid-cols-7 gap-1 text-center font-bold text-gray-400 mb-2 ${
-          currentLanguage === 'kg' ? 'text-[8px] tracking-tighter whitespace-nowrap max-sm:h-9 max-sm:items-end' : 'text-[11px] uppercase tracking-wider'
-        }`}
+        className="grid grid-cols-7 gap-1 text-center font-bold text-gray-400 mb-2 text-[11px] uppercase tracking-wider"
       >
         {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
           <span
             key={d}
-            className={`${d === 'sat' || d === 'sun' ? 'text-[#dc2626]' : ''} ${
-              currentLanguage === 'kg' ? 'block max-sm:-rotate-[35deg] max-sm:origin-center max-sm:translate-y-1' : ''
-            }`}
+            className={d === 'sat' || d === 'sun' ? 'text-[#dc2626]' : ''}
+                title={t(`daysFull.${d}`)}
           >
             {t(`days.${d}`)}
           </span>

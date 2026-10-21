@@ -5,7 +5,7 @@ import { StorageService } from '../services/storage';
 import { EventImage } from './EventImage';
 import { ticketLink } from '../utils/links';
 import { MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT, formatDate } from '../utils/dates';
-import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+import { freshOrder, getAnnouncementDisplayStatus, getStatusBadgeConfig, isFresh } from '../utils/statusUtils';
 
 interface EventsFeedProps {
   currentLanguage: Language;
@@ -22,7 +22,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [displayMode, setDisplayMode] = useState<'list' | 'grid'>('list');
-  const [statusTab, setStatusTab] = useState<'all' | 'upcoming' | 'completed'>('all');
+  const [statusTab, setStatusTab] = useState<'all' | 'upcoming' | 'completed'>('upcoming');
   const [favorites, setFavorites] = useState<string[]>(() => StorageService.getFavorites());
   const [visibleCount, setVisibleCount] = useState<number>(6);
 
@@ -39,16 +39,11 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
 
   // Filter events according to status tab so past events are never mistaken for upcoming events
   const filteredEvents = useMemo(() => {
-    return events.filter((item) => {
-      const status = getAnnouncementDisplayStatus(item);
-      if (statusTab === 'upcoming') {
-        return status === 'upcoming' || status === 'active' || status === 'rescheduled';
-      }
-      if (statusTab === 'completed') {
-        return status === 'completed' || status === 'cancelled';
-      }
-      return true;
-    }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    const byStartDesc = (a: Announcement, b: Announcement) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+    // Актуальные — без старых новостей и прошедших событий, свежее — выше
+    if (statusTab === 'upcoming') return events.filter((item) => isFresh(item)).sort((a, b) => freshOrder(a, b));
+    if (statusTab === 'completed') return events.filter((item) => !isFresh(item)).sort(byStartDesc);
+    return [...events].sort(byStartDesc);
   }, [events, statusTab]);
 
   return (
@@ -105,6 +100,17 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
       {/* Lifecycle Status Filter Tabs (Ensures past events are not shown as upcoming) */}
       <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 text-xs">
         <button
+          onClick={() => setStatusTab('upcoming')}
+          className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+            statusTab === 'upcoming'
+              ? 'bg-[#12327A] text-white shadow-2xs'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+          }`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-[#20C7B5]" />
+          <span>{currentLanguage === 'kg' ? 'Жаңы жана актуалдуу' : currentLanguage === 'en' ? 'Latest & current' : 'Свежие и актуальные'}</span>
+        </button>
+        <button
           onClick={() => setStatusTab('all')}
           className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
             statusTab === 'all'
@@ -115,17 +121,6 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
           {currentLanguage === 'kg' ? 'Бардыгы' : currentLanguage === 'en' ? 'All Events' : 'Все события'}
         </button>
         <button
-          onClick={() => setStatusTab('upcoming')}
-          className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-            statusTab === 'upcoming'
-              ? 'bg-[#12327A] text-white shadow-2xs'
-              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-          }`}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-[#20C7B5]" />
-          <span>{currentLanguage === 'kg' ? 'Алдыдагылар жана учурдагылар' : currentLanguage === 'en' ? 'Upcoming & Active' : 'Предстоящие и активные'}</span>
-        </button>
-        <button
           onClick={() => setStatusTab('completed')}
           className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
             statusTab === 'completed'
@@ -134,7 +129,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
           }`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-          <span>{currentLanguage === 'kg' ? 'Аяктагандар / Архив' : currentLanguage === 'en' ? 'Completed / Past' : 'Завершённые / Архив'}</span>
+          <span>{currentLanguage === 'kg' ? 'Архив' : currentLanguage === 'en' ? 'Archive' : 'Архив'}</span>
         </button>
       </div>
 
@@ -273,7 +268,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                     </div>
 
                     <span className="px-3.5 py-1.5 rounded-xl bg-[#f0f4fc] text-[#12327A] group-hover:bg-[#12327A] group-hover:text-white text-xs font-bold transition-all inline-flex items-center gap-1">
-                      <span>{currentLanguage === 'kg' ? 'Программа жана маалымат' : currentLanguage === 'en' ? 'Program & Info' : 'Билеты и программа'}</span>
+                      <span>{currentLanguage === 'kg' ? 'Толугураак' : currentLanguage === 'en' ? 'More details' : 'Подробнее'}</span>
                       <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                     </span>
                   </div>

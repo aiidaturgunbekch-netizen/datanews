@@ -126,3 +126,34 @@ export function getStatusBadgeConfig(status: DisplayStatus, language: Language) 
       };
   }
 }
+
+const FRESH_NEWS_DAYS = 7;
+
+/**
+ * Актуально ли для главной: событие ещё не закончилось; новость о решении или законе —
+ * опубликована не позже 7 дней назад или закон ещё не вступил в силу. Старое уходит в архив.
+ */
+export function isFresh(ann: Announcement, referenceDate: Date = new Date()): boolean {
+  const status = getAnnouncementDisplayStatus(ann, referenceDate);
+  if (status === 'completed' || status === 'cancelled') return false;
+  if (status === 'inForce' || status === 'published' || status === 'notYet') {
+    if (status === 'notYet') return true;
+    const pub = kgTs(ann.legal?.officialPublishedAt || ann.publishedAt || ann.startDate);
+    return referenceDate.getTime() - pub <= FRESH_NEWS_DAYS * 86400_000;
+  }
+  return true;
+}
+
+/**
+ * Порядок на главной: сначала то, что происходит сегодня и свежие новости (новее — выше),
+ * затем предстоящее по дате начала.
+ */
+export function freshOrder(a: Announcement, b: Announcement, referenceDate: Date = new Date()): number {
+  const now = referenceDate.getTime();
+  const key = (x: Announcement) => {
+    const start = kgTs(x.startDate);
+    return start <= now ? 0 : start;
+  };
+  const pub = (x: Announcement) => kgTs(x.publishedAt || x.startDate);
+  return key(a) - key(b) || pub(b) - pub(a);
+}

@@ -7,6 +7,8 @@ interface CategoryChipsProps {
   selectedCategory: CategoryId;
   onSelectCategory: (cat: CategoryId) => void;
   categoryCounts: Record<CategoryId, number>;
+  /** sidebar — вертикальное меню разделов сбоку (компьютер); bar — одна строка с прокруткой */
+  variant?: 'bar' | 'sidebar';
 }
 
 export const CategoryChips: React.FC<CategoryChipsProps> = ({
@@ -14,6 +16,7 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
   selectedCategory,
   onSelectCategory,
   categoryCounts,
+  variant = 'bar',
 }) => {
   const { t } = getTranslation(currentLanguage);
 
@@ -37,11 +40,43 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
     { id: 'laws', label: t('categories.laws'), icon: 'gavel', iconColor: 'text-slate-600' },
   ];
 
+  if (variant === 'sidebar') {
+    return (
+      <nav aria-label={t('categories.all')} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-2">
+        <div className="px-2 pt-1 pb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+          {currentLanguage === 'kg' ? 'Бөлүмдөр' : currentLanguage === 'en' ? 'Sections' : 'Разделы'}
+        </div>
+        <ul className="space-y-0.5">
+          {categories.map((cat) => {
+            const isSelected = selectedCategory === cat.id;
+            const count = categoryCounts[cat.id] ?? 0;
+            return (
+              <li key={cat.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelectCategory(cat.id)}
+                  aria-current={isSelected ? 'true' : undefined}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[13px] font-semibold text-left transition-colors ${
+                    isSelected ? 'bg-[#12327A] text-white' : 'text-[#0f1b33] hover:bg-[#f3f6fc]'
+                  }`}
+                >
+                  <span className={`material-symbols-outlined text-[18px] ${isSelected ? 'text-white' : cat.iconColor || 'text-gray-500'}`}>{cat.icon}</span>
+                  <span className="flex-1 leading-tight">{cat.label}</span>
+                  <span className={`text-[11px] font-bold ${isSelected ? 'text-white/80' : count ? 'text-gray-500' : 'text-gray-300'}`}>{count}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    );
+  }
+
   return (
-    <section className="w-full py-3 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.03)] sticky top-24 z-30 backdrop-blur-md bg-white/95 border-b border-gray-100">
-      {/* На телефоне — горизонтальная прокрутка, на компьютере — перенос в несколько строк, без обрезки */}
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 overflow-x-auto md:overflow-visible scrollbar-none">
-        <div className="flex items-center gap-2 whitespace-nowrap min-w-max md:min-w-0 md:flex-wrap py-0.5 pr-4 md:pr-0">
+    <section className="w-full py-2.5 bg-white border-b border-gray-100">
+      {/* Одна строка с горизонтальной прокруткой — не закрывает страницу */}
+      <div className="max-w-[1280px] mx-auto px-4 md:px-6 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-2 whitespace-nowrap min-w-max py-0.5 pr-4">
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.id;
             const count = categoryCounts[cat.id] ?? 0;

@@ -36,6 +36,7 @@ import { SearchModal } from './components/SearchModal';
 import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
 import { WeatherSafety } from './components/WeatherSafety';
+import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { InfoPage, InfoView } from './components/InfoPages';
 
@@ -289,13 +290,26 @@ export default function App() {
               onOpenStats={setStatsMode}
             />
 
-            {/* Quick Category Filter Chips Bar */}
-            <CategoryChips
-              currentLanguage={currentLanguage}
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              categoryCounts={categoryCounts}
-            />
+            {/* Разделы: на компьютере — меню сбоку, на телефоне — одна строка с прокруткой */}
+            <div className="lg:max-w-[1440px] lg:mx-auto lg:flex lg:items-start lg:gap-2 lg:pl-4">
+            <aside className="hidden lg:block w-60 shrink-0 sticky top-28 self-start py-6 max-h-[calc(100vh-8rem)] overflow-y-auto scrollbar-none">
+              <CategoryChips
+                variant="sidebar"
+                currentLanguage={currentLanguage}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                categoryCounts={categoryCounts}
+              />
+            </aside>
+            <div className="flex-1 min-w-0">
+            <div className="lg:hidden">
+              <CategoryChips
+                currentLanguage={currentLanguage}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                categoryCounts={categoryCounts}
+              />
+            </div>
 
             {/* Выбрана категория — показываем ровно те публикации, что учтены в счётчике чипа */}
             {selectedCategory !== 'all' && (
@@ -318,8 +332,8 @@ export default function App() {
               />
             )}
 
-            {/* Urgent & Important Alerts Section */}
-            {selectedCategory === 'all' && (
+            {/* Urgent & Important Alerts Section — только если есть предупреждения */}
+            {selectedCategory === 'all' && alertsList.length > 0 && (
             <AlertsGrid
               currentLanguage={currentLanguage}
               alerts={alertsList}
@@ -358,6 +372,12 @@ export default function App() {
               </div>
             </section>
             )}
+
+            {selectedCategory === 'all' && (
+              <TheatreSchedule lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
+            )}
+            </div>
+            </div>
 
             {/* Browse by City / Regional Portals Mosaic */}
             <CityMosaic

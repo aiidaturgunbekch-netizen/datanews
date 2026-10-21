@@ -307,7 +307,6 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         {field(tr('fTime'), <input className={inputCls} value={timeRange} onChange={(e) => setTimeRange(e.target.value)} placeholder="19:00 • 12+" />)}
         {field(tr('fVenue'), <input className={inputCls} value={venue} onChange={(e) => setVenue(e.target.value)} />)}
       </div>
-      {field(tr('fOrganizer'), <input className={inputCls} value={organizer} onChange={(e) => setOrganizer(e.target.value)} />)}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {field(tr('fTickets'), <input className={inputCls} value={ticketUrl} onChange={(e) => setTicketUrl(e.target.value)} placeholder="https://" />, tr('fTicketsHint'))}
         {field(tr('fOrganizerUrl'), <input className={inputCls} value={organizerUrl} onChange={(e) => setOrganizerUrl(e.target.value)} placeholder="https://" />)}
@@ -343,6 +342,10 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         )}
       </div>
       {field(tr('fTitleRu'), <input className={inputCls} value={titleRu} onChange={(e) => setTitleRu(e.target.value)} maxLength={200} required />)}
+      {field(
+        tr('fOrganizer'),
+        <input className={inputCls} value={organizer} onChange={(e) => setOrganizer(e.target.value)} placeholder={tr('fOrganizerPh')} maxLength={160} required={!isAdmin} />
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {field(tr('fStart'), <input type="datetime-local" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} required />)}
         {field(tr('fEndOpt'), <input type="datetime-local" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />, tr('fEndHint'))}

@@ -97,3 +97,20 @@ body {
 .leaflet-container path.leaflet-interactive:focus {
   outline: none;
 }
+/* Подписи городов — центров областей */
+.leaflet-tooltip.dn-town-label {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0;
+  text-shadow: 0 1px 2px rgba(15, 27, 51, 0.85);
+}
+.leaflet-tooltip.dn-town-label::before {
+  display: none;
+}
+.leaflet-container {
+  background: #e8eef7;
+}

@@ -92,13 +92,11 @@ const KyrgyzstanLiveMap: React.FC<{ lang: Language; counts: (id: CityId) => numb
 
   useEffect(() => {
     if (!box.current || !shapes || mapRef.current) return;
-    const map = L.map(box.current, { scrollWheelZoom: false, zoomSnap: 0.25, minZoom: 5, maxZoom: 15 });
+    const map = L.map(box.current, { scrollWheelZoom: false, zoomSnap: 0.25, minZoom: 5, maxZoom: 9 });
     map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
     mapRef.current = map;
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · границы &copy; <a href="https://www.geoboundaries.org" target="_blank" rel="noopener">geoBoundaries</a> (ODbL)',
-    }).addTo(map);
+    // Только Кыргызстан, без мировой подложки: области, районы и города на собственном фоне
+    map.attributionControl.addAttribution('границы &copy; <a href="https://www.geoboundaries.org" target="_blank" rel="noopener">geoBoundaries</a> (ODbL)');
     map.on('click', () => map.scrollWheelZoom.enable());
     map.on('mouseout', () => map.scrollWheelZoom.disable());
 
@@ -113,18 +111,37 @@ const KyrgyzstanLiveMap: React.FC<{ lang: Language; counts: (id: CityId) => numb
         [[-89, -179], [-89, 179], [89, 179], [89, -179]],
         ...outerRings,
       ],
-      { stroke: false, fillColor: '#eef2f9', fillOpacity: 1, interactive: false }
+      { stroke: false, fillColor: '#e8eef7', fillOpacity: 1, interactive: false }
     ).addTo(map);
+
+    // «Дыры» внутри областей: озеро Иссык-Куль — вода; территории Бишкека и Оша — цветом области
+    shapes.forEach((s) => {
+      const polys = s.outline.type === 'MultiPolygon' ? s.outline.coordinates : s.outline.type === 'Polygon' ? [s.outline.coordinates] : [];
+      polys.forEach((poly) =>
+        poly.slice(1).forEach((ring) => {
+          // анклавы соседних стран (Сох, Ворух в Баткенской обл.) не закрашиваем
+          if (!['issykkul', 'chui', 'osh_region'].includes(s.id)) return;
+          const lake = s.id === 'issykkul';
+          const hole = L.polygon(
+            ring.map(([lon, lat]) => [lat, lon] as [number, number]),
+            lake
+              ? { stroke: false, fillColor: '#7cb7e8', fillOpacity: 1, interactive: false }
+              : { stroke: false, fillColor: REGION_COLORS[s.id], fillOpacity: 0.6, interactive: false }
+          ).addTo(map);
+          if (lake && !poly.slice(1).indexOf(ring)) hole.bindTooltip(lang === 'en' ? 'Lake Issyk-Kul' : lang === 'kg' ? 'Ысык-Көл' : 'оз. Иссык-Куль', { permanent: true, direction: 'center', className: 'dn-town-label' });
+        })
+      );
+    });
 
     const districts = L.layerGroup().addTo(map);
     const regions: Record<string, L.GeoJSON> = {};
     const all = L.featureGroup();
     shapes.forEach((s) => {
       const layer = L.geoJSON({ type: 'Feature', properties: {}, geometry: s.outline } as Feature, {
-        style: { color: REGION_COLORS[s.id], weight: 2.5, fillColor: REGION_COLORS[s.id], fillOpacity: 0.28 },
+        style: { color: REGION_COLORS[s.id], weight: 2.5, fillColor: REGION_COLORS[s.id], fillOpacity: 0.6 },
       });
-      layer.on('mouseover', () => layer.setStyle({ fillOpacity: 0.45 }));
-      layer.on('mouseout', () => layer.setStyle({ fillOpacity: 0.28 }));
+      layer.on('mouseover', () => layer.setStyle({ fillOpacity: 0.8 }));
+      layer.on('mouseout', () => layer.setStyle({ fillOpacity: 0.6 }));
       layer.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
         setSelected(s.id);
@@ -155,7 +172,7 @@ const KyrgyzstanLiveMap: React.FC<{ lang: Language; counts: (id: CityId) => numb
     WEATHER_POINTS.filter((p) => p.kind === 'city' && p.id !== 'bishkek' && p.id !== 'osh').forEach((p) =>
       L.circleMarker([p.lat, p.lon], { radius: 4.5, color: '#ffffff', weight: 1.5, fillColor: '#0f1b33', fillOpacity: 0.9 })
         .addTo(map)
-        .bindTooltip(p.name[lang], { direction: 'top', offset: [0, -4] })
+        .bindTooltip(p.name[lang], { permanent: true, direction: 'top', offset: [0, -4], className: 'dn-town-label' })
     );
 
     const ro = new ResizeObserver(() => map.invalidateSize());
@@ -186,7 +203,7 @@ const KyrgyzstanLiveMap: React.FC<{ lang: Language; counts: (id: CityId) => numb
     if (!map || !l || !shapes) return;
     l.districts.clearLayers();
     Object.entries(l.regions).forEach(([id, layer]) =>
-      layer.setStyle({ fillOpacity: selected && id !== selected ? 0.12 : 0.28, weight: id === selected ? 3.5 : 2.5 })
+      layer.setStyle({ fillOpacity: selected && id !== selected ? 0.25 : 0.6, weight: id === selected ? 3.5 : 2.5 })
     );
     if (!selected) {
       const all = L.featureGroup(Object.values(l.regions));
@@ -196,7 +213,7 @@ const KyrgyzstanLiveMap: React.FC<{ lang: Language; counts: (id: CityId) => numb
     const s = shapes.find((x) => x.id === selected);
     if (!s) return;
     L.geoJSON(s.districts, {
-      style: { color: '#0f1b33', weight: 1, dashArray: '4 3', fillOpacity: 0 },
+      style: { color: '#ffffff', weight: 1.2, dashArray: '4 3', fillOpacity: 0 },
       onEachFeature: (f, layer) => {
         const p = f.properties as DistrictProps;
         layer.bindTooltip(p[lang] || p.ru, { sticky: true });

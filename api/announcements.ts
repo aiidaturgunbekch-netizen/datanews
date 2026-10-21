@@ -111,6 +111,8 @@ export default handler(async (req) => {
     if (mineAll.some((a) => a.title.ru.trim().toLowerCase() === item.title.ru.trim().toLowerCase() && a.startDate === item.startDate && a.moderationStatus !== 'rejected')) {
       throw new HttpError('duplicate', 409, 'Такая публикация уже отправлена');
     }
+    // Кто размещает — организация или частное лицо (обязательно)
+    if (!item.eventDetails?.organizer?.trim()) throw new HttpError('missing_field', 400, 'Укажите организацию или частное лицо');
     const { release, usage } = await reservePost(user, item.category);
 
     item.submittedBy = { userId: user.id, name: user.name, email: user.email, phone: user.phone, organization: user.organization };

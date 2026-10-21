@@ -93,3 +93,7 @@ body {
 .leaflet-tooltip.dn-city-label::before {
   display: none;
 }
+/* Без прямоугольной рамки фокуса вокруг областей карты после клика мышью */
+.leaflet-container path.leaflet-interactive:focus {
+  outline: none;
+}

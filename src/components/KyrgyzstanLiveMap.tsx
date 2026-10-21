@@ -102,6 +102,20 @@ const KyrgyzstanLiveMap: React.FC<{ lang: Language; counts: (id: CityId) => numb
     map.on('click', () => map.scrollWheelZoom.enable());
     map.on('mouseout', () => map.scrollWheelZoom.disable());
 
+    // Всё, что за границей Кыргызстана, закрыто маской — соседние страны не видны
+    const outerRings: L.LatLngExpression[][] = [];
+    shapes.forEach((s) => {
+      const polys = s.outline.type === 'MultiPolygon' ? s.outline.coordinates : s.outline.type === 'Polygon' ? [s.outline.coordinates] : [];
+      polys.forEach((poly) => outerRings.push(poly[0].map(([lon, lat]) => [lat, lon] as [number, number])));
+    });
+    L.polygon(
+      [
+        [[-89, -179], [-89, 179], [89, 179], [89, -179]],
+        ...outerRings,
+      ],
+      { stroke: false, fillColor: '#eef2f9', fillOpacity: 1, interactive: false }
+    ).addTo(map);
+
     const districts = L.layerGroup().addTo(map);
     const regions: Record<string, L.GeoJSON> = {};
     const all = L.featureGroup();
@@ -120,7 +134,12 @@ const KyrgyzstanLiveMap: React.FC<{ lang: Language; counts: (id: CityId) => numb
       regions[s.id] = layer;
     });
     layersRef.current = { regions, districts };
-    map.fitBounds(all.getBounds(), { padding: [10, 10] });
+    // Карта только Кыргызстана: дальше границ страны не уводит и не отдаляется
+    const kg = all.getBounds();
+    map.fitBounds(kg, { padding: [10, 10] });
+    map.setMinZoom(map.getZoom());
+    map.setMaxBounds(kg.pad(0.08));
+    map.options.maxBoundsViscosity = 1;
 
     // Города: Бишкек и Ош — отдельные города, остальные — центры областей и крупные города
     const big: { id: CityId; lat: number; lon: number }[] = [

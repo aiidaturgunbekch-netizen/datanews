@@ -104,10 +104,10 @@ const PRIVACY: Record<Language, React.ReactNode> = {
           'Жалобы: причина, комментарий и контакт, если вы его указали.',
         ]}
       />
-      <H>ИИ-ассистент</H>
+      <H>Чат-бот DataNews</H>
       <P>
-        Если ассистент подключён, текст вашего вопроса и найденные публикации сайта отправляются в Anthropic (Claude) для подготовки ответа. Ваш IP,
-        e-mail и другие сведения о вас не передаются. Не вводите в чат личные данные.
+        Бот работает на сервере сайта без внешних ИИ-сервисов: вопрос никуда не передаётся и не сохраняется. История переписки хранится только
+        в вашем браузере до закрытия вкладки. Не вводите в чат личные данные.
       </P>
       <H>Хранение и удаление</H>
       <P>Данные хранятся в базе Upstash Redis (через Vercel). Чтобы удалить свой аккаунт и данные, напишите редакции.</P>
@@ -123,10 +123,10 @@ const PRIVACY: Record<Language, React.ReactNode> = {
           'Даттануулар: себеби, комментарий жана көрсөткөн болсоңуз — байланышыңыз.',
         ]}
       />
-      <H>ЖИ-жардамчы</H>
+      <H>DataNews чат-боту</H>
       <P>
-        Жардамчы туташтырылган болсо, сурооңуздун тексти жана сайттан табылган жарыялар жооп даярдоо үчүн Anthropic (Claude) кызматына жөнөтүлөт. IP,
-        e-mail жана сиз тууралуу башка маалымат берилбейт. Чатка жеке маалыматтарды жазбаңыз.
+        Бот сайттын серверинде тышкы ЖИ кызматтарысыз иштейт: суроо эч жакка жөнөтүлбөйт жана сакталбайт. Кат алышуу тарыхы өтмөк жабылганга
+        чейин сиздин браузериңизде гана сакталат. Чатка жеке маалыматтарды жазбаңыз.
       </P>
       <H>Сактоо жана өчүрүү</H>
       <P>Маалыматтар Upstash Redis базасында (Vercel аркылуу) сакталат. Аккаунтуңузду жана маалыматтарыңызды өчүрүү үчүн редакцияга жазыңыз.</P>
@@ -142,10 +142,10 @@ const PRIVACY: Record<Language, React.ReactNode> = {
           'Reports: reason, comment and contact if you provided one.',
         ]}
       />
-      <H>AI assistant</H>
+      <H>DataNews chat bot</H>
       <P>
-        When the assistant is connected, the text of your question and matching site posts are sent to Anthropic (Claude) to prepare an answer. Your IP,
-        e-mail and other personal details are not sent. Do not type personal data into the chat.
+        The bot runs on the site's own server without external AI services: your question is not sent anywhere and is not stored. The chat history
+        stays only in your browser until you close the tab. Do not type personal data into the chat.
       </P>
       <H>Storage and deletion</H>
       <P>Data is stored in Upstash Redis (via Vercel). To delete your account and data, message the editors.</P>

@@ -525,7 +525,29 @@ export default function App() {
       <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} onOpenAccount={() => setAccountMode('cabinet')} />
 
       {/* Ассистент DataNews AI — на всех страницах */}
-      <ChatWidget lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
+      <ChatWidget
+        lang={currentLanguage}
+        announcements={announcements}
+        onOpen={setActiveNoticeDetail}
+        onNavigate={(nav) => {
+          // Переходы из ответов бота: раздел, категория, регион или форма размещения
+          if (nav.publish) {
+            if (role === 'admin') setIsAdminOpen(true);
+            else setAccountMode('publish');
+            return;
+          }
+          if (nav.view) setCurrentView(nav.view);
+          if (nav.category || nav.city) {
+            setCurrentView('home');
+            if (nav.category) setSelectedCategory(nav.category);
+            if (nav.city) {
+              setSelectedCategory('all');
+              setSelectedCity(nav.city);
+            }
+            setTimeout(() => document.getElementById(nav.category ? 'category-results' : 'events-feed')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+          } else window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
 
       {/* Modals & Overlays */}
       {/* 1. Full Announcement Detail Modal (Image 5 reference) */}

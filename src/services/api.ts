@@ -1,4 +1,5 @@
 import type { OfficialForecast } from '../config/weather';
+import type { BotIntent, BotReply } from '../types/bot';
 import { Announcement, GovVerification, PaymentStatus, PlanId, PlanUsage, PublicUser, Report, SiteStats } from '../types';
 
 /**
@@ -191,19 +192,5 @@ export const compressImage = (file: File, maxSide = 1400, quality = 0.82): Promi
     img.src = url;
   });
 
-// ---------- ассистент ----------
-export interface AssistantItem {
-  id: string;
-  title: string;
-  category: string;
-  startDate: string;
-  sourceUrl?: string;
-}
-export interface AssistantReply {
-  mode: 'ai' | 'search';
-  answer?: string;
-  items: AssistantItem[];
-  notice?: string;
-}
-export const askAssistant = (question: string, lang: string, history: { role: 'user' | 'assistant'; text: string }[]) =>
-  post<AssistantReply>('assistant', { question, lang, history });
+// ---------- бот DataNews (без внешнего ИИ) ----------
+export const askBot = (input: { q?: string; intent?: BotIntent }, lang: string) => post<BotReply>('assistant', { ...input, lang });

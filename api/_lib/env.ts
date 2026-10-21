@@ -12,8 +12,6 @@ const read = () => {
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
       AUTH_SECRET: process.env.AUTH_SECRET,
       DATANEWS_MEMORY_KV: process.env.DATANEWS_MEMORY_KV,
-      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-      AI_DAILY_LIMIT: process.env.AI_DAILY_LIMIT,
     };
   } catch {
     return {} as Record<string, string | undefined>;
@@ -21,6 +19,6 @@ const read = () => {
 };
 
 export const env = (
-  name: 'KV_REST_API_URL' | 'KV_REST_API_TOKEN' | 'ADMIN_PASSWORD' | 'AUTH_SECRET' | 'DATANEWS_MEMORY_KV' | 'ANTHROPIC_API_KEY' | 'AI_DAILY_LIMIT'
+  name: 'KV_REST_API_URL' | 'KV_REST_API_TOKEN' | 'ADMIN_PASSWORD' | 'AUTH_SECRET' | 'DATANEWS_MEMORY_KV'
 ) =>
   read()[name] || undefined;

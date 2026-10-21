@@ -70,7 +70,7 @@ const EmergencyBox: React.FC<{ lang: Language }> = ({ lang }) => (
 );
 
 /** Контакт Кыргызгидромета — одна строка */
-const HydrometLine: React.FC<{ lang: Language }> = ({ lang }) => (
+export const HydrometLine: React.FC<{ lang: Language }> = ({ lang }) => (
   <p className="text-xs text-gray-600 flex flex-wrap items-center gap-x-2 gap-y-1">
     <span className="material-symbols-outlined text-[16px] text-[#12327A]" aria-hidden="true">
       partly_cloudy_day
@@ -205,7 +205,6 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
             </div>
           )}
 
-          <HydrometLine lang={lang} />
         </div>
         <EmergencyBox lang={lang} />
       </div>

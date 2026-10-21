@@ -49,15 +49,15 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
   ];
 
   // Быстрые переходы
-  const quickLinks: { key: string; icon: string; label: Record<'ru' | 'kg' | 'en', string> }[] = [
-    { key: 'today', icon: 'today', label: { ru: 'Сегодня', kg: 'Бүгүн', en: 'Today' } },
-    { key: 'tomorrow', icon: 'event', label: { ru: 'Завтра', kg: 'Эртең', en: 'Tomorrow' } },
-    { key: 'week', icon: 'date_range', label: { ru: 'На этой неделе', kg: 'Ушул жумада', en: 'This week' } },
-    { key: 'alerts', icon: 'warning', label: { ru: 'Предупреждения', kg: 'Эскертүүлөр', en: 'Alerts' } },
-    { key: 'weather', icon: 'partly_cloudy_day', label: { ru: 'Погода', kg: 'Аба ырайы', en: 'Weather' } },
-    { key: 'state', icon: 'account_balance', label: { ru: 'Государственные решения', kg: 'Мамлекеттик чечимдер', en: 'State decisions' } },
-    { key: 'laws', icon: 'gavel', label: { ru: 'Законы', kg: 'Мыйзамдар', en: 'Laws' } },
-    { key: 'shows', icon: 'theater_comedy', label: { ru: 'Кино и концерты', kg: 'Кино жана концерттер', en: 'Cinema & concerts' } },
+  const quickLinks: { key: string; icon: string; color: string; label: Record<'ru' | 'kg' | 'en', string> }[] = [
+    { key: 'today', icon: 'today', color: 'bg-emerald-50 text-emerald-800 border-emerald-200 [&>span]:text-emerald-600', label: { ru: 'Сегодня', kg: 'Бүгүн', en: 'Today' } },
+    { key: 'tomorrow', icon: 'event_upcoming', color: 'bg-sky-50 text-sky-800 border-sky-200 [&>span]:text-sky-600', label: { ru: 'Завтра', kg: 'Эртең', en: 'Tomorrow' } },
+    { key: 'week', icon: 'date_range', color: 'bg-indigo-50 text-indigo-800 border-indigo-200 [&>span]:text-indigo-600', label: { ru: 'На этой неделе', kg: 'Ушул жумада', en: 'This week' } },
+    { key: 'alerts', icon: 'warning', color: 'bg-red-50 text-red-800 border-red-200 [&>span]:text-red-600', label: { ru: 'Предупреждения', kg: 'Эскертүүлөр', en: 'Alerts' } },
+    { key: 'weather', icon: 'partly_cloudy_day', color: 'bg-amber-50 text-amber-900 border-amber-200 [&>span]:text-amber-500', label: { ru: 'Погода', kg: 'Аба ырайы', en: 'Weather' } },
+    { key: 'state', icon: 'account_balance', color: 'bg-blue-50 text-[#12327A] border-blue-200 [&>span]:text-[#12327A]', label: { ru: 'Государственные решения', kg: 'Мамлекеттик чечимдер', en: 'State decisions' } },
+    { key: 'laws', icon: 'gavel', color: 'bg-slate-100 text-slate-800 border-slate-300 [&>span]:text-slate-600', label: { ru: 'Законы', kg: 'Мыйзамдар', en: 'Laws' } },
+    { key: 'shows', icon: 'theater_comedy', color: 'bg-fuchsia-50 text-fuchsia-800 border-fuchsia-200 [&>span]:text-fuchsia-600', label: { ru: 'Кино и концерты', kg: 'Кино жана концерттер', en: 'Cinema & concerts' } },
   ];
 
   return (
@@ -232,9 +232,9 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
                 key={q.key}
                 type="button"
                 onClick={() => onTagClick(q.key)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#f3f6fc] text-[#0f1b33] text-xs font-semibold hover:bg-[#12327A] hover:text-white transition-colors"
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-semibold hover:brightness-95 hover:shadow-sm transition ${q.color}`}
               >
-                <span className="material-symbols-outlined text-[14px]">{q.icon}</span>
+                <span className="material-symbols-outlined text-[16px]">{q.icon}</span>
                 {q.label[currentLanguage]}
               </button>
             ))}

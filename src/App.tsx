@@ -35,7 +35,7 @@ import { AdminPortal } from './components/AdminPortal';
 import { SearchModal } from './components/SearchModal';
 import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
-import { WeatherSafety } from './components/WeatherSafety';
+import { HydrometLine, WeatherSafety } from './components/WeatherSafety';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { InfoPage, InfoView } from './components/InfoPages';
@@ -229,12 +229,14 @@ export default function App() {
     if (key === 'today' || key === 'tomorrow' || key === 'week') {
       setDateFilter(key);
       setSelectedCategory('all');
-      scrollTo('alerts-feed');
+      scrollTo(alertsList.length ? 'alerts-feed' : 'weather-safety');
     } else if (key === 'alerts') {
       setSelectedCategory('all');
-      scrollTo('alerts-feed');
+      scrollTo(alertsList.length ? 'alerts-feed' : 'weather-safety');
     } else if (key === 'weather') {
-      scrollTo('weather-safety');
+      // Раздел «Погода и опасные явления»: предупреждения и контакт Кыргызгидромета
+      setSelectedCategory('hazard');
+      scrollTo('category-results');
     } else if (key === 'state' || key === 'laws') {
       setSelectedCategory(key);
       scrollTo('category-results');
@@ -319,6 +321,7 @@ export default function App() {
                 items={filteredAnnouncements}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}
+                extra={selectedCategory === 'hazard' ? <HydrometLine lang={currentLanguage} /> : undefined}
               />
             )}
 
@@ -432,6 +435,7 @@ export default function App() {
                 items={filteredAnnouncements}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}
+                extra={selectedCategory === 'hazard' ? <HydrometLine lang={currentLanguage} /> : undefined}
               />
             ) : (
               <AlertsGrid

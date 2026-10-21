@@ -249,7 +249,9 @@ export const CategoryResults: React.FC<{
   items: Announcement[];
   onOpen: (a: Announcement) => void;
   onReset: () => void;
-}> = ({ lang, category, items, onOpen, onReset }) => {
+  /** Дополнительный блок под заголовком (например, контакт Кыргызгидромета в разделе погоды) */
+  extra?: React.ReactNode;
+}> = ({ lang, category, items, onOpen, onReset, extra }) => {
   const { t } = getTranslation(lang);
   const sorted = [...items].sort(byStart);
   const empty = {
@@ -257,18 +259,25 @@ export const CategoryResults: React.FC<{
     kg: 'Бул категорияда азырынча жарыяланган окуялар жок',
     en: 'No published events in this category yet',
   };
-  const all = { ru: 'Показать все категории', kg: 'Бардык категорияларды көрсөтүү', en: 'Show all categories' };
+  const home = { ru: 'Главная', kg: 'Башкы бет', en: 'Home' };
+  const goHome = () => {
+    onReset();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   return (
-    <section id="category-results" className="w-full py-8 bg-white border-b border-gray-100">
+    <section id="category-results" className="w-full py-8 bg-white border-b border-gray-100 scroll-mt-24">
       <div className="max-w-[1280px] mx-auto px-4 md:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-          <h2 className="text-xl sm:text-2xl font-extrabold text-[#0f1b33]">
-            {t(`categories.${category}`)} <span className="text-gray-400 font-bold">· {items.length}</span>
-          </h2>
-          <button onClick={onReset} className="text-sm font-bold text-[#12327A] hover:underline">
-            {all[lang]}
-          </button>
-        </div>
+        <button
+          onClick={goHome}
+          className="inline-flex items-center gap-1 mb-3 px-3 py-1.5 rounded-xl bg-[#f0f4fc] text-[#12327A] text-sm font-bold hover:bg-[#12327A] hover:text-white transition-colors"
+        >
+          <span className="material-symbols-outlined text-[18px]">home</span>
+          {home[lang]}
+        </button>
+        <h2 className="text-xl sm:text-2xl font-extrabold text-[#0f1b33] mb-3">
+          {t(`categories.${category}`)} <span className="text-gray-400 font-bold">· {items.length}</span>
+        </h2>
+        {extra && <div className="mb-4">{extra}</div>}
         {sorted.length === 0 ? (
           <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{empty[lang]}</div>
         ) : (

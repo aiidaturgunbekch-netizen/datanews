@@ -35,7 +35,7 @@ import { AdminPortal } from './components/AdminPortal';
 import { SearchModal } from './components/SearchModal';
 import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
-import { HydrometLine, WeatherSafety } from './components/WeatherSafety';
+import { EmergencyBox, HydrometLine, WeatherSafety } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
 import { isFresh } from './utils/statusUtils';
 import { TheatreSchedule } from './components/TheatreSchedule';
@@ -232,10 +232,10 @@ export default function App() {
     if (key === 'today' || key === 'tomorrow' || key === 'week') {
       setDateFilter(key);
       setSelectedCategory('all');
-      scrollTo(alertsList.length ? 'alerts-feed' : 'weather-safety');
+      scrollTo(alertsList.length ? 'alerts-feed' : 'events-feed');
     } else if (key === 'alerts') {
       setSelectedCategory('all');
-      scrollTo(alertsList.length ? 'alerts-feed' : 'weather-safety');
+      scrollTo(alertsList.length ? 'alerts-feed' : 'events-feed');
     } else if (key === 'weather') {
       // Раздел «Погода и опасные явления»: предупреждения и контакт Кыргызгидромета
       setSelectedCategory('hazard');
@@ -357,7 +357,7 @@ export default function App() {
 
             {/* Upcoming Events Feed & Interactive Calendar Mosaic */}
             {selectedCategory === 'all' && (
-            <section className="w-full py-10 sm:py-14 bg-[#eef2f9] border-t border-gray-200">
+            <section id="events-feed" className="w-full py-10 sm:py-14 bg-[#eef2f9] border-t border-gray-200 scroll-mt-24">
               <div className="max-w-[1280px] mx-auto px-4 md:px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                   {/* Left 8 Cols: Date-First Events Feed */}
@@ -401,6 +401,15 @@ export default function App() {
               }}
               onOpenAllCities={() => setCurrentView('cities')}
             />
+
+            {/* Экстренные службы — внизу, чтобы не отвлекать от свежих новостей */}
+            <section className="w-full py-6 bg-white border-t border-gray-100">
+              <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+                <div className="md:max-w-md">
+                  <EmergencyBox lang={currentLanguage} />
+                </div>
+              </div>
+            </section>
 
             {/* For Municipalities & Organizations Section */}
             <ForOrganizationsSection

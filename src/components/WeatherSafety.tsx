@@ -48,7 +48,7 @@ const isoToLocal = (iso: string) => kgNowLocal(Date.parse(iso));
 const tel = (s: string) => `tel:${s.replace(/[^\d+]/g, '')}`;
 
 /** Экстренные службы — отдельный квадрат с номерами и названиями */
-const EmergencyBox: React.FC<{ lang: Language }> = ({ lang }) => (
+export const EmergencyBox: React.FC<{ lang: Language }> = ({ lang }) => (
   <div className="rounded-2xl bg-white border border-gray-100 p-4">
     <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2 flex items-center gap-1.5">
       <span className="material-symbols-outlined text-[18px] text-red-600" aria-hidden="true">
@@ -120,15 +120,17 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
   );
 
 
+  // На главной — только когда есть подтверждённые сведения; экстренные номера — внизу страницы
+  if (warnings.length === 0 && !forecast) return null;
+
   return (
     <section id="weather-safety" className="w-full border-b border-gray-100 py-6 bg-[#f6f8fd]">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 lg:gap-6 items-start">
+      <div className="max-w-[1280px] mx-auto px-4 md:px-6">
         <div className="space-y-4 min-w-0">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[#12327A] text-[22px]">partly_cloudy_day</span>
             <h2 className="text-lg sm:text-xl font-bold text-[#0f1b33]">{T.title[lang]}</h2>
           </div>
-          {warnings.length === 0 && !forecast && <p className="text-sm text-gray-600">{T.noInfo[lang]}</p>}
 
           {warnings.length > 0 && (
             <div>
@@ -206,7 +208,6 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
           )}
 
         </div>
-        <EmergencyBox lang={lang} />
       </div>
     </section>
   );

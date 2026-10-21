@@ -43,9 +43,9 @@ export const normalizeCity = (c: string | undefined): CityId => (c === 'karakol'
 /** Регионы для статистики: 2 города республиканского значения и 7 областей (без «Весь Кыргызстан») */
 export const REGIONS: { id: string; name: LocalizedString; cities: CityId[] }[] = [
   { id: 'bishkek', name: { ru: 'г. Бишкек', kg: 'Бишкек ш.', en: 'Bishkek City' }, cities: ['bishkek'] },
-  { id: 'osh', name: { ru: 'г. Ош', kg: 'Ош ш.', en: 'Osh City' }, cities: ['osh'] },
   { id: 'chui', name: { ru: 'Чуйская область', kg: 'Чүй облусу', en: 'Chui Region' }, cities: ['chui'] },
-  { id: 'osh_region', name: { ru: 'Ошская область', kg: 'Ош облусу', en: 'Osh Region' }, cities: ['osh_region'] },
+  // Регионы в сводках: 7 областей и Бишкек; г. Ош учитывается вместе с Ошской областью
+  { id: 'osh_region', name: { ru: 'Ошская область и г. Ош', kg: 'Ош облусу жана Ош ш.', en: 'Osh Region & Osh City' }, cities: ['osh_region', 'osh'] },
   { id: 'issykkul', name: { ru: 'Иссык-Кульская область', kg: 'Ысык-Көл облусу', en: 'Issyk-Kul Region' }, cities: ['issykkul', 'karakol'] },
   { id: 'jalalabad', name: { ru: 'Джалал-Абадская область', kg: 'Жалал-Абад облусу', en: 'Jalal-Abad Region' }, cities: ['jalalabad'] },
   { id: 'talas', name: { ru: 'Таласская область', kg: 'Талас облусу', en: 'Talas Region' }, cities: ['talas'] },

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Announcement, Language, CityId } from '../types';
 import { getTranslation } from '../locales/translations';
+import { isFresh } from '../utils/statusUtils';
+import { KyrgyzstanMap } from './KyrgyzstanMap';
 
 interface CityMosaicProps {
   announcements: Announcement[];
@@ -30,7 +32,8 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
 
   // Реальное число предупреждений и событий по городу (без завершённых и отменённых)
   const counts = (city: CityId) => {
-    const list = announcements.filter((x) => x.city === city && x.status !== 'completed' && x.status !== 'cancelled' && x.status !== 'archived');
+    // только актуальное — как в ленте на главной
+    const list = announcements.filter((x) => x.city === city && isFresh(x));
     const isAlert = (x: Announcement) => x.urgency === 'emergency' || x.urgency === 'planned';
     return { alerts: list.filter(isAlert).length, events: list.filter((x) => !isAlert(x)).length };
   };
@@ -38,17 +41,10 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
   const cityCards = [
     {
       id: 'bishkek' as CityId,
-      colSpan: 'lg:col-span-2',
+      colSpan: 'lg:col-span-1',
       name: currentLanguage === 'kg' ? 'Бишкек шаары' : currentLanguage === 'en' ? 'Bishkek City' : 'г. Бишкек',
       subtitle: currentLanguage === 'kg' ? 'Борбор калаа, 4 район: Ленин, Биринчи Май, Свердлов, Октябрь' : currentLanguage === 'en' ? 'Capital municipality, 4 districts' : 'Столичный муниципалитет, 4 района: Ленинский, Первомайский, Свердловский, Октябрьский',
       bgGradient: 'from-[#0d2459] to-[#1e3a8a]',
-    },
-    {
-      id: 'osh' as CityId,
-      colSpan: 'lg:col-span-1',
-      name: currentLanguage === 'kg' ? 'Ош шаары' : currentLanguage === 'en' ? 'Osh City' : 'г. Ош',
-      subtitle: currentLanguage === 'kg' ? 'Түштүк борбор • Сулайман-Тоо' : currentLanguage === 'en' ? 'Southern Capital • Sulaiman-Too' : 'Южная столица • Сулайман-Тоо',
-      bgGradient: 'from-[#07173d] to-[#1e293b]',
     },
     {
       id: 'chui' as CityId,
@@ -135,14 +131,14 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
         </div>
 
         {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {cityCards.map((card) => (
             <div
               key={card.id}
               onClick={() => onSelectCity(card.id)}
-              className={`${card.colSpan} relative rounded-2xl overflow-hidden min-h-[190px] shadow-sm hover:shadow-md transition-all duration-300 group cursor-pointer border border-gray-100 bg-gradient-to-br ${card.bgGradient}`}
+              className={`${card.colSpan} relative rounded-2xl overflow-hidden min-h-[150px] sm:min-h-[190px] shadow-sm hover:shadow-md transition-all duration-300 group cursor-pointer border border-gray-100 bg-gradient-to-br ${card.bgGradient}`}
             >
-              <div className="relative z-10 p-5 h-full flex flex-col justify-end text-white">
+              <div className="relative z-10 p-3 sm:p-5 h-full flex flex-col justify-end text-white">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   {counts(card.id).alerts > 0 && (
                     <span className="px-2 py-0.5 rounded-md bg-[#dc2626] text-[10px] font-bold uppercase tracking-wider">
@@ -156,7 +152,7 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
                   )}
                 </div>
 
-                <h3 className="text-lg sm:text-xl font-extrabold tracking-tight mb-0.5 text-white">
+                <h3 className="text-base sm:text-xl font-extrabold tracking-tight mb-0.5 text-white leading-tight">
                   {card.name}
                 </h3>
                 <p className="text-xs text-[#dbe1ff] mb-3 line-clamp-1">
@@ -179,6 +175,15 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
             </div>
           ))}
         </div>
+
+        <KyrgyzstanMap
+          lang={currentLanguage}
+          counts={(id) => {
+            const c = counts(id);
+            return c.alerts + c.events;
+          }}
+          onSelect={onSelectCity}
+        />
       </div>
     </section>
   );

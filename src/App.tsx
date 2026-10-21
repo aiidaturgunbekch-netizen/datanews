@@ -36,6 +36,8 @@ import { SearchModal } from './components/SearchModal';
 import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
 import { HydrometLine, WeatherSafety } from './components/WeatherSafety';
+import { TheatreVenues } from './components/TheatreVenues';
+import { isFresh } from './utils/statusUtils';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { InfoPage, InfoView } from './components/InfoPages';
@@ -189,7 +191,8 @@ export default function App() {
 
   // Счётчики категорий — по тем же правилам, что и список (кроме самой категории)
   const categoryCounts = useMemo(() => {
-    const base = announcements.filter((a) => matchesScope(a, true));
+    // Счётчики — только актуальное; прошедшее лежит в архиве раздела
+    const base = announcements.filter((a) => matchesScope(a, true) && isFresh(a));
     const counts = { all: base.length } as Record<CategoryId, number>;
     CATEGORY_IDS.forEach((c) => (counts[c] = base.filter((a) => a.category === c).length));
     return counts;
@@ -321,7 +324,13 @@ export default function App() {
                 items={filteredAnnouncements}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}
-                extra={selectedCategory === 'hazard' ? <HydrometLine lang={currentLanguage} /> : undefined}
+                extra={
+                  selectedCategory === 'hazard' ? (
+                    <HydrometLine lang={currentLanguage} />
+                  ) : selectedCategory === 'culture' || selectedCategory === 'concerts' ? (
+                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
+                  ) : undefined
+                }
               />
             )}
 
@@ -435,7 +444,13 @@ export default function App() {
                 items={filteredAnnouncements}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}
-                extra={selectedCategory === 'hazard' ? <HydrometLine lang={currentLanguage} /> : undefined}
+                extra={
+                  selectedCategory === 'hazard' ? (
+                    <HydrometLine lang={currentLanguage} />
+                  ) : selectedCategory === 'culture' || selectedCategory === 'concerts' ? (
+                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
+                  ) : undefined
+                }
               />
             ) : (
               <AlertsGrid

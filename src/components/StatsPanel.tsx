@@ -7,6 +7,7 @@ import { UrgencyBadge } from './UrgencyBadge';
 import { formatWhen, MONTHS } from '../utils/dates';
 import { alertLevel, isListed } from '../utils/urgency';
 import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
+import { freshOrder, isFresh } from '../utils/statusUtils';
 
 export type StatsMode = 'all' | 'alerts' | 'regions';
 
@@ -253,7 +254,11 @@ export const CategoryResults: React.FC<{
   extra?: React.ReactNode;
 }> = ({ lang, category, items, onOpen, onReset, extra }) => {
   const { t } = getTranslation(lang);
-  const sorted = [...items].sort(byStart);
+  // Прошедшее — в архив (свёрнут), сверху только актуальное
+  const sorted = items.filter((a) => isFresh(a)).sort((a, b) => freshOrder(a, b));
+  const archived = items.filter((a) => !isFresh(a)).sort((a, b) => byStart(b, a));
+  const [showArchive, setShowArchive] = useState(false);
+  const archiveLabel = { ru: 'Архив', kg: 'Архив', en: 'Archive' };
   const empty = {
     ru: 'Пока нет опубликованных событий в этой категории',
     kg: 'Бул категорияда азырынча жарыяланган окуялар жок',
@@ -275,7 +280,7 @@ export const CategoryResults: React.FC<{
           {home[lang]}
         </button>
         <h2 className="text-xl sm:text-2xl font-extrabold text-[#0f1b33] mb-3">
-          {t(`categories.${category}`)} <span className="text-gray-400 font-bold">· {items.length}</span>
+          {t(`categories.${category}`)} <span className="text-gray-400 font-bold">· {sorted.length}</span>
         </h2>
         {extra && <div className="mb-4">{extra}</div>}
         {sorted.length === 0 ? (
@@ -285,6 +290,26 @@ export const CategoryResults: React.FC<{
             {sorted.map((a) => (
               <ItemRow key={a.id} item={a} lang={lang} onOpen={onOpen} />
             ))}
+          </div>
+        )}
+        {archived.length > 0 && (
+          <div className="mt-5">
+            <button
+              onClick={() => setShowArchive((v) => !v)}
+              aria-expanded={showArchive}
+              className="inline-flex items-center gap-1 text-sm font-bold text-gray-600 hover:text-[#12327A]"
+            >
+              <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+              {archiveLabel[lang]} · {archived.length}
+              <span className="material-symbols-outlined text-[18px]">{showArchive ? 'expand_less' : 'expand_more'}</span>
+            </button>
+            {showArchive && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 opacity-80">
+                {archived.map((a) => (
+                  <ItemRow key={a.id} item={a} lang={lang} onOpen={onOpen} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

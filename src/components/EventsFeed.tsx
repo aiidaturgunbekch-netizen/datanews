@@ -111,16 +111,6 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
           <span>{currentLanguage === 'kg' ? 'Жаңы жана актуалдуу' : currentLanguage === 'en' ? 'Latest & current' : 'Свежие и актуальные'}</span>
         </button>
         <button
-          onClick={() => setStatusTab('all')}
-          className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-            statusTab === 'all'
-              ? 'bg-[#12327A] text-white shadow-2xs'
-              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-          }`}
-        >
-          {currentLanguage === 'kg' ? 'Бардыгы' : currentLanguage === 'en' ? 'All Events' : 'Все события'}
-        </button>
-        <button
           onClick={() => setStatusTab('completed')}
           className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
             statusTab === 'completed'

@@ -5,19 +5,19 @@ import React from 'react';
  * reset() возвращает блок к работе (например, после очистки сохранённой истории чата).
  */
 export class ErrorBoundary extends React.Component<
-  { fallback: (reset: () => void) => React.ReactNode; onError?: () => void; children: React.ReactNode },
-  { failed: boolean }
+  { fallback: (reset: () => void, error: string) => React.ReactNode; onError?: () => void; children: React.ReactNode },
+  { failed: boolean; error: string }
 > {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
+  state = { failed: false, error: '' };
+  static getDerivedStateFromError(e: unknown) {
+    return { failed: true, error: e instanceof Error ? e.message : String(e) };
   }
   componentDidCatch(error: unknown) {
     console.error(error);
     this.props.onError?.();
   }
-  reset = () => this.setState({ failed: false });
+  reset = () => this.setState({ failed: false, error: '' });
   render() {
-    return this.state.failed ? this.props.fallback(this.reset) : this.props.children;
+    return this.state.failed ? this.props.fallback(this.reset, this.state.error) : this.props.children;
   }
 }

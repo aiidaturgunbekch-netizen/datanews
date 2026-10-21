@@ -5,6 +5,7 @@ import { BOT_INTENTS } from '../types/bot';
 import { INTENT_LABEL } from '../config/bot';
 import * as api from '../services/api';
 import { answer } from '../lib/botEngine';
+import { ErrorBoundary } from './ErrorBoundary';
 import type { OfficialForecast } from '../config/weather';
 import { CONTACTS } from '../config/contacts';
 
@@ -48,6 +49,9 @@ interface Msg {
 
 /** История переписки хранится только в этом браузере и только до закрытия вкладки */
 const STORE = 'datanews_chat_v1';
+/** Любое значение — в текст (React не умеет показывать объекты) */
+const txt = (v: unknown) => (typeof v === 'string' ? v : v == null ? '' : typeof v === 'object' ? '' : String(v));
+
 /** Ответ бота в ожидаемом виде? (иначе не рисуем его, а показываем ошибку) */
 const isReply = (r: unknown): r is BotReply => {
   const x = r as BotReply;
@@ -151,9 +155,10 @@ export const ChatWidget: React.FC<{
       {open && (
         <div
           role="dialog"
+          translate="no"
           aria-modal="false"
           aria-label={T.title[lang]}
-          className="fixed z-[95] bottom-0 right-0 sm:bottom-4 sm:right-4 w-full sm:w-[410px] h-[88vh] sm:h-[620px] bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl border border-gray-200 flex flex-col"
+          className="notranslate fixed z-[95] bottom-0 right-0 sm:bottom-4 sm:right-4 w-full sm:w-[410px] h-[88vh] sm:h-[620px] bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl border border-gray-200 flex flex-col"
         >
           <div className="bg-[#0d2459] text-white px-4 py-3 rounded-t-2xl flex items-start justify-between gap-2">
             <div>
@@ -193,22 +198,30 @@ export const ChatWidget: React.FC<{
             {msgs.map((m, i) =>
               m.role === 'user' ? (
                 <div key={i} className="ml-auto max-w-[85%] w-fit px-3 py-2 rounded-2xl rounded-br-md bg-[#12327A] text-white">
-                  {m.text}
+                  {txt(m.text)}
                 </div>
               ) : (
-                <div key={i} className={`max-w-[95%] px-3 py-2 rounded-2xl rounded-bl-md ${m.error ? 'bg-red-50 text-red-800' : 'bg-[#f3f6fc] text-[#0f1b33]'}`}>
-                  <p className="whitespace-pre-line">{m.text}</p>
+                <ErrorBoundary
+                  key={i}
+                  fallback={(_r, err) => (
+                    <div className="max-w-[95%] px-3 py-2 rounded-2xl rounded-bl-md bg-red-50 text-red-800 text-xs">
+                      {T.error[lang]} {err && <span className="block text-[10px] opacity-70 break-all">{err.slice(0, 160)}</span>}
+                    </div>
+                  )}
+                >
+                <div className={`max-w-[95%] px-3 py-2 rounded-2xl rounded-bl-md ${m.error ? 'bg-red-50 text-red-800' : 'bg-[#f3f6fc] text-[#0f1b33]'}`}>
+                  <p className="whitespace-pre-line">{txt(m.text)}</p>
                   {m.reply && m.reply.items.length > 0 && (
                     <ul className="mt-2 space-y-1.5">
                       {m.reply.items.map((it) => {
                         const ann = announcements.find((a) => a.id === it.id);
                         return (
                           <li key={it.id} className="bg-white rounded-xl p-2 border border-gray-100">
-                            <div className="text-xs font-bold">{it.title}</div>
+                            <div className="text-xs font-bold">{txt(it.title)}</div>
                             <div className="text-[11px] text-gray-500">
-                              {it.when} • {it.place}
+                              {txt(it.when)} • {txt(it.place)}
                             </div>
-                            {it.note && <div className="text-[11px] font-semibold text-[#12327A]">{it.note}</div>}
+                            {it.note && <div className="text-[11px] font-semibold text-[#12327A]">{txt(it.note)}</div>}
                             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[11px] font-bold">
                               {ann ? (
                                 <button onClick={() => onOpen(ann)} className="text-[#12327A] hover:underline">
@@ -239,7 +252,7 @@ export const ChatWidget: React.FC<{
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {m.reply.links.map((l) => (
                         <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="px-2 py-1 rounded-lg bg-white border border-gray-200 text-[11px] font-bold text-[#12327A] hover:border-[#12327A]">
-                          {l.label} ↗
+                          {txt(l.label)} ↗
                         </a>
                       ))}
                     </div>
@@ -248,13 +261,14 @@ export const ChatWidget: React.FC<{
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {m.reply.actions.map((a, k) => (
                         <button key={k} onClick={() => runAction(a)} className={a.nav ? chipNav : chipLight}>
-                          {a.label}
+                          {txt(a.label)}
                           {a.nav ? ' →' : ''}
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
+                </ErrorBoundary>
               )
             )}
             {busy && <div className="text-xs text-gray-500">{T.thinking[lang]}</div>}

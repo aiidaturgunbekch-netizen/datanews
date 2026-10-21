@@ -542,12 +542,15 @@ export default function App() {
             /* нет доступа к хранилищу */
           }
         }}
-        fallback={(reset) => (
-          <button onClick={reset} className="fixed bottom-4 right-4 z-[90] inline-flex items-center gap-2 px-4 py-3 rounded-full bg-[#12327A] text-white font-bold shadow-xl">
+        fallback={(reset, error) => (
+          <button onClick={reset} title={error} className="fixed bottom-4 right-4 z-[90] inline-flex flex-col items-start px-4 py-3 rounded-2xl bg-[#12327A] text-white font-bold shadow-xl max-w-[90vw]">
+            <span className="inline-flex items-center gap-2">
             <span className="material-symbols-outlined" aria-hidden="true">
               refresh
             </span>
             {currentLanguage === 'kg' ? 'Чатты кайра ачуу' : currentLanguage === 'en' ? 'Reopen chat' : 'Открыть чат заново'}
+            </span>
+            {error && <span className="text-[10px] font-normal text-white/70 text-left break-all">{error.slice(0, 160)}</span>}
           </button>
         )}
       >

@@ -261,7 +261,7 @@ export interface Report {
 export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'rejected';
 
 /** Все тарифы — на 30 дней. Старые 'basic' / 'business' приводятся normalizePlan() */
-export type PlanId = 'start' | 'private' | 'organizer' | 'gov';
+export type PlanId = 'start' | 'private' | 'culture' | 'organizer' | 'gov';
 
 /** Оплаченный 30-дневный период (история платежей хранится полностью) */
 export interface PlanPeriod {

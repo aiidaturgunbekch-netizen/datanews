@@ -15,7 +15,7 @@
  * Публикация засчитывается в момент отправки (отклонённая модератором лимит не возвращает).
  * Правка уже отправленной публикации лимит не расходует.
  */
-import type { PlanPeriod, PlanUsage } from '../../src/types';
+import type { PlanId, PlanPeriod, PlanUsage } from '../../src/types';
 import { normalizePlan, PLANS } from '../../src/config/site';
 import { kgDateStr, addDaysStr } from '../../src/utils/time';
 import { cmd } from './kv';
@@ -133,7 +133,15 @@ export async function getUsage(user: StoredUser): Promise<PlanUsage> {
  * Резервирует одну публикацию. Возвращает функцию отката — вызвать её, если сохранить
  * публикацию не удалось (чтобы ошибка сервера не «съела» попытку).
  */
-export async function reservePost(user: StoredUser): Promise<{ release: () => Promise<void>; periodId: string; usage: PlanUsage }> {
+/** Тариф с ограничением разделов («Культура и театр») — публикации только в своём разделе */
+export const checkPlanCategory = (plan: PlanId, category?: string) => {
+  const allowed = PLANS[plan].categories;
+  if (allowed && (!category || !allowed.includes(category as never))) {
+    throw new HttpError('category_not_in_plan', 403, 'Этот тариф позволяет публиковать только в разделе «Театр и культура»');
+  }
+};
+
+export async function reservePost(user: StoredUser, category?: string): Promise<{ release: () => Promise<void>; periodId: string; usage: PlanUsage }> {
   const usage = await getUsage(user);
   const cur = currentPeriod(user);
   if (!cur || (usage.reason && usage.reason !== 'daily_limit_reached')) {
@@ -141,6 +149,7 @@ export async function reservePost(user: StoredUser): Promise<{ release: () => Pr
     throw new HttpError(code, code === 'pack_exhausted' ? 403 : 402, MESSAGES[code]);
   }
   const p = PLANS[cur.plan];
+  checkPlanCategory(cur.plan, category);
   const undo: (() => Promise<unknown>)[] = [];
 
   if (p.dailyLimit !== null) {

@@ -21,7 +21,7 @@ import { cmd, hgetJson, hvalsJson } from './_lib/kv';
 import { handler, HttpError, json, rateLimit, readBody, readSession, requireAdmin, requireUser } from './_lib/http';
 import { ANN_KEY, HIDDEN_KEY, publicView, sanitize, saveAnnouncement, withHistory } from './_lib/announcements';
 import { StoredUser, USERS_KEY } from './_lib/users';
-import { getUsage, isGovVerified, reservePost } from './_lib/quota';
+import { checkPlanCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
 import { kgNowLocal } from '../src/utils/time';
 import { INITIAL_ANNOUNCEMENTS } from '../src/data/initialAnnouncements';
 
@@ -111,7 +111,7 @@ export default handler(async (req) => {
     if (mineAll.some((a) => a.title.ru.trim().toLowerCase() === item.title.ru.trim().toLowerCase() && a.startDate === item.startDate && a.moderationStatus !== 'rejected')) {
       throw new HttpError('duplicate', 409, 'Такая публикация уже отправлена');
     }
-    const { release, usage } = await reservePost(user);
+    const { release, usage } = await reservePost(user, item.category);
 
     item.submittedBy = { userId: user.id, name: user.name, email: user.email, phone: user.phone, organization: user.organization };
     item.sourceName = item.sourceName || user.gov?.orgName || user.organization || user.name;
@@ -196,6 +196,9 @@ export default handler(async (req) => {
     await rateLimit(req, 'edit', 30, 3600, session.sub);
     const user = await hgetJson<StoredUser>(USERS_KEY, session.sub);
     let item = await sanitize(authorFields(body.item), current);
+    // Тариф «Культура и театр»: правка не может перенести публикацию в другой раздел
+    const period = user ? currentPeriod(user) : undefined;
+    if (period) checkPlanCategory(period.plan, item.category);
     item.submittedBy = current.submittedBy;
     if (current.publishedByGov && user && isGovVerified(user)) {
       // Госорган правит свою публикацию сам; правка сразу на сайте и попадает в историю

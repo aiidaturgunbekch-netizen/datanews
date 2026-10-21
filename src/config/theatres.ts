@@ -8,6 +8,8 @@ export interface Venue {
   id: string;
   name: LocalizedString;
   match: RegExp;
+  /** Фото здания (предоставлено редакцией) */
+  photo?: string;
   address?: LocalizedString;
   phone?: string;
   site?: string;
@@ -22,6 +24,7 @@ export const VENUES: Venue[] = [
       kg: 'Т. Абдумомунов атындагы Кыргыз улуттук академиялык драма театры',
       en: 'T. Abdumomunov Kyrgyz National Academic Drama Theatre',
     },
+    photo: '/venues/drama-abdumomunov.jpg',
     match: /Абдумомун|драм[а-я]* театр[а-я]* им[а-я.]* Т\.|Kyrgyz.*Drama/i,
   },
   {
@@ -31,6 +34,7 @@ export const VENUES: Venue[] = [
       kg: 'А. Малдыбаев атындагы Кыргыз улуттук академиялык опера жана балет театры',
       en: 'A. Maldybaev Kyrgyz National Academic Opera and Ballet Theatre',
     },
+    photo: '/venues/opera-maldybaev.jpg',
     match: /Малдыба|опер[а-я]* и балет|Opera and Ballet/i,
   },
   {
@@ -40,6 +44,7 @@ export const VENUES: Venue[] = [
       kg: 'Т. Сатылганов атындагы Кыргыз улуттук филармониясы',
       en: 'T. Satylganov Kyrgyz National Philharmonic',
     },
+    photo: '/venues/philharmonic.jpg',
     match: /Филармони|Philharmon/i,
     address: { ru: 'Бишкек, пр. Чуй, 253', kg: 'Бишкек, Чүй пр., 253', en: '253 Chui Ave, Bishkek' },
     phone: '(0312) 61-40-15',

@@ -33,6 +33,7 @@ export const TheatreVenues: React.FC<{ lang: Language; items: Announcement[]; on
           .slice(0, 8);
         return (
           <section key={v.id} className="rounded-2xl border border-gray-100 bg-[#fafbfe] p-3 flex flex-col">
+            {v.photo && <img src={v.photo} alt={v.name[lang]} loading="lazy" className="w-full h-40 object-cover rounded-xl mb-2" />}
             <h4 className="text-sm font-extrabold text-[#0f1b33] leading-snug mb-2">{v.name[lang]}</h4>
             {shows.length === 0 ? (
               <p className="text-xs text-gray-500 mb-2">{L.none[lang]}</p>

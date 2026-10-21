@@ -590,6 +590,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                     <AnnouncementForm
                       lang={lang}
                       mode="user"
+                      allowedCategories={PLANS[usage?.plan || normalizePlan(user.plan)].categories}
                       submitLabel={usage?.skipsModeration ? tr('publishNow') : tr('sendToModeration')}
                       onSubmit={async (item) => {
                         try {
@@ -612,6 +613,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                     lang={lang}
                     mode="user"
                     initial={editing}
+                    allowedCategories={PLANS[usage?.plan || normalizePlan(user.plan)].categories}
                     submitLabel={editing.publishedByGov ? tr('publishNow') : tr('resubmit')}
                     onCancel={() => setEditing(null)}
                     onSubmit={async (item) => {

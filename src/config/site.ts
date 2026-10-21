@@ -1,4 +1,4 @@
-import { LocalizedString, PlanId } from '../types';
+import { CategoryId, LocalizedString, PlanId } from '../types';
 
 /**
  * Тарифы платной регистрации. ВСЕ тарифы действуют 30 дней, оплата ежемесячная.
@@ -19,12 +19,14 @@ export interface PlanConfig {
   dailyLimit: number | null;
   /** Только для подтверждённых госорганов и муниципалитетов */
   govOnly?: boolean;
+  /** Только эти разделы (проверяет сервер); не задано — любые */
+  categories?: CategoryId[];
   /** Для кого тариф */
   audience: LocalizedString;
   features: LocalizedString[];
 }
 
-export const PLAN_IDS: PlanId[] = ['start', 'private', 'organizer', 'gov'];
+export const PLAN_IDS: PlanId[] = ['start', 'private', 'culture', 'organizer', 'gov'];
 
 const MODERATED = { ru: 'Каждая публикация проходит модерацию', kg: 'Ар бир жарыя модерациядан өтөт', en: 'Every post is moderated' };
 const BURN = {
@@ -59,6 +61,29 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       { ru: 'До 8 публикаций за 30 дней', kg: '30 күндө 8 жарыяга чейин', en: 'Up to 8 posts per 30 days' },
       BURN,
       { ru: 'Фото или афиша к событию', kg: 'Окуяга сүрөт же афиша', en: 'Photo or poster for each event' },
+      MODERATED,
+    ],
+  },
+  culture: {
+    name: { ru: 'Культура и театр', kg: 'Маданият жана театр', en: 'Culture & theatre' },
+    priceSom: 1000,
+    periodDays: 30,
+    postLimit: null,
+    dailyLimit: null,
+    categories: ['culture'],
+    audience: {
+      ru: 'Для театров, филармонии и учреждений культуры',
+      kg: 'Театрлар, филармония жана маданият мекемелери үчүн',
+      en: 'For theatres, the philharmonic and cultural institutions',
+    },
+    features: [
+      { ru: 'Без ограничения количества публикаций за 30 дней', kg: '30 күндө жарыялардын саны чектелбейт', en: 'Unlimited posts for 30 days' },
+      {
+        ru: 'Только раздел «Театр и культура»: спектакли, концерты, сеансы, новости театра',
+        kg: '«Театр жана маданият» бөлүмү гана: спектаклдер, концерттер, сеанстар, театрдын жаңылыктары',
+        en: '"Theatre & culture" section only: performances, concerts, showtimes, theatre news',
+      },
+      { ru: 'Фото или афиша к каждому спектаклю', kg: 'Ар бир спектаклге сүрөт же афиша', en: 'Photo or poster for each performance' },
       MODERATED,
     ],
   },
@@ -107,7 +132,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
 
 /** Старые id тарифов (до октября 2026) → новые */
 export const normalizePlan = (p: unknown): PlanId => {
-  if (p === 'start' || p === 'private' || p === 'organizer' || p === 'gov') return p;
+  if (p === 'start' || p === 'private' || p === 'culture' || p === 'organizer' || p === 'gov') return p;
   if (p === 'basic') return 'private';
   if (p === 'business') return 'organizer';
   return 'start';

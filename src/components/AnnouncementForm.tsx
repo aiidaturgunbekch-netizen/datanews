@@ -60,13 +60,15 @@ interface Props {
   submitLabel: string;
   onSubmit: (item: Record<string, unknown>) => Promise<void>;
   onCancel?: () => void;
+  /** Тариф разрешает только эти разделы (например, «Культура и театр») */
+  allowedCategories?: CategoryId[];
 }
 
 export const inputCls =
   'w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-[#0f1b33] focus:outline-none focus:ring-2 focus:ring-[#12327A]/30 focus:border-[#12327A]';
 const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1';
 
-export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, submitLabel, onSubmit, onCancel }) => {
+export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, submitLabel, onSubmit, onCancel, allowedCategories }) => {
   const tr = (k: AccountKey) => ta(k, lang);
   const { t } = getTranslation(lang);
   const [titleRu, setTitleRu] = useState(initial?.title.ru || '');
@@ -74,7 +76,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [titleEn, setTitleEn] = useState(initial && initial.title.en !== initial.title.ru ? initial.title.en : '');
   const [summary, setSummary] = useState(initial?.summary.ru || '');
   const [description, setDescription] = useState(initial?.description.ru || '');
-  const [category, setCategory] = useState<CategoryId>(initial?.category || 'concerts');
+  const [category, setCategory] = useState<CategoryId>(initial?.category || allowedCategories?.[0] || 'concerts');
   const [city, setCity] = useState<CityId>(initial?.city || 'bishkek');
   const [location, setLocation] = useState(initial?.location.ru || '');
   const [startDate, setStartDate] = useState(initial?.startDate || '');
@@ -322,7 +324,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         {field(
           tr('fCategory'),
           <select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value as CategoryId)}>
-            {CATEGORY_OPTIONS.map((c) => (
+            {CATEGORY_OPTIONS.filter((c) => !allowedCategories || allowedCategories.includes(c.id)).map((c) => (
               <option key={c.id} value={c.id}>
                 {t(`categories.${c.id}`)}
               </option>

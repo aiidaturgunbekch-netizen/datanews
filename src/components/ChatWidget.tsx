@@ -4,6 +4,8 @@ import type { BotAction, BotIntent, BotNav, BotReply } from '../types/bot';
 import { BOT_INTENTS } from '../types/bot';
 import { INTENT_LABEL } from '../config/bot';
 import * as api from '../services/api';
+import { answer } from '../lib/botEngine';
+import type { OfficialForecast } from '../config/weather';
 import { CONTACTS } from '../config/contacts';
 
 type L3 = Record<Language, string>;
@@ -46,10 +48,16 @@ interface Msg {
 
 /** История переписки хранится только в этом браузере и только до закрытия вкладки */
 const STORE = 'datanews_chat_v1';
+/** Ответ бота в ожидаемом виде? (иначе не рисуем его, а показываем ошибку) */
+const isReply = (r: unknown): r is BotReply => {
+  const x = r as BotReply;
+  return Boolean(x) && typeof x.answer === 'string' && Array.isArray(x.items) && Array.isArray(x.links) && Array.isArray(x.actions);
+};
 const load = (): Msg[] => {
   try {
     const raw = sessionStorage.getItem(STORE);
-    return raw ? (JSON.parse(raw) as Msg[]).slice(-30) : [];
+    const list = raw ? (JSON.parse(raw) as Msg[]) : [];
+    return Array.isArray(list) ? list.filter((m) => m && typeof m.text === 'string' && (!m.reply || isReply(m.reply))).slice(-30) : [];
   } catch {
     return [];
   }
@@ -66,6 +74,16 @@ export const ChatWidget: React.FC<{
   const [busy, setBusy] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>(load);
   const endRef = useRef<HTMLDivElement>(null);
+  const official = useRef<OfficialForecast | null>(null);
+
+  // Официальный прогноз, внесённый редакцией, — один раз при открытии чата
+  useEffect(() => {
+    if (!open) return;
+    api
+      .fetchWeather()
+      .then((r) => (official.current = r.official || null))
+      .catch(() => {});
+  }, [open]);
 
   useEffect(() => {
     try {
@@ -88,10 +106,17 @@ export const ChatWidget: React.FC<{
     setMsgs((m) => [...m, { role: 'user', text: shown }]);
     setBusy(true);
     try {
-      const reply = await api.askBot(input, lang);
+      // Ответ считается прямо в браузере по данным, которые сайт уже загрузил; сервер — запасной вариант
+      let reply: unknown;
+      try {
+        reply = answer({ ...input, lang }, announcements, official.current);
+      } catch {
+        reply = await api.askBot(input, lang);
+      }
+      if (!isReply(reply)) throw new Error(T.error[lang]);
       setMsgs((m) => [...m, { role: 'bot', text: reply.answer, reply }]);
-    } catch (e) {
-      setMsgs((m) => [...m, { role: 'bot', text: (e as api.ApiError).message || T.error[lang], error: true }]);
+    } catch {
+      setMsgs((m) => [...m, { role: 'bot', text: T.error[lang], error: true }]);
     } finally {
       setBusy(false);
     }

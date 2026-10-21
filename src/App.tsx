@@ -40,6 +40,7 @@ import { TheatreVenues } from './components/TheatreVenues';
 import { isFresh } from './utils/statusUtils';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { InfoPage, InfoView } from './components/InfoPages';
 
 /** Встроенные проверенные события + одобренные публикации с сервера */
@@ -92,7 +93,15 @@ export default function App() {
   const refreshData = () => {
     api
       .fetchPublicAnnouncements()
-      .then((r) => setAnnouncements(mergeAnnouncements(r.items, r.hidden)))
+      .then((r) =>
+        // Неполные записи (без заголовка, места, даты или раздела) не показываем — одна такая запись не должна ломать сайт
+        setAnnouncements(
+          mergeAnnouncements(
+            (Array.isArray(r.items) ? r.items : []).filter((a) => a && a.id && a.title?.ru && a.location && typeof a.startDate === 'string' && a.category),
+            Array.isArray(r.hidden) ? r.hidden : []
+          )
+        )
+      )
       .catch(() => setAnnouncements(INITIAL_ANNOUNCEMENTS));
   };
 
@@ -525,6 +534,23 @@ export default function App() {
       <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} onOpenAccount={() => setAccountMode('cabinet')} />
 
       {/* Ассистент DataNews AI — на всех страницах */}
+      <ErrorBoundary
+        onError={() => {
+          try {
+            sessionStorage.removeItem('datanews_chat_v1');
+          } catch {
+            /* нет доступа к хранилищу */
+          }
+        }}
+        fallback={(reset) => (
+          <button onClick={reset} className="fixed bottom-4 right-4 z-[90] inline-flex items-center gap-2 px-4 py-3 rounded-full bg-[#12327A] text-white font-bold shadow-xl">
+            <span className="material-symbols-outlined" aria-hidden="true">
+              refresh
+            </span>
+            {currentLanguage === 'kg' ? 'Чатты кайра ачуу' : currentLanguage === 'en' ? 'Reopen chat' : 'Открыть чат заново'}
+          </button>
+        )}
+      >
       <ChatWidget
         lang={currentLanguage}
         announcements={announcements}
@@ -548,6 +574,7 @@ export default function App() {
           } else window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
+      </ErrorBoundary>
 
       {/* Modals & Overlays */}
       {/* 1. Full Announcement Detail Modal (Image 5 reference) */}

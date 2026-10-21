@@ -18,7 +18,7 @@ import type { Language } from '../src/types';
 import { cmd } from './_lib/kv';
 import { handler, HttpError, json, rateLimit, readBody } from './_lib/http';
 import { env } from './_lib/env';
-import { brief, loadPublished, searchItems, siteFacts } from './_lib/assistant';
+import { brief, loadPublished, searchAnswer, searchItems, siteFacts } from './_lib/assistant';
 import { kgDateStr } from '../src/utils/time';
 import { WEATHER_POINTS } from '../src/config/weather';
 
@@ -43,9 +43,9 @@ const LANGS: Language[] = ['ru', 'kg', 'en'];
 
 const NOTICE = {
   noKey: {
-    ru: 'ИИ-ассистент пока не подключён (не задан ключ API). Ниже — публикации сайта, найденные по вашему вопросу.',
-    kg: 'ЖИ-жардамчы азырынча туташтырыла элек (API ачкычы коюлган эмес). Төмөндө — сурооңуз боюнча табылган сайттын жарыялары.',
-    en: 'The AI assistant is not connected yet (no API key). Below are site posts matching your question.',
+    ru: 'Ответ составлен поиском по сайту, без ИИ.',
+    kg: 'Жооп сайттан издөө аркылуу түзүлдү, ЖИсиз.',
+    en: 'This answer comes from site search, without AI.',
   },
   limit: {
     ru: 'Дневной лимит ответов ИИ исчерпан. Ниже — публикации сайта, найденные по вашему вопросу.',
@@ -95,7 +95,11 @@ export default handler(async (req) => {
   const lang: Language = LANGS.includes(body.lang as Language) ? (body.lang as Language) : 'ru';
 
   const all = await loadPublished();
-  const found = searchItems(all, question, 10);
+  // Сначала актуальное; если его нет — архив (ответ помечает это)
+  let found = searchItems(all, question, 10);
+  if (!found.length) found = searchItems(all, question, 10, true);
+  // Ничего на эти даты — ближайшие по той же теме (только если тема названа)
+  const nearest = !found.length ? searchItems(all, question, 3, false, true).filter((a) => a.startDate.slice(0, 10) >= kgDateStr()) : [];
   // Действующие официальные предупреждения всегда в контексте
   const hazards = all.filter((a) => a.category === 'hazard' && found.every((f) => f.id !== a.id)).slice(0, 5);
   const items = found.map((a) => ({
@@ -106,8 +110,10 @@ export default handler(async (req) => {
     sourceUrl: a.eventSourceUrl || a.sourceUrl,
   }));
 
-  const searchOnly = (notice: string) =>
-    json({ mode: 'search', items, notice: items.length ? notice : `${notice.split('.')[0]}. ${NOTICE.empty[lang]}` });
+  const offRaw = await cmd<string | null>('GET', 'dn:weather:official');
+  const official = offRaw ? JSON.parse(offRaw) : null;
+  // Без ИИ — честная сводка найденного и ответы на частые вопросы, с пометкой «поиск по сайту»
+  const searchOnly = (notice: string) => json({ mode: 'search', answer: searchAnswer(question, lang, found, nearest, official), items, notice });
 
   const key = env('ANTHROPIC_API_KEY');
   if (!key) return searchOnly(NOTICE.noKey[lang]);
@@ -121,7 +127,7 @@ export default handler(async (req) => {
 
   const context = {
     facts: siteFacts(),
-    items: found.map((a) => brief(a, lang)),
+    items: (found.length ? found : nearest).map((a) => brief(a, lang)),
     activeHazards: hazards.map((a) => brief(a, lang)),
     forecast: /погод|аба ырай|weather|прогноз|температур|снег|дожд|ветер|перевал|ашуу|pass|кар|жамгыр/i.test(question) ? await weatherBrief() : undefined,
   };
@@ -155,7 +161,7 @@ export default handler(async (req) => {
     const m = text.match(/SOURCES:\s*(.*)\s*$/i);
     const ids = m ? m[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
     const answer = text.replace(/\n?SOURCES:.*$/i, '').trim();
-    const pool = [...found, ...hazards];
+    const pool = [...found, ...nearest, ...hazards];
     const cited = ids
       .map((id) => pool.find((a) => a.id === id))
       .filter((a): a is NonNullable<typeof a> => Boolean(a))

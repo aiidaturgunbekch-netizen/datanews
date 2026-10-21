@@ -17,7 +17,7 @@ const T: Record<string, L3> = {
   send: { ru: 'Отправить', kg: 'Жөнөтүү', en: 'Send' },
   thinking: { ru: 'Ищу ответ…', kg: 'Жооп издеп жатам…', en: 'Looking it up…' },
   aiLabel: { ru: 'Ответ ИИ по данным сайта', kg: 'Сайттын маалыматы боюнча ЖИ жообу', en: 'AI answer from site data' },
-  searchLabel: { ru: 'Поиск по сайту (без ИИ)', kg: 'Сайттан издөө (ЖИсиз)', en: 'Site search (no AI)' },
+  searchLabel: { ru: 'Поиск по сайту', kg: 'Сайттан издөө', en: 'Site search' },
   open_post: { ru: 'Открыть', kg: 'Ачуу', en: 'Open' },
   source: { ru: 'Первоисточник', kg: 'Түпкү булак', en: 'Source' },
   contact: { ru: 'Написать редакции', kg: 'Редакцияга жазуу', en: 'Message the editors' },
@@ -136,6 +136,7 @@ export const ChatWidget: React.FC<{ lang: Language; announcements: Announcement[
                     </div>
                   )}
                   {m.text && <p className="whitespace-pre-line">{m.text}</p>}
+                  {m.reply?.answer && m.reply.notice && <p className="mt-1 text-[10px] text-gray-500">{m.reply.notice}</p>}
                   {m.reply && m.reply.items.length > 0 && (
                     <ul className="mt-2 space-y-1.5">
                       {m.reply.items.map((it) => {

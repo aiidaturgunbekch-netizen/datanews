@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Announcement, Language, CityId } from '../types';
 import { getTranslation } from '../locales/translations';
 import { isFresh } from '../utils/statusUtils';
-import { KyrgyzstanMap } from './KyrgyzstanMap';
+// Карта (Leaflet) загружается отдельным файлом, чтобы не утяжелять главную
+const KyrgyzstanLiveMap = lazy(() => import('./KyrgyzstanLiveMap'));
 
 interface CityMosaicProps {
   announcements: Announcement[];
@@ -37,6 +38,15 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
     const isAlert = (x: Announcement) => x.urgency === 'emergency' || x.urgency === 'planned';
     return { alerts: list.filter(isAlert).length, events: list.filter((x) => !isAlert(x)).length };
   };
+
+  const mapCount = React.useCallback(
+    (id: CityId) => {
+      const c = counts(id);
+      return c.alerts + c.events;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [announcements]
+  );
 
   const cityCards = [
     {
@@ -176,14 +186,9 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
           ))}
         </div>
 
-        <KyrgyzstanMap
-          lang={currentLanguage}
-          counts={(id) => {
-            const c = counts(id);
-            return c.alerts + c.events;
-          }}
-          onSelect={onSelectCity}
-        />
+        <Suspense fallback={<div className="mt-8 h-[460px] rounded-2xl bg-[#f6f8fd] border border-gray-100" />}>
+          <KyrgyzstanLiveMap lang={currentLanguage} counts={mapCount} onSelect={onSelectCity} />
+        </Suspense>
       </div>
     </section>
   );

@@ -11,15 +11,15 @@ const L = {
 /** Кнопки связи с редакцией: WhatsApp, Telegram, Instagram (ссылки открываются в новой вкладке / приложении) */
 export const ContactButtons: React.FC<{ lang: Language; compact?: boolean; className?: string }> = ({ lang, compact, className = '' }) => {
   const items = [
-    { href: CONTACTS.whatsappUrl, label: L.wa[lang], sub: CONTACTS.phone, bg: 'bg-[#25d366] hover:bg-[#1ebe5a] text-white', icon: 'chat' },
+    { href: CONTACTS.whatsappUrl, label: L.wa[lang], sub: CONTACTS.phone, bg: 'bg-[#0f8072] hover:bg-[#0c6b60] text-white', icon: 'chat' },
     {
       href: telegramUrl(),
       label: L.tg[lang],
       sub: CONTACTS.telegramUsername ? `@${CONTACTS.telegramUsername}` : CONTACTS.phone,
-      bg: 'bg-[#229ed9] hover:bg-[#1c8cc2] text-white',
+      bg: 'bg-[#1877a8] hover:bg-[#14648f] text-white',
       icon: 'send',
     },
-    { href: CONTACTS.instagramUrl, label: L.ig[lang], sub: CONTACTS.instagramHandle, bg: 'bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#8134af] text-white hover:brightness-110', icon: 'photo_camera' },
+    { href: CONTACTS.instagramUrl, label: L.ig[lang], sub: CONTACTS.instagramHandle, bg: 'bg-gradient-to-r from-[#c2410c] via-[#c13584] to-[#8134af] text-white hover:brightness-95', icon: 'photo_camera' },
   ];
   return (
     <div className={`flex flex-wrap gap-2 ${className}`}>

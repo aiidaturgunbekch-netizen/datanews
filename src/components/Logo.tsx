@@ -12,6 +12,8 @@ interface LogoProps {
 export const Logo: React.FC<LogoProps> = ({ className = 'h-11', isLightMode = false, compactOnMobile = false, lang = 'ru' }) => {
   const navyColor = isLightMode ? '#ffffff' : '#12327A';
   const turquoiseColor = '#20C7B5';
+  // На светлом фоне бирюзовый текст «News» на тон темнее — чтобы читался (контраст ≥ 3:1); значок не меняется
+  const turquoiseText = isLightMode ? turquoiseColor : '#0E8F83';
   const subtextColor = isLightMode ? '#dbe1ff' : '#1b3f94';
 
   return (
@@ -70,7 +72,7 @@ export const Logo: React.FC<LogoProps> = ({ className = 'h-11', isLightMode = fa
       <div className={`${compactOnMobile ? 'hidden min-[420px]:flex' : 'flex'} flex-col justify-center leading-none`}>
         <div className="flex items-baseline font-black tracking-tight text-[22px] sm:text-[24px]">
           <span style={{ color: navyColor }}>Data</span>
-          <span style={{ color: turquoiseColor }}>News</span>
+          <span style={{ color: turquoiseText }}>News</span>
         </div>
         <span
           className="text-[9.5px] sm:text-[10px] font-extrabold tracking-[0.22em] uppercase mt-0.5"

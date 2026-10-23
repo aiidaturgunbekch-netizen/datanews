@@ -204,6 +204,8 @@ const T = {
   fLocality: { ru: 'Город, село или айыл аймак', kg: 'Шаар, айыл же айыл аймак', en: 'Town, village or aiyl aimak' },
   fLocalityPh: { ru: 'например, Чолпон-Ата', kg: 'мисалы, Чолпон-Ата', en: 'e.g. Cholpon-Ata' },
   fDistrict: { ru: 'Район', kg: 'Район', en: 'District' },
+  fDistrictNone: { ru: '— не указан —', kg: '— көрсөтүлгөн эмес —', en: '— not specified —' },
+  fDistrictOther: { ru: 'Другой — ввести вручную', kg: 'Башка — колго жазуу', en: 'Other — type it in' },
   fDistrictPh: { ru: 'например, Иссык-Кульский район', kg: 'мисалы, Ысык-Көл району', en: 'e.g. Issyk-Kul District' },
   fDescriptionReq: { ru: 'Основное описание *', kg: 'Негизги сүрөттөмө *', en: 'Main description *' },
   fEndOpt: { ru: 'Окончание / действует до', kg: 'Аякташы / мөөнөтү', en: 'Ends / valid until' },

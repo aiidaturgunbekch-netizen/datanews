@@ -7,6 +7,7 @@ import { formatWhen } from '../utils/dates';
 import { AccountKey, errorText, ta } from '../locales/account';
 import { eventSource, ticketLink } from '../utils/links';
 import { getTranslation } from '../locales/translations';
+import { DISTRICTS } from '../config/districts';
 
 export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
   { id: 'concerts', label: 'Концерты и шоу' },
@@ -109,6 +110,11 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [isTicker, setIsTicker] = useState(Boolean(initial?.isUrgentTicker));
   const [locality, setLocality] = useState(initial?.locality || '');
   const [district, setDistrict] = useState(initial?.district || '');
+  // Район выбирается из списка области; старое или нестандартное значение — вводится вручную
+  const [districtManual, setDistrictManual] = useState(
+    () => Boolean(initial?.district) && !(DISTRICTS[initial!.city] || []).some((d) => d.ru === initial!.district)
+  );
+  const districtList = DISTRICTS[city] || [];
   const [dangerLevel, setDangerLevel] = useState<'' | 'high' | 'warning' | 'info'>(initial?.dangerLevel || '');
   const [newsKind, setNewsKind] = useState<string>(initial?.newsKind || '');
   const [legal, setLegal] = useState<Record<string, string>>({
@@ -334,7 +340,14 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         )}
         {field(
           tr('fCity'),
-          <select className={inputCls} value={city} onChange={(e) => setCity(e.target.value as CityId)}>
+          <select
+            className={inputCls}
+            value={city}
+            onChange={(e) => {
+              setCity(e.target.value as CityId);
+              if (!districtManual) setDistrict('');
+            }}
+          >
             {CITY_OPTIONS.map((c) => (
               <option key={c.id} value={c.id}>
                 {t(`cities.${c.id}`)}
@@ -368,7 +381,31 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {field(tr('fLocality'), <input className={inputCls} value={locality} onChange={(e) => setLocality(e.target.value)} maxLength={120} placeholder={tr('fLocalityPh')} />)}
-        {field(tr('fDistrict'), <input className={inputCls} value={district} onChange={(e) => setDistrict(e.target.value)} maxLength={120} placeholder={tr('fDistrictPh')} />)}
+        {field(
+          tr('fDistrict'),
+          districtList.length && !districtManual ? (
+            <select
+              className={inputCls}
+              value={districtList.some((d) => d.ru === district) ? district : ''}
+              onChange={(e) => {
+                if (e.target.value === '__other') {
+                  setDistrictManual(true);
+                  setDistrict('');
+                } else setDistrict(e.target.value);
+              }}
+            >
+              <option value="">{tr('fDistrictNone')}</option>
+              {districtList.map((d) => (
+                <option key={d.code} value={d.ru}>
+                  {d[lang] || d.ru}
+                </option>
+              ))}
+              <option value="__other">{tr('fDistrictOther')}</option>
+            </select>
+          ) : (
+            <input className={inputCls} value={district} onChange={(e) => setDistrict(e.target.value)} maxLength={120} placeholder={tr('fDistrictPh')} />
+          )
+        )}
       </div>
       {field(tr('fDescriptionReq'), <textarea className={inputCls} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} required />)}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

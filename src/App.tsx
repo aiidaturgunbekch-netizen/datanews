@@ -388,6 +388,7 @@ export default function App() {
                     <EventsFeed
                       currentLanguage={currentLanguage}
                       events={eventsList}
+                      city={selectedCity}
                       onSelectAnnouncement={setActiveNoticeDetail}
                       onOpenFullCalendar={() => setCurrentView('calendar')}
                     />
@@ -511,6 +512,7 @@ export default function App() {
             <EventsFeed
               currentLanguage={currentLanguage}
               events={eventsList}
+              city={selectedCity}
               onSelectAnnouncement={setActiveNoticeDetail}
               onOpenFullCalendar={() => setCurrentView('calendar')}
             />

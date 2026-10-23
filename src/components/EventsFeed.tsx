@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Announcement, Language } from '../types';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Announcement, CityId, Language } from '../types';
+import { DISTRICTS, inDistrict } from '../config/districts';
 import { getTranslation } from '../locales/translations';
 import { StorageService } from '../services/storage';
 import { EventImage } from './EventImage';
@@ -11,13 +12,16 @@ import { freshOrder, getAnnouncementDisplayStatus, getStatusBadgeConfig, isFresh
 interface EventsFeedProps {
   currentLanguage: Language;
   events: Announcement[];
+  /** Выбранный город/область — для фильтра по району */
+  city?: CityId;
   onSelectAnnouncement: (announcement: Announcement) => void;
   onOpenFullCalendar: () => void;
 }
 
 export const EventsFeed: React.FC<EventsFeedProps> = ({
   currentLanguage,
-  events,
+  events: allEvents,
+  city,
   onSelectAnnouncement,
   onOpenFullCalendar,
 }) => {
@@ -26,6 +30,15 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
   const [statusTab, setStatusTab] = useState<'all' | 'upcoming' | 'completed'>('upcoming');
   const [favorites, setFavorites] = useState<string[]>(() => StorageService.getFavorites());
   const [visibleCount, setVisibleCount] = useState<number>(6);
+
+  // Фильтр по району: список районов выбранной области, сброс при смене области
+  const districtList = useMemo(() => (city && DISTRICTS[city]) || [], [city]);
+  const [districtCode, setDistrictCode] = useState('');
+  useEffect(() => {
+    setDistrictCode('');
+  }, [city]);
+  const districtSel = districtList.find((d) => d.code === districtCode);
+  const events = useMemo(() => (districtSel ? allEvents.filter((a) => inDistrict(a, districtSel)) : allEvents), [allEvents, districtSel]);
 
   const toggleFav = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -100,7 +113,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
       </div>
 
       {/* Lifecycle Status Filter Tabs (Ensures past events are not shown as upcoming) */}
-      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 text-xs">
+      <div className="flex flex-wrap items-center gap-2 mb-6 pb-1 text-xs">
         <button
           onClick={() => setStatusTab('upcoming')}
           className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
@@ -123,6 +136,29 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
           <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
           <span>{currentLanguage === 'kg' ? 'Архив' : currentLanguage === 'en' ? 'Archive' : 'Архив'}</span>
         </button>
+        {districtList.length > 0 && (
+          <select
+            value={districtCode}
+            onChange={(e) => {
+              setDistrictCode(e.target.value);
+              setVisibleCount(6);
+            }}
+            aria-label={currentLanguage === 'kg' ? 'Район' : currentLanguage === 'en' ? 'District' : 'Район'}
+            className={`sm:ml-auto px-2 py-1.5 rounded-lg font-bold border max-w-full ${
+              districtCode ? 'bg-[#12327A] text-white border-[#12327A]' : 'bg-white text-gray-600 border-gray-200'
+            }`}
+          >
+            <option value="">{currentLanguage === 'kg' ? 'Бардык райондор' : currentLanguage === 'en' ? 'All districts' : 'Все районы'}</option>
+            {districtList.map((d) => {
+              const n = allEvents.filter((a) => inDistrict(a, d)).length;
+              return (
+                <option key={d.code} value={d.code}>
+                  {(d[currentLanguage] || d.ru) + (n ? ` · ${n}` : '')}
+                </option>
+              );
+            })}
+          </select>
+        )}
       </div>
 
       {/* Events List / Grid */}
@@ -136,6 +172,15 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               ? 'No events found for this filter'
               : 'В данной категории пока нет событий'}
           </p>
+          {districtSel && (
+            <button
+              type="button"
+              onClick={() => setDistrictCode('')}
+              className="mt-3 px-4 py-2 rounded-xl bg-gray-100 text-[#12327A] text-xs font-bold hover:bg-gray-200"
+            >
+              {currentLanguage === 'kg' ? 'Бардык райондорду көрсөтүү' : currentLanguage === 'en' ? 'Show all districts' : 'Показать все районы'}
+            </button>
+          )}
           {/* В актуальном пусто, а в архиве есть — подсказываем и даём перейти */}
           {statusTab === 'upcoming' && archivedCount > 0 && (
             <div className="mt-3 flex flex-col items-center gap-2">

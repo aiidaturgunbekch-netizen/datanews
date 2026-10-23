@@ -228,6 +228,28 @@ const TopList: React.FC<{ title: string; items: { key: string; count: number }[]
   );
 };
 
+/** Города и страны посетителей приходят от Vercel по-английски («Bishkek, KG») — показываем по-русски */
+const CITY_RU: Record<string, string> = {
+  Bishkek: 'Бишкек', Osh: 'Ош', 'Jalal-Abad': 'Джалал-Абад', Karakol: 'Каракол', Tokmok: 'Токмок', Naryn: 'Нарын', Talas: 'Талас',
+  Batken: 'Баткен', 'Kara-Balta': 'Кара-Балта', Kant: 'Кант', 'Cholpon-Ata': 'Чолпон-Ата', Uzgen: 'Узген', 'Kara-Suu': 'Кара-Суу',
+  Balykchy: 'Балыкчы', 'Kyzyl-Kiya': 'Кызыл-Кия', 'Kara-Kol': 'Кара-Куль', Isfana: 'Исфана', Sokuluk: 'Сокулук', Belovodskoye: 'Беловодское',
+  Almaty: 'Алматы', Astana: 'Астана', Tashkent: 'Ташкент', Moscow: 'Москва', 'Saint Petersburg': 'Санкт-Петербург', Novosibirsk: 'Новосибирск',
+  Yekaterinburg: 'Екатеринбург', Istanbul: 'Стамбул', Dubai: 'Дубай', Seoul: 'Сеул', Dushanbe: 'Душанбе', Frankfurt: 'Франкфурт',
+  'Frankfurt am Main': 'Франкфурт-на-Майне', London: 'Лондон', Amsterdam: 'Амстердам', Ashburn: 'Ашберн',
+};
+let countryNames: Intl.DisplayNames | null = null;
+try {
+  countryNames = new Intl.DisplayNames(['ru'], { type: 'region' });
+} catch {
+  countryNames = null;
+}
+const placeRu = (key: string) => {
+  if (key === 'Неизвестно') return key;
+  const [city, country] = key.includes(', ') ? key.split(', ') : ['', key];
+  const c = country === 'KG' ? 'Кыргызстан' : country && /^[A-Z]{2}$/.test(country) ? countryNames?.of(country) || country : country;
+  return city ? `${CITY_RU[city] || city}, ${c}` : c;
+};
+
 const StatsTab: React.FC = () => {
   const [days, setDays] = useState(30);
   const [stats, setStats] = useState<SiteStats | null>(null);
@@ -295,9 +317,9 @@ const StatsTab: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <TopList title="Популярные разделы" items={stats.topPages} labels={PAGE_LABELS} />
             <TopList title="Откуда приходят" items={stats.topReferrers} />
-            <TopList title="Города посетителей" items={stats.cities} />
+            <TopList title="Города посетителей" items={stats.cities.map((i) => ({ ...i, key: placeRu(i.key) }))} />
             <TopList title="Устройства" items={stats.devices} />
-            <TopList title="Язык сайта" items={stats.languages} labels={{ ru: 'Русский', kg: 'Кыргызча', en: 'English' }} />
+            <TopList title="Язык сайта" items={stats.languages} labels={{ ru: 'Русский', kg: 'Кыргызский', en: 'Английский', other: 'Другой' }} />
           </div>
           <p className="text-xs text-gray-500">
             Считаются все посетители сайта, кроме вас как администратора и поисковых роботов. Время — бишкекское (UTC+6).
@@ -530,7 +552,7 @@ const PushPanel: React.FC<{ items: Announcement[] }> = ({ items }) => {
         <div className="font-extrabold text-[#0f1b33]">Состояние</div>
         {stats ? (
           <>
-            <div>{stats.configured ? '✅ Ключи VAPID подключены — кнопка подписки видна посетителям в разделе «Предупреждения».' : '⚠️ Ключи VAPID не заданы — уведомления выключены, кнопка подписки на сайте скрыта.'}</div>
+            <div>{stats.configured ? '✅ Ключи для уведомлений (VAPID) подключены — кнопка подписки видна посетителям в разделе «Предупреждения».' : '⚠️ Ключи для уведомлений (VAPID) не заданы — уведомления выключены, кнопка подписки на сайте скрыта.'}</div>
             <div>
               Подписчиков: <b>{stats.total}</b>
               {Object.keys(stats.byCity).length > 0 && ` (${Object.entries(stats.byCity).map(([c, n]) => `${cityLabel(c)}: ${n}`).join(', ')})`}
@@ -580,10 +602,10 @@ const PushPanel: React.FC<{ items: Announcement[] }> = ({ items }) => {
         <ol className="list-decimal pl-5 space-y-1 text-gray-700">
           <li>Нажмите «Создать ключи» — пара ключей создаётся прямо в этом браузере и никуда не отправляется.</li>
           <li>
-            Vercel → проект datanews → Settings → Environment Variables. Добавьте <code>VAPID_PUBLIC_KEY</code> и <code>VAPID_PRIVATE_KEY</code> (значения ниже). Для проверки отметьте только окружение <b>Preview</b>; Production — когда решите запускать.
+            Откройте сайт Vercel → проект datanews → «Settings» (настройки) → «Environment Variables» (переменные окружения). Добавьте две переменные: <code>VAPID_PUBLIC_KEY</code> и <code>VAPID_PRIVATE_KEY</code> — значения ниже. Для проверки отметьте только «Preview» (тестовая версия сайта); «Production» (основной сайт) — когда решите запускать.
           </li>
-          <li>По желанию: <code>VAPID_SUBJECT</code> — адрес сайта (https://…) или mailto: с вашей почтой; без него берётся адрес сайта.</li>
-          <li>Сделайте Redeploy (или новый коммит) — после этого кнопка «Уведомлять о срочном» появится в разделе «Предупреждения».</li>
+          <li>Необязательно: переменная <code>VAPID_SUBJECT</code> — адрес сайта (https://…) или ваша почта в виде mailto:адрес. Если её нет, берётся адрес сайта.</li>
+          <li>Пересоберите сайт: «Deployments» (сборки) → у последней сборки «…» → «Redeploy» (пересобрать). После этого кнопка «Уведомлять о срочном» появится в разделе «Предупреждения».</li>
         </ol>
         <p className="text-xs text-red-700">Закрытый ключ никому не пересылайте и не храните в коде — только в настройках Vercel. При замене ключей старые подписки перестанут работать.</p>
         <button onClick={generate} className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-extrabold">

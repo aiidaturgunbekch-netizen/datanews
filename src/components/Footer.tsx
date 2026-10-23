@@ -33,9 +33,18 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onO
             <div className="mb-4">
               <Logo className="h-10" />
             </div>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+            <p className="text-xs sm:text-sm text-gray-600 mb-4 leading-relaxed">
               {t('appSlogan')}. {t('appHeroDesc')}
             </p>
+            {/* Ведёт на страницу «Источники информации» */}
+            <button
+              type="button"
+              onClick={() => onNavigate('sources')}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white text-gray-700 text-xs font-bold border border-gray-200 shadow-2xs hover:border-[#20C7B5] transition-colors"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#20C7B5]" />
+              <span>{currentLanguage === 'kg' ? 'Текшерилген булактар' : currentLanguage === 'en' ? 'Verified sources' : 'Проверенные источники'}</span>
+            </button>
           </div>
 
           {/* Col 2: Sections */}

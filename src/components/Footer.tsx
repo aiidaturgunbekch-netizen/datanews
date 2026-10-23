@@ -31,7 +31,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onO
           {/* Col 1: Brand & Slogan */}
           <div>
             <div className="mb-4">
-              <Logo className="h-10" />
+              <Logo className="h-10" lang={currentLanguage} />
             </div>
             <p className="text-xs sm:text-sm text-gray-600 mb-4 leading-relaxed">
               {t('appSlogan')}. {t('appHeroDesc')}

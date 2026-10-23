@@ -57,10 +57,10 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-6 lg:gap-8">
           <button
             onClick={() => onViewChange('home')}
-            className="flex items-center text-left focus:outline-none"
+            className="flex items-center text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#20C7B5] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d2459]"
             aria-label="DataNews Home"
           >
-            <Logo isLightMode={true} compactOnMobile className="h-8 sm:h-10" />
+            <Logo isLightMode={true} compactOnMobile className="h-8 sm:h-10" lang={currentLanguage} />
           </button>
 
           {/* Desktop Navigation Links */}

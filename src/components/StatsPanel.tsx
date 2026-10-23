@@ -52,6 +52,15 @@ const T = {
 };
 
 /** Строка публикации в списках: миниатюра, бейджи, дата, место */
+/** «1 публикация», «3 публикации», «5 публикаций»; KG и EN — без склонения по падежам */
+const postsLabel = (n: number, lang: Language) => {
+  if (lang === 'kg') return `${n} жарыя`;
+  if (lang === 'en') return `${n} post${n === 1 ? '' : 's'}`;
+  const m10 = n % 10;
+  const m100 = n % 100;
+  return `${n} ${m10 === 1 && m100 !== 11 ? 'публикация' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'публикации' : 'публикаций'}`;
+};
+
 export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a: Announcement) => void }> = ({ item, lang, onOpen }) => {
   const { t } = getTranslation(lang);
   return (
@@ -203,7 +212,7 @@ export const StatsPanel: React.FC<Props> = ({ mode, lang, announcements, onOpen,
                   >
                     <span className="font-bold text-sm text-[#0f1b33]">{r.name}</span>
                     <span className="px-2 py-0.5 rounded-full bg-[#eef2f9] text-[#12327A] text-xs font-bold whitespace-nowrap">
-                      {n} {T.posts[lang]}
+                      {postsLabel(n, lang)}
                     </span>
                   </button>
                 );

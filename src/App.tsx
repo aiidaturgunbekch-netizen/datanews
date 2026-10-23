@@ -118,6 +118,11 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  // Язык страницы для браузера, программ чтения с экрана и поисковиков
+  useEffect(() => {
+    document.documentElement.lang = currentLanguage === 'kg' ? 'ky' : currentLanguage;
+  }, [currentLanguage]);
+
   // Отдельная ссылка на каждую публикацию: /#/n/<id> (короткая ссылка для мессенджеров — /n/<id>, см. api/share.ts)
   useEffect(() => {
     const openFromHash = () => {

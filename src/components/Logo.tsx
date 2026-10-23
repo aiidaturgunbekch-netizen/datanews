@@ -5,9 +5,11 @@ interface LogoProps {
   /** На узких экранах (до 420px) показывать только значок */
   compactOnMobile?: boolean;
   isLightMode?: boolean; // if on dark background
+  /** Язык подписи под названием: КЫРГЫЗСТАН / KYRGYZSTAN */
+  lang?: 'ru' | 'kg' | 'en';
 }
 
-export const Logo: React.FC<LogoProps> = ({ className = 'h-11', isLightMode = false, compactOnMobile = false }) => {
+export const Logo: React.FC<LogoProps> = ({ className = 'h-11', isLightMode = false, compactOnMobile = false, lang = 'ru' }) => {
   const navyColor = isLightMode ? '#ffffff' : '#12327A';
   const turquoiseColor = '#20C7B5';
   const subtextColor = isLightMode ? '#dbe1ff' : '#1b3f94';
@@ -74,7 +76,7 @@ export const Logo: React.FC<LogoProps> = ({ className = 'h-11', isLightMode = fa
           className="text-[9.5px] sm:text-[10px] font-extrabold tracking-[0.22em] uppercase mt-0.5"
           style={{ color: subtextColor }}
         >
-          КЫРГЫЗСТАН
+          {lang === 'en' ? 'KYRGYZSTAN' : 'КЫРГЫЗСТАН'}
         </span>
       </div>
     </div>

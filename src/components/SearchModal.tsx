@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { PLACE_IDS } from '../config/regions';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -18,6 +18,14 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [query, setQuery] = useState('');
+  // Esc закрывает окно поиска
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
   const [selectedCat, setSelectedCat] = useState<CategoryId>('all');
   const [selectedCity, setSelectedCity] = useState<CityId>('all');
 

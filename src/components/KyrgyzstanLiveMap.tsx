@@ -172,7 +172,7 @@ const KyrgyzstanLiveMap: React.FC<{
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · границы &copy; <a href="https://www.geoboundaries.org" target="_blank" rel="noopener">geoBoundaries</a> (ODbL)',
+        `&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · ${lang === 'en' ? 'boundaries' : lang === 'kg' ? 'чек аралар' : 'границы'} &copy; <a href="https://www.geoboundaries.org" target="_blank" rel="noopener">geoBoundaries</a> (ODbL)`,
     })
       .on('tileerror', () => {
         tileErrors += 1;

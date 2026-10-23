@@ -33,13 +33,9 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onO
             <div className="mb-4">
               <Logo className="h-10" />
             </div>
-            <p className="text-xs sm:text-sm text-gray-600 mb-4 leading-relaxed">
+            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
               {t('appSlogan')}. {t('appHeroDesc')}
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white text-gray-700 text-xs font-bold border border-gray-200 shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-[#20C7B5]" />
-              <span>Civic Data Network</span>
-            </div>
           </div>
 
           {/* Col 2: Sections */}

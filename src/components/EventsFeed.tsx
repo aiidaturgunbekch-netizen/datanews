@@ -38,6 +38,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
   const getWeekdayLabel = (d: Date) => (isKg ? WEEKDAYS.kg[d.getDay()] : WEEKDAYS_SHORT[currentLanguage][d.getDay()]);
 
   // Filter events according to status tab so past events are never mistaken for upcoming events
+  const archivedCount = useMemo(() => events.filter((item) => !isFresh(item)).length, [events]);
   const filteredEvents = useMemo(() => {
     const byStartDesc = (a: Announcement, b: Announcement) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
     // Актуальные — без старых новостей и прошедших событий, свежее — выше
@@ -134,6 +135,25 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               ? 'No events found for this filter'
               : 'В данной категории пока нет событий'}
           </p>
+          {/* В актуальном пусто, а в архиве есть — подсказываем и даём перейти */}
+          {statusTab === 'upcoming' && archivedCount > 0 && (
+            <div className="mt-3 flex flex-col items-center gap-2">
+              <p className="text-sm text-gray-500">
+                {currentLanguage === 'kg'
+                  ? `Архивде табылды: ${archivedCount}`
+                  : currentLanguage === 'en'
+                  ? `Found in the archive: ${archivedCount}`
+                  : `Найдено в архиве: ${archivedCount}`}
+              </p>
+              <button
+                type="button"
+                onClick={() => setStatusTab('completed')}
+                className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-xs font-bold hover:bg-[#0d2459]"
+              >
+                {currentLanguage === 'kg' ? 'Архивди көрсөтүү' : currentLanguage === 'en' ? 'Show archive' : 'Показать архив'}
+              </button>
+            </div>
+          )}
         </div>
       ) : displayMode === 'list' ? (
         <div className="space-y-4">

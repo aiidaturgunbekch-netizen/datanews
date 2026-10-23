@@ -59,7 +59,9 @@ export const EventImage: React.FC<{ item: Announcement; className?: string; show
 }) => {
   const [failed, setFailed] = useState(false);
   // другое изображение (например, переход к соседнему событию в том же окне) — пробуем загрузить заново
-  useEffect(() => setFailed(false), [item.imageUrl]);
+  useEffect(() => {
+    setFailed(false);
+  }, [item.imageUrl]);
   const style = CATEGORY_STYLE[item.category] || CATEGORY_STYLE.gov;
   const fallback = CATEGORY_ILLUSTRATION[item.category];
   const isIllustration = Boolean(item.imageUrl?.startsWith('/illustrations/'));

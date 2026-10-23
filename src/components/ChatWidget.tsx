@@ -96,7 +96,11 @@ export const ChatWidget: React.FC<{
       /* приватный режим — история просто не сохраняется */
     }
   }, [msgs]);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), [msgs, busy, open]);
+  // Фигурные скобки обязательны: в новых версиях Chrome scrollIntoView возвращает Promise,
+  // а React вызывает то, что вернул эффект, как функцию очистки («destroy is not a function»)
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [msgs, busy, open]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
@@ -114,12 +118,15 @@ export const ChatWidget: React.FC<{
       let reply: unknown;
       try {
         reply = answer({ ...input, lang }, announcements, official.current);
-      } catch {
+      } catch (e) {
+        console.error('[DataNews bot] ответ в браузере не получен, запрос к серверу', e);
         reply = await api.askBot(input, lang);
       }
-      if (!isReply(reply)) throw new Error(T.error[lang]);
+      if (!isReply(reply)) throw new Error('Неверный формат ответа бота');
       setMsgs((m) => [...m, { role: 'bot', text: reply.answer, reply }]);
-    } catch {
+    } catch (e) {
+      // Посетителю — понятное сообщение, разработчику — подробности в консоли
+      console.error('[DataNews bot]', e);
       setMsgs((m) => [...m, { role: 'bot', text: T.error[lang], error: true }]);
     } finally {
       setBusy(false);

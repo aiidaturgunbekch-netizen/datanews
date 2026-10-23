@@ -478,7 +478,8 @@ export const answer = (input: BotInput, source: Announcement[], official: Offici
     list = byWords(all, q, past);
     if (!list.length) list = byWords(all, q, true);
   }
-  const head = `${tr({ ru: intent === 'today' && !dates ? 'Сегодня' : 'Найдено', kg: intent === 'today' && !dates ? 'Бүгүн' : 'Табылды', en: intent === 'today' && !dates ? 'Today' : 'Found' }, lang)}${placeLabel(places, lang)}${d && !(intent === 'today' && !dates) ? dateLabel(d, lang) : ''}`;
+  const isToday = Boolean(d && d[0] === today && d[1] === today);
+  const head = `${tr({ ru: isToday ? 'Сегодня' : 'Найдено', kg: isToday ? 'Бүгүн' : 'Табылды', en: isToday ? 'Today' : 'Found' }, lang)}${placeLabel(places, lang)}${d && !isToday ? dateLabel(d, lang) : ''}`;
   if (!list.length) {
     const upcoming = d ? pick(all, { places }).filter((a) => a.startDate.slice(0, 10) > d[1]).slice(0, 3) : [];
     return reply({
@@ -502,7 +503,7 @@ export const answer = (input: BotInput, source: Announcement[], official: Offici
     return reply({
       answer: local.length
         ? `${head}: ${local.length}. ${nat}`
-        : `${tr({ ru: 'Отдельных публикаций по этому месту нет', kg: 'Бул жер боюнча өзүнчө жарыялар жок', en: 'No posts specifically for this place' }, lang)}${placeLabel(places, lang)}${d && !(intent === 'today' && !dates) ? dateLabel(d, lang) : ''}. ${nat}`,
+        : `${tr({ ru: 'Отдельных публикаций по этому месту нет', kg: 'Бул жер боюнча өзүнчө жарыялар жок', en: 'No posts specifically for this place' }, lang)}${placeLabel(places, lang)}${d && !isToday ? dateLabel(d, lang) : ''}. ${nat}`,
       items: items([...local, ...national], 8),
       actions: [
         ...(places.length === 1 ? [{ label: tr({ ru: 'Лента региона', kg: 'Аймактын тасмасы', en: 'Region feed' }, lang), nav: { city: places[0] } }] : []),

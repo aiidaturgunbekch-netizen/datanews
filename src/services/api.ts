@@ -197,3 +197,13 @@ export const compressImage = (file: File, maxSide = 1400, quality = 0.82): Promi
 
 // ---------- бот DataNews (без внешнего ИИ) ----------
 export const askBot = (input: { q?: string; intent?: BotIntent }, lang: string) => post<BotReply>('assistant', { ...input, lang });
+
+// ---------- push-уведомления ----------
+export interface PushStats {
+  configured: boolean;
+  total: number;
+  byCity: Record<string, number>;
+  last: { id: string; at: string; title: { ru: string } } | null;
+}
+export const pushStats = () => request<PushStats>('push?stats=1');
+export const sendPushFor = (annId: string) => post<{ sent: number; removed: number; failed: number; total: number }>('push', { annId }, 'PATCH');

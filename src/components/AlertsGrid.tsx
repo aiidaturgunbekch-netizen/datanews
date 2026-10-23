@@ -7,6 +7,7 @@ import { UrgencyBadge } from './UrgencyBadge';
 import { alertLevel } from '../utils/urgency';
 import { EventImage } from './EventImage';
 import { PaidBadge } from './PaidBadge';
+import { PushToggle } from './PushToggle';
 
 interface AlertsGridProps {
   currentLanguage: Language;
@@ -137,6 +138,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
             </p>
           </div>
 
+          <div className="flex flex-col items-start sm:items-end gap-2">
           {/* Geo Scope Toggle */}
           <div className="inline-flex bg-gray-100 p-1 rounded-xl">
             <button
@@ -161,6 +163,8 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
             >
               {t('cities.all')}
             </button>
+          </div>
+          <PushToggle lang={currentLanguage} city={selectedCity} />
           </div>
         </div>
 

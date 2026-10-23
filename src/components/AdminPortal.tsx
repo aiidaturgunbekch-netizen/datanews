@@ -7,7 +7,7 @@ import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './An
 import { EventImage } from './EventImage';
 import { eventSource, ticketLink } from '../utils/links';
 import { historyLabel, MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
-import { isExpired } from '../utils/urgency';
+import { isAlert, isExpired } from '../utils/urgency';
 import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
 import { FORECAST_REGIONS, OfficialForecast } from '../config/weather';
 import { parseOfficialText } from '../utils/officialForecast';
@@ -92,7 +92,7 @@ const ReportsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
   );
 };
 
-type Tab = 'moderation' | 'review' | 'posts' | 'users' | 'reports' | 'weather' | 'stats';
+type Tab = 'moderation' | 'review' | 'posts' | 'push' | 'users' | 'reports' | 'weather' | 'stats';
 
 const fmt = (iso: string) =>
   iso ? new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -473,6 +473,145 @@ const WeatherTab: React.FC = () => {
   );
 };
 
+// ─────────────────────────── Push-уведомления ───────────────────────────
+const b64url = (buf: ArrayBuffer | Uint8Array) => {
+  let s = '';
+  new Uint8Array(buf).forEach((b) => (s += String.fromCharCode(b)));
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
+const PushPanel: React.FC<{ items: Announcement[] }> = ({ items }) => {
+  const [stats, setStats] = useState<api.PushStats | null>(null);
+  const [keys, setKeys] = useState<{ pub: string; priv: string } | null>(null);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState('');
+  const load = () => api.pushStats().then(setStats).catch((e: Error) => setErr(e.message));
+  useEffect(() => {
+    load();
+  }, []);
+
+  // Ключи создаются здесь, в браузере, и никуда не отправляются — их копируют в переменные Vercel
+  const generate = async () => {
+    const pair = (await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
+    const raw = await crypto.subtle.exportKey('raw', pair.publicKey);
+    const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
+    setKeys({ pub: b64url(raw), priv: jwk.d || '' });
+  };
+
+  const active = items.filter((a) => isAlert(a) && !isExpired(a) && (a.moderationStatus || 'approved') === 'approved');
+  const send = async (a: Announcement) => {
+    if (!window.confirm(`Отправить push-уведомление подписчикам (${cityLabel(a.city)}):\n«${a.title.ru}»?`)) return;
+    setBusy(a.id);
+    setErr('');
+    setMsg('');
+    try {
+      const r = await api.sendPushFor(a.id);
+      setMsg(`Отправлено: ${r.sent} из ${r.total}${r.removed ? `, удалено недействующих подписок: ${r.removed}` : ''}${r.failed ? `, ошибок: ${r.failed}` : ''}`);
+      load();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const copyBtn = (v: string) => (
+    <button type="button" onClick={() => navigator.clipboard?.writeText(v)} className="px-2 py-1 rounded-lg bg-white border border-gray-200 text-xs font-bold">
+      Копировать
+    </button>
+  );
+
+  return (
+    <div className="space-y-4">
+      {msg && <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-semibold">{msg}</div>}
+      {err && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">{err}</div>}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 text-sm space-y-1">
+        <div className="font-extrabold text-[#0f1b33]">Состояние</div>
+        {stats ? (
+          <>
+            <div>{stats.configured ? '✅ Ключи VAPID подключены — кнопка подписки видна посетителям в разделе «Предупреждения».' : '⚠️ Ключи VAPID не заданы — уведомления выключены, кнопка подписки на сайте скрыта.'}</div>
+            <div>
+              Подписчиков: <b>{stats.total}</b>
+              {Object.keys(stats.byCity).length > 0 && ` (${Object.entries(stats.byCity).map(([c, n]) => `${cityLabel(c)}: ${n}`).join(', ')})`}
+            </div>
+            {stats.last && (
+              <div className="text-gray-500">
+                Последнее уведомление: {fmt(stats.last.at)} — «{stats.last.title.ru}»
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-gray-500">Загрузка…</div>
+        )}
+      </div>
+
+      {stats?.configured && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
+          <div className="font-extrabold text-[#0f1b33] text-sm">Отправить по действующему предупреждению</div>
+          <p className="text-xs text-gray-500">Уведомление получат подписчики города / области предупреждения и подписчики «Весь Кыргызстан». Отправляйте только срочное.</p>
+          {active.length === 0 ? (
+            <p className="text-sm text-gray-500">Действующих предупреждений нет.</p>
+          ) : (
+            active.map((a) => (
+              <div key={a.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-xl border border-gray-100">
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-sm text-[#0f1b33] truncate">{a.title.ru}</div>
+                  <div className="text-[11px] text-gray-500">
+                    {catLabel(a.category)} • {cityLabel(a.city)} • {fmt(a.startDate)}
+                  </div>
+                </div>
+                <button
+                  onClick={() => send(a)}
+                  disabled={busy === a.id}
+                  className="self-end sm:self-auto px-3 py-2 rounded-xl bg-[#dc2626] text-white text-xs font-extrabold inline-flex items-center gap-1 disabled:opacity-60"
+                >
+                  <span className="material-symbols-outlined text-[18px]">campaign</span>
+                  {busy === a.id ? 'Отправка…' : 'Отправить push'}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2 text-sm">
+        <div className="font-extrabold text-[#0f1b33]">{stats?.configured ? 'Новые ключи (если нужно заменить)' : 'Как включить уведомления'}</div>
+        <ol className="list-decimal pl-5 space-y-1 text-gray-700">
+          <li>Нажмите «Создать ключи» — пара ключей создаётся прямо в этом браузере и никуда не отправляется.</li>
+          <li>
+            Vercel → проект datanews → Settings → Environment Variables. Добавьте <code>VAPID_PUBLIC_KEY</code> и <code>VAPID_PRIVATE_KEY</code> (значения ниже). Для проверки отметьте только окружение <b>Preview</b>; Production — когда решите запускать.
+          </li>
+          <li>По желанию: <code>VAPID_SUBJECT</code> — адрес сайта (https://…) или mailto: с вашей почтой; без него берётся адрес сайта.</li>
+          <li>Сделайте Redeploy (или новый коммит) — после этого кнопка «Уведомлять о срочном» появится в разделе «Предупреждения».</li>
+        </ol>
+        <p className="text-xs text-red-700">Закрытый ключ никому не пересылайте и не храните в коде — только в настройках Vercel. При замене ключей старые подписки перестанут работать.</p>
+        <button onClick={generate} className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-extrabold">
+          Создать ключи
+        </button>
+        {keys && (
+          <div className="space-y-2">
+            <div>
+              <div className="text-[11px] font-bold uppercase text-gray-500">VAPID_PUBLIC_KEY</div>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 min-w-0 break-all text-xs bg-gray-50 p-2 rounded-lg">{keys.pub}</code>
+                {copyBtn(keys.pub)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] font-bold uppercase text-gray-500">VAPID_PRIVATE_KEY (секретный)</div>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 min-w-0 break-all text-xs bg-gray-50 p-2 rounded-lg">{keys.priv}</code>
+                {copyBtn(keys.priv)}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─────────────────────────── Панель ───────────────────────────
 export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleChange, onClose }) => {
   const [isAdmin, setIsAdmin] = useState(api.getSession()?.role === 'admin');
@@ -628,6 +767,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     ['moderation', 'Модерация', 'fact_check', pending.length],
     ['review', 'Требует проверки', 'rule', toReview.length],
     ['posts', 'Публикации', 'article', 0],
+    ['push', 'Уведомления', 'notifications', 0],
     ['users', 'Пользователи', 'group', unpaid.length],
     ['reports', 'Жалобы', 'flag', openReports],
     ['weather', 'Прогноз погоды', 'thermostat', 0],
@@ -856,6 +996,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     </div>
                   )}
                 </>
+              ) : tab === 'push' ? (
+                <PushPanel items={merged} />
               ) : tab === 'posts' ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">

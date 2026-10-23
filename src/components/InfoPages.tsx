@@ -102,6 +102,7 @@ const PRIVACY: Record<Language, React.ReactNode> = {
           'Статистика посещений: обезличенные счётчики (страница, язык, тип устройства, страна/город по IP без сохранения самого IP).',
           'Личный кабинет: имя, e-mail, телефон, организация, данные тарифа и история оплат — для работы кабинета и подтверждения оплаты.',
           'Жалобы: причина, комментарий и контакт, если вы его указали.',
+          'Push-уведомления (если вы их включили): технический адрес подписки вашего браузера и выбранный город — без имени, телефона и e-mail. Отключить можно кнопкой в разделе «Предупреждения» или в настройках браузера; адрес подписки тогда удаляется.',
         ]}
       />
       <H>Чат-бот DataNews</H>
@@ -121,6 +122,7 @@ const PRIVACY: Record<Language, React.ReactNode> = {
           'Кирүү статистикасы: жеке адамды аныктабаган эсептегичтер (бет, тил, түзмөк түрү, IP боюнча өлкө/шаар, IPнин өзү сакталбайт).',
           'Жеке кабинет: аты-жөнү, e-mail, телефон, уюм, тариф жана төлөмдөр тарыхы — кабинеттин иштеши жана төлөмдү тастыктоо үчүн.',
           'Даттануулар: себеби, комментарий жана көрсөткөн болсоңуз — байланышыңыз.',
+          'Push-билдирмелер (эгер күйгүзсөңүз): браузериңиздин жазылуусунун техникалык дареги жана тандалган шаар — аты-жөнү, телефону жана e-mail жок. «Эскертүүлөр» бөлүмүндөгү баскыч же браузердин жөндөөлөрү аркылуу өчүрсөңүз болот; анда жазылуу дареги өчүрүлөт.',
         ]}
       />
       <H>DataNews чат-боту</H>
@@ -140,6 +142,7 @@ const PRIVACY: Record<Language, React.ReactNode> = {
           'Visit statistics: anonymous counters (page, language, device type, country/city from IP without storing the IP).',
           'Accounts: name, e-mail, phone, organisation, plan and payment history — to run the account and confirm payments.',
           'Reports: reason, comment and contact if you provided one.',
+          'Push notifications (if you turned them on): your browser’s technical subscription address and the chosen city — no name, phone or e-mail. Turn them off with the button in the Warnings section or in the browser settings; the subscription address is then deleted.',
         ]}
       />
       <H>DataNews chat bot</H>

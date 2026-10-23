@@ -12,6 +12,9 @@ const read = () => {
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
       AUTH_SECRET: process.env.AUTH_SECRET,
       DATANEWS_MEMORY_KV: process.env.DATANEWS_MEMORY_KV,
+      VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
+      VAPID_SUBJECT: process.env.VAPID_SUBJECT,
     };
   } catch {
     return {} as Record<string, string | undefined>;
@@ -19,6 +22,14 @@ const read = () => {
 };
 
 export const env = (
-  name: 'KV_REST_API_URL' | 'KV_REST_API_TOKEN' | 'ADMIN_PASSWORD' | 'AUTH_SECRET' | 'DATANEWS_MEMORY_KV'
+  name:
+    | 'KV_REST_API_URL'
+    | 'KV_REST_API_TOKEN'
+    | 'ADMIN_PASSWORD'
+    | 'AUTH_SECRET'
+    | 'DATANEWS_MEMORY_KV'
+    | 'VAPID_PUBLIC_KEY'
+    | 'VAPID_PRIVATE_KEY'
+    | 'VAPID_SUBJECT'
 ) =>
   read()[name] || undefined;

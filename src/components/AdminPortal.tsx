@@ -11,6 +11,7 @@ import { isExpired } from '../utils/urgency';
 import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
 import { FORECAST_REGIONS, OfficialForecast } from '../config/weather';
 import { parseOfficialText } from '../utils/officialForecast';
+import { ImportResult, parseNotice } from '../utils/importText';
 import { getTranslation } from '../locales/translations';
 
 interface AdminPortalProps {
@@ -528,6 +529,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   }, [isAdmin, tab]);
   const [historyOf, setHistoryOf] = useState<string | null>(null);
 
+  // Импорт из официального сообщения: текст + ссылка → черновик в форме, публикует редактор
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importUrl, setImportUrl] = useState('');
+  const [importSource, setImportSource] = useState('');
+  const [imported, setImported] = useState<ImportResult | null>(null);
+  const runImport = () => {
+    const r = parseNotice(importText, importUrl, importSource);
+    setImported(r);
+    setImportOpen(false);
+    setEditing('new');
+  };
+  const importDraft = imported
+    ? ({
+        title: { ru: '', kg: '', en: '' },
+        summary: { ru: '', kg: '', en: '' },
+        description: { ru: '', kg: '', en: '' },
+        location: { ru: '', kg: '', en: '' },
+        city: 'bishkek',
+        category: 'gov',
+        startDate: '',
+        ...imported.draft,
+      } as Announcement)
+    : null;
+
   const merged = useMemo(() => {
     const byId = new Map<string, Announcement>();
     INITIAL_ANNOUNCEMENTS.forEach((a) => byId.set(a.id, a));
@@ -679,12 +705,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
 
               {editing ? (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100">
-                  <h3 className="font-extrabold text-[#0f1b33] mb-4">{editing === 'new' ? 'Новая публикация' : 'Редактирование'}</h3>
+                  <h3 className="font-extrabold text-[#0f1b33] mb-4">{editing === 'new' ? (imported ? 'Черновик из сообщения' : 'Новая публикация') : 'Редактирование'}</h3>
+                  {editing === 'new' && imported && (
+                    <div className="mb-4 p-3 rounded-xl bg-sky-50 text-sky-900 text-xs space-y-1">
+                      <div>
+                        <b>Найдено в тексте:</b> {imported.found.join(', ') || 'ничего'}
+                      </div>
+                      {imported.missing.length > 0 && (
+                        <div>
+                          <b>Заполните вручную:</b> {imported.missing.join(', ')}
+                        </div>
+                      )}
+                      <div>Сверьте каждое поле с первоисточником перед публикацией. Переводы на кыргызский и английский — вручную.</div>
+                    </div>
+                  )}
                   <AnnouncementForm
                     mode="admin"
-                    initial={editing === 'new' ? null : editing}
+                    key={editing === 'new' ? `new-${imported ? 'import' : 'blank'}` : editing.id}
+                    initial={editing === 'new' ? importDraft : editing}
                     submitLabel={editing === 'new' ? 'Опубликовать' : 'Сохранить'}
-                    onCancel={() => setEditing(null)}
+                    onCancel={() => {
+                      setEditing(null);
+                      setImported(null);
+                    }}
                     onSubmit={async (item) => {
                       if (editing === 'new') {
                         try {
@@ -699,6 +742,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                       else if (serverItems.some((s) => s.id === editing.id)) await api.updateAnnouncement(editing.id, item);
                       else await api.submitAnnouncement({ ...item, id: editing.id }); // правка встроенного события
                       setEditing(null);
+                      setImported(null);
                       setMsg('Сохранено');
                       load();
                       onRefreshData();
@@ -819,10 +863,40 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     <span className="text-xs text-gray-500">
                       Без настоящего фото: {allPosts.filter((a) => !a.imageUrl || a.imageUrl.startsWith('/illustrations/')).length}
                     </span>
-                    <button onClick={() => setEditing('new')} className="ml-auto px-4 py-2 rounded-xl bg-[#20C7B5] text-[#002f29] text-sm font-extrabold inline-flex items-center gap-1">
+                    <button
+                      onClick={() => setImportOpen((v) => !v)}
+                      className="ml-auto px-4 py-2 rounded-xl bg-white border border-gray-200 text-[#12327A] text-sm font-extrabold inline-flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">content_paste</span>Импорт из сообщения
+                    </button>
+                    <button
+                      onClick={() => {
+                        setImported(null);
+                        setEditing('new');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-[#20C7B5] text-[#002f29] text-sm font-extrabold inline-flex items-center gap-1">
                       <span className="material-symbols-outlined text-[18px]">add</span>Новая публикация
                     </button>
                   </div>
+                  {importOpen && (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
+                      <p className="text-xs text-gray-500">
+                        Вставьте текст официального сообщения (Кыргызгидромет, МЧС, мэрия, «Северэлектро» и т. п.) и ссылку на него. Даты, время, раздел, область, район и адрес подставятся в форму, если они прямо есть в тексте. Ничего не публикуется без вашей проверки.
+                      </p>
+                      <textarea className={inputCls} rows={6} value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="Текст сообщения" maxLength={5000} />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input className={inputCls} value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="Ссылка на первоисточник, https://" />
+                        <input className={inputCls} value={importSource} onChange={(e) => setImportSource(e.target.value)} placeholder="Источник, например: Кыргызгидромет" />
+                      </div>
+                      <button
+                        onClick={runImport}
+                        disabled={importText.trim().length < 10}
+                        className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-extrabold disabled:opacity-50"
+                      >
+                        Разобрать в черновик
+                      </button>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     {allPosts.map((a) => {
                       const b = MODERATION_BADGE[a.moderationStatus || 'approved'];

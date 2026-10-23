@@ -91,10 +91,26 @@ const ReportsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
   );
 };
 
-type Tab = 'moderation' | 'posts' | 'users' | 'reports' | 'weather' | 'stats';
+type Tab = 'moderation' | 'review' | 'posts' | 'users' | 'reports' | 'weather' | 'stats';
 
 const fmt = (iso: string) =>
   iso ? new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+const STALE_MS = 3 * 86400_000;
+
+/** Почему действующую публикацию нужно сверить с первоисточником (пусто — всё в порядке) */
+const reviewReasons = (a: Announcement): string[] => {
+  if (isExpired(a) || (a.moderationStatus && a.moderationStatus !== 'approved')) return [];
+  const r: string[] = [];
+  if (!a.lastCheckedAt) r.push('Дата проверки не указана');
+  else if (Date.now() - kgTs(a.lastCheckedAt) > STALE_MS) r.push(`Проверено давно (${fmt(a.lastCheckedAt)})`);
+  if (!a.isVerified && !a.publishedByGov) r.push('Не подтверждено');
+  if (a.category === 'laws' || a.category === 'state' || a.legal) {
+    if (!a.legal?.docUrl) r.push('Нет ссылки на документ');
+    if (!a.legal?.effectiveFrom) r.push('Нет даты вступления в силу');
+  }
+  return r;
+};
+
 const catLabel = (id: string) => CATEGORY_OPTIONS.find((c) => c.id === id)?.label || id;
 const cityLabel = (id: string) => CITY_OPTIONS.find((c) => c.id === id)?.label || id;
 
@@ -512,16 +528,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   }, [isAdmin, tab]);
   const [historyOf, setHistoryOf] = useState<string | null>(null);
 
-  const allPosts = useMemo(() => {
+  const merged = useMemo(() => {
     const byId = new Map<string, Announcement>();
     INITIAL_ANNOUNCEMENTS.forEach((a) => byId.set(a.id, a));
     serverItems.forEach((a) => byId.set(a.id, a));
     hidden.forEach((id) => byId.delete(id));
+    return [...byId.values()];
+  }, [serverItems, hidden]);
+  const toReview = useMemo(
+    () =>
+      merged
+        .map((a) => ({ a, reasons: reviewReasons(a) }))
+        .filter((x) => x.reasons.length)
+        .sort((x, y) => (x.a.lastCheckedAt || '').localeCompare(y.a.lastCheckedAt || '')),
+    [merged]
+  );
+
+  const allPosts = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return [...byId.values()]
+    return merged
       .filter((a) => !q || `${a.title.ru} ${a.location.ru} ${a.submittedBy?.name || ''}`.toLowerCase().includes(q))
       .sort((a, b) => b.startDate.localeCompare(a.startDate));
-  }, [serverItems, hidden, query]);
+  }, [merged, query]);
 
   const act = async (fn: () => Promise<unknown>, okMsg: string) => {
     setErr('');
@@ -572,6 +600,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
 
   const tabs: [Tab, string, string, number][] = [
     ['moderation', 'Модерация', 'fact_check', pending.length],
+    ['review', 'Требует проверки', 'rule', toReview.length],
     ['posts', 'Публикации', 'article', 0],
     ['users', 'Пользователи', 'group', unpaid.length],
     ['reports', 'Жалобы', 'flag', openReports],
@@ -734,6 +763,55 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     ))
                   )}
                 </>
+              ) : tab === 'review' ? (
+                <>
+                  <p className="text-xs text-gray-500">
+                    Действующие публикации, которые давно не сверялись с первоисточником или где не хватает данных. Сначала — самые давно проверенные. «Проверено сегодня» обновляет только дату проверки; недостающие поля заполняются через «Редактировать».
+                  </p>
+                  {toReview.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center text-sm text-gray-500">Всё проверено — список пуст.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {toReview.map(({ a, reasons }) => {
+                        const src = eventSource(a) || a.legal?.docUrl;
+                        return (
+                          <div key={a.id} className="bg-white rounded-2xl border border-gray-100 p-3 flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-sm text-[#0f1b33] truncate">{a.title.ru}</div>
+                              <div className="text-[11px] text-gray-500">
+                                {catLabel(a.category)} • {fmt(a.startDate)}
+                                {a.sourceName ? ` • ${a.sourceName}` : ''}
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-1 text-[11px] font-bold">
+                                {reasons.map((r) => (
+                                  <span key={r} className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800">
+                                    {r}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 self-end sm:self-auto">
+                              {src && (
+                                <a href={src} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Открыть первоисточник">
+                                  <span className="material-symbols-outlined text-[20px]">open_in_new</span>
+                                </a>
+                              )}
+                              <button onClick={() => setEditing(a)} className="p-2 rounded-lg hover:bg-gray-100 text-[#12327A]" title="Редактировать">
+                                <span className="material-symbols-outlined text-[20px]">edit</span>
+                              </button>
+                              <button
+                                onClick={() => act(() => api.markChecked(a.id), `Отмечено как проверенное: «${a.title.ru}»`)}
+                                className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-extrabold inline-flex items-center gap-1 hover:bg-emerald-100"
+                              >
+                                <span className="material-symbols-outlined text-[18px]">task_alt</span>Проверено сегодня
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               ) : tab === 'posts' ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
@@ -755,7 +833,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
                               <span className={`px-2 py-0.5 rounded-full ${b.cls}`}>{b.label}</span>
                               {a.publishedByGov && <span className="px-2 py-0.5 rounded-full bg-[#e6ecf8] text-[#12327A]">Госорган, без премодерации</span>}
-                              {!isExpired(a) && (!a.lastCheckedAt || Date.now() - kgTs(a.lastCheckedAt) > 3 * 86400_000) && (
+                              {!isExpired(a) && (!a.lastCheckedAt || Date.now() - kgTs(a.lastCheckedAt) > STALE_MS) && (
                                 <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800" title="Действующая публикация давно не проверялась: сверьте с первоисточником и обновите дату проверки (кнопка «Редактировать» → «Сохранить»)">
                                   Перепроверить{a.lastCheckedAt ? ` (проверено ${fmt(a.lastCheckedAt)})` : ''}
                                 </span>

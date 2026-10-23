@@ -169,6 +169,16 @@ export default handler(async (req) => {
       return json({ item: next });
     }
 
+    // Модератор сверил публикацию с первоисточником: обновляем только дату проверки
+    if (body.action === 'checked') {
+      await requireAdmin(req);
+      const base = current || INITIAL_ANNOUNCEMENTS.find((a) => a.id === id);
+      if (!base) throw new HttpError('not_found', 404);
+      const next = withHistory({ ...base, lastCheckedAt: kgNowLocal() }, 'admin', 'edited', 'Сверено с первоисточником');
+      await saveAnnouncement(next);
+      return json({ item: next });
+    }
+
     if (body.action === 'withdraw') {
       if (!current) throw new HttpError('not_found', 404);
       const isAdmin = session.role === 'admin';

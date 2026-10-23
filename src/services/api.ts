@@ -108,6 +108,9 @@ export const updateAnnouncement = (id: string, item: Record<string, unknown>) =>
 export const moderateAnnouncement = (id: string, action: 'approve' | 'reject' | 'restore' | 'withdraw', note?: string) =>
   post<{ item: Announcement }>('announcements', { id, action, note }, 'PATCH').then((r) => r.item);
 
+/** Отметить, что публикация сверена с первоисточником сегодня (администратор) */
+export const markChecked = (id: string) => post<{ item: Announcement }>('announcements', { id, action: 'checked' }, 'PATCH').then((r) => r.item);
+
 /** Снять свою публикацию с сайта (автор) */
 export const withdrawAnnouncement = (id: string, note?: string) => moderateAnnouncement(id, 'withdraw', note);
 

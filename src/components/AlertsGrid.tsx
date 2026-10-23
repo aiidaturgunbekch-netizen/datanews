@@ -6,6 +6,7 @@ import { formatWhen } from '../utils/dates';
 import { UrgencyBadge } from './UrgencyBadge';
 import { alertLevel } from '../utils/urgency';
 import { EventImage } from './EventImage';
+import { PaidBadge } from './PaidBadge';
 
 interface AlertsGridProps {
   currentLanguage: Language;
@@ -237,6 +238,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                         </span>
                         <span>{cfg.badgeLabel}</span>
                       </span>
+                      <PaidBadge item={ann} lang={currentLanguage} />
                       {updatedOn(ann) && displayStatus !== 'completed' && (
                         <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 text-[11px] font-bold" title={formatWhen(updatedOn(ann)!, undefined, currentLanguage)}>
                           {L('Обновлено', 'Жаңыланды', 'Updated')}

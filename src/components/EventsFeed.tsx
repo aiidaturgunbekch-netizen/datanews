@@ -3,6 +3,7 @@ import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { StorageService } from '../services/storage';
 import { EventImage } from './EventImage';
+import { PaidBadge } from './PaidBadge';
 import { ticketLink } from '../utils/links';
 import { MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT, formatDate } from '../utils/dates';
 import { freshOrder, getAnnouncementDisplayStatus, getStatusBadgeConfig, isFresh } from '../utils/statusUtils';
@@ -217,6 +218,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                           <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                           <span>{statusCfg.label}</span>
                         </span>
+                        <PaidBadge item={item} lang={currentLanguage} />
 
                         {item.eventDetails?.timeRange && (
                           <span className="text-xs text-gray-400 font-medium">
@@ -346,6 +348,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                       <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                       <span>{statusCfg.label}</span>
                     </span>
+                    <PaidBadge item={item} lang={currentLanguage} />
                   </div>
 
                   <h3 className="text-base font-bold text-[#0f1b33] mb-2 group-hover:text-[#12327A] transition-colors leading-snug">

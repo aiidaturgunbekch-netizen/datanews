@@ -4,6 +4,7 @@ import { getTranslation } from '../locales/translations';
 import { CATEGORY_IDS, REGIONS } from '../config/regions';
 import { EventImage } from './EventImage';
 import { UrgencyBadge } from './UrgencyBadge';
+import { PaidBadge } from './PaidBadge';
 import { formatWhen, MONTHS } from '../utils/dates';
 import { alertLevel, isListed } from '../utils/urgency';
 import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
@@ -77,6 +78,7 @@ export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a:
             <span className="px-2 py-0.5 rounded-full bg-[#eef2f9] text-[#12327A] text-[10px] font-bold">{T.nationwide[lang]}</span>
           )}
           <UrgencyBadge item={item} lang={lang} />
+          <PaidBadge item={item} lang={lang} />
         </div>
         <div className="font-bold text-sm text-[#0f1b33] leading-snug break-words">{item.title[lang] || item.title.ru}</div>
         <div className="text-xs text-gray-500 mt-0.5 break-words">

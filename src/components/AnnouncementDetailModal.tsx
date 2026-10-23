@@ -1,3 +1,4 @@
+import { PaidNote } from './PaidBadge';
 import React, { useEffect, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
@@ -441,6 +442,10 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
               <span className="material-symbols-outlined text-[14px]">open_in_new</span>
             </a>
           )}
+        </div>
+
+        <div className="mx-6 mb-4 empty:hidden">
+          <PaidNote item={a} lang={lang} />
         </div>
 
         {a.publishedByGov && (

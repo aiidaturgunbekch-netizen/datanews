@@ -164,6 +164,7 @@ const RULES: Record<Language, React.ReactNode> = {
         'Публикации пользователей проходят модерацию; подтверждённые госорганы публикуют сами и отвечают за сведения.',
         'По обоснованной жалобе публикация может быть снята; история изменений сохраняется.',
         'Тарифы действуют 30 дней; оплата подтверждается вручную.',
+        'Публикации по тарифам помечены «Платное размещение» — так они отличаются от редакционных материалов и сообщений госорганов.',
       ]}
     />
   ),
@@ -177,6 +178,7 @@ const RULES: Record<Language, React.ReactNode> = {
         'Колдонуучулардын жарыялары модерациядан өтөт; тастыкталган мамлекеттик органдар өздөрү жарыялап, маалымат үчүн жооп беришет.',
         'Негиздүү даттануу боюнча жарыя алынышы мүмкүн; өзгөртүүлөрдүн тарыхы сакталат.',
         'Тарифтер 30 күн жарактуу; төлөм кол менен тастыкталат.',
+        'Тариф боюнча жарыялар «Акылуу жайгаштыруу» деп белгиленет — ушундайча алар редакциялык материалдардан жана мамлекеттик органдардын билдирүүлөрүнөн айырмаланат.',
       ]}
     />
   ),
@@ -190,6 +192,7 @@ const RULES: Record<Language, React.ReactNode> = {
         'User posts are moderated; verified government bodies publish directly and are responsible for their information.',
         'A post may be taken down after a justified report; the change history is kept.',
         'Plans last 30 days; payments are confirmed manually.',
+        'Posts under a plan are marked "Paid placement" to separate them from editorial content and government notices.',
       ]}
     />
   ),

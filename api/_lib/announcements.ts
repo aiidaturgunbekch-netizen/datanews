@@ -1,5 +1,5 @@
 import { kgNowLocal } from '../../src/utils/time';
-import type { Announcement, CategoryId, CityId, HistoryEntry, LocalizedString, SourceKind, UrgencyType } from '../../src/types';
+import type { Announcement, CategoryId, CityId, HistoryChange, HistoryEntry, LocalizedString, SourceKind, UrgencyType } from '../../src/types';
 import { cmd, hsetJson } from './kv';
 import { HttpError, randomId } from './http';
 
@@ -159,11 +159,34 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
 export const saveAnnouncement = (a: Announcement) => hsetJson(ANN_KEY, a.id, a);
 
 /** Для публичной выдачи скрываем личные контакты автора */
-export const publicView = (a: Announcement): Announcement =>
-  a.submittedBy ? { ...a, submittedBy: { userId: a.submittedBy.userId, name: a.submittedBy.name, email: '', organization: a.submittedBy.organization } } : a;
+/**
+ * Публичный вид: без контактов автора; из истории — только существенные исправления
+ * (когда и что изменено), без внутренних заметок модерации.
+ */
+export const publicView = (a: Announcement): Announcement => ({
+  ...a,
+  submittedBy: a.submittedBy ? { userId: a.submittedBy.userId, name: a.submittedBy.name, email: '', organization: a.submittedBy.organization } : undefined,
+  history: (a.history || [])
+    .filter((h) => h.action === 'edited' && h.changes?.length)
+    .map((h) => ({ at: h.at, by: h.by === 'admin' ? 'admin' : 'author', action: 'edited' as const, changes: h.changes })),
+});
+
+/** Существенные изменения между версиями публикации — для публичной истории исправлений */
+export const diffFields = (prev: Announcement | null | undefined, next: Announcement): HistoryChange[] => {
+  if (!prev || !prev.title) return [];
+  const out: HistoryChange[] = [];
+  if (prev.startDate !== next.startDate || (prev.endDate || '') !== (next.endDate || '') || Boolean(prev.timeTBA) !== Boolean(next.timeTBA)) out.push('date');
+  if (prev.location?.ru !== next.location?.ru || (prev.district || '') !== (next.district || '') || (prev.locality || '') !== (next.locality || '')) out.push('place');
+  if (prev.title?.ru !== next.title?.ru) out.push('title');
+  if ((prev.eventDetails?.priceText?.ru || '') !== (next.eventDetails?.priceText?.ru || '')) out.push('price');
+  if ((prev.status || '') !== (next.status || '')) out.push('status');
+  if ((prev.ticketUrl || '') !== (next.ticketUrl || '')) out.push('tickets');
+  if ((prev.legal?.effectiveFrom || '') !== (next.legal?.effectiveFrom || '')) out.push('effective');
+  return out;
+};
 
 /** Добавляет запись в историю изменений (хранятся последние 50) */
-export const withHistory = (a: Announcement, by: HistoryEntry['by'], action: HistoryEntry['action'], note?: string): Announcement => ({
+export const withHistory = (a: Announcement, by: HistoryEntry['by'], action: HistoryEntry['action'], note?: string, changes?: HistoryChange[]): Announcement => ({
   ...a,
-  history: [...(a.history || []), { at: kgNowLocal(), by, action, ...(note ? { note: note.slice(0, 500) } : {}) }].slice(-50),
+  history: [...(a.history || []), { at: kgNowLocal(), by, action, ...(note ? { note: note.slice(0, 500) } : {}), ...(changes?.length ? { changes } : {}) }].slice(-50),
 });

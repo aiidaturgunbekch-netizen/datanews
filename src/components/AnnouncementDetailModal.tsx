@@ -8,6 +8,19 @@ import { formatDate, formatDayMonthTime, formatWhen } from '../utils/dates';
 import { eventSource, groupedSources, hostOf, isGovTicket, SourceLink, ticketLink } from '../utils/links';
 import * as api from '../services/api';
 import { Report } from '../types';
+
+/** Подписи для истории исправлений */
+const CORR: Record<string, Record<Language, string>> = {
+  title: { ru: 'Исправления', kg: 'Оңдоолор', en: 'Corrections' },
+  changed: { ru: 'изменено', kg: 'өзгөртүлдү', en: 'changed' },
+  date: { ru: 'дата и время', kg: 'дата жана убакыт', en: 'date and time' },
+  place: { ru: 'место', kg: 'жер', en: 'place' },
+  title_: { ru: 'заголовок', kg: 'аталыш', en: 'title' },
+  price: { ru: 'цена', kg: 'баа', en: 'price' },
+  status: { ru: 'статус', kg: 'статус', en: 'status' },
+  tickets: { ru: 'ссылка на билеты', kg: 'билет шилтемеси', en: 'ticket link' },
+  effective: { ru: 'дата вступления в силу', kg: 'күчүнө кирген күнү', en: 'entry-into-force date' },
+};
 import { isExpired } from '../utils/urgency';
 import { kgDateStr, kgTs } from '../utils/time';
 
@@ -171,6 +184,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     { title: L.additional[lang], items: groups.additional },
   ].filter((x) => x.items.length > 0);
   const [reportOpen, setReportOpen] = useState(false);
+  const corrections = (a.history || []).filter((h) => h.action === 'edited' && h.changes?.length).slice(-5);
   const [reason, setReason] = useState<Report['reason']>('false');
   const [comment, setComment] = useState('');
   const [contact, setContact] = useState('');
@@ -529,6 +543,25 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
               {a.lastCheckedAt && ` • ${L.checkedAt[lang]} ${formatDayMonthTime(a.lastCheckedAt, lang)}`}
             </span>
           </p>
+        )}
+
+        {/* Публичная история существенных исправлений (без внутренних заметок) */}
+        {corrections.length > 0 && (
+          <div className="mx-6 mb-6 -mt-2 rounded-xl border border-gray-100 bg-[#f8fafc] p-3 text-xs text-gray-700">
+            <div className="font-bold text-[#0f1b33] flex items-center gap-1.5 mb-1">
+              <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                edit_note
+              </span>
+              {CORR.title[lang]}
+            </div>
+            <ul className="space-y-0.5">
+              {corrections.map((h, i) => (
+                <li key={i}>
+                  {formatDayMonthTime(h.at, lang)} — {CORR.changed[lang]}: {(h.changes || []).map((c) => CORR[c === 'title' ? 'title_' : c]?.[lang] || c).join(', ')}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <div className="mx-6 mb-6">

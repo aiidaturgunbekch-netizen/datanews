@@ -241,7 +241,11 @@ export interface HistoryEntry {
   by: 'admin' | 'author' | 'reader' | 'system';
   action: 'created' | 'published' | 'edited' | 'approved' | 'rejected' | 'withdrawn' | 'restored' | 'reported';
   note?: string;
+  /** Что существенно изменилось при правке: дата, место, заголовок, цена, статус, билеты, вступление в силу */
+  changes?: HistoryChange[];
 }
+
+export type HistoryChange = 'date' | 'place' | 'title' | 'price' | 'status' | 'tickets' | 'effective';
 
 /** 'withdrawn' — снято с публикации (автором-госорганом или администратором), на сайте не показывается */
 export type ModerationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn';

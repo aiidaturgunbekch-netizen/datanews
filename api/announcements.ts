@@ -19,7 +19,7 @@
 import type { Announcement } from '../src/types';
 import { cmd, hgetJson, hvalsJson } from './_lib/kv';
 import { handler, HttpError, json, rateLimit, readBody, readSession, requireAdmin, requireUser } from './_lib/http';
-import { ANN_KEY, HIDDEN_KEY, publicView, sanitize, saveAnnouncement, withHistory } from './_lib/announcements';
+import { ANN_KEY, diffFields, HIDDEN_KEY, publicView, sanitize, saveAnnouncement, withHistory } from './_lib/announcements';
 import { StoredUser, USERS_KEY } from './_lib/users';
 import { checkPlanCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
 import { kgNowLocal } from '../src/utils/time';
@@ -96,7 +96,9 @@ export default handler(async (req) => {
       item.moderationStatus = 'approved';
       item.dataOrigin = item.dataOrigin || 'manual';
       item.lastCheckedAt = item.updatedAt;
-      item = withHistory(item, 'admin', existing ? 'edited' : 'published');
+      // Правка существующей (в т.ч. встроенной) публикации — с перечнем существенных изменений
+      const prev = existing || INITIAL_ANNOUNCEMENTS.find((a) => a.id === item.id) || null;
+      item = prev ? withHistory(item, 'admin', 'edited', undefined, diffFields(prev, item)) : withHistory(item, 'admin', 'published');
       await saveAnnouncement(item);
       return json({ item }, 201);
     }
@@ -188,7 +190,7 @@ export default handler(async (req) => {
       item.submittedBy = current?.submittedBy;
       item.dataOrigin = current?.dataOrigin || 'manual';
       item.lastCheckedAt = item.updatedAt;
-      item = withHistory(item, 'admin', 'edited');
+      item = withHistory(item, 'admin', 'edited', undefined, diffFields(current, item));
       await saveAnnouncement(item);
       return json({ item });
     }
@@ -206,11 +208,11 @@ export default handler(async (req) => {
       // Госорган правит свою публикацию сам; правка сразу на сайте и попадает в историю
       item.moderationStatus = current.moderationStatus === 'withdrawn' ? 'withdrawn' : 'approved';
       item.sourceKind = 'official';
-      item = withHistory(item, 'author', 'edited');
+      item = withHistory(item, 'author', 'edited', undefined, diffFields(current, item));
     } else {
       item.moderationStatus = 'pending';
       item.moderationNote = undefined;
-      item = withHistory(item, 'author', 'edited', 'Отправлено на повторную модерацию');
+      item = withHistory(item, 'author', 'edited', 'Отправлено на повторную модерацию', diffFields(current, item));
     }
     await saveAnnouncement(item);
     return json({ item });

@@ -10,6 +10,7 @@ interface CityMosaicProps {
   currentLanguage: Language;
   onSelectCity: (cityId: CityId) => void;
   onOpenAllCities: () => void;
+  onOpenAnnouncement: (a: Announcement) => void;
 }
 
 /** «1 предупреждение / 3 предупреждения / 5 предупреждений», «5 эскертүү», «5 alerts» */
@@ -28,6 +29,7 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
   currentLanguage,
   onSelectCity,
   onOpenAllCities,
+  onOpenAnnouncement,
 }) => {
   const { t } = getTranslation(currentLanguage);
 
@@ -187,7 +189,7 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
         </div>
 
         <Suspense fallback={<div className="mt-8 h-[460px] rounded-2xl bg-[#f6f8fd] border border-gray-100" />}>
-          <KyrgyzstanLiveMap lang={currentLanguage} counts={mapCount} onSelect={onSelectCity} />
+          <KyrgyzstanLiveMap lang={currentLanguage} announcements={announcements} onSelect={onSelectCity} onOpen={onOpenAnnouncement} />
         </Suspense>
       </div>
     </section>

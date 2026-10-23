@@ -409,6 +409,7 @@ export default function App() {
                 window.scrollTo({ top: 300, behavior: 'smooth' });
               }}
               onOpenAllCities={() => setCurrentView('cities')}
+              onOpenAnnouncement={setActiveNoticeDetail}
             />
 
             {/* Экстренные службы — внизу, чтобы не отвлекать от свежих новостей */}

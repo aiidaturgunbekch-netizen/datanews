@@ -1,7 +1,12 @@
+import { EventImage } from './EventImage';
+import { PLACE_IDS } from '../config/regions';
 import React, { useState } from 'react';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { alertLevel } from '../utils/urgency';
+import { formatDateLong, formatMonthYear, formatTime } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+import { recordsLabel } from '../utils/plural';
 
 interface FullCalendarViewProps {
   currentLanguage: Language;
@@ -31,12 +36,6 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
     if (selectedCity !== 'all' && a.city !== selectedCity) return false;
     return true;
   });
-
-  const monthNames = currentLanguage === 'kg'
-    ? ['Үчтүн айы', 'Бирдин айы', 'Жалган куран', 'Чын куран', 'Бугу (Май)', 'Кулжа (Июнь)', 'Теке', 'Баш оона', 'Аяк оона', 'Тогуздун айы (Октябрь)', 'Жетинин айы', 'Бештин айы']
-    : currentLanguage === 'en'
-    ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    : ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
   const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
   const firstDay = new Date(selectedYear, selectedMonth, 1).getDay();
@@ -88,7 +87,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
             <span>{t('nav.home')}</span>
           </button>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f1b33]">
-            {t('nav.calendar')} — {monthNames[selectedMonth]} {selectedYear}
+            {t('nav.calendar')} — {formatMonthYear(selectedYear, selectedMonth, currentLanguage)}
           </h1>
           <p className="text-xs sm:text-sm text-gray-500">
             {t('appSlogan')}
@@ -111,7 +110,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
             <span className="material-symbols-outlined text-[20px]">chevron_left</span>
           </button>
           <span className="font-bold text-sm px-3 text-[#0f1b33]">
-            {monthNames[selectedMonth]} {selectedYear}
+            {formatMonthYear(selectedYear, selectedMonth, currentLanguage)}
           </span>
           <button
             onClick={() => {
@@ -132,7 +131,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
             {t('search.whereLabel')}
           </span>
           <select
@@ -140,19 +139,16 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
             onChange={(e) => setSelectedCity(e.target.value as CityId)}
             className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#20C7B5]"
           >
-            <option value="all">{t('cities.all')}</option>
-            <option value="bishkek">{t('cities.bishkek')}</option>
-            <option value="osh">{t('cities.osh')}</option>
-            <option value="jalalabad">{t('cities.jalalabad')}</option>
-            <option value="karakol">{t('cities.karakol')}</option>
-            <option value="talas">{t('cities.talas')}</option>
-            <option value="naryn">{t('cities.naryn')}</option>
-            <option value="batken">{t('cities.batken')}</option>
+            {PLACE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {t(`cities.${id}`)}
+              </option>
+            ))}
           </select>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
             {t('search.whatLabel')}
           </span>
           <select
@@ -178,14 +174,18 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
         {/* Left: 8 cols monthly grid */}
         <div className="lg:col-span-8 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm">
           {/* Weekday Header */}
-          <div className="grid grid-cols-7 gap-2 text-center text-xs font-extrabold uppercase text-gray-400 mb-3 tracking-wider">
-            <span>{t('days.mon')}</span>
-            <span>{t('days.tue')}</span>
-            <span>{t('days.wed')}</span>
-            <span>{t('days.thu')}</span>
-            <span>{t('days.fri')}</span>
-            <span className="text-[#dc2626]">{t('days.sat')}</span>
-            <span className="text-[#dc2626]">{t('days.sun')}</span>
+          <div
+            className="grid grid-cols-7 gap-2 text-center font-extrabold text-gray-500 mb-3 text-xs uppercase tracking-wider"
+          >
+            {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
+              <span
+                key={d}
+                className={d === 'sat' || d === 'sun' ? 'text-[#dc2626]' : ''}
+                title={t(`daysFull.${d}`)}
+              >
+                {t(`days.${d}`)}
+              </span>
+            ))}
           </div>
 
           {/* Month Days */}
@@ -225,7 +225,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                       {dayNum}
                     </span>
                     {items.length > 0 && (
-                      <span className="text-[10px] font-bold text-gray-400">
+                      <span className="text-[10px] font-bold text-gray-500">
                         {items.length}
                       </span>
                     )}
@@ -242,10 +242,10 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                           ? 'bg-red-500'
                           : displayStatus === 'rescheduled'
                           ? 'bg-amber-500'
-                          : item.urgency === 'emergency'
-                          ? 'bg-[#dc2626]'
-                          : item.urgency === 'planned'
-                          ? 'bg-[#d97706]'
+                          : alertLevel(item) === 'urgent'
+                          ? 'bg-red-600 dn-urgent-blink'
+                          : alertLevel(item) === 'soon'
+                          ? 'bg-amber-400'
                           : 'bg-[#00897b]';
 
                       return (
@@ -271,25 +271,28 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
         <div className="lg:col-span-4 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm sticky top-28">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
             <div>
-              <span className="text-[11px] font-bold text-[#00897b] uppercase tracking-wider block">
+              <span className="text-[11px] font-bold text-[#00796b] uppercase tracking-wider block">
                 {t('views.selectedDate')}
               </span>
               <h3 className="font-extrabold text-base text-[#0f1b33]">
-                {selectedDateObj.toLocaleDateString(
-                  currentLanguage === 'en' ? 'en-US' : 'ru-RU',
-                  { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }
-                )}
+                {formatDateLong(selectedDateObj, currentLanguage)}
               </h3>
             </div>
             <span className="px-2.5 py-1 rounded-full bg-blue-50 text-[#12327A] font-bold text-xs">
-              {selectedDayItems.length} {t('views.recordsCount')}
+              {recordsLabel(selectedDayItems.length, currentLanguage)}
             </span>
           </div>
 
           {selectedDayItems.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-gray-500">
               <span className="material-symbols-outlined text-3xl mb-1">calendar_today</span>
-              <p className="text-xs">На эту дату записей не найдено</p>
+              <p className="text-xs">
+                {currentLanguage === 'kg'
+                  ? 'Бул күнгө жазуулар табылган жок'
+                  : currentLanguage === 'en'
+                  ? 'No records for this date'
+                  : 'На эту дату записей не найдено'}
+              </p>
             </div>
           ) : (
             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
@@ -301,8 +304,10 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                   <div
                     key={item.id}
                     onClick={() => onSelectAnnouncement(item)}
-                    className="p-3.5 rounded-2xl bg-[#f8fafc] hover:bg-blue-50/50 border border-gray-100 transition-all cursor-pointer group"
+                    className="p-3.5 rounded-2xl bg-[#f8fafc] hover:bg-blue-50/50 border border-gray-100 transition-all cursor-pointer group flex gap-3"
                   >
+                    <EventImage item={item} lang={currentLanguage} compact className="w-20 h-16 rounded-xl flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-white border border-gray-200 text-[#12327A]">
@@ -314,11 +319,8 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                           {statusCfg.label}
                         </span>
                       </div>
-                      <span className="text-xs text-gray-400 font-semibold">
-                        {new Date(item.startDate).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                      <span className="text-xs text-gray-500 font-semibold">
+                        {formatTime(item.startDate)}
                       </span>
                     </div>
                     <h4 className="text-xs font-bold text-[#0f1b33] group-hover:text-[#12327A] transition-colors line-clamp-2 mb-1">
@@ -328,6 +330,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                       <span className="material-symbols-outlined text-[14px]">location_on</span>
                       <span>{item.location[currentLanguage] || item.location.ru}</span>
                     </p>
+                    </div>
                   </div>
                 );
               })}

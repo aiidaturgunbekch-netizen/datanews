@@ -1,6 +1,7 @@
 import React from 'react';
 import { Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { PLAN_IDS, PLANS, planTerms, planUnit } from '../config/site';
 
 interface OrganizationsPageProps {
   currentLanguage: Language;
@@ -15,51 +16,42 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
 }) => {
   const { t } = getTranslation(currentLanguage);
 
-  const tiers = [
-    {
-      name: 'Базовый (Бесплатно)',
-      badge: 'Для госструктур и НКО',
-      price: '0 сом / мес',
-      features: [
-        'Публикация аварийных и плановых отключений',
-        'Официальная верификация ведомства',
-        'Автоматический геотаргетинг по району',
-        'Прикрепление схем перекрытий и документов',
-        'Публикация до 10 объявлений в месяц',
-      ],
-      isPopular: false,
-      ctaText: 'Подключить ведомство',
+  const lang = currentLanguage;
+  const tx = {
+    badge: { ru: 'Гражданская платформа Кыргызстана', kg: 'Кыргызстандын жарандык платформасы', en: 'Civic platform of Kyrgyzstan' },
+    intro: {
+      ru: 'Платформа DataNews создана для того, чтобы жители Бишкека, Оша и всех регионов Кыргызстана заранее узнавали о перекрытиях дорог, отключениях воды и света и интересных событиях — без слухов и дезинформации.',
+      kg: 'DataNews платформасы Бишкектин, Оштун жана Кыргызстандын бардык аймактарынын тургундары жолдордун жабылышы, суу жана жарык өчүрүү, кызыктуу иш-чаралар тууралуу алдын ала, ушак-айыңсыз жана жалган маалыматсыз билиши үчүн түзүлгөн.',
+      en: 'DataNews helps people in Bishkek, Osh and every region of Kyrgyzstan learn about road closures, water and power outages and events in advance — without rumours or misinformation.',
     },
-    {
-      name: 'Муниципальный PRO',
-      badge: 'Скоро • Фаза 2',
-      price: 'Партнерская программа',
-      features: [
-        'Безлимитные публикации с приоритетным ранжированием',
-        'Интеграция с Telegram-ботом и WhatsApp рассылками за 60 секунд',
-        'Срочные push-уведомления жителям конкретных улиц',
-        'Прямой экспорт в Google Карты и Яндекс Навигатор',
-        'Персональный менеджер верификации 24/7',
-        'Расширенная статистика прочтений и скачиваний схем',
-      ],
-      isPopular: true,
-      ctaText: 'Оставить заявку на участие',
+    plansTitle: { ru: 'Тарифы', kg: 'Тарифтер', en: 'Plans' },
+    plansDesc: {
+      ru: 'Все тарифы действуют 30 дней, оплата ежемесячная. Неиспользованные публикации на следующий период не переносятся. Публикации проходят проверку модератором; подтверждённые госорганы и муниципалитеты публикуют сами и отвечают за сведения.',
+      kg: 'Бардык тарифтер 30 күн жарактуу, төлөм ай сайын. Колдонулбаган жарыялар кийинки мезгилге өтпөйт. Жарыялар модератордун текшерүүсүнөн өтөт; тастыкталган мамлекеттик органдар жана муниципалитеттер өздөрү жарыялап, маалымат үчүн өздөрү жооп беришет.',
+      en: 'Every plan runs for 30 days and is paid monthly. Unused posts do not carry over. Posts are moderated; verified government bodies and municipalities publish directly and are responsible for their information.',
     },
-    {
-      name: 'Организаторам мероприятий',
-      badge: 'Культура & Афиша',
-      price: 'По запросу',
-      features: [
-        'Размещение концертов, форумов и фестивалей',
-        'Кнопка прямой покупки билетов (Ticket.kg / Kaspi)',
-        'Размещение в календаре и виджетах даты',
-        'Фото- и видео-галереи событий',
-        'Анонсы в еженедельном дайджесте столицы',
-      ],
-      isPopular: false,
-      ctaText: 'Связаться с редакцией',
+    recommended: { ru: 'Рекомендуем', kg: 'Сунуштайбыз', en: 'Recommended' },
+    som: { ru: 'сом', kg: 'сом', en: 'KGS' },
+    choose: { ru: 'Зарегистрироваться', kg: 'Катталуу', en: 'Sign up' },
+    manual: {
+      ru: 'Оформление вручную: онлайн-оплата на сайте пока не подключена. После регистрации администратор пришлёт реквизиты, проверит платёж и откроет доступ.',
+      kg: 'Кол менен тариздөө: сайтта онлайн төлөм азырынча туташтырылган эмес. Катталгандан кийин администратор реквизиттерди жөнөтүп, төлөмдү текшерип, уруксат берет.',
+      en: 'Manual sign-up: online payment is not connected yet. After you register, the administrator sends payment details, checks the payment and enables posting.',
     },
-  ];
+    terms: { ru: 'Срок / лимит', kg: 'Мөөнөт / чек', en: 'Term / limit' },
+  };
+
+  const tiers = PLAN_IDS.map((id) => ({
+    id,
+    name: PLANS[id].name[lang],
+    audience: PLANS[id].audience[lang],
+    terms: planTerms(id, lang),
+    price: `${PLANS[id].priceSom.toLocaleString('ru-RU')} ${tx.som[lang]}`,
+    unit: planUnit(lang),
+    features: PLANS[id].features.map((f) => f[lang]),
+    isPopular: id === 'organizer',
+    ctaText: tx.choose[lang],
+  }));
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-8">
@@ -77,13 +69,13 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
         <div className="max-w-3xl relative z-10">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-[#68f9e5] text-xs font-bold uppercase tracking-wider mb-3">
             <span className="material-symbols-outlined text-[16px]">verified</span>
-            <span>Civic Tech платформа Кыргызстана</span>
+            <span>{tx.badge[lang]}</span>
           </span>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4 text-white">
             {t('forOrg.title')}
           </h1>
           <p className="text-sm sm:text-base text-[#dbe1ff] leading-relaxed mb-6">
-            Платформа DataNews создана для того, чтобы жители Бишкека, Оша и всех регионов Кыргызстана узнавали о перекрытиях дорог, отключениях воды, света и ярких событиях заранее, без слухов и дезинформации.
+            {tx.intro[lang]}
           </p>
           <button
             onClick={onOpenPublish}
@@ -98,16 +90,20 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
       {/* Tiers Grid */}
       <div className="mb-12">
         <div className="text-center max-w-xl mx-auto mb-8">
-          <h2 className="text-2xl font-bold text-[#0f1b33] mb-2">Тарифы и партнерские программы</h2>
+          <h2 className="text-2xl font-bold text-[#0f1b33] mb-2">{tx.plansTitle[lang]}</h2>
           <p className="text-xs sm:text-sm text-gray-500">
-            Муниципальные службы и госорганы публикуют важные предупреждения бесплатно. Платные подписки будут добавлены на следующем этапе развития.
+            {tx.plansDesc[lang]}
+          </p>
+          <p className="mt-3 inline-flex items-start gap-1.5 text-left text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            <span className="material-symbols-outlined text-[16px] flex-shrink-0">info</span>
+            <span>{tx.manual[lang]}</span>
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {tiers.map((tier, idx) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tiers.map((tier) => (
             <div
-              key={idx}
+              key={tier.id}
               className={`rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all ${
                 tier.isPopular
                   ? 'bg-white border-2 border-[#12327A] shadow-xl relative'
@@ -116,23 +112,27 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                    {tier.badge}
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                    {tx.terms[lang]}
                   </span>
                   {tier.isPopular && (
                     <span className="px-2.5 py-0.5 rounded-full bg-[#12327A] text-white text-[10px] font-bold uppercase tracking-wider">
-                      Рекомендуем
+                      {tx.recommended[lang]}
                     </span>
                   )}
                 </div>
 
-                <h3 className="text-xl font-bold text-[#0f1b33] mb-2">{tier.name}</h3>
-                <div className="text-xl font-black text-[#12327A] mb-6">{tier.price}</div>
+                <h3 className="text-xl font-bold text-[#0f1b33] mb-1 break-words">{tier.name}</h3>
+                <p className="text-xs text-gray-500 mb-3">{tier.audience}</p>
+                <div className="text-2xl font-black text-[#12327A]">
+                  {tier.price} <span className="text-xs font-semibold text-gray-500">{tier.unit}</span>
+                </div>
+                <div className="text-xs font-bold text-[#0f766e] mt-1 mb-6">{tier.terms}</div>
 
                 <ul className="space-y-3 mb-8">
                   {tier.features.map((f, fIdx) => (
                     <li key={fIdx} className="text-xs text-gray-600 flex items-start gap-2">
-                      <span className="material-symbols-outlined text-[#00897b] text-[16px] flex-shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-[#00796b] text-[16px] flex-shrink-0 mt-0.5">
                         check_circle
                       </span>
                       <span>{f}</span>

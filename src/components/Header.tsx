@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PLACE_IDS } from '../config/regions';
 import { Language, CityId, ViewMode, Announcement } from '../types';
 import { getTranslation } from '../locales/translations';
 import { Logo } from './Logo';
@@ -13,7 +14,10 @@ interface HeaderProps {
   onOpenSearch: () => void;
   onOpenUrgentNotice: () => void;
   featuredNotice?: Announcement | null;
+  role: 'guest' | 'user' | 'admin';
   onOpenAdmin: () => void;
+  onOpenAccount: () => void;
+  onOpenPublish: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,22 +30,16 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSearch,
   onOpenUrgentNotice,
   featuredNotice,
+  role,
   onOpenAdmin,
+  onOpenAccount,
+  onOpenPublish,
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const cityLabels: Record<CityId, string> = {
-    bishkek: t('cities.bishkek'),
-    osh: t('cities.osh'),
-    jalalabad: t('cities.jalalabad'),
-    karakol: t('cities.karakol'),
-    talas: t('cities.talas'),
-    naryn: t('cities.naryn'),
-    batken: t('cities.batken'),
-    all: t('cities.all'),
-  };
+  const cityLabels = Object.fromEntries([...PLACE_IDS, 'karakol'].map((id) => [id, t(`cities.${id}`)])) as Record<CityId, string>;
 
   const navItems: { view: ViewMode; label: string }[] = [
     { view: 'calendar', label: t('nav.calendar') },
@@ -54,15 +52,15 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-[#0d2459] shadow-[0_2px_12px_rgba(0,0,0,0.15)] text-white">
       {/* Main Bar */}
-      <div className="h-16 max-w-[1280px] mx-auto px-4 md:px-6 flex items-center justify-between gap-4">
+      <div className="h-16 max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Brand Logo & Navigation */}
         <div className="flex items-center gap-6 lg:gap-8">
           <button
             onClick={() => onViewChange('home')}
-            className="flex items-center text-left focus:outline-none"
+            className="flex items-center text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#20C7B5] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d2459]"
             aria-label="DataNews Home"
           >
-            <Logo isLightMode={true} className="h-10" />
+            <Logo isLightMode={true} compactOnMobile className="h-8 sm:h-10" lang={currentLanguage} />
           </button>
 
           {/* Desktop Navigation Links */}
@@ -87,13 +85,13 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right: City Selector, Language Picker, Search, Post Button & Admin */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* City Selector Dropdown */}
-          <div className="relative">
+        <div className="flex items-center gap-1 sm:gap-3">
+          {/* City Selector Dropdown (на телефоне город выбирается в фильтре на главной) */}
+          <div className="relative hidden sm:block">
             <button
               onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs sm:text-sm font-semibold transition-colors border border-white/10"
-              title="Выбрать город / Шаарды тандоо"
+              title={currentLanguage === 'kg' ? 'Шаарды тандоо' : currentLanguage === 'en' ? 'Choose city' : 'Выбрать город'}
             >
               <span className="material-symbols-outlined text-[16px] text-[#20C7B5]">location_on</span>
               <span className="truncate max-w-[90px] sm:max-w-[110px]">{cityLabels[selectedCity]}</span>
@@ -107,10 +105,10 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => setIsCityDropdownOpen(false)}
                 />
                 <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 text-gray-800 text-sm">
-                  <div className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  <div className="px-3 py-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
                     {t('search.whereLabel')}
                   </div>
-                  {(['all', 'bishkek', 'osh', 'jalalabad', 'karakol', 'talas', 'naryn', 'batken'] as CityId[]).map(
+                  {(PLACE_IDS as CityId[]).map(
                     (cityId) => (
                       <button
                         key={cityId}
@@ -165,22 +163,33 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* "Разместить" CTA Button */}
           <button
-            onClick={onOpenAdmin}
+            onClick={onOpenPublish}
             className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#20C7B5] text-[#002f29] hover:bg-[#1bb3a2] font-bold text-xs sm:text-sm transition-all shadow-sm"
           >
             <span className="material-symbols-outlined text-[18px]">add_circle</span>
             <span>{t('nav.publishBtn')}</span>
           </button>
 
-          {/* Admin Avatar Button */}
-          <button
-            onClick={onOpenAdmin}
-            aria-label="Admin Profile"
-            title="Панель управления / Башкаруу панели"
-            className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors border border-white/20 text-[#20C7B5]"
-          >
-            <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
-          </button>
+          {/* Панель управления видна только администратору, гостю — личный кабинет */}
+          {role === 'admin' ? (
+            <button
+              onClick={onOpenAdmin}
+              aria-label="Admin panel"
+              title="Панель управления"
+              className="w-8 h-8 rounded-full bg-[#20C7B5] hover:bg-[#1bb3a2] flex items-center justify-center transition-colors text-[#002f29]"
+            >
+              <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenAccount}
+              aria-label={t('nav.account')}
+              title={t('nav.account')}
+              className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors border border-white/20 text-[#20C7B5]"
+            >
+              <span className="material-symbols-outlined text-[18px]">{role === 'user' ? 'account_circle' : 'person'}</span>
+            </button>
+          )}
 
           {/* Mobile Menu Toggle Button */}
           <button
@@ -216,7 +225,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="pt-2 border-t border-white/10 flex items-center justify-between">
             <button
               onClick={() => {
-                onOpenAdmin();
+                onOpenPublish();
                 setIsMobileMenuOpen(false);
               }}
               className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-[#20C7B5] text-[#002f29] font-bold text-sm"

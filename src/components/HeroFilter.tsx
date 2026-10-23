@@ -1,6 +1,8 @@
 import React from 'react';
+import { PLACE_IDS } from '../config/regions';
 import { Language, CityId } from '../types';
 import { getTranslation } from '../locales/translations';
+import { formatDayMonth, formatDayRange, nearestWeekend } from '../utils/dates';
 
 interface HeroFilterProps {
   currentLanguage: Language;
@@ -12,8 +14,8 @@ interface HeroFilterProps {
   onDateFilterChange: (d: string) => void;
   onSearchSubmit: () => void;
   onTagClick: (tag: string) => void;
-  totalEventsCount: number;
-  totalAlertsCount: number;
+  stats: { publications: number; activeAlerts: number; regions: number };
+  onOpenStats: (mode: 'all' | 'alerts' | 'regions') => void;
 }
 
 export const HeroFilter: React.FC<HeroFilterProps> = ({
@@ -26,37 +28,36 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
   onDateFilterChange,
   onSearchSubmit,
   onTagClick,
-  totalEventsCount,
-  totalAlertsCount,
+  stats,
+  onOpenStats,
 }) => {
   const { t } = getTranslation(currentLanguage);
 
-  const cityOptions: { id: CityId; label: string }[] = [
-    { id: 'all', label: t('cities.all') },
-    { id: 'bishkek', label: t('cities.bishkek') },
-    { id: 'osh', label: t('cities.osh') },
-    { id: 'jalalabad', label: t('cities.jalalabad') },
-    { id: 'karakol', label: t('cities.karakol') },
-    { id: 'talas', label: t('cities.talas') },
-    { id: 'naryn', label: t('cities.naryn') },
-    { id: 'batken', label: t('cities.batken') },
-  ];
+  const cityOptions: { id: CityId; label: string }[] = PLACE_IDS.map((id) => ({ id, label: t(`cities.${id}`) }));
 
+  // Подписи с реальными датами: «Сегодня, 13 октября» / «Бүгүн, 13-октябрь»
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const [sat, sun] = nearestWeekend(now);
   const dateOptions = [
     { id: 'all', label: t('search.allDates') },
-    { id: 'today', label: t('search.today') },
-    { id: 'tomorrow', label: t('search.tomorrow') },
-    { id: 'weekend', label: t('search.weekend') },
+    { id: 'today', label: `${t('search.today')}, ${formatDayMonth(now, currentLanguage)}` },
+    { id: 'tomorrow', label: `${t('search.tomorrow')}, ${formatDayMonth(tomorrow, currentLanguage)}` },
+    { id: 'weekend', label: `${t('search.weekend')}, ${formatDayRange(sat, sun, currentLanguage)}` },
     { id: 'week', label: t('search.thisWeek') },
   ];
 
-  const popularTags = [
-    { key: '#ОтключениеСвета', label: currentLanguage === 'kg' ? '#ЖарыкӨчүрүү' : '#ОтключениеСвета' },
-    { key: '#РемонтДорог', label: currentLanguage === 'kg' ? '#ЖолОңдоо' : '#РемонтДорог' },
-    { key: '#Концерты', label: currentLanguage === 'kg' ? '#Концерттер' : '#Концерты' },
-    { key: '#Ярмарки', label: currentLanguage === 'kg' ? '#Жарманкелер' : '#Ярмарки' },
-    { key: '#МэрияБишкек', label: '#МэрияБишкек' },
-    { key: '#ОшМэриясы', label: '#ОшМэриясы' },
+  // Быстрые переходы
+  const quickLinks: { key: string; icon: string; color: string; label: Record<'ru' | 'kg' | 'en', string> }[] = [
+    { key: 'today', icon: 'today', color: 'bg-emerald-50 text-emerald-800 border-emerald-200 [&>span]:text-emerald-600', label: { ru: 'Сегодня', kg: 'Бүгүн', en: 'Today' } },
+    { key: 'tomorrow', icon: 'event_upcoming', color: 'bg-sky-50 text-sky-800 border-sky-200 [&>span]:text-sky-600', label: { ru: 'Завтра', kg: 'Эртең', en: 'Tomorrow' } },
+    { key: 'week', icon: 'date_range', color: 'bg-indigo-50 text-indigo-800 border-indigo-200 [&>span]:text-indigo-600', label: { ru: 'На этой неделе', kg: 'Ушул жумада', en: 'This week' } },
+    { key: 'alerts', icon: 'warning', color: 'bg-red-50 text-red-800 border-red-200 [&>span]:text-red-600', label: { ru: 'Предупреждения', kg: 'Эскертүүлөр', en: 'Alerts' } },
+    { key: 'weather', icon: 'partly_cloudy_day', color: 'bg-amber-50 text-amber-900 border-amber-200 [&>span]:text-amber-500', label: { ru: 'Погода', kg: 'Аба ырайы', en: 'Weather' } },
+    { key: 'state', icon: 'account_balance', color: 'bg-blue-50 text-[#12327A] border-blue-200 [&>span]:text-[#12327A]', label: { ru: 'Государственные решения', kg: 'Мамлекеттик чечимдер', en: 'State decisions' } },
+    { key: 'laws', icon: 'gavel', color: 'bg-slate-100 text-slate-800 border-slate-300 [&>span]:text-slate-600', label: { ru: 'Законы', kg: 'Мыйзамдар', en: 'Laws' } },
+    { key: 'shows', icon: 'theater_comedy', color: 'bg-fuchsia-50 text-fuchsia-800 border-fuchsia-200 [&>span]:text-fuchsia-600', label: { ru: 'Кино и концерты', kg: 'Кино жана концерттер', en: 'Cinema & concerts' } },
   ];
 
   return (
@@ -89,7 +90,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
               <p className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-[#12327A]">
                 {currentLanguage === 'kg' ? (
                   <>
-                    <span>Датаны бил</span> <span className="text-[#20C7B5]">—</span> <span>күнүңдү планда</span>
+                    <span>Датаны бил</span> <span className="text-[#20C7B5]">—</span> <span>күнүңдү пландаштыр</span>
                   </>
                 ) : currentLanguage === 'en' ? (
                   <>
@@ -108,22 +109,30 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
             </p>
           </div>
 
-          {/* Live Metrics Counter Strip */}
-          <div className="flex items-center gap-4 sm:gap-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex-shrink-0">
-            <div className="text-left">
-              <div className="text-2xl font-bold text-[#12327A]">{totalEventsCount}</div>
-              <div className="text-xs text-gray-500 font-medium">{t('search.eventsOnDate')}</div>
-            </div>
-            <div className="w-px h-8 bg-gray-200" />
-            <div className="text-left">
-              <div className="text-2xl font-bold text-[#dc2626]">{totalAlertsCount}</div>
-              <div className="text-xs text-gray-500 font-medium">{t('search.activeAlerts')}</div>
-            </div>
-            <div className="w-px h-8 bg-gray-200" />
-            <div className="text-left">
-              <div className="text-2xl font-bold text-[#00897b]">7</div>
-              <div className="text-xs text-gray-500 font-medium">{t('search.regionsCount')}</div>
-            </div>
+          {/* Показатели по фактическим данным — каждый открывает список */}
+          <div className="flex items-stretch gap-1 sm:gap-2 bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex-shrink-0">
+            {(
+              [
+                { mode: 'all', value: stats.publications, label: t('search.eventsOnDate'), color: 'text-[#12327A]' },
+                { mode: 'alerts', value: stats.activeAlerts, label: t('search.activeAlerts'), color: 'text-[#dc2626]' },
+                { mode: 'regions', value: stats.regions, label: t('search.regionsCount'), color: 'text-[#00796b]' },
+              ] as const
+            ).map((m, i) => (
+              <React.Fragment key={m.mode}>
+                {i > 0 && <div className="w-px bg-gray-200 my-2" />}
+                <button
+                  type="button"
+                  onClick={() => onOpenStats(m.mode)}
+                  className="text-left px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-[#eef2f9] focus-visible:ring-2 focus-visible:ring-[#12327A] transition-colors group"
+                >
+                  <div className={`text-2xl font-bold ${m.color} flex items-center gap-1`}>
+                    {m.value}
+                    <span className="material-symbols-outlined text-[16px] text-gray-500 group-hover:text-[#12327A]">open_in_full</span>
+                  </div>
+                  <div className="text-xs text-gray-500 font-medium underline decoration-dotted underline-offset-2">{m.label}</div>
+                </button>
+              </React.Fragment>
+            ))}
           </div>
         </div>
 
@@ -142,7 +151,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
                 {t('search.whatLabel')}
               </label>
               <div className="relative flex items-center">
-                <span className="material-symbols-outlined absolute left-3 text-gray-400 text-[20px]">
+                <span className="material-symbols-outlined absolute left-3 text-gray-500 text-[20px]">
                   search
                 </span>
                 <input
@@ -150,7 +159,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
                   value={searchQuery}
                   onChange={(e) => onSearchQueryChange(e.target.value)}
                   placeholder={t('search.whatPlaceholder')}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#f3f6fc] text-[#0f1b33] text-sm placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#20C7B5] transition-all border border-transparent focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#f3f6fc] text-[#0f1b33] text-sm placeholder:text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#20C7B5] transition-all border border-transparent focus:border-transparent"
                 />
               </div>
             </div>
@@ -215,17 +224,18 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
 
           {/* Quick Query Tags */}
           <div className="mt-4 pt-3 flex flex-wrap items-center gap-1.5 text-gray-600 border-t border-gray-100">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">
-              {t('search.popularTags')}
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mr-1">
+              {currentLanguage === 'kg' ? 'Тез өтүү' : currentLanguage === 'en' ? 'Quick links' : 'Быстро'}
             </span>
-            {popularTags.map((tag) => (
+            {quickLinks.map((q) => (
               <button
-                key={tag.key}
+                key={q.key}
                 type="button"
-                onClick={() => onTagClick(tag.key.replace('#', ''))}
-                className="px-2.5 py-1 rounded-full bg-[#f3f6fc] text-[#0f1b33] text-xs font-medium hover:bg-[#12327A] hover:text-white transition-colors"
+                onClick={() => onTagClick(q.key)}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-semibold hover:brightness-95 hover:shadow-sm transition ${q.color}`}
               >
-                {tag.label}
+                <span className="material-symbols-outlined text-[16px]">{q.icon}</span>
+                {q.label[currentLanguage]}
               </button>
             ))}
           </div>

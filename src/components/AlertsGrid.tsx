@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Announcement, Language, CityId } from '../types';
 import { getTranslation } from '../locales/translations';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+import { formatWhen } from '../utils/dates';
+import { UrgencyBadge } from './UrgencyBadge';
+import { alertLevel } from '../utils/urgency';
+import { EventImage } from './EventImage';
+import { PaidBadge } from './PaidBadge';
+import { PushToggle } from './PushToggle';
 
 interface AlertsGridProps {
   currentLanguage: Language;
@@ -9,7 +15,19 @@ interface AlertsGridProps {
   selectedCity: CityId;
   onCityFilterChange: (city: CityId) => void;
   onSelectAnnouncement: (announcement: Announcement) => void;
+  /** Завершённые предупреждения — вкладка «Архив» (только в разделе «Предупреждения») */
+  archived?: Announcement[];
 }
+
+/** Короткая метка типа источника на языке интерфейса */
+const ORG_TYPES: Record<string, { ru: string; kg: string; en: string }> = {
+  МБ: { ru: 'Мэрия', kg: 'Мэрия', en: 'City Hall' },
+  СМИ: { ru: 'СМИ', kg: 'ЖМК', en: 'Media' },
+  НЭ: { ru: 'Электросети', kg: 'Электр тармагы', en: 'Power grid' },
+  ВК: { ru: 'Водоканал', kg: 'Водоканал', en: 'Water utility' },
+  ГОС: { ru: 'Госорган', kg: 'Мамлекеттик орган', en: 'Government' },
+};
+const orgTypeLabel = (code: string, lang: 'ru' | 'kg' | 'en') => ORG_TYPES[code]?.[lang] || code || 'KG';
 
 export const AlertsGrid: React.FC<AlertsGridProps> = ({
   currentLanguage,
@@ -17,8 +35,15 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
   selectedCity,
   onCityFilterChange,
   onSelectAnnouncement,
+  archived,
 }) => {
   const { t } = getTranslation(currentLanguage);
+  const [tab, setTab] = useState<'active' | 'archive'>('active');
+  const list = tab === 'archive' && archived ? archived : alerts;
+  const L = (ru: string, kg: string, en: string) => (currentLanguage === 'kg' ? kg : currentLanguage === 'en' ? en : ru);
+  /** Изменено после публикации (больше чем через час) — показываем «Обновлено» */
+  const updatedOn = (a: Announcement) =>
+    a.updatedAt && a.publishedAt && Date.parse(a.updatedAt) - Date.parse(a.publishedAt) > 3600_000 ? a.updatedAt : null;
 
   const getUrgencyConfig = (ann: Announcement) => {
     const displayStatus = getAnnouncementDisplayStatus(ann);
@@ -28,7 +53,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
         barColor: 'bg-gray-400',
         badgeBg: 'bg-gray-100',
         badgeText: 'text-gray-700',
-        badgeLabel: currentLanguage === 'kg' ? 'Аяктады / Архив' : currentLanguage === 'en' ? 'Completed Works' : 'Завершено / Архив',
+        badgeLabel: currentLanguage === 'kg' ? 'Аяктады / Архив' : currentLanguage === 'en' ? 'Completed / Archive' : 'Завершено / Архив',
         icon: 'task_alt',
         iconColor: 'text-gray-500',
         btnText: currentLanguage === 'kg' ? 'Маалымат' : currentLanguage === 'en' ? 'Details' : 'Подробнее',
@@ -78,7 +103,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
         badgeText: 'text-[#004d44]',
         badgeLabel: currentLanguage === 'kg' ? 'Кыймыл схемасы' : currentLanguage === 'en' ? 'Detour Route' : 'Схема движения',
         icon: 'alt_route',
-        iconColor: 'text-[#00897b]',
+        iconColor: 'text-[#00796b]',
         btnText: currentLanguage === 'kg' ? 'Айланып өтүү схемасы' : currentLanguage === 'en' ? 'Detour Route' : 'Схема объезда',
       };
     }
@@ -113,6 +138,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
             </p>
           </div>
 
+          <div className="flex flex-col items-start sm:items-end gap-2">
           {/* Geo Scope Toggle */}
           <div className="inline-flex bg-gray-100 p-1 rounded-xl">
             <button
@@ -138,23 +164,45 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
               {t('cities.all')}
             </button>
           </div>
+          <PushToggle lang={currentLanguage} city={selectedCity} />
+          </div>
         </div>
 
+        {/* Действуют / Архив завершённых */}
+        {archived && (
+          <div className="flex items-center gap-2 mb-4 text-xs" role="tablist">
+            {(['active', 'archive'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={tab === k}
+                onClick={() => setTab(k)}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${tab === k ? 'bg-[#12327A] text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                {k === 'active' ? `${L('Действуют', 'Күчүндө', 'Active')} · ${alerts.length}` : `${L('Архив', 'Архив', 'Archive')} · ${archived.length}`}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Cards Grid */}
-        {alerts.length === 0 ? (
+        {list.length === 0 ? (
           <div className="text-center py-12 bg-[#f8fafc] rounded-2xl border border-gray-100 p-6">
-            <span className="material-symbols-outlined text-gray-400 text-4xl mb-2">check_circle</span>
+            <span className="material-symbols-outlined text-gray-500 text-4xl mb-2">check_circle</span>
             <p className="text-gray-600 font-medium">
-              {currentLanguage === 'kg'
-                ? 'Бул категория же шаар боюнча активдүү авариялык эскертүүлөр жок.'
-                : currentLanguage === 'en'
-                ? 'No active disruptions found for this category or region.'
-                : 'По выбранным критериям срочных предупреждений не обнаружено.'}
+              {tab === 'archive'
+                ? L('Завершённых предупреждений в архиве нет.', 'Архивде аяктаган эскертүүлөр жок.', 'No completed warnings in the archive.')
+                : L(
+                    'По выбранным критериям срочных предупреждений не обнаружено.',
+                    'Бул категория же шаар боюнча активдүү авариялык эскертүүлөр жок.',
+                    'No active disruptions found for this category or region.'
+                  )}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {alerts.slice(0, 6).map((ann) => {
+            {list.map((ann) => {
               const cfg = getUrgencyConfig(ann);
               const displayStatus = getAnnouncementDisplayStatus(ann);
               const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
@@ -174,7 +222,14 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                   }`}
                 >
                   {/* Left Colored Accent Bar */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${cfg.barColor}`} />
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                      alertLevel(ann) === 'urgent' ? 'bg-red-600' : alertLevel(ann) === 'soon' ? 'bg-amber-400' : cfg.barColor
+                    }`}
+                  />
+
+                  {/* Фото — то же поле imageUrl, что и в подробном окне; отдельный блок, не внутри текста */}
+                  <EventImage item={ann} lang={currentLanguage} className="-mx-5 -mt-5 mb-4 h-40 sm:h-44" />
 
                   <div className="pl-1">
                     {/* Card Header Badge & Lifecycle Status */}
@@ -182,22 +237,29 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                       <span
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${cfg.badgeBg} ${cfg.badgeText} text-[11px] font-bold uppercase tracking-wide`}
                       >
-                        {ann.urgency === 'emergency' && displayStatus === 'active' && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] animate-ping" />
-                        )}
                         <span className={`material-symbols-outlined text-[14px] ${cfg.iconColor}`}>
                           {cfg.icon}
                         </span>
                         <span>{cfg.badgeLabel}</span>
                       </span>
+                      <PaidBadge item={ann} lang={currentLanguage} />
+                      {updatedOn(ann) && displayStatus !== 'completed' && (
+                        <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 text-[11px] font-bold" title={formatWhen(updatedOn(ann)!, undefined, currentLanguage)}>
+                          {L('Обновлено', 'Жаңыланды', 'Updated')}
+                        </span>
+                      )}
 
-                      {/* Explicit Status Pill (Active / Upcoming / Completed / Cancelled / Rescheduled) */}
+                      {/* Срочность: красный мигающий за 0–3 дня, жёлтый — если дольше; иначе — обычный статус */}
+                      {alertLevel(ann) === 'urgent' || alertLevel(ann) === 'soon' ? (
+                        <UrgencyBadge item={ann} lang={currentLanguage} />
+                      ) : (
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                         <span>{statusCfg.label}</span>
                       </span>
+                      )}
                     </div>
 
                     {/* Title & Summary */}
@@ -219,24 +281,11 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                             : 'event_busy'}
                         </span>
                         <span className="truncate">
-                          {new Date(ann.startDate).toLocaleDateString(
-                            currentLanguage === 'en' ? 'en-US' : 'ru-RU',
-                            { day: 'numeric', month: 'short', year: 'numeric' }
-                          )}
-                          ,{' '}
-                          {new Date(ann.startDate).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}{' '}
-                          —{' '}
-                          {new Date(ann.endDate).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {formatWhen(ann.startDate, ann.endDate, currentLanguage, false, ann.timeTBA, ann.allDay)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-500">
-                        <span className="material-symbols-outlined text-gray-400 text-[18px] flex-shrink-0">
+                        <span className="material-symbols-outlined text-gray-500 text-[18px] flex-shrink-0">
                           location_on
                         </span>
                         <span className="truncate">{location}</span>
@@ -248,7 +297,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                   <div className="pl-1 pt-2 flex items-center justify-between mt-auto border-t border-gray-100">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-6 h-6 rounded-full bg-blue-50 text-[#12327A] flex items-center justify-center font-bold text-[10px] flex-shrink-0 border border-blue-100">
-                        {ann.sourceOrgType || 'KG'}
+                        {orgTypeLabel(ann.sourceOrgType, currentLanguage)}
                       </span>
                       <span className="text-xs text-gray-500 truncate max-w-[140px]">
                         {ann.sourceName}

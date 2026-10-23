@@ -1,7 +1,11 @@
+import { EventImage } from './EventImage';
 import React, { useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { alertLevel, isAlert } from '../utils/urgency';
+import { formatDate, formatMonthYear, formatTime } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+import { recordsLabel } from '../utils/plural';
 
 interface InteractiveCalendarProps {
   currentLanguage: Language;
@@ -25,15 +29,6 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   const [currentYear, setCurrentYear] = useState(() => now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => now.getMonth()); // 9 = October
 
-  const monthNamesRu = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-  const monthNamesKg = ['Үчтүн айы', 'Бирдин айы', 'Жалган куран', 'Чын куран', 'Бугу (Май)', 'Кулжа (Июнь)', 'Теке', 'Баш оона', 'Аяк оона', 'Тогуздун айы (Октябрь)', 'Жетинин айы', 'Бештин айы'];
-  const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-  const getMonthName = (m: number) => {
-    if (currentLanguage === 'kg') return monthNamesKg[m] || 'Тогуздун айы (Октябрь)';
-    if (currentLanguage === 'en') return monthNamesEn[m] || 'October';
-    return monthNamesRu[m] || 'Октябрь';
-  };
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -106,9 +101,9 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       <div className="flex items-center justify-between mb-4">
         <div>
           <span className="text-base sm:text-lg font-bold text-[#0f1b33] block">
-            {getMonthName(currentMonth)} {currentYear}
+            {formatMonthYear(currentYear, currentMonth, currentLanguage)}
           </span>
-          <span className="text-xs text-gray-400 font-medium">
+          <span className="text-xs text-gray-500 font-medium">
             {t('views.calendarHelp')}
           </span>
         </div>
@@ -133,14 +128,18 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       </div>
 
       {/* Weekday Names (Monday-start) */}
-      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
-        <span>{t('days.mon')}</span>
-        <span>{t('days.tue')}</span>
-        <span>{t('days.wed')}</span>
-        <span>{t('days.thu')}</span>
-        <span>{t('days.fri')}</span>
-        <span className="text-[#dc2626]">{t('days.sat')}</span>
-        <span className="text-[#dc2626]">{t('days.sun')}</span>
+      <div
+        className="grid grid-cols-7 gap-1 text-center font-bold text-gray-500 mb-2 text-[11px] uppercase tracking-wider"
+      >
+        {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
+          <span
+            key={d}
+            className={d === 'sat' || d === 'sun' ? 'text-[#dc2626]' : ''}
+                title={t(`daysFull.${d}`)}
+          >
+            {t(`days.${d}`)}
+          </span>
+        ))}
       </div>
 
       {/* Calendar Grid */}
@@ -165,9 +164,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           const isToday = todayStr === dateStr;
           const dayItems = itemsByDate[dateStr] || [];
 
-          const hasEmergency = dayItems.some((i) => i.urgency === 'emergency' && i.status !== 'completed' && i.status !== 'cancelled');
-          const hasPlanned = dayItems.some((i) => (i.urgency === 'planned' || i.category === 'roads') && i.status !== 'completed' && i.status !== 'cancelled');
-          const hasEvent = dayItems.some((i) => (i.urgency === 'event' || i.category === 'concerts' || i.category === 'festivals') && i.status !== 'completed' && i.status !== 'cancelled');
+          // Красная мигающая точка — срочное предупреждение (0–3 дня), жёлтая — предупреждение позже, бирюзовая — событие
+          const hasEmergency = dayItems.some((i) => alertLevel(i) === 'urgent');
+          const hasPlanned = dayItems.some((i) => alertLevel(i) === 'soon');
+          const hasEvent = dayItems.some((i) => !isAlert(i) && i.status !== 'cancelled');
 
           return (
             <button
@@ -188,15 +188,15 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
               <span className="flex items-center gap-0.5 mt-0.5 h-1.5">
                 {hasEmergency && (
                   <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isSelected ? 'bg-red-400' : 'bg-[#dc2626]'
+                    className={`w-1.5 h-1.5 rounded-full dn-urgent-blink ${
+                      isSelected ? 'bg-red-300' : 'bg-red-600'
                     }`}
                   />
                 )}
                 {hasPlanned && (
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${
-                      isSelected ? 'bg-amber-300' : 'bg-[#d97706]'
+                      isSelected ? 'bg-amber-200' : 'bg-amber-400'
                     }`}
                   />
                 )}
@@ -216,11 +216,11 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       {/* Calendar Color Legend */}
       <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100 mb-4">
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#dc2626]" />
+          <span className="w-2 h-2 rounded-full bg-red-600" />
           <span>{t('views.legendEmergency')}</span>
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#d97706]" />
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
           <span>{t('views.legendPlanned')}</span>
         </span>
         <span className="inline-flex items-center gap-1.5">
@@ -234,18 +234,15 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
         <div className="flex items-center justify-between mb-2.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#12327A]">
             {t('views.selectedDate')}:{' '}
-            {selectedDateObj.toLocaleDateString(
-              currentLanguage === 'en' ? 'en-US' : 'ru-RU',
-              { day: 'numeric', month: 'long', year: 'numeric' }
-            )}
+            {formatDate(selectedDateObj, currentLanguage)}
           </span>
-          <span className="text-[11px] font-semibold text-gray-400">
-            {selectedItems.length} {t('views.recordsCount')}
+          <span className="text-[11px] font-semibold text-gray-500">
+            {recordsLabel(selectedItems.length, currentLanguage)}
           </span>
         </div>
 
         {selectedItems.length === 0 ? (
-          <p className="text-xs text-gray-400 py-2 text-center">
+          <p className="text-xs text-gray-500 py-2 text-center">
             {currentLanguage === 'kg'
               ? 'Бул күнгө катталган окуялар жок'
               : currentLanguage === 'en'
@@ -254,7 +251,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           </p>
         ) : (
           <ul className="space-y-2">
-            {selectedItems.slice(0, 4).map((item) => {
+            {selectedItems.map((item) => {
               const displayStatus = getAnnouncementDisplayStatus(item);
               const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
 
@@ -265,10 +262,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                   ? 'bg-red-500'
                   : displayStatus === 'rescheduled'
                   ? 'bg-amber-500'
-                  : item.urgency === 'emergency'
-                  ? 'bg-[#dc2626]'
-                  : item.urgency === 'planned'
-                  ? 'bg-[#d97706]'
+                  : alertLevel(item) === 'urgent'
+                  ? 'bg-red-600 dn-urgent-blink'
+                  : alertLevel(item) === 'soon'
+                  ? 'bg-amber-400'
                   : 'bg-[#20C7B5]';
 
               return (
@@ -277,7 +274,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                   onClick={() => onSelectAnnouncement(item)}
                   className="p-2.5 rounded-lg bg-white shadow-2xs hover:shadow-sm border border-gray-100 flex items-start gap-2.5 text-xs cursor-pointer group transition-all"
                 >
-                  <span className={`w-2 h-2 rounded-full ${dotColor} mt-1 flex-shrink-0`} />
+                  <div className="relative flex-shrink-0">
+                    <EventImage item={item} lang={currentLanguage} compact className="w-14 h-11 rounded-md" />
+                    <span className={`absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full ring-2 ring-white ${dotColor}`} />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1 mb-1">
                       <p className="font-semibold text-[#0f1b33] leading-snug group-hover:text-[#12327A] truncate">
@@ -289,15 +289,12 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                         {statusCfg.label}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-gray-400 text-[11px]">
+                    <div className="flex items-center justify-between text-gray-500 text-[11px]">
                       <span>
-                        {new Date(item.startDate).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formatTime(item.startDate)}
                         {item.district ? ` • ${item.district}` : ''}
                       </span>
-                      <span className="text-[10px] text-gray-400 font-medium">
+                      <span className="text-[10px] text-gray-500 font-medium">
                         {t(`categories.${item.category}`)}
                       </span>
                     </div>

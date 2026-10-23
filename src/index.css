@@ -61,3 +61,56 @@ body {
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
 }
+
+/* Срочные предупреждения (0–3 дня до начала): мягкое мигание только бейджа/индикатора, не всей карточки */
+@keyframes dn-urgent-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.dn-urgent-blink {
+  animation: dn-urgent-blink 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dn-urgent-blink {
+    animation: none;
+  }
+}
+
+/* Подписи городов на карте Кыргызстана */
+.leaflet-tooltip.dn-city-label {
+  background: rgba(255, 255, 255, 0.92);
+  border: 0;
+  box-shadow: 0 1px 4px rgba(15, 27, 51, 0.25);
+  color: #0f1b33;
+  font-weight: 700;
+  padding: 2px 6px;
+}
+.leaflet-tooltip.dn-city-label::before {
+  display: none;
+}
+/* Без прямоугольной рамки фокуса вокруг областей карты после клика мышью */
+.leaflet-container path.leaflet-interactive:focus {
+  outline: none;
+}
+/* Подписи городов — центров областей */
+.leaflet-tooltip.dn-town-label {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0;
+  text-shadow: 0 1px 2px rgba(15, 27, 51, 0.85);
+}
+.leaflet-tooltip.dn-town-label::before {
+  display: none;
+}
+.leaflet-container {
+  background: #e8eef7;
+}

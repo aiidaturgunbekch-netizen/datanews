@@ -1,27 +1,44 @@
-import React, { useState, useMemo } from 'react';
-import { Announcement, Language } from '../types';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Announcement, CityId, Language } from '../types';
+import { DISTRICTS, inDistrict } from '../config/districts';
 import { getTranslation } from '../locales/translations';
 import { StorageService } from '../services/storage';
-import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+import { EventImage } from './EventImage';
+import { PaidBadge } from './PaidBadge';
+import { ticketLink } from '../utils/links';
+import { MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT, formatDate } from '../utils/dates';
+import { freshOrder, getAnnouncementDisplayStatus, getStatusBadgeConfig, isFresh } from '../utils/statusUtils';
 
 interface EventsFeedProps {
   currentLanguage: Language;
   events: Announcement[];
+  /** Выбранный город/область — для фильтра по району */
+  city?: CityId;
   onSelectAnnouncement: (announcement: Announcement) => void;
   onOpenFullCalendar: () => void;
 }
 
 export const EventsFeed: React.FC<EventsFeedProps> = ({
   currentLanguage,
-  events,
+  events: allEvents,
+  city,
   onSelectAnnouncement,
   onOpenFullCalendar,
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [displayMode, setDisplayMode] = useState<'list' | 'grid'>('list');
-  const [statusTab, setStatusTab] = useState<'all' | 'upcoming' | 'completed'>('all');
+  const [statusTab, setStatusTab] = useState<'all' | 'upcoming' | 'completed'>('upcoming');
   const [favorites, setFavorites] = useState<string[]>(() => StorageService.getFavorites());
   const [visibleCount, setVisibleCount] = useState<number>(6);
+
+  // Фильтр по району: список районов выбранной области, сброс при смене области
+  const districtList = useMemo(() => (city && DISTRICTS[city]) || [], [city]);
+  const [districtCode, setDistrictCode] = useState('');
+  useEffect(() => {
+    setDistrictCode('');
+  }, [city]);
+  const districtSel = districtList.find((d) => d.code === districtCode);
+  const events = useMemo(() => (districtSel ? allEvents.filter((a) => inDistrict(a, districtSel)) : allEvents), [allEvents, districtSel]);
 
   const toggleFav = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -29,38 +46,19 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
     setFavorites(updated);
   };
 
-  const getMonthLabel = (d: Date) => {
-    const monthsRu = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК'];
-    const monthsKg = ['ҮЧТ', 'БИР', 'ЖАЛ', 'ЧЫН', 'БУГУ', 'КУЛ', 'ТЕК', 'БАШ', 'АЯК', 'ТОГ', 'ЖЕТ', 'БЕШ'];
-    const monthsEn = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const m = d.getMonth();
-    if (currentLanguage === 'kg') return monthsKg[m] || 'ТОГ';
-    if (currentLanguage === 'en') return monthsEn[m] || 'OCT';
-    return monthsRu[m] || 'ОКТ';
-  };
-
-  const getWeekdayLabel = (d: Date) => {
-    const daysRu = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
-    const daysKg = ['ЖЕ', 'ДҮ', 'ШЕ', 'ША', 'БЕ', 'ЖУ', 'ИШ'];
-    const daysEn = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-    const day = d.getDay();
-    if (currentLanguage === 'kg') return daysKg[day];
-    if (currentLanguage === 'en') return daysEn[day];
-    return daysRu[day];
-  };
+  // На кыргызском — полные названия («октябрь», «шейшемби»), на RU/EN — короткие («ОКТ», «ВТ»)
+  const isKg = currentLanguage === 'kg';
+  const getMonthLabel = (d: Date) => (isKg ? MONTHS.kg[d.getMonth()] : MONTHS_SHORT[currentLanguage][d.getMonth()]);
+  const getWeekdayLabel = (d: Date) => (isKg ? WEEKDAYS.kg[d.getDay()] : WEEKDAYS_SHORT[currentLanguage][d.getDay()]);
 
   // Filter events according to status tab so past events are never mistaken for upcoming events
+  const archivedCount = useMemo(() => events.filter((item) => !isFresh(item)).length, [events]);
   const filteredEvents = useMemo(() => {
-    return events.filter((item) => {
-      const status = getAnnouncementDisplayStatus(item);
-      if (statusTab === 'upcoming') {
-        return status === 'upcoming' || status === 'active' || status === 'rescheduled';
-      }
-      if (statusTab === 'completed') {
-        return status === 'completed' || status === 'cancelled';
-      }
-      return true;
-    }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    const byStartDesc = (a: Announcement, b: Announcement) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+    // Актуальные — без старых новостей и прошедших событий, свежее — выше
+    if (statusTab === 'upcoming') return events.filter((item) => isFresh(item)).sort((a, b) => freshOrder(a, b));
+    if (statusTab === 'completed') return events.filter((item) => !isFresh(item)).sort(byStartDesc);
+    return [...events].sort(byStartDesc);
   }, [events, statusTab]);
 
   return (
@@ -68,7 +66,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
       {/* Section Header Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-[#00897b] text-xs font-bold uppercase tracking-wider mb-1">
+          <div className="inline-flex items-center gap-1.5 text-[#00796b] text-xs font-bold uppercase tracking-wider mb-1">
             <span className="material-symbols-outlined text-[16px]">calendar_today</span>
             <span>{t('sections.upcomingSubtitle')}</span>
           </div>
@@ -115,17 +113,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
       </div>
 
       {/* Lifecycle Status Filter Tabs (Ensures past events are not shown as upcoming) */}
-      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 text-xs">
-        <button
-          onClick={() => setStatusTab('all')}
-          className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-            statusTab === 'all'
-              ? 'bg-[#12327A] text-white shadow-2xs'
-              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-          }`}
-        >
-          {currentLanguage === 'kg' ? 'Бардыгы' : currentLanguage === 'en' ? 'All Events' : 'Все события'}
-        </button>
+      <div className="flex flex-wrap items-center gap-2 mb-6 pb-1 text-xs">
         <button
           onClick={() => setStatusTab('upcoming')}
           className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
@@ -135,7 +123,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
           }`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-[#20C7B5]" />
-          <span>{currentLanguage === 'kg' ? 'Алдыдагы (Предстоящие)' : currentLanguage === 'en' ? 'Upcoming & Active' : 'Предстоящие и активные'}</span>
+          <span>{currentLanguage === 'kg' ? 'Жаңы жана актуалдуу' : currentLanguage === 'en' ? 'Latest & current' : 'Свежие и актуальные'}</span>
         </button>
         <button
           onClick={() => setStatusTab('completed')}
@@ -146,14 +134,37 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
           }`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-          <span>{currentLanguage === 'kg' ? 'Аяктаган / Архив' : currentLanguage === 'en' ? 'Completed / Past' : 'Завершенные / Архив'}</span>
+          <span>{currentLanguage === 'kg' ? 'Архив' : currentLanguage === 'en' ? 'Archive' : 'Архив'}</span>
         </button>
+        {districtList.length > 0 && (
+          <select
+            value={districtCode}
+            onChange={(e) => {
+              setDistrictCode(e.target.value);
+              setVisibleCount(6);
+            }}
+            aria-label={currentLanguage === 'kg' ? 'Район' : currentLanguage === 'en' ? 'District' : 'Район'}
+            className={`sm:ml-auto px-2 py-1.5 rounded-lg font-bold border max-w-full ${
+              districtCode ? 'bg-[#12327A] text-white border-[#12327A]' : 'bg-white text-gray-600 border-gray-200'
+            }`}
+          >
+            <option value="">{currentLanguage === 'kg' ? 'Бардык райондор' : currentLanguage === 'en' ? 'All districts' : 'Все районы'}</option>
+            {districtList.map((d) => {
+              const n = allEvents.filter((a) => inDistrict(a, d)).length;
+              return (
+                <option key={d.code} value={d.code}>
+                  {(d[currentLanguage] || d.ru) + (n ? ` · ${n}` : '')}
+                </option>
+              );
+            })}
+          </select>
+        )}
       </div>
 
       {/* Events List / Grid */}
       {filteredEvents.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 p-6">
-          <span className="material-symbols-outlined text-gray-400 text-4xl mb-2">event_busy</span>
+          <span className="material-symbols-outlined text-gray-500 text-4xl mb-2">event_busy</span>
           <p className="text-gray-600 font-medium">
             {currentLanguage === 'kg'
               ? 'Бул категорияда азырынча окуялар жок'
@@ -161,6 +172,34 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               ? 'No events found for this filter'
               : 'В данной категории пока нет событий'}
           </p>
+          {districtSel && (
+            <button
+              type="button"
+              onClick={() => setDistrictCode('')}
+              className="mt-3 px-4 py-2 rounded-xl bg-gray-100 text-[#12327A] text-xs font-bold hover:bg-gray-200"
+            >
+              {currentLanguage === 'kg' ? 'Бардык райондорду көрсөтүү' : currentLanguage === 'en' ? 'Show all districts' : 'Показать все районы'}
+            </button>
+          )}
+          {/* В актуальном пусто, а в архиве есть — подсказываем и даём перейти */}
+          {statusTab === 'upcoming' && archivedCount > 0 && (
+            <div className="mt-3 flex flex-col items-center gap-2">
+              <p className="text-sm text-gray-500">
+                {currentLanguage === 'kg'
+                  ? `Архивде табылды: ${archivedCount}`
+                  : currentLanguage === 'en'
+                  ? `Found in the archive: ${archivedCount}`
+                  : `Найдено в архиве: ${archivedCount}`}
+              </p>
+              <button
+                type="button"
+                onClick={() => setStatusTab('completed')}
+                className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-xs font-bold hover:bg-[#0d2459]"
+              >
+                {currentLanguage === 'kg' ? 'Архивди көрсөтүү' : currentLanguage === 'en' ? 'Show archive' : 'Показать архив'}
+              </button>
+            </div>
+          )}
         </div>
       ) : displayMode === 'list' ? (
         <div className="space-y-4">
@@ -190,17 +229,22 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                     : 'border-gray-100'
                 }`}
               >
-                {/* Left Date Tile Component with October 2026 */}
-                <div className="w-full sm:w-20 sm:min-w-20 rounded-xl bg-[#f3f6fc] p-3 flex sm:flex-col items-center justify-between sm:justify-center text-center flex-shrink-0 group-hover:bg-[#12327A] transition-colors">
-                  <span className="text-2xl sm:text-3xl font-black text-[#12327A] group-hover:text-white leading-none">
-                    {dayNum}
-                  </span>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 group-hover:text-[#dbe1ff] mt-1">
-                    {monthStr} 2026
-                  </span>
-                  <span className="text-[10px] font-semibold text-gray-400 group-hover:text-white/80 uppercase">
-                    {weekdayStr}
-                  </span>
+                {/* Фото / афиша события с датой поверх */}
+                <div className="relative w-full sm:w-44 flex-shrink-0">
+                  <EventImage item={item} lang={currentLanguage} className="w-full h-40 sm:h-full sm:min-h-32 rounded-xl" />
+                  <div className="absolute top-2 left-2 rounded-lg bg-white/95 px-2 py-1 text-center shadow-sm">
+                    <div className="text-xl font-black text-[#12327A] leading-none">{dayNum}</div>
+                    {isKg ? (
+                      <div className="text-[11px] font-bold text-gray-600 leading-tight">
+                        <div>{monthStr}</div>
+                        <div className="font-semibold text-gray-500">{weekdayStr}</div>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] font-bold uppercase text-gray-500">
+                        {monthStr} • {weekdayStr}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Main Event Content */}
@@ -219,9 +263,10 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                           <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                           <span>{statusCfg.label}</span>
                         </span>
+                        <PaidBadge item={item} lang={currentLanguage} />
 
                         {item.eventDetails?.timeRange && (
-                          <span className="text-xs text-gray-400 font-medium">
+                          <span className="text-xs text-gray-500 font-medium">
                             {item.eventDetails.timeRange}
                           </span>
                         )}
@@ -246,7 +291,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                     </h3>
 
                     <div className="flex items-center gap-1.5 text-gray-500 text-xs sm:text-sm mb-3">
-                      <span className="material-symbols-outlined text-[#00897b] text-[18px] flex-shrink-0">
+                      <span className="material-symbols-outlined text-[#00796b] text-[18px] flex-shrink-0">
                         location_on
                       </span>
                       <span className="truncate">{location}</span>
@@ -260,15 +305,27 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                           {price}
                         </span>
                       )}
+                      {ticketLink(item).verified && ticketLink(item).url && (
+                        <a
+                          href={ticketLink(item).url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs font-extrabold text-[#002f29] bg-[#20C7B5] hover:bg-[#1bb3a2] px-2.5 py-1 rounded-lg inline-flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">confirmation_number</span>
+                          {currentLanguage === 'kg' ? 'Билеттерди сатып алуу' : currentLanguage === 'en' ? 'Buy tickets' : 'Купить билет'}
+                        </a>
+                      )}
                       {item.eventDetails?.organizer && (
-                        <span className="text-xs text-gray-400 hidden sm:inline">
+                        <span className="text-xs text-gray-500 hidden sm:inline">
                           {item.eventDetails.organizer}
                         </span>
                       )}
                     </div>
 
                     <span className="px-3.5 py-1.5 rounded-xl bg-[#f0f4fc] text-[#12327A] group-hover:bg-[#12327A] group-hover:text-white text-xs font-bold transition-all inline-flex items-center gap-1">
-                      <span>{currentLanguage === 'kg' ? 'Программа жана маалымат' : currentLanguage === 'en' ? 'Program & Info' : 'Билеты и программа'}</span>
+                      <span>{currentLanguage === 'kg' ? 'Толугураак' : currentLanguage === 'en' ? 'More details' : 'Подробнее'}</span>
                       <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                     </span>
                   </div>
@@ -307,10 +364,11 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                 }`}
               >
                 <div>
+                  <EventImage item={item} lang={currentLanguage} className="w-full h-36 rounded-xl mb-3" />
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className="bg-[#f3f6fc] group-hover:bg-[#12327A] group-hover:text-white transition-colors px-2.5 py-1 rounded-lg text-center font-bold text-[#12327A] text-xs">
-                        <span>{dayNum} {monthStr} 2026</span>
+                        <span>{isKg ? formatDate(startDate, 'kg') : `${dayNum} ${monthStr} ${startDate.getFullYear()}`}</span>
                       </div>
                       <span className="px-2 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44] text-[10px] font-bold">
                         {t(`categories.${item.category}`)}
@@ -335,6 +393,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                       <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                       <span>{statusCfg.label}</span>
                     </span>
+                    <PaidBadge item={item} lang={currentLanguage} />
                   </div>
 
                   <h3 className="text-base font-bold text-[#0f1b33] mb-2 group-hover:text-[#12327A] transition-colors leading-snug">
@@ -342,15 +401,15 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                   </h3>
 
                   <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
-                    <span className="material-symbols-outlined text-[16px] text-[#00897b]">location_on</span>
+                    <span className="material-symbols-outlined text-[16px] text-[#00796b]">location_on</span>
                     <span className="truncate">{location}</span>
                   </p>
                 </div>
 
                 <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-                  <span className="font-bold text-[#12327A]">{price || 'Вход свободный'}</span>
+                  <span className="font-bold text-[#12327A]">{price || ''}</span>
                   <span className="font-semibold text-gray-500 group-hover:text-[#12327A] inline-flex items-center gap-1">
-                    <span>Подробнее</span>
+                    <span>{t('nav.more')}</span>
                     <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                   </span>
                 </div>

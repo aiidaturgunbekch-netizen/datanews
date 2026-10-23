@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { PLACE_IDS } from '../config/regions';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 
@@ -17,6 +18,14 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [query, setQuery] = useState('');
+  // Esc закрывает окно поиска
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
   const [selectedCat, setSelectedCat] = useState<CategoryId>('all');
   const [selectedCity, setSelectedCity] = useState<CityId>('all');
 
@@ -56,20 +65,20 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('search.whatPlaceholder')}
-            className="w-full text-sm sm:text-base text-[#0f1b33] placeholder:text-gray-400 focus:outline-none"
+            className="w-full text-sm sm:text-base text-[#0f1b33] placeholder:text-gray-500 focus:outline-none"
             autoFocus
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="p-1 rounded-full text-gray-400 hover:text-gray-600"
+              className="p-1 rounded-full text-gray-500 hover:text-gray-600"
             >
               <span className="material-symbols-outlined text-[18px]">clear</span>
             </button>
           )}
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+            className="p-1 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -82,14 +91,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             onChange={(e) => setSelectedCity(e.target.value as CityId)}
             className="px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 font-semibold focus:outline-none"
           >
-            <option value="all">{t('cities.all')}</option>
-            <option value="bishkek">{t('cities.bishkek')}</option>
-            <option value="osh">{t('cities.osh')}</option>
-            <option value="jalalabad">{t('cities.jalalabad')}</option>
-            <option value="karakol">{t('cities.karakol')}</option>
-            <option value="talas">{t('cities.talas')}</option>
-            <option value="naryn">{t('cities.naryn')}</option>
-            <option value="batken">{t('cities.batken')}</option>
+            {PLACE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {t(`cities.${id}`)}
+              </option>
+            ))}
           </select>
 
           <select
@@ -108,19 +114,25 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             <option value="gov">{t('categories.gov')}</option>
           </select>
 
-          <span className="ml-auto text-gray-400 font-medium">
-            Найдено: {filtered.length}
+          <span className="ml-auto text-gray-500 font-medium">
+            {currentLanguage === 'kg' ? 'Табылды' : currentLanguage === 'en' ? 'Found' : 'Найдено'}: {filtered.length}
           </span>
         </div>
 
         {/* Results List */}
         <div className="max-h-[60vh] overflow-y-auto p-4 space-y-2">
           {filtered.length === 0 ? (
-            <div className="py-12 text-center text-gray-400">
+            <div className="py-12 text-center text-gray-500">
               <span className="material-symbols-outlined text-4xl mb-2 text-gray-300">
                 search_off
               </span>
-              <p className="text-xs sm:text-sm">По вашему запросу ничего не найдено</p>
+              <p className="text-xs sm:text-sm">
+                {currentLanguage === 'kg'
+                  ? 'Сурамыңыз боюнча эч нерсе табылган жок'
+                  : currentLanguage === 'en'
+                  ? 'Nothing matches your search'
+                  : 'По вашему запросу ничего не найдено'}
+              </p>
             </div>
           ) : (
             filtered.map((item) => (
@@ -137,10 +149,10 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 text-[#12327A]">
                       {t(`categories.${item.category}`)}
                     </span>
-                    <span className="text-[11px] font-mono text-gray-400">
+                    <span className="text-[11px] font-mono text-gray-500">
                       {item.protocolCode}
                     </span>
-                    <span className="text-[11px] text-gray-400">
+                    <span className="text-[11px] text-gray-500">
                       • {t(`cities.${item.city}`)}
                     </span>
                   </div>
@@ -152,7 +164,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                   </p>
                 </div>
 
-                <span className="material-symbols-outlined text-gray-400 group-hover:text-[#12327A] group-hover:translate-x-1 transition-all text-[18px] flex-shrink-0 mt-2">
+                <span className="material-symbols-outlined text-gray-500 group-hover:text-[#12327A] group-hover:translate-x-1 transition-all text-[18px] flex-shrink-0 mt-2">
                   arrow_forward
                 </span>
               </div>

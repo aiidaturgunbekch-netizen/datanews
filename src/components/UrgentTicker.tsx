@@ -1,5 +1,8 @@
 import React from 'react';
 import { Announcement, Language } from '../types';
+import { formatWhen } from '../utils/dates';
+import { kgTs } from '../utils/time';
+import { urgencyLabel } from './UrgencyBadge';
 
 interface UrgentTickerProps {
   currentLanguage: Language;
@@ -7,14 +10,15 @@ interface UrgentTickerProps {
   onOpenNotice: () => void;
 }
 
-const LABEL = { ru: 'Скоро', kg: 'Жакында', en: 'Coming up' };
-const CTA = { ru: 'Подробнее', kg: 'Кененирээк', en: 'Details' };
+
+const CTA = { ru: 'Подробнее', kg: 'Толугураак', en: 'Details' };
 
 export const UrgentTicker: React.FC<UrgentTickerProps> = ({ currentLanguage, notice, onOpenNotice }) => {
   if (!notice) return null;
-  const d = new Date(notice.startDate);
-  const loc = currentLanguage === 'en' ? 'en-GB' : 'ru-RU';
-  const when = `${d.toLocaleDateString(loc, { day: 'numeric', month: 'long' })}, ${d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' })}`;
+  const when = formatWhen(notice.startDate, notice.endDate, currentLanguage, false, notice.timeTBA, notice.allDay);
+  // «Действует сейчас» / «Сегодня» / «Завтра» / «Через N дн.» — по времени Бишкека
+  const label = urgencyLabel(notice, currentLanguage);
+  const live = kgTs(notice.startDate) <= Date.now();
 
   return (
     <button
@@ -22,8 +26,13 @@ export const UrgentTicker: React.FC<UrgentTickerProps> = ({ currentLanguage, not
       className="w-full text-left bg-gradient-to-r from-[#12327A] via-[#1d4ed8] to-[#20C7B5] text-white px-4 md:px-6 py-3 hover:brightness-110 transition"
     >
       <div className="max-w-[1280px] mx-auto flex items-center gap-3">
-        <span className="inline-flex px-2 py-0.5 rounded bg-white/20 text-[11px] font-black tracking-wider uppercase flex-shrink-0">
-          {LABEL[currentLanguage]}
+        <span
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-black tracking-wider uppercase flex-shrink-0 ${
+            live ? 'bg-red-600' : 'bg-white/20'
+          }`}
+        >
+          {live && <span className="w-1.5 h-1.5 rounded-full bg-white dn-urgent-blink" />}
+          {label}
         </span>
         <p className="text-xs sm:text-sm font-semibold truncate flex-1">
           {notice.title[currentLanguage]} — {when}

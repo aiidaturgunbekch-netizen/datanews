@@ -1,3 +1,4 @@
+import { ContactButtons } from './ContactButtons';
 import React from 'react';
 import { Language, ViewMode } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -6,9 +7,10 @@ import { Logo } from './Logo';
 interface FooterProps {
   currentLanguage: Language;
   onNavigate: (view: ViewMode) => void;
+  onOpenAccount: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate }) => {
+export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onOpenAccount }) => {
   const { t } = getTranslation(currentLanguage);
 
   return (
@@ -29,15 +31,20 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate }) =
           {/* Col 1: Brand & Slogan */}
           <div>
             <div className="mb-4">
-              <Logo className="h-10" />
+              <Logo className="h-10" lang={currentLanguage} />
             </div>
             <p className="text-xs sm:text-sm text-gray-600 mb-4 leading-relaxed">
               {t('appSlogan')}. {t('appHeroDesc')}
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white text-gray-700 text-xs font-bold border border-gray-200 shadow-2xs">
+            {/* Ведёт на страницу «Источники информации» */}
+            <button
+              type="button"
+              onClick={() => onNavigate('sources')}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white text-gray-700 text-xs font-bold border border-gray-200 shadow-2xs hover:border-[#20C7B5] transition-colors"
+            >
               <span className="w-2 h-2 rounded-full bg-[#20C7B5]" />
-              <span>Civic Data Network</span>
-            </div>
+              <span>{currentLanguage === 'kg' ? 'Текшерилген булактар' : currentLanguage === 'en' ? 'Verified sources' : 'Проверенные источники'}</span>
+            </button>
           </div>
 
           {/* Col 2: Sections */}
@@ -112,16 +119,16 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate }) =
               <li>
                 <button
                   type="button"
-                  onClick={() => onNavigate('admin')}
+                  onClick={onOpenAccount}
                   className="hover:text-[#12327A] transition-colors text-left"
                 >
-                  {currentLanguage === 'kg' ? 'Өнөктөштүн жеке кабинети' : currentLanguage === 'en' ? 'Partner Dashboard' : 'Личный кабинет партнера'}
+                  {currentLanguage === 'kg' ? 'Жеке кабинет' : currentLanguage === 'en' ? 'My account' : 'Личный кабинет'}
                 </button>
               </li>
               <li>
-                <span className="text-gray-400">
+                <button type="button" onClick={() => onNavigate('rules')} className="hover:text-[#12327A] transition-colors text-left">
                   {currentLanguage === 'kg' ? 'Модерация регламенти' : currentLanguage === 'en' ? 'Moderation Policy' : 'Регламент модерации'}
-                </span>
+                </button>
               </li>
             </ul>
           </div>
@@ -131,35 +138,23 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate }) =
             <h4 className="text-xs font-bold text-[#0f1b33] mb-4 uppercase tracking-wider">
               {currentLanguage === 'kg' ? 'Байланыштар жана каналдар' : currentLanguage === 'en' ? 'Contacts & Channels' : 'Контакты и каналы'}
             </h4>
-            <ul className="space-y-2.5 text-xs sm:text-sm text-gray-600 mb-4">
-              <li>
-                <a
-                  href="https://t.me/datanewskg"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-[#12327A] transition-colors flex items-center gap-1.5"
-                >
-                  <span className="material-symbols-outlined text-[16px] text-[#0088cc]">send</span>
-                  <span>Telegram бот уведомлений</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://wa.me/996"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-[#12327A] transition-colors flex items-center gap-1.5"
-                >
-                  <span className="material-symbols-outlined text-[16px] text-[#25d366]">chat</span>
-                  <span>WhatsApp оперативный канал</span>
-                </a>
-              </li>
-              <li className="text-gray-400 text-xs">
-                {currentLanguage === 'kg' ? 'Жарыялоо эрежелери' : currentLanguage === 'en' ? 'Publishing Rules' : 'Правила публикации'}
-              </li>
-              <li className="text-gray-400 text-xs">
-                {currentLanguage === 'kg' ? 'Купуялуулук саясаты' : currentLanguage === 'en' ? 'Privacy Policy' : 'Политика конфиденциальности'}
-              </li>
+            <ContactButtons lang={currentLanguage} compact className="mb-4" />
+            <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
+              {(
+                [
+                  ['contacts', { ru: 'Связаться с DataNews', kg: 'DataNews менен байланышуу', en: 'Contact DataNews' }],
+                  ['about', { ru: 'О проекте', kg: 'Долбоор жөнүндө', en: 'About' }],
+                  ['sources', { ru: 'Источники информации', kg: 'Маалымат булактары', en: 'Information sources' }],
+                  ['rules', { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' }],
+                  ['privacy', { ru: 'Политика конфиденциальности', kg: 'Купуялуулук саясаты', en: 'Privacy policy' }],
+                ] as [ViewMode, Record<Language, string>][]
+              ).map(([v, l]) => (
+                <li key={v}>
+                  <button type="button" onClick={() => onNavigate(v)} className="hover:text-[#12327A] transition-colors text-left">
+                    {l[currentLanguage]}
+                  </button>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
@@ -169,7 +164,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate }) =
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700 font-semibold text-center">
             <span>{t('disclaimer.footerNotice')}</span>
           </div>
-          <div>{t('disclaimer.copyright')}</div>
+          <div className="text-gray-600">{t('disclaimer.copyright')}</div>
         </div>
       </div>
     </footer>

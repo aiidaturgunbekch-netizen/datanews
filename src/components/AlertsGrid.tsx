@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Announcement, Language, CityId } from '../types';
 import { getTranslation } from '../locales/translations';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
@@ -13,6 +13,8 @@ interface AlertsGridProps {
   selectedCity: CityId;
   onCityFilterChange: (city: CityId) => void;
   onSelectAnnouncement: (announcement: Announcement) => void;
+  /** Завершённые предупреждения — вкладка «Архив» (только в разделе «Предупреждения») */
+  archived?: Announcement[];
 }
 
 /** Короткая метка типа источника на языке интерфейса */
@@ -31,8 +33,15 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
   selectedCity,
   onCityFilterChange,
   onSelectAnnouncement,
+  archived,
 }) => {
   const { t } = getTranslation(currentLanguage);
+  const [tab, setTab] = useState<'active' | 'archive'>('active');
+  const list = tab === 'archive' && archived ? archived : alerts;
+  const L = (ru: string, kg: string, en: string) => (currentLanguage === 'kg' ? kg : currentLanguage === 'en' ? en : ru);
+  /** Изменено после публикации (больше чем через час) — показываем «Обновлено» */
+  const updatedOn = (a: Announcement) =>
+    a.updatedAt && a.publishedAt && Date.parse(a.updatedAt) - Date.parse(a.publishedAt) > 3600_000 ? a.updatedAt : null;
 
   const getUrgencyConfig = (ann: Announcement) => {
     const displayStatus = getAnnouncementDisplayStatus(ann);
@@ -42,7 +51,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
         barColor: 'bg-gray-400',
         badgeBg: 'bg-gray-100',
         badgeText: 'text-gray-700',
-        badgeLabel: currentLanguage === 'kg' ? 'Аяктады / Архив' : currentLanguage === 'en' ? 'Completed Works' : 'Завершено / Архив',
+        badgeLabel: currentLanguage === 'kg' ? 'Аяктады / Архив' : currentLanguage === 'en' ? 'Completed / Archive' : 'Завершено / Архив',
         icon: 'task_alt',
         iconColor: 'text-gray-500',
         btnText: currentLanguage === 'kg' ? 'Маалымат' : currentLanguage === 'en' ? 'Details' : 'Подробнее',
@@ -154,21 +163,41 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
           </div>
         </div>
 
+        {/* Действуют / Архив завершённых */}
+        {archived && (
+          <div className="flex items-center gap-2 mb-4 text-xs" role="tablist">
+            {(['active', 'archive'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={tab === k}
+                onClick={() => setTab(k)}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${tab === k ? 'bg-[#12327A] text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                {k === 'active' ? `${L('Действуют', 'Күчүндө', 'Active')} · ${alerts.length}` : `${L('Архив', 'Архив', 'Archive')} · ${archived.length}`}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Cards Grid */}
-        {alerts.length === 0 ? (
+        {list.length === 0 ? (
           <div className="text-center py-12 bg-[#f8fafc] rounded-2xl border border-gray-100 p-6">
             <span className="material-symbols-outlined text-gray-400 text-4xl mb-2">check_circle</span>
             <p className="text-gray-600 font-medium">
-              {currentLanguage === 'kg'
-                ? 'Бул категория же шаар боюнча активдүү авариялык эскертүүлөр жок.'
-                : currentLanguage === 'en'
-                ? 'No active disruptions found for this category or region.'
-                : 'По выбранным критериям срочных предупреждений не обнаружено.'}
+              {tab === 'archive'
+                ? L('Завершённых предупреждений в архиве нет.', 'Архивде аяктаган эскертүүлөр жок.', 'No completed warnings in the archive.')
+                : L(
+                    'По выбранным критериям срочных предупреждений не обнаружено.',
+                    'Бул категория же шаар боюнча активдүү авариялык эскертүүлөр жок.',
+                    'No active disruptions found for this category or region.'
+                  )}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {alerts.map((ann) => {
+            {list.map((ann) => {
               const cfg = getUrgencyConfig(ann);
               const displayStatus = getAnnouncementDisplayStatus(ann);
               const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
@@ -208,6 +237,11 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                         </span>
                         <span>{cfg.badgeLabel}</span>
                       </span>
+                      {updatedOn(ann) && displayStatus !== 'completed' && (
+                        <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 text-[11px] font-bold" title={formatWhen(updatedOn(ann)!, undefined, currentLanguage)}>
+                          {L('Обновлено', 'Жаңыланды', 'Updated')}
+                        </span>
+                      )}
 
                       {/* Срочность: красный мигающий за 0–3 дня, жёлтый — если дольше; иначе — обычный статус */}
                       {alertLevel(ann) === 'urgent' || alertLevel(ann) === 'soon' ? (

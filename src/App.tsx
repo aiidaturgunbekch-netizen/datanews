@@ -201,6 +201,15 @@ export default function App() {
 
   // Предупреждения и афиша делят список без пропусков: всё, что не предупреждение, — в афише
   const alertsList = useMemo(() => filteredAnnouncements.filter(isAlert), [filteredAnnouncements]);
+  // Завершённые предупреждения выбранного места — архив в разделе «Предупреждения» (новые сверху)
+  const archivedAlerts = useMemo(
+    () =>
+      announcements
+        .filter((a) => isAlert(a) && !isListed(a))
+        .filter((a) => selectedCity === 'all' || a.city === 'all' || normalizeCity(a.city) === selectedCity)
+        .sort((a, b) => b.startDate.localeCompare(a.startDate)),
+    [announcements, selectedCity]
+  );
   const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
 
   // Счётчики категорий — по тем же правилам, что и список (кроме самой категории)
@@ -483,6 +492,7 @@ export default function App() {
                 selectedCity={selectedCity}
                 onCityFilterChange={setSelectedCity}
                 onSelectAnnouncement={setActiveNoticeDetail}
+                archived={archivedAlerts}
               />
             )}
           </div>

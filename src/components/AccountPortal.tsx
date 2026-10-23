@@ -383,7 +383,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input className={inputCls} placeholder={tr('name')} value={name} onChange={(e) => setName(e.target.value)} required />
-                    <input className={inputCls} placeholder={tr('org')} value={org} onChange={(e) => setOrg(e.target.value)} />
+                    <input className={inputCls} placeholder={tr('org')} aria-label={tr('org')} value={org} onChange={(e) => setOrg(e.target.value)} maxLength={160} required />
                     <input className={inputCls} type="email" placeholder={tr('emailReq')} value={email} onChange={(e) => setEmail(e.target.value)} required />
                     <input className={inputCls} type="tel" placeholder={tr('phoneReq')} value={phone} onChange={(e) => setPhone(e.target.value)} required />
                     <input
@@ -591,6 +591,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                       lang={lang}
                       mode="user"
                       allowedCategories={PLANS[usage?.plan || normalizePlan(user.plan)].categories}
+                      defaultOrganizer={user.organization}
                       submitLabel={usage?.skipsModeration ? tr('publishNow') : tr('sendToModeration')}
                       onSubmit={async (item) => {
                         try {

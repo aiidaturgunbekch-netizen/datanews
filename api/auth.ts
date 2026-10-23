@@ -58,6 +58,7 @@ export default handler(async (req) => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError('bad_email', 400, 'Проверьте e-mail');
     if (name.length < 2) throw new HttpError('bad_name', 400, 'Укажите имя');
     if (phone.replace(/\D/g, '').length < 9) throw new HttpError('bad_phone', 400, 'Укажите телефон');
+    if (clean(body.organization, 160).length < 2) throw new HttpError('missing_field', 400, 'Укажите организацию или личность');
     if (password.length < 6) throw new HttpError('weak_password', 400, 'Пароль — не короче 6 символов');
     if (await hgetJson(USERS_KEY, email)) throw new HttpError('email_taken', 409, 'Этот e-mail уже зарегистрирован');
 

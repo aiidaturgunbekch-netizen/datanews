@@ -62,13 +62,15 @@ interface Props {
   onCancel?: () => void;
   /** Тариф разрешает только эти разделы (например, «Культура и театр») */
   allowedCategories?: CategoryId[];
+  /** Подставить в поле «Организация или личность» (из регистрации) */
+  defaultOrganizer?: string;
 }
 
 export const inputCls =
   'w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-[#0f1b33] focus:outline-none focus:ring-2 focus:ring-[#12327A]/30 focus:border-[#12327A]';
 const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1';
 
-export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, submitLabel, onSubmit, onCancel, allowedCategories }) => {
+export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, submitLabel, onSubmit, onCancel, allowedCategories, defaultOrganizer }) => {
   const tr = (k: AccountKey) => ta(k, lang);
   const { t } = getTranslation(lang);
   const [titleRu, setTitleRu] = useState(initial?.title.ru || '');
@@ -83,7 +85,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [endDate, setEndDate] = useState(initial?.endDate || '');
   const [price, setPrice] = useState(initial?.eventDetails?.priceText?.ru || '');
   const [venue, setVenue] = useState(initial?.eventDetails?.venue || '');
-  const [organizer, setOrganizer] = useState(initial?.eventDetails?.organizer || '');
+  const [organizer, setOrganizer] = useState(initial?.eventDetails?.organizer || defaultOrganizer || '');
   const [contactPhone, setContactPhone] = useState(initial?.eventDetails?.contactPhone || '');
   const [ticketUrl, setTicketUrl] = useState(initial ? ticketLink(initial).url : '');
   const [ticketVerified, setTicketVerified] = useState(Boolean(initial?.ticketUrlVerified));

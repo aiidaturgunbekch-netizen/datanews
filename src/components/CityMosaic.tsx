@@ -114,7 +114,7 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
       <div className="max-w-[1280px] mx-auto px-4 md:px-6">
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4 mb-8">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-[#00897b] text-xs font-bold uppercase tracking-wider mb-1">
+            <div className="inline-flex items-center gap-1.5 text-[#00796b] text-xs font-bold uppercase tracking-wider mb-1">
               <span className="material-symbols-outlined text-[16px]">map</span>
               <span>
                 {currentLanguage === 'kg'

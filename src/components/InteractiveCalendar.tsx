@@ -5,6 +5,7 @@ import { getTranslation } from '../locales/translations';
 import { alertLevel, isAlert } from '../utils/urgency';
 import { formatDate, formatMonthYear, formatTime } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+import { recordsLabel } from '../utils/plural';
 
 interface InteractiveCalendarProps {
   currentLanguage: Language;
@@ -102,7 +103,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           <span className="text-base sm:text-lg font-bold text-[#0f1b33] block">
             {formatMonthYear(currentYear, currentMonth, currentLanguage)}
           </span>
-          <span className="text-xs text-gray-400 font-medium">
+          <span className="text-xs text-gray-500 font-medium">
             {t('views.calendarHelp')}
           </span>
         </div>
@@ -128,7 +129,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
 
       {/* Weekday Names (Monday-start) */}
       <div
-        className="grid grid-cols-7 gap-1 text-center font-bold text-gray-400 mb-2 text-[11px] uppercase tracking-wider"
+        className="grid grid-cols-7 gap-1 text-center font-bold text-gray-500 mb-2 text-[11px] uppercase tracking-wider"
       >
         {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
           <span
@@ -235,13 +236,13 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
             {t('views.selectedDate')}:{' '}
             {formatDate(selectedDateObj, currentLanguage)}
           </span>
-          <span className="text-[11px] font-semibold text-gray-400">
-            {selectedItems.length} {t('views.recordsCount')}
+          <span className="text-[11px] font-semibold text-gray-500">
+            {recordsLabel(selectedItems.length, currentLanguage)}
           </span>
         </div>
 
         {selectedItems.length === 0 ? (
-          <p className="text-xs text-gray-400 py-2 text-center">
+          <p className="text-xs text-gray-500 py-2 text-center">
             {currentLanguage === 'kg'
               ? 'Бул күнгө катталган окуялар жок'
               : currentLanguage === 'en'
@@ -288,12 +289,12 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                         {statusCfg.label}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-gray-400 text-[11px]">
+                    <div className="flex items-center justify-between text-gray-500 text-[11px]">
                       <span>
                         {formatTime(item.startDate)}
                         {item.district ? ` • ${item.district}` : ''}
                       </span>
-                      <span className="text-[10px] text-gray-400 font-medium">
+                      <span className="text-[10px] text-gray-500 font-medium">
                         {t(`categories.${item.category}`)}
                       </span>
                     </div>

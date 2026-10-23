@@ -9,6 +9,7 @@ import { formatWhen, MONTHS } from '../utils/dates';
 import { alertLevel, isListed } from '../utils/urgency';
 import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
 import { freshOrder, isFresh } from '../utils/statusUtils';
+import { ruPlural } from '../utils/plural';
 
 export type StatsMode = 'all' | 'alerts' | 'regions';
 
@@ -57,9 +58,7 @@ const T = {
 const postsLabel = (n: number, lang: Language) => {
   if (lang === 'kg') return `${n} жарыя`;
   if (lang === 'en') return `${n} post${n === 1 ? '' : 's'}`;
-  const m10 = n % 10;
-  const m100 = n % 100;
-  return `${n} ${m10 === 1 && m100 !== 11 ? 'публикация' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'публикации' : 'публикаций'}`;
+  return `${n} ${ruPlural(n, 'публикация', 'публикации', 'публикаций')}`;
 };
 
 export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a: Announcement) => void }> = ({ item, lang, onOpen }) => {
@@ -291,7 +290,7 @@ export const CategoryResults: React.FC<{
           {home[lang]}
         </button>
         <h2 className="text-xl sm:text-2xl font-extrabold text-[#0f1b33] mb-3">
-          {t(`categories.${category}`)} <span className="text-gray-400 font-bold">· {sorted.length}</span>
+          {t(`categories.${category}`)} <span className="text-gray-500 font-bold">· {sorted.length}</span>
         </h2>
         {extra && <div className="mb-4">{extra}</div>}
         {sorted.length === 0 ? (

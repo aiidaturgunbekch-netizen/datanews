@@ -102,7 +102,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
         badgeText: 'text-[#004d44]',
         badgeLabel: currentLanguage === 'kg' ? 'Кыймыл схемасы' : currentLanguage === 'en' ? 'Detour Route' : 'Схема движения',
         icon: 'alt_route',
-        iconColor: 'text-[#00897b]',
+        iconColor: 'text-[#00796b]',
         btnText: currentLanguage === 'kg' ? 'Айланып өтүү схемасы' : currentLanguage === 'en' ? 'Detour Route' : 'Схема объезда',
       };
     }
@@ -185,7 +185,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
         {/* Cards Grid */}
         {list.length === 0 ? (
           <div className="text-center py-12 bg-[#f8fafc] rounded-2xl border border-gray-100 p-6">
-            <span className="material-symbols-outlined text-gray-400 text-4xl mb-2">check_circle</span>
+            <span className="material-symbols-outlined text-gray-500 text-4xl mb-2">check_circle</span>
             <p className="text-gray-600 font-medium">
               {tab === 'archive'
                 ? L('Завершённых предупреждений в архиве нет.', 'Архивде аяктаган эскертүүлөр жок.', 'No completed warnings in the archive.')
@@ -281,7 +281,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-500">
-                        <span className="material-symbols-outlined text-gray-400 text-[18px] flex-shrink-0">
+                        <span className="material-symbols-outlined text-gray-500 text-[18px] flex-shrink-0">
                           location_on
                         </span>
                         <span className="truncate">{location}</span>

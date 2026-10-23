@@ -66,7 +66,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
       {/* Section Header Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-[#00897b] text-xs font-bold uppercase tracking-wider mb-1">
+          <div className="inline-flex items-center gap-1.5 text-[#00796b] text-xs font-bold uppercase tracking-wider mb-1">
             <span className="material-symbols-outlined text-[16px]">calendar_today</span>
             <span>{t('sections.upcomingSubtitle')}</span>
           </div>
@@ -164,7 +164,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
       {/* Events List / Grid */}
       {filteredEvents.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 p-6">
-          <span className="material-symbols-outlined text-gray-400 text-4xl mb-2">event_busy</span>
+          <span className="material-symbols-outlined text-gray-500 text-4xl mb-2">event_busy</span>
           <p className="text-gray-600 font-medium">
             {currentLanguage === 'kg'
               ? 'Бул категорияда азырынча окуялар жок'
@@ -266,7 +266,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                         <PaidBadge item={item} lang={currentLanguage} />
 
                         {item.eventDetails?.timeRange && (
-                          <span className="text-xs text-gray-400 font-medium">
+                          <span className="text-xs text-gray-500 font-medium">
                             {item.eventDetails.timeRange}
                           </span>
                         )}
@@ -291,7 +291,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                     </h3>
 
                     <div className="flex items-center gap-1.5 text-gray-500 text-xs sm:text-sm mb-3">
-                      <span className="material-symbols-outlined text-[#00897b] text-[18px] flex-shrink-0">
+                      <span className="material-symbols-outlined text-[#00796b] text-[18px] flex-shrink-0">
                         location_on
                       </span>
                       <span className="truncate">{location}</span>
@@ -318,7 +318,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                         </a>
                       )}
                       {item.eventDetails?.organizer && (
-                        <span className="text-xs text-gray-400 hidden sm:inline">
+                        <span className="text-xs text-gray-500 hidden sm:inline">
                           {item.eventDetails.organizer}
                         </span>
                       )}
@@ -401,7 +401,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                   </h3>
 
                   <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
-                    <span className="material-symbols-outlined text-[16px] text-[#00897b]">location_on</span>
+                    <span className="material-symbols-outlined text-[16px] text-[#00796b]">location_on</span>
                     <span className="truncate">{location}</span>
                   </p>
                 </div>

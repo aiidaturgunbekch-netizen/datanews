@@ -66,7 +66,7 @@ export const TheatreVenues: React.FC<{ lang: Language; items: Announcement[]; on
                   )}
                 </>
               ) : (
-                <span className="text-gray-400">{L.noContacts[lang]}</span>
+                <span className="text-gray-500">{L.noContacts[lang]}</span>
               )}
             </div>
           </section>

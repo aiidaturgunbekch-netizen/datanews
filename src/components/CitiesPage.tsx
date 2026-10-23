@@ -222,7 +222,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm mb-8">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="max-w-2xl">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#00897b] block mb-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#00796b] block mb-1">
               {currentRegion.regionTitle}
             </span>
             <h2 className="text-2xl sm:text-3xl font-black text-[#0f1b33] mb-2">
@@ -233,7 +233,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
             </p>
             <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-gray-500">
               <span className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-[16px] text-gray-400">group</span>
+                <span className="material-symbols-outlined text-[16px] text-gray-500">group</span>
                 <span>{currentRegion.population}</span>
               </span>
               <span className="flex items-center gap-1 text-[#12327A]">
@@ -268,11 +268,11 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
               </span>
               <span>{ui.alerts[currentLanguage]}</span>
             </h3>
-            <span className="text-xs text-gray-400 font-bold">{alertItems.length}</span>
+            <span className="text-xs text-gray-500 font-bold">{alertItems.length}</span>
           </div>
 
           {alertItems.length === 0 ? (
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 text-center text-xs text-gray-400">
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 text-center text-xs text-gray-500">
               {ui.noAlerts[currentLanguage]}
             </div>
           ) : (
@@ -287,7 +287,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
                     <span className="font-bold text-[#dc2626] uppercase text-[10px]">
                       {t(`categories.${item.category}`)}
                     </span>
-                    <span className="text-gray-400">
+                    <span className="text-gray-500">
                       {formatDayMonth(item.startDate, currentLanguage)}
                     </span>
                   </div>
@@ -311,16 +311,16 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-base text-[#0f1b33] flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[#00897b] text-[20px]">
+              <span className="material-symbols-outlined text-[#00796b] text-[20px]">
                 event
               </span>
               <span>{ui.events[currentLanguage]}</span>
             </h3>
-            <span className="text-xs text-gray-400 font-bold">{eventItems.length}</span>
+            <span className="text-xs text-gray-500 font-bold">{eventItems.length}</span>
           </div>
 
           {eventItems.length === 0 ? (
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 text-center text-xs text-gray-400">
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 text-center text-xs text-gray-500">
               {ui.noEvents[currentLanguage]}
             </div>
           ) : (
@@ -332,10 +332,10 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
                   className="bg-white p-4 rounded-2xl border border-gray-200 hover:border-teal-300 transition-all cursor-pointer shadow-2xs group"
                 >
                   <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-bold text-[#00897b] uppercase text-[10px]">
+                    <span className="font-bold text-[#00796b] uppercase text-[10px]">
                       {t(`categories.${item.category}`)}
                     </span>
-                    <span className="text-gray-400">
+                    <span className="text-gray-500">
                       {formatDayMonth(item.startDate, currentLanguage)}
                     </span>
                   </div>

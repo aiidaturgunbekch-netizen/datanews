@@ -115,7 +115,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
               [
                 { mode: 'all', value: stats.publications, label: t('search.eventsOnDate'), color: 'text-[#12327A]' },
                 { mode: 'alerts', value: stats.activeAlerts, label: t('search.activeAlerts'), color: 'text-[#dc2626]' },
-                { mode: 'regions', value: stats.regions, label: t('search.regionsCount'), color: 'text-[#00897b]' },
+                { mode: 'regions', value: stats.regions, label: t('search.regionsCount'), color: 'text-[#00796b]' },
               ] as const
             ).map((m, i) => (
               <React.Fragment key={m.mode}>
@@ -127,7 +127,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
                 >
                   <div className={`text-2xl font-bold ${m.color} flex items-center gap-1`}>
                     {m.value}
-                    <span className="material-symbols-outlined text-[16px] text-gray-400 group-hover:text-[#12327A]">open_in_full</span>
+                    <span className="material-symbols-outlined text-[16px] text-gray-500 group-hover:text-[#12327A]">open_in_full</span>
                   </div>
                   <div className="text-xs text-gray-500 font-medium underline decoration-dotted underline-offset-2">{m.label}</div>
                 </button>
@@ -151,7 +151,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
                 {t('search.whatLabel')}
               </label>
               <div className="relative flex items-center">
-                <span className="material-symbols-outlined absolute left-3 text-gray-400 text-[20px]">
+                <span className="material-symbols-outlined absolute left-3 text-gray-500 text-[20px]">
                   search
                 </span>
                 <input
@@ -159,7 +159,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
                   value={searchQuery}
                   onChange={(e) => onSearchQueryChange(e.target.value)}
                   placeholder={t('search.whatPlaceholder')}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#f3f6fc] text-[#0f1b33] text-sm placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#20C7B5] transition-all border border-transparent focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#f3f6fc] text-[#0f1b33] text-sm placeholder:text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#20C7B5] transition-all border border-transparent focus:border-transparent"
                 />
               </div>
             </div>
@@ -224,7 +224,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
 
           {/* Quick Query Tags */}
           <div className="mt-4 pt-3 flex flex-wrap items-center gap-1.5 text-gray-600 border-t border-gray-100">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mr-1">
               {currentLanguage === 'kg' ? 'Тез өтүү' : currentLanguage === 'en' ? 'Quick links' : 'Быстро'}
             </span>
             {quickLinks.map((q) => (

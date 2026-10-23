@@ -105,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => setIsCityDropdownOpen(false)}
                 />
                 <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 text-gray-800 text-sm">
-                  <div className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  <div className="px-3 py-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
                     {t('search.whereLabel')}
                   </div>
                   {(PLACE_IDS as CityId[]).map(

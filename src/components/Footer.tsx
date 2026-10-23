@@ -164,7 +164,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onO
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700 font-semibold text-center">
             <span>{t('disclaimer.footerNotice')}</span>
           </div>
-          <div>{t('disclaimer.copyright')}</div>
+          <div className="text-gray-600">{t('disclaimer.copyright')}</div>
         </div>
       </div>
     </footer>

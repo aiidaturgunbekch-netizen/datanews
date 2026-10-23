@@ -446,7 +446,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         <div className="mx-6 mb-6 p-4 rounded-2xl bg-[#f8fafc] border border-gray-100 text-xs text-gray-600 flex flex-wrap items-center justify-between gap-2">
           <div>
             <span className="font-bold text-[#0f1b33]">{L.source[lang]}:</span> {a.sourceName}
-            <div className="text-gray-400 mt-0.5">
+            <div className="text-gray-500 mt-0.5">
               {L.updated[lang]}: {formatDayMonthTime(a.updatedAt, lang)}
             </div>
           </div>
@@ -493,7 +493,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                       >
                         <span className="material-symbols-outlined text-[16px]">{LINK_META[l.label].icon}</span>
                         <span>{LINK_META[l.label].text}</span>
-                        <span className="text-gray-400 font-normal">— {hostOf(l.href)}</span>
+                        <span className="text-gray-500 font-normal">— {hostOf(l.href)}</span>
                         <span className="material-symbols-outlined text-[14px]">open_in_new</span>
                       </a>
                     </li>

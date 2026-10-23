@@ -421,7 +421,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
             {preview ? (
               <img src={preview} alt="" className={`w-full h-full ${isAdmin && imageFit === 'cover' ? 'object-cover' : 'object-contain'}`} referrerPolicy="no-referrer" />
             ) : (
-              <span className="material-symbols-outlined text-gray-400 text-[36px]">image</span>
+              <span className="material-symbols-outlined text-gray-500 text-[36px]">image</span>
             )}
           </div>
           <div className="flex-1 w-full space-y-2">

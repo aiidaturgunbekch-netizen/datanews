@@ -112,7 +112,7 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
                     {tx.terms[lang]}
                   </span>
                   {tier.isPopular && (
@@ -132,7 +132,7 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
                 <ul className="space-y-3 mb-8">
                   {tier.features.map((f, fIdx) => (
                     <li key={fIdx} className="text-xs text-gray-600 flex items-start gap-2">
-                      <span className="material-symbols-outlined text-[#00897b] text-[16px] flex-shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-[#00796b] text-[16px] flex-shrink-0 mt-0.5">
                         check_circle
                       </span>
                       <span>{f}</span>

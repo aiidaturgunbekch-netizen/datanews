@@ -6,6 +6,7 @@ import { getTranslation } from '../locales/translations';
 import { alertLevel } from '../utils/urgency';
 import { formatDateLong, formatMonthYear, formatTime } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
+import { recordsLabel } from '../utils/plural';
 
 interface FullCalendarViewProps {
   currentLanguage: Language;
@@ -130,7 +131,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
             {t('search.whereLabel')}
           </span>
           <select
@@ -147,7 +148,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
             {t('search.whatLabel')}
           </span>
           <select
@@ -174,7 +175,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
         <div className="lg:col-span-8 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm">
           {/* Weekday Header */}
           <div
-            className="grid grid-cols-7 gap-2 text-center font-extrabold text-gray-400 mb-3 text-xs uppercase tracking-wider"
+            className="grid grid-cols-7 gap-2 text-center font-extrabold text-gray-500 mb-3 text-xs uppercase tracking-wider"
           >
             {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
               <span
@@ -224,7 +225,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                       {dayNum}
                     </span>
                     {items.length > 0 && (
-                      <span className="text-[10px] font-bold text-gray-400">
+                      <span className="text-[10px] font-bold text-gray-500">
                         {items.length}
                       </span>
                     )}
@@ -270,7 +271,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
         <div className="lg:col-span-4 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm sticky top-28">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
             <div>
-              <span className="text-[11px] font-bold text-[#00897b] uppercase tracking-wider block">
+              <span className="text-[11px] font-bold text-[#00796b] uppercase tracking-wider block">
                 {t('views.selectedDate')}
               </span>
               <h3 className="font-extrabold text-base text-[#0f1b33]">
@@ -278,12 +279,12 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
               </h3>
             </div>
             <span className="px-2.5 py-1 rounded-full bg-blue-50 text-[#12327A] font-bold text-xs">
-              {selectedDayItems.length} {t('views.recordsCount')}
+              {recordsLabel(selectedDayItems.length, currentLanguage)}
             </span>
           </div>
 
           {selectedDayItems.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-gray-500">
               <span className="material-symbols-outlined text-3xl mb-1">calendar_today</span>
               <p className="text-xs">
                 {currentLanguage === 'kg'
@@ -318,7 +319,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                           {statusCfg.label}
                         </span>
                       </div>
-                      <span className="text-xs text-gray-400 font-semibold">
+                      <span className="text-xs text-gray-500 font-semibold">
                         {formatTime(item.startDate)}
                       </span>
                     </div>

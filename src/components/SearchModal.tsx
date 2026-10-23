@@ -65,20 +65,20 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('search.whatPlaceholder')}
-            className="w-full text-sm sm:text-base text-[#0f1b33] placeholder:text-gray-400 focus:outline-none"
+            className="w-full text-sm sm:text-base text-[#0f1b33] placeholder:text-gray-500 focus:outline-none"
             autoFocus
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="p-1 rounded-full text-gray-400 hover:text-gray-600"
+              className="p-1 rounded-full text-gray-500 hover:text-gray-600"
             >
               <span className="material-symbols-outlined text-[18px]">clear</span>
             </button>
           )}
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+            className="p-1 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -114,7 +114,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             <option value="gov">{t('categories.gov')}</option>
           </select>
 
-          <span className="ml-auto text-gray-400 font-medium">
+          <span className="ml-auto text-gray-500 font-medium">
             {currentLanguage === 'kg' ? 'Табылды' : currentLanguage === 'en' ? 'Found' : 'Найдено'}: {filtered.length}
           </span>
         </div>
@@ -122,7 +122,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         {/* Results List */}
         <div className="max-h-[60vh] overflow-y-auto p-4 space-y-2">
           {filtered.length === 0 ? (
-            <div className="py-12 text-center text-gray-400">
+            <div className="py-12 text-center text-gray-500">
               <span className="material-symbols-outlined text-4xl mb-2 text-gray-300">
                 search_off
               </span>
@@ -149,10 +149,10 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 text-[#12327A]">
                       {t(`categories.${item.category}`)}
                     </span>
-                    <span className="text-[11px] font-mono text-gray-400">
+                    <span className="text-[11px] font-mono text-gray-500">
                       {item.protocolCode}
                     </span>
-                    <span className="text-[11px] text-gray-400">
+                    <span className="text-[11px] text-gray-500">
                       • {t(`cities.${item.city}`)}
                     </span>
                   </div>
@@ -164,7 +164,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                   </p>
                 </div>
 
-                <span className="material-symbols-outlined text-gray-400 group-hover:text-[#12327A] group-hover:translate-x-1 transition-all text-[18px] flex-shrink-0 mt-2">
+                <span className="material-symbols-outlined text-gray-500 group-hover:text-[#12327A] group-hover:translate-x-1 transition-all text-[18px] flex-shrink-0 mt-2">
                   arrow_forward
                 </span>
               </div>

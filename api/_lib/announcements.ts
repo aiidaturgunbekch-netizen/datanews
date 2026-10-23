@@ -145,6 +145,8 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     legal: raw.legal && typeof raw.legal === 'object' ? sanitizeLegal(raw.legal) : undefined,
     timeTBA: Boolean(raw.timeTBA) || undefined,
     allDay: Boolean(raw.allDay) || undefined,
+    // null — убрать точку; не прислано — оставить сохранённую
+    geo: raw.geo === null ? undefined : validGeo(raw.geo) || base?.geo,
     // когда и кем проверено — выставляют обработчики (админ / модерация), а не присланные данные
     lastCheckedAt: base?.lastCheckedAt,
     dataOrigin: base?.dataOrigin,
@@ -154,6 +156,15 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     publishedByGov: base?.publishedByGov,
     isDemo: false,
   };
+};
+
+/** Координаты в пределах Кыргызстана (с небольшим запасом), 5 знаков после запятой ≈ 1 м */
+const validGeo = (v: unknown): Announcement['geo'] | undefined => {
+  if (!v || typeof v !== 'object') return undefined;
+  const lat = Number((v as { lat?: unknown }).lat);
+  const lng = Number((v as { lng?: unknown }).lng);
+  if (!(lat >= 39 && lat <= 43.5 && lng >= 69 && lng <= 80.5)) return undefined;
+  return { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 };
 };
 
 export const saveAnnouncement = (a: Announcement) => hsetJson(ANN_KEY, a.id, a);
@@ -176,7 +187,7 @@ export const diffFields = (prev: Announcement | null | undefined, next: Announce
   if (!prev || !prev.title) return [];
   const out: HistoryChange[] = [];
   if (prev.startDate !== next.startDate || (prev.endDate || '') !== (next.endDate || '') || Boolean(prev.timeTBA) !== Boolean(next.timeTBA)) out.push('date');
-  if (prev.location?.ru !== next.location?.ru || (prev.district || '') !== (next.district || '') || (prev.locality || '') !== (next.locality || '')) out.push('place');
+  if (prev.location?.ru !== next.location?.ru || (prev.district || '') !== (next.district || '') || (prev.locality || '') !== (next.locality || '') || JSON.stringify(prev.geo || null) !== JSON.stringify(next.geo || null)) out.push('place');
   if (prev.title?.ru !== next.title?.ru) out.push('title');
   if ((prev.eventDetails?.priceText?.ru || '') !== (next.eventDetails?.priceText?.ru || '')) out.push('price');
   if ((prev.status || '') !== (next.status || '')) out.push('status');

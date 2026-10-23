@@ -190,6 +190,8 @@ export interface Announcement {
   timeTBA?: boolean;
   /** Событие на весь день (праздник, срок кампании) — показываются только даты */
   allDay?: boolean;
+  /** Точка на карте — ставит и подтверждает редактор (поиск адреса в OpenStreetMap) */
+  geo?: { lat: number; lng: number };
   /** Когда редакция последний раз проверила информацию (ISO, время Бишкека) */
   lastCheckedAt?: string;
   /**

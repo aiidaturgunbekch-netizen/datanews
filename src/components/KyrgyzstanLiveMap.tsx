@@ -8,6 +8,8 @@ import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { isFresh, freshOrder } from '../utils/statusUtils';
 import { formatWhen } from '../utils/dates';
+import { Place, searchPlaces } from '../utils/nominatim';
+import { DISTRICTS, inDistrict } from '../config/districts';
 
 /**
  * Интерактивная карта Кыргызстана.
@@ -16,7 +18,8 @@ import { formatWhen } from '../utils/dates';
  *    (территория, выделенная в данных geoBoundaries из Чуйской области). Для Оша отдельной границы в данных нет —
  *    город отмечен точкой по координатам.
  *  • Населённый пункт ищется в OpenStreetMap (Nominatim) только по нажатию «Найти» — без автодополнения.
- *  • Публикации DataNews подбираются по их полям «регион», «район», «населённый пункт» — без выдуманных координат.
+ *  • Публикации DataNews подбираются по их полям «регион», «район», «населённый пункт». Точкой на карте
+ *    показываются только публикации с координатами, которые поставил и проверил редактор.
  */
 
 const REGION_IDS = ['chui', 'osh_region', 'jalalabad', 'issykkul', 'talas', 'naryn', 'batken'] as const;
@@ -94,6 +97,11 @@ const T = {
     kg: 'Ачык маалыматтарда Ош шаарынын өзүнчө чек арасы жок — шаар чекит менен белгиленген.',
     en: 'Open data has no separate Osh city boundary — the city is marked with a point.',
   },
+  pinsNote: {
+    ru: 'Точки — места публикаций, проверенные редакцией; нажмите, чтобы открыть.',
+    kg: 'Чекиттер — редакция текшерген жарыялардын жерлери; ачуу үчүн басыңыз.',
+    en: 'Dots mark post locations checked by the editors; click to open.',
+  },
   districtNote: {
     ru: 'Публикации района — по полям «район» и «населённый пункт» в публикации.',
     kg: 'Райондун жарыялары — жарыядагы «район» жана «калктуу пункт» талаалары боюнча.',
@@ -101,9 +109,11 @@ const T = {
   },
 };
 
+/** Цвет точки по группе публикаций */
+const PIN_COLORS: Record<string, string> = { alerts: '#dc2626', roads: '#d97706', utilities: '#2563eb', news: '#12327A', events: '#0d9488' };
+
 type DistrictProps = { code: string; ru: string; kg: string; en: string };
 type GeoData = { regions: Record<string, Topology> };
-type Place = { name: string; lat: number; lon: number; bbox?: [number, number, number, number] };
 
 /** Основа названия для сопоставления: «Ыссык-Атинский район» → «ыссык-ат», «Кочкор» → «кочко» */
 const stem = (s: string) => {
@@ -123,7 +133,7 @@ const KyrgyzstanLiveMap: React.FC<{
   const { t } = getTranslation(lang);
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const layers = useRef<{ regions: Record<string, L.GeoJSON>; bishkek?: L.Polygon; districts: L.LayerGroup; place: L.LayerGroup } | null>(null);
+  const layers = useRef<{ regions: Record<string, L.GeoJSON>; bishkek?: L.Polygon; districts: L.LayerGroup; place: L.LayerGroup; pins: L.LayerGroup } | null>(null);
   const [geo, setGeo] = useState<GeoData | null>(null);
   const [failed, setFailed] = useState(false);
   const [tilesFailed, setTilesFailed] = useState(false);
@@ -234,7 +244,7 @@ const KyrgyzstanLiveMap: React.FC<{
       })
       .addTo(map);
 
-    layers.current = { regions, bishkek, districts: L.layerGroup().addTo(map), place: L.layerGroup().addTo(map) };
+    layers.current = { regions, bishkek, districts: L.layerGroup().addTo(map), place: L.layerGroup().addTo(map), pins: L.layerGroup().addTo(map) };
     const kg = all.getBounds();
     map.fitBounds(kg, { padding: [8, 8] });
     map.setMinZoom(Math.max(5, map.getZoom() - 0.5));
@@ -326,6 +336,21 @@ const KyrgyzstanLiveMap: React.FC<{
     else map.flyTo([place.lat, place.lon], 14, { duration: 0.6 });
   }, [place]);
 
+  // ── Точки публикаций: только координаты, подтверждённые редактором ──
+  const pinned = useMemo(() => announcements.filter((a) => a?.geo && a.title && isFresh(a)), [announcements]);
+  useEffect(() => {
+    const l = layers.current;
+    if (!l) return;
+    l.pins.clearLayers();
+    pinned.forEach((a) => {
+      const group = GROUPS.find((g) => g.cats.includes(a.category))?.key || 'events';
+      L.circleMarker([a.geo!.lat, a.geo!.lng], { radius: 7, color: '#ffffff', weight: 2, fillColor: PIN_COLORS[group], fillOpacity: 1 })
+        .bindTooltip(a.title[lang] || a.title.ru, { direction: 'top', offset: [0, -6] })
+        .on('click', () => onOpen(a))
+        .addTo(l.pins);
+    });
+  }, [pinned, lang, shapes, onOpen]);
+
   // Поиск населённого пункта в OpenStreetMap (Nominatim) — только по нажатию, не чаще одного запроса
   const findPlace = async () => {
     const q = placeQ.trim();
@@ -334,16 +359,7 @@ const KyrgyzstanLiveMap: React.FC<{
     setPlaceErr('');
     setPlaceResults([]);
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kg&limit=6&addressdetails=0&accept-language=${lang === 'kg' ? 'ky' : lang}&q=${encodeURIComponent(q)}`;
-      const r = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const list = (await r.json()) as { display_name: string; lat: string; lon: string; boundingbox?: string[] }[];
-      const res = list.map((x) => ({
-        name: x.display_name.split(',').slice(0, 2).join(','),
-        lat: Number(x.lat),
-        lon: Number(x.lon),
-        bbox: x.boundingbox ? (x.boundingbox.map(Number) as [number, number, number, number]) : undefined,
-      }));
+      const res = (await searchPlaces(q, lang)).map((x) => ({ ...x, name: x.name.split(',').slice(0, 2).join(',') }));
       if (!res.length) setPlaceErr(T.notFound[lang]);
       else if (res.length === 1) setPlace(res[0]);
       else setPlaceResults(res);
@@ -366,9 +382,8 @@ const KyrgyzstanLiveMap: React.FC<{
     if (!terr) return [];
     const local = fresh.filter((a) => CITY_IDS[terr].includes(a.city));
     if (districtFeature) {
-      const p = districtFeature.properties;
-      const stems = [stem(p.ru), stem(p.kg), stem(p.en)].filter((x) => x.length >= 4);
-      return local.filter((a) => stems.some((s) => text(a).includes(s)));
+      const d = Object.values(DISTRICTS).flat().find((x) => x?.code === districtFeature.properties.code);
+      return d ? local.filter((a) => inDistrict(a, d)) : [];
     }
     return local;
   }, [announcements, terr, districtFeature, place]);
@@ -390,7 +405,10 @@ const KyrgyzstanLiveMap: React.FC<{
           <span className="material-symbols-outlined text-[18px] text-[#12327A]">map</span>
           {T.title[lang]}
         </span>
-        <span className="text-xs text-gray-500">{T.hint[lang]}</span>
+        <span className="text-xs text-gray-500">
+          {T.hint[lang]}
+          {pinned.length > 0 ? ` ${T.pinsNote[lang]}` : ''}
+        </span>
       </figcaption>
 
       {/* Фильтр: область → район → населённый пункт */}

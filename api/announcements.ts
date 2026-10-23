@@ -53,6 +53,7 @@ const authorFields = (item: Record<string, unknown>) => ({
   status: 'scheduled',
   imageFit: 'contain', // оригинальная афиша автора показывается целиком, без обрезки
   sourceKind: undefined,
+  geo: undefined, // точку на карте ставит только редактор
 });
 
 export default handler(async (req) => {

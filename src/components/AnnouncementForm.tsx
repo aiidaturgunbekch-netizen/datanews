@@ -8,6 +8,7 @@ import { AccountKey, errorText, ta } from '../locales/account';
 import { eventSource, ticketLink } from '../utils/links';
 import { getTranslation } from '../locales/translations';
 import { DISTRICTS } from '../config/districts';
+import { GeoPicker } from './GeoPicker';
 
 export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
   { id: 'concerts', label: 'Концерты и шоу' },
@@ -104,6 +105,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [imageFit, setImageFit] = useState<'contain' | 'cover'>(initial?.imageFit || 'contain');
   const [timeTBA, setTimeTBA] = useState(Boolean(initial?.timeTBA));
   const [allDay, setAllDay] = useState(Boolean(initial?.allDay));
+  const [geo, setGeo] = useState<NonNullable<Announcement['geo']> | null>(initial?.geo || null);
   // служебные поля администратора
   const [urgency, setUrgency] = useState<UrgencyType>(initial?.urgency || 'event');
   const [status, setStatus] = useState<AnnouncementStatus>(initial?.status || 'scheduled');
@@ -182,6 +184,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
     endDate,
     timeTBA,
     allDay,
+    geo: geo || undefined,
     urgency: mode === 'admin' ? urgency : ALERT_CATEGORIES.includes(category) ? 'planned' : 'event',
     status: 'scheduled',
     isUrgentTicker: false,
@@ -254,6 +257,8 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       endDate,
       timeTBA,
       allDay,
+      // точку ставит только редактор; null — убрать
+      geo: mode === 'admin' ? geo : undefined,
       urgency: mode === 'admin' ? urgency : ALERT_CATEGORIES.includes(category) ? 'planned' : 'event',
       status: mode === 'admin' ? status : 'scheduled',
       isUrgentTicker: mode === 'admin' ? isTicker : false,
@@ -407,6 +412,15 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
           )
         )}
       </div>
+      {mode === 'admin' && (
+        <GeoPicker
+          value={geo}
+          onChange={setGeo}
+          defaultQuery={[location, locality].map((x) => x.trim()).filter(Boolean).join(', ')}
+          inputCls={inputCls}
+          labelCls={labelCls}
+        />
+      )}
       {field(tr('fDescriptionReq'), <textarea className={inputCls} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} required />)}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {field(tr('fPhone'), <input className={inputCls} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+996 ..." />)}

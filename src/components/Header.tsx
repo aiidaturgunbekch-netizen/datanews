@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PLACE_IDS } from '../config/regions';
 import { Language, CityId, ViewMode, Announcement } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -62,8 +62,18 @@ export const Header: React.FC<HeaderProps> = ({
     return () => ro.disconnect();
   }, []);
 
-  const today = new Date();
-  const todayLabel = `${WEEKDAYS[currentLanguage][today.getDay()]}, ${formatDayMonth(today, currentLanguage)}`;
+  // Дата и время — по Кыргызстану (UTC+6), независимо от часового пояса компьютера; часы обновляются каждые 15 секунд
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTs(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const kg = new Date(nowTs + 6 * 3600_000); // поля UTC этой даты = местное время Бишкека
+  const today = new Date(kg.getUTCFullYear(), kg.getUTCMonth(), kg.getUTCDate());
+  const weekday = WEEKDAYS[currentLanguage][today.getDay()];
+  const todayLabel = `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${formatDayMonth(today, currentLanguage)}`;
+  const timeLabel = `${String(kg.getUTCHours()).padStart(2, '0')}:${String(kg.getUTCMinutes()).padStart(2, '0')}`;
+  const kgTimeName = currentLanguage === 'kg' ? 'КР убактысы' : currentLanguage === 'en' ? 'Kyrgyzstan time' : 'время КР';
   const sectionsLabel = currentLanguage === 'kg' ? 'Бөлүмдөр' : currentLanguage === 'en' ? 'Sections' : 'Разделы';
 
   return (
@@ -71,7 +81,13 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Служебная строка: дата, для организаций, язык */}
       <div className="h-9 bg-[#081a42] border-b border-white/10">
         <div className="h-full max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-4 text-xs">
-          <span className="hidden sm:inline text-[#c8d2ee] first-letter:uppercase">{todayLabel}</span>
+          <span className="text-[#c8d2ee]">
+            <span className="hidden sm:inline">{todayLabel} · </span>
+            <time dateTime={`${kg.toISOString().slice(0, 16)}+06:00`} className="font-semibold text-white tabular-nums">
+              {timeLabel}
+            </time>{' '}
+            <span>({kgTimeName})</span>
+          </span>
           <div className="flex items-center gap-4 sm:gap-6 ml-auto">
             <button
               onClick={() => onViewChange('organizations')}
@@ -119,6 +135,10 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Logo isLightMode={true} className="h-8 sm:h-10" lang={currentLanguage} />
           </button>
+          {/* Девиз — рядом с логотипом на широких экранах */}
+          <span className="hidden lg:block pl-5 ml-1 border-l border-white/20 text-sm font-semibold text-[#20C7B5] whitespace-nowrap">
+            {t('motto')}
+          </span>
 
         </div>
 

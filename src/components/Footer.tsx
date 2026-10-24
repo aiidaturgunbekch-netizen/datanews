@@ -58,7 +58,8 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigat
           {/* Бренд */}
           <div className="col-span-2 sm:col-span-3 lg:col-span-4">
             <Logo className="h-8 mb-3" lang={lang} />
-            <p className="text-[13px] text-gray-600 leading-snug max-w-xs">{t('appSlogan')}</p>
+            <p className="text-[13px] font-semibold text-[#12327A] leading-snug max-w-xs">{t('motto')}</p>
+            <p className="text-[13px] text-gray-600 leading-snug max-w-xs mt-1">{t('appSlogan')}</p>
           </div>
 
           <div className="lg:col-span-2">

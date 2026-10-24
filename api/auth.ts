@@ -5,9 +5,10 @@
  *   POST { action: 'admin-login', password }
  *   POST { action: 'payment', paymentRef }   (пользователь сообщает номер платежа)
  *   GET                                       (текущий пользователь по токену)
- *   GET ?check=storage                        (проверка подключения к базе, без секретов)
+ *   GET ?check=storage                        (проверка подключения к базе, без секретов; вне Production — подробный отчёт)
  */
-import { cmd, hgetJson, hsetJson } from './_lib/kv';
+import { cmd, describeRestUrl, hgetJson, hsetJson, isConfigured, isMemoryMode, StorageError } from './_lib/kv';
+import { describeValue, env, rawEnv, redisSources } from './_lib/env';
 import {
   checkAdminPassword,
   handler,
@@ -30,7 +31,67 @@ export const config = { runtime: 'edge' };
 
 const clean = (v: unknown, max = 200) => String(v ?? '').trim().slice(0, max);
 
-export default handler(async (req) => {
+/**
+ * Отчёт о подключении к Upstash для Preview: какие имена переменных использованы, формат адреса и токена,
+ * HTTP-статус и короткий текст ответа Upstash. Значений переменных в отчёте нет.
+ */
+const storageReport = async () => {
+  const sources = redisSources();
+  const urlRaw = rawEnv('KV_REST_API_URL');
+  const urlValue = describeValue(urlRaw);
+  const token = describeValue(rawEnv('KV_REST_API_TOKEN'));
+  const url = {
+    ...describeRestUrl(urlRaw),
+    whitespaceAtEdges: urlValue.whitespaceAtEdges,
+    quoted: urlValue.quoted,
+    variableNamePasted: urlValue.variableNamePasted,
+  };
+
+  let upstash: Record<string, unknown>;
+  if (!isConfigured()) upstash = { result: 'storage_not_configured' };
+  else {
+    try {
+      await cmd('PING');
+      upstash = { result: 'ok', httpStatus: 200 };
+    } catch (e) {
+      if (!(e instanceof StorageError)) throw e;
+      upstash = { result: e.code, ...e.facts, message: e.message };
+    }
+  }
+
+  // Короткий вывод по фактам — что именно не так
+  const notes: string[] = [];
+  if (isMemoryMode()) notes.push('Локальный режим разработки: база в памяти, Upstash не используется.');
+  else if (!sources.url || !sources.token) notes.push('Сборка не получила адрес и/или токен: проверьте окружение и ветку переменных и сделайте Redeploy.');
+  if (url.hostType === 'upstash-console-page') notes.push('В адресе — страница консоли Upstash, а не REST-адрес базы.');
+  if (url.hostType === 'redis-connection-string') notes.push('В адресе — строка redis://…, а не REST-адрес https://…upstash.io.');
+  if (url.hasPath) notes.push('В адресе есть путь после домена — REST-адрес должен заканчиваться на .upstash.io.');
+  if (url.variableNamePasted || token.variableNamePasted) notes.push('В значение вставлено имя переменной («ИМЯ=…») — нужно только значение.');
+  if (token.lineBreakInside || token.whitespaceInside) notes.push('Внутри токена есть пробел или перенос строки — токен вставлен не целиком одной строкой.');
+  if (token.nonAsciiChars > 0) notes.push(`В токене ${token.nonAsciiChars} нелатинских или невидимых символов (например, маска •••).`);
+  if (upstash.result === 'storage_auth_failed' && notes.length === 0) {
+    notes.push(
+      `Адрес и токен оформлены правильно, но Upstash ответил HTTP ${upstash.httpStatus}: этот токен не от базы по этому адресу (или токен был пересоздан в Upstash после копирования).`
+    );
+  }
+  if (upstash.result === 'ok') notes.push('Подключение работает.');
+
+  return {
+    storage: upstash.result,
+    deployment: {
+      environment: env('VERCEL_ENV') || (isMemoryMode() ? 'local' : 'unknown'),
+      branch: env('VERCEL_GIT_COMMIT_REF') || 'unknown',
+      commit: (env('VERCEL_GIT_COMMIT_SHA') || '').slice(0, 7) || 'unknown',
+    },
+    variables: { urlFrom: sources.url, tokenFrom: sources.token, presentNames: sources.present },
+    url,
+    token,
+    upstash,
+    conclusion: notes,
+  };
+};
+
+const authHandler = handler(async (req) => {
   if (req.method === 'GET') {
     // Проверка подключения к базе без пароля: /api/auth?check=storage → { storage: 'ok' } или код ошибки (без секретов)
     if (new URL(req.url).searchParams.get('check') === 'storage') {
@@ -139,3 +200,18 @@ export default handler(async (req) => {
 
   throw new HttpError('unknown_action', 400);
 });
+
+/** На Production — краткий ответ через общий обработчик; на Preview и локально — подробный отчёт без секретов */
+export default async function authRoute(req: Request): Promise<Response> {
+  const isCheck = req.method === 'GET' && new URL(req.url).searchParams.get('check') === 'storage';
+  const detailed = env('VERCEL_ENV') === 'preview' || env('VERCEL_ENV') === 'development' || (!env('VERCEL_ENV') && isMemoryMode());
+  if (isCheck && detailed) {
+    try {
+      return json(await storageReport());
+    } catch (e) {
+      console.error('[storage-report]', e instanceof Error ? e.name : 'unknown error');
+      return json({ storage: 'report_failed' }, 500);
+    }
+  }
+  return authHandler(req);
+}

@@ -27,10 +27,50 @@ export class StorageNotConfiguredError extends Error {
  *   storage_error        — другой ответ Upstash
  */
 export class StorageError extends Error {
-  constructor(public code: string, message: string, public detail = '') {
+  constructor(
+    public code: string,
+    message: string,
+    public detail = '',
+    /** Для диагностики: HTTP-статус Upstash и короткий текст его ошибки (без токена) */
+    public facts: { httpStatus?: number; upstashError?: string; sendError?: 'header' | 'invalid_char' | 'network' } = {}
+  ) {
     super(message);
   }
 }
+
+/** Тип REST-адреса без самого адреса: REST-адрес базы, страница консоли или что-то другое */
+export const describeRestUrl = (raw: string | undefined) => {
+  const v = (raw ?? '').trim().replace(/^(['"])(.*)\1$/s, '$2').trim();
+  if (!v) return { scheme: null, hostType: 'missing', hasPath: false };
+  if (/^rediss?:\/\//i.test(v)) return { scheme: v.split(':')[0].toLowerCase(), hostType: 'redis-connection-string', hasPath: false };
+  try {
+    const u = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(v) ? v : `https://${v}`);
+    const host = u.hostname.toLowerCase();
+    const hostType =
+      host === 'console.upstash.com' || host.endsWith('.console.upstash.com')
+        ? 'upstash-console-page'
+        : host.endsWith('.upstash.io')
+        ? 'upstash-rest'
+        : host === 'localhost' || host === '127.0.0.1'
+        ? 'local'
+        : 'other';
+    return { scheme: u.protocol.replace(':', ''), hostType, hasPath: u.pathname !== '/' && u.pathname !== '' };
+  } catch {
+    return { scheme: null, hostType: 'not-a-url', hasPath: false };
+  }
+};
+
+/** Текст ошибки Upstash без токена и адреса: только короткое пояснение вроде «Unauthorized» */
+const safeUpstashText = (body: string, token: string, url: string) =>
+  body
+    .split(token)
+    .join('[скрыто]')
+    .split(url)
+    .join('[адрес]')
+    .replace(/Bearer\s+\S+/gi, 'Bearer [скрыто]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
 
 const restToken = () => env('KV_REST_API_TOKEN');
 /** REST-адрес Upstash: https://<имя>.upstash.io. Голое имя хоста дополняем https:// */
@@ -49,6 +89,12 @@ const restUrl = () => {
     u = new URL(withScheme);
   } catch {
     throw new StorageError('storage_bad_url', 'KV_REST_API_URL не похож на адрес. Нужен REST-адрес https://…upstash.io из консоли Upstash.');
+  }
+  if (u.hostname === 'console.upstash.com' || u.hostname.endsWith('.console.upstash.com')) {
+    throw new StorageError(
+      'storage_bad_url',
+      'KV_REST_API_URL — это адрес страницы консоли Upstash, а не REST-адрес базы. Нужно значение UPSTASH_REDIS_REST_URL из раздела «REST API» (https://…upstash.io).'
+    );
   }
   const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
   if (u.protocol !== 'https:' && !(local && u.protocol === 'http:')) {
@@ -157,20 +203,33 @@ export async function pipeline(cmds: Cmd[]): Promise<unknown[]> {
       body: JSON.stringify(cmds),
     });
   } catch (e) {
-    // Недопустимые символы в токене тоже дают исключение fetch — текст ошибки не логируем, в нём может быть заголовок
-    const kind = e instanceof TypeError && /header/i.test(String(e.message)) ? 'bad header' : 'network';
-    throw new StorageError(
-      kind === 'bad header' ? 'storage_auth_failed' : 'storage_unreachable',
-      kind === 'bad header'
-        ? 'KV_REST_API_TOKEN содержит недопустимые символы. Скопируйте токен заново из раздела «REST API» консоли Upstash.'
-        : 'База данных Upstash не отвечает. Проверьте KV_REST_API_URL и что база не удалена.',
-      kind
-    );
+    // Текст исключения не логируем и не показываем: в нём может оказаться заголовок с токеном.
+    // Недопустимый символ в токене (маска •••, кириллица, перенос строки) — исключение до отправки запроса.
+    const msg = e instanceof Error ? String(e.message) : '';
+    const sendError = /ByteString|character at index/i.test(msg) ? 'invalid_char' : e instanceof TypeError && /header/i.test(msg) ? 'header' : 'network';
+    if (sendError !== 'network') {
+      throw new StorageError(
+        'storage_bad_token',
+        'KV_REST_API_TOKEN содержит недопустимые символы (например, перенос строки, невидимый символ или скрытую маску •••), поэтому запрос к Upstash не отправлен.',
+        sendError,
+        { sendError }
+      );
+    }
+    throw new StorageError('storage_unreachable', 'База данных Upstash не отвечает. Проверьте KV_REST_API_URL и что база не удалена.', 'network', { sendError });
   }
-  if (res.status === 401 || res.status === 403) {
-    throw new StorageError('storage_auth_failed', 'Upstash не принял KV_REST_API_TOKEN: токен неверный или от другой базы. Скопируйте его из раздела «REST API».', `http ${res.status}`);
+  if (!res.ok) {
+    const upstashError = safeUpstashText(await res.text().catch(() => ''), token, url);
+    const facts = { httpStatus: res.status, upstashError };
+    if (res.status === 401 || res.status === 403) {
+      throw new StorageError(
+        'storage_auth_failed',
+        `Upstash не принял KV_REST_API_TOKEN (HTTP ${res.status}): токен не подходит к этому адресу базы.`,
+        `http ${res.status}`,
+        facts
+      );
+    }
+    throw new StorageError('storage_error', `Ошибка базы данных Upstash (HTTP ${res.status}).`, `http ${res.status}`, facts);
   }
-  if (!res.ok) throw new StorageError('storage_error', `Ошибка базы данных Upstash (код ${res.status}).`, `http ${res.status}`);
   let data: { result?: unknown; error?: string }[];
   try {
     data = (await res.json()) as { result?: unknown; error?: string }[];

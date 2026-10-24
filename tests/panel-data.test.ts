@@ -101,3 +101,32 @@ describe('время в панели — по Бишкеку и в одном ф
     assert.match(formatKgDateTime('2026-11-08'), /8 нояб\. 2026 г\., 00:00/);
   });
 });
+
+describe('отметка «Подтверждено» не появляется сама', () => {
+  it('«Проверено сегодня» не меняет isVerified встроенной публикации', async () => {
+    const unverified = INITIAL_ANNOUNCEMENTS.find((a) => !a.isVerified)!;
+    await call('PATCH', 'announcements', { id: unverified.id, action: 'checked' });
+    const { body } = await call('GET', 'announcements?scope=all');
+    const a = mergeAnnouncements(body.items, body.hidden, body.checked).find((x) => x.id === unverified.id)!;
+    assert.equal(a.isVerified, false);
+  });
+
+  it('«Проверено сегодня» не меняет isVerified публикации из базы', async () => {
+    const created = await call('POST', 'announcements', {
+      force: true,
+      item: { title: { ru: 'Тест без подтверждения' }, description: { ru: 'тест' }, category: 'concerts', city: 'bishkek', location: { ru: 'тест' }, startDate: '2026-12-01T19:00', isVerified: false },
+    });
+    assert.equal(created.body.item.isVerified, false, 'админ сохранил без отметки — не подтверждено');
+    const r = await call('PATCH', 'announcements', { id: created.body.item.id, action: 'checked' });
+    assert.equal(r.body.item.isVerified, false);
+    assert.ok(r.body.item.lastCheckedAt);
+  });
+
+  it('правка администратором сохраняет то значение «Подтверждено», которое выбрано в форме', async () => {
+    const created = await call('POST', 'announcements', {
+      force: true,
+      item: { title: { ru: 'Тест с подтверждением' }, description: { ru: 'тест' }, category: 'concerts', city: 'bishkek', location: { ru: 'тест' }, startDate: '2026-12-02T19:00', isVerified: true },
+    });
+    assert.equal(created.body.item.isVerified, true);
+  });
+});

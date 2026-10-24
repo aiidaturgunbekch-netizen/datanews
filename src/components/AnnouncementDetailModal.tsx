@@ -69,7 +69,8 @@ const L = {
   originManual: { ru: 'Внесено вручную редакцией', kg: 'Редакция кол менен киргизген', en: 'Added manually by the editors' },
   originUser: { ru: 'Публикация организатора, прошла модерацию', kg: 'Уюштуруучунун жарыясы, модерациядан өткөн', en: 'Organiser’s post, moderated' },
   originAuto: { ru: 'Собрано автоматически', kg: 'Автоматтык түрдө чогултулган', en: 'Collected automatically' },
-  checkedAt: { ru: 'проверено', kg: 'текшерилген', en: 'checked' },
+  // Дата последней сверки редакцией — не подтверждение события (подтверждение — отдельная отметка «Проверено»)
+  checkedAt: { ru: 'дата сверки редакцией', kg: 'редакция салыштырган күн', en: 'last reviewed by editors' },
   official: { ru: 'Официальный источник', kg: 'Расмий булак', en: 'Official source' },
   authority: { ru: 'Официальный сайт ведомства', kg: 'Мекеменин расмий сайты', en: 'Official website of the agency' },
   dangerLevel: { ru: 'Уровень опасности (по данным ведомства)', kg: 'Коркунучтун деңгээли (мекеменин маалыматы боюнча)', en: 'Danger level (per the agency)' },

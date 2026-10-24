@@ -9,6 +9,7 @@ import { eventSource, ticketLink } from '../utils/links';
 import { historyLabel, MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
 import { isAlert, isExpired } from '../utils/urgency';
 import { addDaysStr, formatKgDateTime, kgDateStr, kgTs } from '../utils/time';
+import { reviewReasons, STALE_MS } from '../utils/review';
 import { FORECAST_REGIONS, OfficialForecast } from '../config/weather';
 import { parseOfficialText } from '../utils/officialForecast';
 import { ImportResult, parseNotice } from '../utils/importText';
@@ -96,21 +97,6 @@ type Tab = 'moderation' | 'review' | 'posts' | 'push' | 'users' | 'reports' | 'w
 
 /** Дата и время по Бишкеку в одном формате для всей панели */
 const fmt = formatKgDateTime;
-const STALE_MS = 3 * 86400_000;
-
-/** Почему действующую публикацию нужно сверить с первоисточником (пусто — всё в порядке) */
-const reviewReasons = (a: Announcement): string[] => {
-  if (isExpired(a) || (a.moderationStatus && a.moderationStatus !== 'approved')) return [];
-  const r: string[] = [];
-  if (!a.lastCheckedAt) r.push('Дата проверки не указана');
-  else if (Date.now() - kgTs(a.lastCheckedAt) > STALE_MS) r.push(`Проверено давно (${fmt(a.lastCheckedAt)})`);
-  if (!a.isVerified && !a.publishedByGov) r.push('Не подтверждено');
-  if (a.category === 'laws' || a.category === 'state' || a.legal) {
-    if (!a.legal?.docUrl) r.push('Нет ссылки на документ');
-    if (!a.legal?.effectiveFrom) r.push('Нет даты вступления в силу');
-  }
-  return r;
-};
 
 const catLabel = (id: string) => CATEGORY_OPTIONS.find((c) => c.id === id)?.label || id;
 const cityLabel = (id: string) => CITY_OPTIONS.find((c) => c.id === id)?.label || id;
@@ -502,13 +488,20 @@ const b64url = (buf: ArrayBuffer | Uint8Array) => {
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 
-const PushPanel: React.FC<{ items: Announcement[] }> = ({ items }) => {
+const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) => void }> = ({ items, onTotal }) => {
   const [stats, setStats] = useState<api.PushStats | null>(null);
   const [keys, setKeys] = useState<{ pub: string; priv: string } | null>(null);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
-  const load = () => api.pushStats().then(setStats).catch((e: Error) => setErr(e.message));
+  const load = () =>
+    api
+      .pushStats()
+      .then((r) => {
+        setStats(r);
+        onTotal(r.total); // после рассылки недействующие подписки удаляются — счётчик в меню обновляется
+      })
+      .catch((e: Error) => setErr(e.message));
   useEffect(() => {
     load();
   }, []);
@@ -658,6 +651,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Число открытых жалоб — обновляется и при каждой перезагрузке данных панели (например, после закрытия жалобы)
+  const refreshReportsCount = () =>
+    api
+      .fetchReports()
+      .then((r) => setOpenReports(r.filter((x) => x.status === 'open').length))
+      .catch(() => {});
+
   const load = () => {
     setErr('');
     api
@@ -682,6 +682,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       .pushStats()
       .then((r) => setPushTotal(r.total))
       .catch(() => setPushTotal(null));
+    refreshReportsCount();
   };
 
   useEffect(() => {
@@ -693,7 +694,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   const unpaid = users.filter((u) => u.paymentStatus === 'pending' || u.govStatus === 'pending');
   const [openReports, setOpenReports] = useState(0);
   useEffect(() => {
-    if (isAdmin) api.fetchReports().then((r) => setOpenReports(r.filter((x) => x.status === 'open').length)).catch(() => {});
+    if (isAdmin) refreshReportsCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, tab]);
   const [historyOf, setHistoryOf] = useState<string | null>(null);
 
@@ -1052,7 +1054,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                   )}
                 </>
               ) : tab === 'push' ? (
-                <PushPanel items={merged} />
+                <PushPanel items={merged} onTotal={setPushTotal} />
               ) : tab === 'posts' ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">

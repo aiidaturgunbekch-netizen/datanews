@@ -91,6 +91,8 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [contactPhone, setContactPhone] = useState(initial?.eventDetails?.contactPhone || '');
   const [ticketUrl, setTicketUrl] = useState(initial ? ticketLink(initial).url : '');
   const [ticketVerified, setTicketVerified] = useState(Boolean(initial?.ticketUrlVerified));
+  // «Подтверждено» ставит только редактор явной отметкой; сохранение формы само по себе ничего не подтверждает
+  const [verified, setVerified] = useState(Boolean(initial?.isVerified));
   const [organizerUrl, setOrganizerUrl] = useState(initial?.organizerUrl || '');
   const [artistUrl, setArtistUrl] = useState(initial?.artistUrl || '');
   const [venueUrl, setVenueUrl] = useState(initial?.venueUrl || '');
@@ -262,7 +264,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       urgency: mode === 'admin' ? urgency : ALERT_CATEGORIES.includes(category) ? 'planned' : 'event',
       status: mode === 'admin' ? status : 'scheduled',
       isUrgentTicker: mode === 'admin' ? isTicker : false,
-      isVerified: mode === 'admin' ? true : false,
+      isVerified: mode === 'admin' ? verified : false,
       sourceName: sourceName.trim() || organizer.trim(),
       eventSourceUrl: sourceUrl.trim(),
       sourceKind: mode === 'admin' && sourceKind ? sourceKind : undefined,
@@ -577,6 +579,15 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
           <label className="flex items-center gap-2 text-sm font-semibold text-[#0f1b33] mt-5">
             <input type="checkbox" checked={isTicker} onChange={(e) => setIsTicker(e.target.checked)} />
             Показать в бегущей строке «Срочно»
+          </label>
+          <label className="flex items-start gap-2 text-sm font-semibold text-[#0f1b33] sm:col-span-2">
+            <input type="checkbox" className="mt-1" checked={verified} onChange={(e) => setVerified(e.target.checked)} />
+            <span>
+              Подтверждено по первоисточнику — дата, место и статус сверены с официальным сайтом, организатором или билетной системой.
+              <span className="block text-xs font-normal text-gray-500">
+                Без отметки на сайте показывается «Требует проверки». Сохранение формы и кнопка «Проверено сегодня» эту отметку не ставят.
+              </span>
+            </span>
           </label>
           <label className="flex items-center gap-2 text-sm font-semibold text-[#0f1b33] sm:col-span-2">
             <input type="checkbox" checked={ticketVerified} onChange={(e) => setTicketVerified(e.target.checked)} />

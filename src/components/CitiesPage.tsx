@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { Announcement, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { formatDayMonth } from '../utils/dates';
+
+// Интерактивная карта (перенесена сюда с главной вместе с удалённым блоком «Обзор по городам»)
+const KyrgyzstanLiveMap = lazy(() => import('./KyrgyzstanLiveMap'));
 
 interface CitiesPageProps {
   currentLanguage: Language;
@@ -188,6 +191,19 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
           {ui.subtitle[currentLanguage]}
         </p>
       </div>
+
+      <Suspense fallback={<div className="mb-8 h-[460px] rounded-2xl bg-[#f6f8fd] border border-gray-100" />}>
+        <div className="mb-8 [&>figure]:mt-0">
+          <KyrgyzstanLiveMap
+            lang={currentLanguage}
+            announcements={announcements}
+            onSelect={(id) => {
+              onSelectCityFilter(id);
+            }}
+            onOpen={onSelectAnnouncement}
+          />
+        </div>
+      </Suspense>
 
       {/* City Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2 mb-6">

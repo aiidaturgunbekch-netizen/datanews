@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Announcement,
   CategoryId,
@@ -25,8 +25,8 @@ import { CategoryChips } from './components/CategoryChips';
 import { AlertsGrid } from './components/AlertsGrid';
 import { EventsFeed } from './components/EventsFeed';
 import { InteractiveCalendar } from './components/InteractiveCalendar';
-import { CityMosaic } from './components/CityMosaic';
-import { ForOrganizationsSection } from './components/ForOrganizationsSection';
+import { SectionsDrawer } from './components/SectionsDrawer';
+import { MainAlerts } from './components/MainAlerts';
 import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
 import { FullCalendarView } from './components/FullCalendarView';
@@ -63,6 +63,9 @@ export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('home');
 
   // Filters
+  // Панель «Разделы» скрыта по умолчанию, открывается кнопкой в шапке
+  const [sectionsOpen, setSectionsOpen] = useState(false);
+  const closeSections = useCallback(() => setSectionsOpen(false), []);
   const [selectedCity, setSelectedCity] = useState<CityId>('bishkek');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -283,10 +286,28 @@ export default function App() {
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenAccount={() => setAccountMode('cabinet')}
         onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
+        onOpenSections={() => setSectionsOpen(true)}
+      />
+
+      <SectionsDrawer
+        open={sectionsOpen}
+        onClose={closeSections}
+        lang={currentLanguage}
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        selectedCategory={selectedCategory}
+        onSelectCategory={(cat) => {
+          setSelectedCategory(cat);
+          setCurrentView('home');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        categoryCounts={categoryCounts}
+        onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
       />
 
       {/* Main Content Area (padding-top accounts for header + urgent ticker) */}
-      <main className="flex-1 w-full pt-16">
+      {/* Отступ сверху = высота шапки: служебная строка 36px + основная 64px */}
+      <main className="flex-1 w-full pt-[100px]">
         {/* VIEW: HOME */}
         {currentView === 'home' && (
           <div className="w-full flex flex-col">
@@ -312,28 +333,7 @@ export default function App() {
               onOpenStats={setStatsMode}
             />
 
-            {/* Разделы: на компьютере — меню сбоку, на телефоне — одна строка с прокруткой */}
-            <div className="lg:max-w-[1440px] lg:mx-auto lg:flex lg:items-start lg:gap-2 lg:pl-4">
-            <aside className="hidden lg:block w-60 shrink-0 sticky top-28 self-start py-6 max-h-[calc(100vh-8rem)] overflow-y-auto scrollbar-none">
-              <CategoryChips
-                variant="sidebar"
-                currentLanguage={currentLanguage}
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                categoryCounts={categoryCounts}
-              />
-            </aside>
-            <div className="flex-1 min-w-0">
-            <div className="lg:hidden">
-              <CategoryChips
-                currentLanguage={currentLanguage}
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                categoryCounts={categoryCounts}
-              />
-            </div>
-
-            {/* Выбрана категория — показываем ровно те публикации, что учтены в счётчике чипа */}
+            {/* Выбран раздел (из панели «Разделы») — ровно те публикации, что учтены в счётчике раздела */}
             {selectedCategory !== 'all' && (
               <CategoryResults
                 lang={currentLanguage}
@@ -351,91 +351,66 @@ export default function App() {
               />
             )}
 
-            {/* Погода и безопасность: официальные предупреждения, прогноз, перевалы — выше обычных новостей */}
             {selectedCategory === 'all' && (
-              <WeatherSafety
-                lang={currentLanguage}
-                announcements={announcements}
-                city={selectedCity}
-                onOpen={setActiveNoticeDetail}
-              />
-            )}
-
-            {/* Urgent & Important Alerts Section — только если есть предупреждения */}
-            {selectedCategory === 'all' && alertsList.length > 0 && (
-            <AlertsGrid
-              currentLanguage={currentLanguage}
-              alerts={alertsList}
-              selectedCity={selectedCity}
-              onCityFilterChange={setSelectedCity}
-              onSelectAnnouncement={setActiveNoticeDetail}
-            />
-            )}
-
-            {/* Upcoming Events Feed & Interactive Calendar Mosaic */}
-            {selectedCategory === 'all' && (
-            <section id="events-feed" className="w-full py-10 sm:py-14 bg-[#eef2f9] border-t border-gray-200 scroll-mt-24">
-              <div className="max-w-[1280px] mx-auto px-4 md:px-6">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                  {/* Left 8 Cols: Date-First Events Feed */}
-                  <div className="lg:col-span-8">
-                    <EventsFeed
-                      currentLanguage={currentLanguage}
-                      events={eventsList}
-                      city={selectedCity}
-                      onSelectAnnouncement={setActiveNoticeDetail}
-                      onOpenFullCalendar={() => setCurrentView('calendar')}
-                    />
+              <>
+                {/* Главное: действующие предупреждения и календарь — сразу на первом экране */}
+                <section className="w-full bg-white py-10 sm:py-14">
+                  <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
+                      <div className="lg:col-span-7 min-w-0">
+                        <MainAlerts
+                          lang={currentLanguage}
+                          alerts={alertsList}
+                          city={selectedCity}
+                          onOpen={setActiveNoticeDetail}
+                          onOpenAll={() => setCurrentView('alerts')}
+                        />
+                      </div>
+                      <div className="lg:col-span-5 min-w-0">
+                        <InteractiveCalendar
+                          currentLanguage={currentLanguage}
+                          announcements={announcements}
+                          selectedDate={calendarSelectedDate}
+                          onSelectDate={setCalendarSelectedDate}
+                          onSelectAnnouncement={setActiveNoticeDetail}
+                        />
+                      </div>
+                    </div>
                   </div>
+                </section>
 
-                  {/* Right 4 Cols: Interactive Calendar Widget Panel */}
-                  <div className="lg:col-span-4">
-                    <InteractiveCalendar
-                      currentLanguage={currentLanguage}
-                      announcements={announcements}
-                      selectedDate={calendarSelectedDate}
-                      onSelectDate={setCalendarSelectedDate}
-                      onSelectAnnouncement={setActiveNoticeDetail}
-                    />
+                {/* Официальный прогноз Кыргызгидромета (предупреждения — в блоке выше) */}
+                <WeatherSafety
+                  lang={currentLanguage}
+                  announcements={announcements}
+                  city={selectedCity}
+                  onOpen={setActiveNoticeDetail}
+                  showWarnings={false}
+                />
+
+                {/* Лента событий и афиши + экстренные службы сбоку */}
+                <section id="events-feed" className="w-full py-12 sm:py-16 bg-[#f6f8fd] border-t border-gray-200 scroll-mt-28">
+                  <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                      <div className="lg:col-span-8 min-w-0">
+                        <EventsFeed
+                          currentLanguage={currentLanguage}
+                          events={eventsList}
+                          city={selectedCity}
+                          onSelectAnnouncement={setActiveNoticeDetail}
+                          onOpenFullCalendar={() => setCurrentView('calendar')}
+                        />
+                      </div>
+                      <aside className="lg:col-span-4 min-w-0 lg:sticky lg:top-32">
+                        <EmergencyBox lang={currentLanguage} />
+                      </aside>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </section>
+                </section>
+
+                <TheatreSchedule lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
+              </>
             )}
-
-            {selectedCategory === 'all' && (
-              <TheatreSchedule lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
-            )}
-            </div>
-            </div>
-
-            {/* Browse by City / Regional Portals Mosaic */}
-            <CityMosaic
-              announcements={announcements}
-              currentLanguage={currentLanguage}
-              onSelectCity={(cityId) => {
-                setSelectedCity(cityId);
-                window.scrollTo({ top: 300, behavior: 'smooth' });
-              }}
-              onOpenAllCities={() => setCurrentView('cities')}
-              onOpenAnnouncement={setActiveNoticeDetail}
-            />
-
-            {/* Экстренные службы — внизу, чтобы не отвлекать от свежих новостей */}
-            <section className="w-full py-6 bg-white border-t border-gray-100">
-              <div className="max-w-[1280px] mx-auto px-4 md:px-6">
-                <div className="md:max-w-md">
-                  <EmergencyBox lang={currentLanguage} />
-                </div>
-              </div>
-            </section>
-
-            {/* For Municipalities & Organizations Section */}
-            <ForOrganizationsSection
-              currentLanguage={currentLanguage}
-              onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
-              onOpenPricing={() => setCurrentView('pricing')}
-            />
           </div>
         )}
 

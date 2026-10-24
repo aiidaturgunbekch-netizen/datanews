@@ -3,6 +3,7 @@ import { PLACE_IDS } from '../config/regions';
 import { Language, CityId, ViewMode, Announcement } from '../types';
 import { getTranslation } from '../locales/translations';
 import { Logo } from './Logo';
+import { WEEKDAYS, formatDayMonth } from '../utils/dates';
 
 interface HeaderProps {
   currentLanguage: Language;
@@ -18,6 +19,8 @@ interface HeaderProps {
   onOpenAdmin: () => void;
   onOpenAccount: () => void;
   onOpenPublish: () => void;
+  /** Открыть выдвижную панель «Разделы» */
+  onOpenSections: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,37 +37,81 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdmin,
   onOpenAccount,
   onOpenPublish,
+  onOpenSections,
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const cityLabels = Object.fromEntries([...PLACE_IDS, 'karakol'].map((id) => [id, t(`cities.${id}`)])) as Record<CityId, string>;
 
+  // Новостные разделы — в основной строке; «Для организаций» и языки — отдельно, в верхней служебной строке
   const navItems: { view: ViewMode; label: string }[] = [
+    { view: 'home', label: t('nav.home') },
     { view: 'calendar', label: t('nav.calendar') },
     { view: 'alerts', label: t('nav.alerts') },
     { view: 'events', label: t('nav.events') },
     { view: 'cities', label: t('nav.cities') },
-    { view: 'organizations', label: t('nav.forOrg') },
   ];
+  const today = new Date();
+  const todayLabel = `${WEEKDAYS[currentLanguage][today.getDay()]}, ${formatDayMonth(today, currentLanguage)}`;
+  const sectionsLabel = currentLanguage === 'kg' ? 'Бөлүмдөр' : currentLanguage === 'en' ? 'Sections' : 'Разделы';
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-[#0d2459] shadow-[0_2px_12px_rgba(0,0,0,0.15)] text-white">
-      {/* Main Bar */}
+    <header className="fixed top-0 inset-x-0 z-50 text-white shadow-[0_2px_12px_rgba(0,0,0,0.15)]">
+      {/* Служебная строка: дата, для организаций, язык */}
+      <div className="h-9 bg-[#081a42] border-b border-white/10">
+        <div className="h-full max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-4 text-xs">
+          <span className="hidden sm:inline text-[#c8d2ee] first-letter:uppercase">{todayLabel}</span>
+          <div className="flex items-center gap-4 sm:gap-6 ml-auto">
+            <button
+              onClick={() => onViewChange('organizations')}
+              className={`font-semibold transition-colors ${currentView === 'organizations' ? 'text-white' : 'text-[#c8d2ee] hover:text-white'}`}
+            >
+              {t('nav.forOrg')}
+            </button>
+            <span className="w-px h-4 bg-white/15" aria-hidden="true" />
+            <div className="flex items-center gap-1" role="group" aria-label={currentLanguage === 'kg' ? 'Тил' : currentLanguage === 'en' ? 'Language' : 'Язык'}>
+              {(['ru', 'kg', 'en'] as Language[]).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => onLanguageChange(lang)}
+                  aria-pressed={currentLanguage === lang}
+                  className={`px-1.5 py-0.5 rounded font-bold uppercase tracking-wide transition-colors ${
+                    currentLanguage === lang ? 'text-[#0d2459] bg-[#20C7B5]' : 'text-[#c8d2ee] hover:text-white'
+                  }`}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Основная строка */}
+      <div className="bg-[#0d2459]">
       <div className="h-16 max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
-        {/* Left: Brand Logo & Navigation */}
-        <div className="flex items-center gap-6 lg:gap-8">
+        {/* Left: Sections, Brand Logo & Navigation */}
+        <div className="flex items-center gap-3 lg:gap-6 min-w-0">
+          <button
+            onClick={onOpenSections}
+            aria-label={sectionsLabel}
+            title={sectionsLabel}
+            className="inline-flex items-center gap-1.5 p-2 sm:pl-2 sm:pr-3 rounded-lg text-white hover:bg-white/10 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[24px]">menu</span>
+            <span className="hidden xl:inline text-sm font-semibold">{sectionsLabel}</span>
+          </button>
           <button
             onClick={() => onViewChange('home')}
             className="flex items-center text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#20C7B5] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d2459]"
             aria-label="DataNews Home"
           >
-            <Logo isLightMode={true} compactOnMobile className="h-8 sm:h-10" lang={currentLanguage} />
+            <Logo isLightMode={true} className="h-8 sm:h-10" lang={currentLanguage} />
           </button>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1 ml-2">
             {navItems.map((item) => {
               const isActive = currentView === item.view;
               return (
@@ -132,26 +179,6 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Languages: RU | KG | EN Switcher */}
-          <div className="flex items-center bg-[#07173d] p-0.5 rounded-lg border border-white/10">
-            {(['ru', 'kg', 'en'] as Language[]).map((lang) => {
-              const isSelected = currentLanguage === lang;
-              return (
-                <button
-                  key={lang}
-                  onClick={() => onLanguageChange(lang)}
-                  className={`px-2 py-1 rounded text-xs font-bold uppercase transition-all ${
-                    isSelected
-                      ? 'bg-[#20C7B5] text-[#002f29] shadow-sm'
-                      : 'text-[#dbe1ff] hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {lang}
-                </button>
-              );
-            })}
-          </div>
-
           {/* Search Trigger */}
           <button
             onClick={onOpenSearch}
@@ -191,51 +218,10 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* Mobile Menu Toggle Button */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-1.5 text-white hover:bg-white/10 rounded-lg"
-            aria-label="Menu"
-          >
-            <span className="material-symbols-outlined text-[24px]">
-              {isMobileMenuOpen ? 'close' : 'menu'}
-            </span>
-          </button>
         </div>
       </div>
 
-      {/* Mobile Drawer Menu */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden bg-[#0a1e4a] border-t border-white/10 px-4 py-3 space-y-2">
-          {navItems.map((item) => (
-            <button
-              key={item.view}
-              onClick={() => {
-                onViewChange(item.view);
-                setIsMobileMenuOpen(false);
-              }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-between ${
-                currentView === item.view ? 'bg-white/15 text-white' : 'text-[#dbe1ff] hover:bg-white/5'
-              }`}
-            >
-              <span>{item.label}</span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-            </button>
-          ))}
-          <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-            <button
-              onClick={() => {
-                onOpenPublish();
-                setIsMobileMenuOpen(false);
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-[#20C7B5] text-[#002f29] font-bold text-sm"
-            >
-              <span className="material-symbols-outlined text-[18px]">add_circle</span>
-              <span>{t('nav.publishBtn')}</span>
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
     </header>
   );
 };

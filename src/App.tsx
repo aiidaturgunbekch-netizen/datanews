@@ -27,6 +27,7 @@ import { EventsFeed } from './components/EventsFeed';
 import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { SectionsDrawer } from './components/SectionsDrawer';
 import { MainAlerts } from './components/MainAlerts';
+import { TopStories } from './components/TopStories';
 import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
 import { FullCalendarView } from './components/FullCalendarView';
@@ -38,7 +39,8 @@ import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
 import { EmergencyBox, HydrometLine, WeatherSafety } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
-import { isFresh } from './utils/statusUtils';
+import { freshOrder, isFresh } from './utils/statusUtils';
+import { rubricOf } from './config/rubrics';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -66,6 +68,8 @@ export default function App() {
   // Панель «Разделы» скрыта по умолчанию, открывается кнопкой в шапке
   const [sectionsOpen, setSectionsOpen] = useState(false);
   const closeSections = useCallback(() => setSectionsOpen(false), []);
+  // Рубрика строки навигации (группа разделов); null — главная без фильтра
+  const [activeRubric, setActiveRubric] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<CityId>('bishkek');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -208,6 +212,32 @@ export default function App() {
     [announcements, selectedCity]
   );
   const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
+  // «Главное»: одна главная история и четыре важных — из актуального (не предупреждения: у них свой блок рядом)
+  const topStories = useMemo(
+    () =>
+      eventsList
+        .filter((a) => isFresh(a))
+        .sort((a, b) => Number(Boolean(b.isUrgentTicker)) - Number(Boolean(a.isUrgentTicker)) || freshOrder(a, b))
+        .slice(0, 5),
+    [eventsList]
+  );
+  // Лента ниже не повторяет материалы из «Главного»
+  const feedList = useMemo(() => {
+    const top = new Set(topStories.map((a) => a.id));
+    return eventsList.filter((a) => !top.has(a.id));
+  }, [eventsList, topStories]);
+  const rubric = rubricOf(activeRubric);
+  const rubricItems = useMemo(
+    () => (rubric ? announcements.filter((a) => matchesScope(a, true) && rubric.categories.includes(a.category)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [announcements, rubric, selectedCity, dateFilter, searchQuery]
+  );
+  const selectRubric = (id: string | null) => {
+    setActiveRubric(id);
+    setSelectedCategory('all');
+    setCurrentView('home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Счётчики категорий — по тем же правилам, что и список (кроме самой категории)
   const categoryCounts = useMemo(() => {
@@ -287,6 +317,8 @@ export default function App() {
         onOpenAccount={() => setAccountMode('cabinet')}
         onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
         onOpenSections={() => setSectionsOpen(true)}
+        activeRubric={activeRubric}
+        onSelectRubric={selectRubric}
       />
 
       <SectionsDrawer
@@ -297,6 +329,7 @@ export default function App() {
         onViewChange={setCurrentView}
         selectedCategory={selectedCategory}
         onSelectCategory={(cat) => {
+          setActiveRubric(null);
           setSelectedCategory(cat);
           setCurrentView('home');
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -306,8 +339,8 @@ export default function App() {
       />
 
       {/* Main Content Area (padding-top accounts for header + urgent ticker) */}
-      {/* Отступ сверху = высота шапки: служебная строка 36px + основная 64px */}
-      <main className="flex-1 w-full pt-[100px]">
+      {/* Отступ сверху = высота шапки: служебная строка 36px + основная 56px + рубрики 44px */}
+      <main className="flex-1 w-full pt-[136px]">
         {/* VIEW: HOME */}
         {currentView === 'home' && (
           <div className="w-full flex flex-col">
@@ -331,10 +364,30 @@ export default function App() {
               onTagClick={handleTagClick}
               stats={heroStats}
               onOpenStats={setStatsMode}
+              compact
             />
 
+            {/* Выбрана рубрика в строке навигации — её разделы вместе */}
+            {rubric && (
+              <CategoryResults
+                lang={currentLanguage}
+                category={rubric.categories[0]}
+                title={rubric.label[currentLanguage]}
+                items={rubricItems}
+                onOpen={setActiveNoticeDetail}
+                onReset={() => selectRubric(null)}
+                extra={
+                  rubric.id === 'weather' ? (
+                    <HydrometLine lang={currentLanguage} />
+                  ) : rubric.id === 'culture' ? (
+                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
+                  ) : undefined
+                }
+              />
+            )}
+
             {/* Выбран раздел (из панели «Разделы») — ровно те публикации, что учтены в счётчике раздела */}
-            {selectedCategory !== 'all' && (
+            {!rubric && selectedCategory !== 'all' && (
               <CategoryResults
                 lang={currentLanguage}
                 category={selectedCategory}
@@ -351,28 +404,22 @@ export default function App() {
               />
             )}
 
-            {selectedCategory === 'all' && (
+            {!rubric && selectedCategory === 'all' && (
               <>
-                {/* Главное: действующие предупреждения и календарь — сразу на первом экране */}
-                <section className="w-full bg-white py-10 sm:py-14">
+                {/* Главное: одна главная история, важные рядом и действующие предупреждения */}
+                <section className="w-full bg-white py-10 sm:py-12">
                   <div className="max-w-[1280px] mx-auto px-4 md:px-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
-                      <div className="lg:col-span-7 min-w-0">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+                      <div className="lg:col-span-8 min-w-0">
+                        <TopStories lang={currentLanguage} stories={topStories} onOpen={setActiveNoticeDetail} />
+                      </div>
+                      <div className="lg:col-span-4 min-w-0">
                         <MainAlerts
                           lang={currentLanguage}
                           alerts={alertsList}
                           city={selectedCity}
                           onOpen={setActiveNoticeDetail}
                           onOpenAll={() => setCurrentView('alerts')}
-                        />
-                      </div>
-                      <div className="lg:col-span-5 min-w-0">
-                        <InteractiveCalendar
-                          currentLanguage={currentLanguage}
-                          announcements={announcements}
-                          selectedDate={calendarSelectedDate}
-                          onSelectDate={setCalendarSelectedDate}
-                          onSelectAnnouncement={setActiveNoticeDetail}
                         />
                       </div>
                     </div>
@@ -388,20 +435,27 @@ export default function App() {
                   showWarnings={false}
                 />
 
-                {/* Лента событий и афиши + экстренные службы сбоку */}
-                <section id="events-feed" className="w-full py-12 sm:py-16 bg-[#f6f8fd] border-t border-gray-200 scroll-mt-28">
+                {/* Лента (без повторов из «Главного»), сбоку — календарь и экстренные службы */}
+                <section id="events-feed" className="w-full py-12 sm:py-16 bg-[#f6f8fd] border-t border-gray-200 scroll-mt-40">
                   <div className="max-w-[1280px] mx-auto px-4 md:px-6">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                       <div className="lg:col-span-8 min-w-0">
                         <EventsFeed
                           currentLanguage={currentLanguage}
-                          events={eventsList}
+                          events={feedList}
                           city={selectedCity}
                           onSelectAnnouncement={setActiveNoticeDetail}
                           onOpenFullCalendar={() => setCurrentView('calendar')}
                         />
                       </div>
-                      <aside className="lg:col-span-4 min-w-0 lg:sticky lg:top-32">
+                      <aside className="lg:col-span-4 min-w-0 space-y-6">
+                        <InteractiveCalendar
+                          currentLanguage={currentLanguage}
+                          announcements={announcements}
+                          selectedDate={calendarSelectedDate}
+                          onSelectDate={setCalendarSelectedDate}
+                          onSelectAnnouncement={setActiveNoticeDetail}
+                        />
                         <EmergencyBox lang={currentLanguage} />
                       </aside>
                     </div>

@@ -4,6 +4,7 @@ import { Language, CityId, ViewMode, Announcement } from '../types';
 import { getTranslation } from '../locales/translations';
 import { Logo } from './Logo';
 import { WEEKDAYS, formatDayMonth } from '../utils/dates';
+import { RUBRICS } from '../config/rubrics';
 
 interface HeaderProps {
   currentLanguage: Language;
@@ -21,6 +22,9 @@ interface HeaderProps {
   onOpenPublish: () => void;
   /** Открыть выдвижную панель «Разделы» */
   onOpenSections: () => void;
+  /** Выбранная рубрика строки навигации (null — главная без фильтра) */
+  activeRubric: string | null;
+  onSelectRubric: (id: string | null) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,20 +42,14 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAccount,
   onOpenPublish,
   onOpenSections,
+  activeRubric,
+  onSelectRubric,
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
 
   const cityLabels = Object.fromEntries([...PLACE_IDS, 'karakol'].map((id) => [id, t(`cities.${id}`)])) as Record<CityId, string>;
 
-  // Новостные разделы — в основной строке; «Для организаций» и языки — отдельно, в верхней служебной строке
-  const navItems: { view: ViewMode; label: string }[] = [
-    { view: 'home', label: t('nav.home') },
-    { view: 'calendar', label: t('nav.calendar') },
-    { view: 'alerts', label: t('nav.alerts') },
-    { view: 'events', label: t('nav.events') },
-    { view: 'cities', label: t('nav.cities') },
-  ];
   const today = new Date();
   const todayLabel = `${WEEKDAYS[currentLanguage][today.getDay()]}, ${formatDayMonth(today, currentLanguage)}`;
   const sectionsLabel = currentLanguage === 'kg' ? 'Бөлүмдөр' : currentLanguage === 'en' ? 'Sections' : 'Разделы';
@@ -90,8 +88,8 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Основная строка */}
       <div className="bg-[#0d2459]">
-      <div className="h-16 max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
-        {/* Left: Sections, Brand Logo & Navigation */}
+      <div className="h-14 max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
+        {/* Left: Sections, Brand Logo */}
         <div className="flex items-center gap-3 lg:gap-6 min-w-0">
           <button
             onClick={onOpenSections}
@@ -110,25 +108,6 @@ export const Header: React.FC<HeaderProps> = ({
             <Logo isLightMode={true} className="h-8 sm:h-10" lang={currentLanguage} />
           </button>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1 ml-2">
-            {navItems.map((item) => {
-              const isActive = currentView === item.view;
-              return (
-                <button
-                  key={item.view}
-                  onClick={() => onViewChange(item.view)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    isActive
-                      ? 'bg-white/15 text-white shadow-sm'
-                      : 'text-[#dbe1ff] hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
         </div>
 
         {/* Right: City Selector, Language Picker, Search, Post Button & Admin */}
@@ -222,6 +201,33 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       </div>
+
+      {/* Строка рубрик: главные страницы и рубрики, сгруппированные по смыслу (на телефоне — прокрутка вбок) */}
+      <nav aria-label={currentLanguage === 'kg' ? 'Рубрикалар' : currentLanguage === 'en' ? 'Sections' : 'Рубрики'} className="bg-white border-b border-gray-200 text-[#0f1b33]">
+        <div className="max-w-[1280px] mx-auto px-1 sm:px-2 md:px-4 overflow-x-auto scrollbar-none">
+          <ul className="flex items-stretch h-11 min-w-max">
+            {[
+              { key: 'home', label: t('nav.home'), active: currentView === 'home' && !activeRubric, onClick: () => { onSelectRubric(null); onViewChange('home'); } },
+              { key: 'alerts', label: t('nav.alerts'), active: currentView === 'alerts', onClick: () => { onSelectRubric(null); onViewChange('alerts'); } },
+              ...RUBRICS.map((r) => ({ key: r.id, label: r.label[currentLanguage], active: currentView === 'home' && activeRubric === r.id, onClick: () => onSelectRubric(r.id) })),
+              { key: 'calendar', label: t('nav.calendar'), active: currentView === 'calendar', onClick: () => { onSelectRubric(null); onViewChange('calendar'); } },
+            ].map((item) => (
+              <li key={item.key} className="flex">
+                <button
+                  type="button"
+                  onClick={item.onClick}
+                  aria-current={item.active ? 'page' : undefined}
+                  className={`px-2.5 text-sm font-semibold whitespace-nowrap border-b-[3px] transition-colors ${
+                    item.active ? 'border-[#20C7B5] text-[#12327A]' : 'border-transparent text-[#0f1b33] hover:text-[#12327A] hover:border-[#12327A]/30'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </nav>
     </header>
   );
 };

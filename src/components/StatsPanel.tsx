@@ -262,7 +262,9 @@ export const CategoryResults: React.FC<{
   onReset: () => void;
   /** Дополнительный блок под заголовком (например, контакт Кыргызгидромета в разделе погоды) */
   extra?: React.ReactNode;
-}> = ({ lang, category, items, onOpen, onReset, extra }) => {
+  /** Заголовок рубрики, объединяющей несколько разделов (иначе — название раздела) */
+  title?: string;
+}> = ({ lang, category, items, onOpen, onReset, extra, title }) => {
   const { t } = getTranslation(lang);
   // Прошедшее — в архив (свёрнут), сверху только актуальное
   const sorted = items.filter((a) => isFresh(a)).sort((a, b) => freshOrder(a, b));
@@ -280,7 +282,7 @@ export const CategoryResults: React.FC<{
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   return (
-    <section id="category-results" className="w-full py-8 bg-white border-b border-gray-100 scroll-mt-24">
+    <section id="category-results" className="w-full py-10 bg-white border-b border-gray-100 scroll-mt-40">
       <div className="max-w-[1280px] mx-auto px-4 md:px-6">
         <button
           onClick={goHome}
@@ -290,7 +292,7 @@ export const CategoryResults: React.FC<{
           {home[lang]}
         </button>
         <h2 className="text-xl sm:text-2xl font-extrabold text-[#0f1b33] mb-3">
-          {t(`categories.${category}`)} <span className="text-gray-500 font-bold">· {sorted.length}</span>
+          {title || t(`categories.${category}`)} <span className="text-gray-500 font-bold">· {sorted.length}</span>
         </h2>
         {extra && <div className="mb-4">{extra}</div>}
         {sorted.length === 0 ? (

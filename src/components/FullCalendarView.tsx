@@ -268,7 +268,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
         </div>
 
         {/* Right: Selected Day Events Feed (4 cols) */}
-        <div className="lg:col-span-4 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm sticky top-28">
+        <div className="lg:col-span-4 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm lg:sticky lg:top-40">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
             <div>
               <span className="text-[11px] font-bold text-[#00796b] uppercase tracking-wider block">

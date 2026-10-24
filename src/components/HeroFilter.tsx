@@ -17,6 +17,8 @@ interface HeroFilterProps {
   onTagClick?: (tag: string) => void;
   stats: { publications: number; activeAlerts: number; regions: number };
   onOpenStats: (mode: 'all' | 'alerts' | 'regions') => void;
+  /** Компактная строка поиска для новостной главной (без большого вступительного блока) */
+  compact?: boolean;
 }
 
 export const HeroFilter: React.FC<HeroFilterProps> = ({
@@ -30,6 +32,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
   onSearchSubmit,
   stats,
   onOpenStats,
+  compact = false,
 }) => {
   const { t } = getTranslation(currentLanguage);
 
@@ -47,6 +50,78 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
     { id: 'weekend', label: `${t('search.weekend')}, ${formatDayRange(sat, sun, currentLanguage)}` },
     { id: 'week', label: t('search.thisWeek') },
   ];
+
+  const heading =
+    currentLanguage === 'kg' ? 'Кыргызстанда эмне, кайда жана качан?' : currentLanguage === 'en' ? 'What, Where and When in Kyrgyzstan?' : 'Что, где и когда в Кыргызстане?';
+  const fieldCls =
+    'w-full rounded-lg bg-[#f3f6fc] text-[#0f1b33] text-sm border border-gray-200 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#20C7B5] focus:border-transparent';
+
+  if (compact) {
+    const statLine = [
+      { mode: 'all' as const, value: stats.publications, label: t('search.eventsOnDate') },
+      { mode: 'alerts' as const, value: stats.activeAlerts, label: t('search.activeAlerts') },
+      { mode: 'regions' as const, value: stats.regions, label: t('search.regionsCount') },
+    ];
+    return (
+      <section className="w-full bg-white border-b border-gray-200">
+        <h1 className="sr-only">{heading}</h1>
+        <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
+          <form
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSearchSubmit();
+            }}
+            className="flex-1 grid grid-cols-2 sm:grid-cols-12 gap-2"
+          >
+            <label className="col-span-2 sm:col-span-6 relative">
+              <span className="sr-only">{t('search.whatLabel')}</span>
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[20px]" aria-hidden="true">
+                search
+              </span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => onSearchQueryChange(e.target.value)}
+                placeholder={t('search.whatPlaceholder')}
+                className={`${fieldCls} pl-10 pr-3 py-2.5`}
+              />
+            </label>
+            <label className="sm:col-span-3">
+              <span className="sr-only">{t('search.whenLabel')}</span>
+              <select value={dateFilter} onChange={(e) => onDateFilterChange(e.target.value)} className={`${fieldCls} px-3 py-2.5 font-semibold cursor-pointer`}>
+                {dateOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="sm:col-span-3">
+              <span className="sr-only">{t('search.whereLabel')}</span>
+              <select value={selectedCity} onChange={(e) => onCityChange(e.target.value as CityId)} className={`${fieldCls} px-3 py-2.5 font-semibold cursor-pointer`}>
+                {cityOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </form>
+          {/* Показатели — тихой строкой, каждый открывает список */}
+          <ul className="flex items-center gap-4 text-sm text-gray-600 shrink-0">
+            {statLine.map((m) => (
+              <li key={m.mode}>
+                <button type="button" onClick={() => onOpenStats(m.mode)} className="hover:text-[#12327A] underline decoration-dotted underline-offset-4">
+                  <b className="text-[#12327A] tabular-nums">{m.value}</b> {m.label.toLowerCase()}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="w-full relative bg-[#eef2f9] py-8 sm:py-14 lg:py-16 border-b border-gray-200">

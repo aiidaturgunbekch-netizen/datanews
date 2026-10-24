@@ -274,7 +274,8 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <EventImage item={a} lang={lang} showCredit className={`w-full sm:rounded-t-3xl rounded-t-3xl ${a.imageFit === "cover" ? "aspect-[16/9]" : "h-[58vh] max-h-[620px] min-h-[240px]"}`} />
-        <div className={`px-6 pt-6 pb-5 text-white ${isEvent ? 'bg-gradient-to-br from-[#12327A] via-[#1d4ed8] to-[#20C7B5]' : 'bg-gradient-to-br from-[#0d2459] to-[#12327A]'}`}>
+        {/* Шапка материала — сплошной цвет логотипа, без градиентов; бирюзовая линия — фирменная деталь */}
+        <div className={`px-6 pt-6 pb-5 text-white border-b-4 border-[#20C7B5] ${isEvent ? 'bg-[#12327A]' : 'bg-[#0d2459]'}`}>
           <button
             onClick={onClose}
             aria-label={L.close[lang]}
@@ -300,7 +301,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
               </span>
             )}
           </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold leading-tight">{a.title[lang]}</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold leading-tight [overflow-wrap:anywhere]">{a.title[lang]}</h2>
           <p className="mt-2 text-sm text-white/85 leading-relaxed">{a.summary[lang]}</p>
         </div>
 
@@ -403,7 +404,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
 
         <div className="px-6 pb-2">
           <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2">{L.about[lang]}</h3>
-          <p className="text-sm text-gray-700 leading-relaxed">{a.description[lang]}</p>
+          <p className="text-base text-[#2b3140] leading-7 whitespace-pre-line [overflow-wrap:anywhere]">{a.description[lang]}</p>
         </div>
 
         <div className="px-6 py-5 flex flex-wrap gap-2">

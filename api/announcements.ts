@@ -158,14 +158,14 @@ export default handler(async (req) => {
       await requireAdmin(req);
       if (!current) throw new HttpError('not_found', 404);
       const ok = body.action !== 'reject';
+      // Модерация разрешает публикацию, но не подтверждает достоверность: отметку «Подтверждено по первоисточнику»
+      // и дату сверки ставит редактор отдельно (форма и «Проверено сегодня»)
       const next = withHistory(
         {
           ...current,
           moderationStatus: ok ? 'approved' : 'rejected',
           moderationNote: note,
-          isVerified: ok && !current.publishedByGov ? true : current.isVerified,
           updatedAt: kgNowLocal(),
-          lastCheckedAt: ok ? kgNowLocal() : current.lastCheckedAt,
         },
         'admin',
         body.action === 'approve' ? 'approved' : body.action === 'restore' ? 'restored' : 'rejected',

@@ -947,6 +947,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
               ) : tab === 'moderation' ? (
                 <>
                   <h2 className="text-xl font-extrabold text-[#0f1b33]">Ожидают модерации: {pending.length}</h2>
+                  <p className="text-xs text-gray-600">
+                    «Одобрить» — разрешить публикацию после модерации. Достоверность это не подтверждает: публикация попадёт в «Сверку с источниками»,
+                    а отметку «Подтверждено по первоисточнику» ставит редактор в форме после сверки.
+                  </p>
                   {pending.length === 0 ? (
                     <div className="py-12 text-center text-gray-500 bg-white rounded-2xl">Новых публикаций нет 🎉</div>
                   ) : (

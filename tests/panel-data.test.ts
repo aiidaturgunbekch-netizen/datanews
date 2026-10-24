@@ -13,6 +13,8 @@ delete process.env.ADMIN_PASSWORD;
 
 const { default: auth } = await import('../api/auth');
 const { default: announcements } = await import('../api/announcements');
+const { default: usersApi } = await import('../api/users');
+const { reviewReasons } = await import('../src/utils/review');
 const { cmd, hsetJson, hvalsJson } = await import('../api/_lib/kv');
 const { ANN_KEY, CHECKED_KEY } = await import('../api/_lib/announcements');
 const { INITIAL_ANNOUNCEMENTS } = await import('../src/data/initialAnnouncements');
@@ -128,5 +130,92 @@ describe('отметка «Подтверждено» не появляется 
       item: { title: { ru: 'Тест с подтверждением' }, description: { ru: 'тест' }, category: 'concerts', city: 'bishkek', location: { ru: 'тест' }, startDate: '2026-12-02T19:00', isVerified: true },
     });
     assert.equal(created.body.item.isVerified, true);
+  });
+});
+
+describe('модерация и подтверждение достоверности разделены', () => {
+  let userToken = '';
+  let postId = '';
+  const asUser = async (method: string, body: unknown) => {
+    const r = await announcements(
+      new Request('http://localhost/api/announcements', {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userToken}`, 'x-forwarded-for': '127.0.0.2' },
+        body: JSON.stringify(body),
+      })
+    );
+    return { status: r.status, body: await r.json() };
+  };
+
+  before(async () => {
+    const reg = await auth(
+      new Request('http://localhost/api/auth', {
+        method: 'POST',
+        headers: { 'x-forwarded-for': '127.0.0.3' },
+        body: JSON.stringify({ action: 'register', name: 'Тест', email: 'mod-test@example.com', phone: '+996555000001', organization: 'Тестовая организация', password: 'test-pass-123', plan: 'start', paymentRef: 'T-1' }),
+      })
+    );
+    userToken = (await reg.json()).token;
+    await usersApi(
+      new Request('http://localhost/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${admin}` },
+        body: JSON.stringify({ email: 'mod-test@example.com', paymentStatus: 'paid' }),
+      })
+    );
+    const sub = await asUser('POST', {
+      item: { title: { ru: 'Тестовый концерт пользователя' }, description: { ru: 'тест' }, category: 'concerts', city: 'bishkek', location: { ru: 'тест' }, startDate: '2026-12-10T19:00', eventSourceUrl: 'https://example.org/e', eventDetails: { organizer: 'Тестовая организация' } },
+    });
+    postId = sub.body.item.id;
+    assert.equal(sub.body.item.moderationStatus, 'pending');
+    assert.equal(sub.body.item.isVerified, false);
+  });
+
+  it('«Одобрить» публикует, но не подтверждает и не ставит дату сверки', async () => {
+    const r = await call('PATCH', 'announcements', { id: postId, action: 'approve' });
+    assert.equal(r.body.item.moderationStatus, 'approved');
+    assert.equal(r.body.item.isVerified, false);
+    assert.equal(r.body.item.lastCheckedAt, undefined);
+    const pub = await call('GET', 'announcements');
+    assert.ok(pub.body.items.some((a: { id: string }) => a.id === postId), 'видна на сайте');
+    const reasons = reviewReasons(r.body.item);
+    assert.ok(reasons.includes('Не подтверждено') && reasons.includes('Дата проверки не указана'), 'попала в «Сверку»');
+  });
+
+  it('«Проверено сегодня» обновляет только дату; «Не подтверждено» остаётся', async () => {
+    const r = await call('PATCH', 'announcements', { id: postId, action: 'checked' });
+    assert.ok(r.body.item.lastCheckedAt);
+    assert.equal(r.body.item.isVerified, false);
+    assert.deepEqual(reviewReasons(r.body.item), ['Не подтверждено']);
+  });
+
+  it('правка текста и фото без отметки не подтверждает; статус публикации не меняется', async () => {
+    const cur = (await call('GET', 'announcements?scope=all')).body.items.find((a: { id: string }) => a.id === postId);
+    const r = await call('PATCH', 'announcements', { id: postId, item: { ...cur, title: { ru: 'Тестовый концерт пользователя (исправлена опечатка)' }, imageUrl: '/illustrations/concerts.svg', isVerified: false } });
+    assert.equal(r.body.item.isVerified, false);
+    assert.equal(r.body.item.moderationStatus, 'approved');
+  });
+
+  it('явная отметка редактора подтверждает; причина «Не подтверждено» уходит', async () => {
+    const cur = (await call('GET', 'announcements?scope=all')).body.items.find((a: { id: string }) => a.id === postId);
+    const r = await call('PATCH', 'announcements', { id: postId, item: { ...cur, isVerified: true } });
+    assert.equal(r.body.item.isVerified, true);
+    assert.ok(!reviewReasons(r.body.item).includes('Не подтверждено'));
+  });
+
+  it('уже одобренная и подтверждённая ранее публикация: снятие и возврат не меняют её подтверждение и статус', async () => {
+    await call('PATCH', 'announcements', { id: postId, action: 'withdraw' });
+    const r = await call('PATCH', 'announcements', { id: postId, action: 'restore' });
+    assert.equal(r.body.item.moderationStatus, 'approved');
+    assert.equal(r.body.item.isVerified, true);
+  });
+
+  it('встроенная подтверждённая публикация остаётся подтверждённой и опубликованной после «Проверено сегодня»', async () => {
+    const verified = INITIAL_ANNOUNCEMENTS.find((a) => a.isVerified && a.id !== builtin.id && a.id !== other.id)!;
+    await call('PATCH', 'announcements', { id: verified.id, action: 'checked' });
+    const { body } = await call('GET', 'announcements');
+    const a = mergeAnnouncements(body.items, body.hidden, body.checked).find((x) => x.id === verified.id)!;
+    assert.equal(a.isVerified, true);
+    assert.equal(a.title.ru, verified.title.ru);
   });
 });

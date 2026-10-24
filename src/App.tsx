@@ -600,6 +600,7 @@ export default function App() {
         {/* VIEW: ORGANIZATIONS & PRICING */}
         {(currentView === 'organizations' || currentView === 'pricing') && (
           <OrganizationsPage
+            focus={currentView === 'pricing' ? 'plans' : 'top'}
             currentLanguage={currentLanguage}
             onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
             onBackToHome={() => setCurrentView('home')}

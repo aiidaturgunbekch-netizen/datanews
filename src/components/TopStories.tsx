@@ -29,7 +29,13 @@ const Meta: React.FC<{ a: Announcement; lang: Language; className?: string }> = 
  * Верх главной: одна главная история и несколько важных рядом (как у Washington Post / BBC).
  * Порядок — тот же, что в ленте: срочная строка, затем идущие сейчас и самые свежие.
  */
-export const TopStories: React.FC<{ lang: Language; stories: Announcement[]; onOpen: (a: Announcement) => void }> = ({ lang, stories, onOpen }) => {
+export const TopStories: React.FC<{
+  lang: Language;
+  stories: Announcement[];
+  onOpen: (a: Announcement) => void;
+  /** Подпись «Главное» стоит над обеими колонками страницы — здесь её не повторяем */
+  hideTitle?: boolean;
+}> = ({ lang, stories, onOpen, hideTitle = false }) => {
   const { t } = getTranslation(lang);
   if (stories.length === 0) return null;
   const [lead, ...rest] = stories;
@@ -38,10 +44,12 @@ export const TopStories: React.FC<{ lang: Language; stories: Announcement[]; onO
   );
 
   return (
-    <section aria-labelledby="top-stories-title">
-      <h2 id="top-stories-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-4">
-        {T.title[lang]}
-      </h2>
+    <section aria-labelledby={hideTitle ? undefined : 'top-stories-title'} aria-label={hideTitle ? T.title[lang] : undefined}>
+      {!hideTitle && (
+        <h2 id="top-stories-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-4">
+          {T.title[lang]}
+        </h2>
+      )}
       <div>
         {/* Главная история — на всю ширину колонки */}
         <article>

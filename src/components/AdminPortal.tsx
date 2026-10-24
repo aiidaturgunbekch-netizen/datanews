@@ -762,9 +762,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       onRoleChange('admin');
     } catch (ex) {
       const e2 = ex as api.ApiError;
+      // Две разные причины — разные подсказки, чтобы было видно, какой переменной не хватает
       setLoginErr(
-        e2.code === 'storage_not_configured' || e2.code === 'admin_not_configured'
-          ? 'Сервер ещё не настроен: подключите Upstash Redis в Vercel (Storage) и задайте переменную ADMIN_PASSWORD. Инструкция — в ADMIN_GUIDE.md.'
+        e2.code === 'storage_not_configured'
+          ? 'Сервер не видит базу данных: для этой версии сайта не заданы KV_REST_API_URL и KV_REST_API_TOKEN (или UPSTASH_REDIS_REST_URL и UPSTASH_REDIS_REST_TOKEN). Проверьте окружение и ветку переменных в Vercel и сделайте Redeploy. Инструкция — в ADMIN_GUIDE.md.'
+          : e2.code === 'admin_not_configured'
+          ? 'База данных подключена, но для этой версии сайта не задана переменная ADMIN_PASSWORD. Добавьте её в Vercel для этого окружения и сделайте Redeploy. Инструкция — в ADMIN_GUIDE.md.'
           : e2.message
       );
     } finally {

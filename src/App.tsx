@@ -12,6 +12,7 @@ import {
   ViewMode,
 } from './types';
 import { INITIAL_ANNOUNCEMENTS } from './data/initialAnnouncements';
+import { mergeAnnouncements } from './utils/mergeAnnouncements';
 import * as api from './services/api';
 import { trackView } from './services/analytics';
 import { addDaysStr, kgDateStr, kgTs } from './utils/time';
@@ -43,14 +44,6 @@ import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { InfoPage, InfoView } from './components/InfoPages';
 
-/** Встроенные проверенные события + одобренные публикации с сервера */
-const mergeAnnouncements = (server: Announcement[], hidden: string[]) => {
-  const byId = new Map<string, Announcement>();
-  INITIAL_ANNOUNCEMENTS.forEach((a) => byId.set(a.id, a));
-  server.forEach((a) => byId.set(a.id, a));
-  hidden.forEach((id) => byId.delete(id));
-  return [...byId.values()];
-};
 
 const isAdminHash = () => window.location.hash.replace('#', '').toLowerCase() === 'admin';
 
@@ -98,7 +91,8 @@ export default function App() {
         setAnnouncements(
           mergeAnnouncements(
             (Array.isArray(r.items) ? r.items : []).filter((a) => a && a.id && a.title?.ru && a.location && typeof a.startDate === 'string' && a.category),
-            Array.isArray(r.hidden) ? r.hidden : []
+            Array.isArray(r.hidden) ? r.hidden : [],
+            r.checked && typeof r.checked === 'object' ? r.checked : {}
           )
         )
       )

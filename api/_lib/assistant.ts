@@ -3,7 +3,6 @@
  * и собирает справочные сведения (тарифы, контакты, источники). Работает и без ИИ.
  */
 import type { Announcement, Language } from '../../src/types';
-import { INITIAL_ANNOUNCEMENTS } from '../../src/data/initialAnnouncements';
 import { PLANS, PLAN_IDS } from '../../src/config/site';
 import { EMERGENCY_NUMBERS, KYRGYZHYDROMET } from '../../src/config/weather';
 import { CONTACTS } from '../../src/config/contacts';
@@ -14,17 +13,15 @@ import { isFresh } from '../../src/utils/statusUtils';
 import { formatWhen } from '../../src/utils/dates';
 import { getTranslation } from '../../src/locales/translations';
 import { cmd, hvalsJson } from './kv';
-import { ANN_KEY, HIDDEN_KEY, publicView } from './announcements';
+import { ANN_KEY, HIDDEN_KEY, publicView, splitChecked } from './announcements';
+import { mergeAnnouncements } from '../../src/utils/mergeAnnouncements';
 
 /** Все опубликованные материалы: встроенные + одобренные из базы (как на сайте) */
 export const loadPublished = async (): Promise<Announcement[]> => {
-  const stored = (await hvalsJson<Announcement>(ANN_KEY)).filter((a) => !a.moderationStatus || a.moderationStatus === 'approved');
-  const hidden = new Set(((await cmd<string[]>('HVALS', HIDDEN_KEY)) || []) as string[]);
-  const byId = new Map<string, Announcement>();
-  INITIAL_ANNOUNCEMENTS.forEach((a) => byId.set(a.id, a));
-  stored.forEach((a) => byId.set(a.id, publicView(a)));
-  hidden.forEach((id) => byId.delete(id));
-  return [...byId.values()];
+  const { items, checked } = await splitChecked(await hvalsJson<Announcement>(ANN_KEY));
+  const stored = items.filter((a) => !a.moderationStatus || a.moderationStatus === 'approved').map(publicView);
+  const hidden = ((await cmd<string[]>('HVALS', HIDDEN_KEY)) || []) as string[];
+  return mergeAnnouncements(stored, hidden, checked);
 };
 
 const words = (s: string) =>

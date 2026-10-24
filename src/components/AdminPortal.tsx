@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Announcement, HistoryEntry, Language, PaymentStatus, Report, SiteStats } from '../types';
 import * as api from '../services/api';
-import { INITIAL_ANNOUNCEMENTS } from '../data/initialAnnouncements';
+import { mergeAnnouncements } from '../utils/mergeAnnouncements';
 import { normalizePlan, PLANS } from '../config/site';
 import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './AnnouncementForm';
 import { EventImage } from './EventImage';
 import { eventSource, ticketLink } from '../utils/links';
 import { historyLabel, MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
 import { isAlert, isExpired } from '../utils/urgency';
-import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
+import { addDaysStr, formatKgDateTime, kgDateStr, kgTs } from '../utils/time';
 import { FORECAST_REGIONS, OfficialForecast } from '../config/weather';
 import { parseOfficialText } from '../utils/officialForecast';
 import { ImportResult, parseNotice } from '../utils/importText';
@@ -69,7 +69,7 @@ const ReportsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
                   {r.status === 'open' ? 'Открыта' : `Закрыта: ${r.resolution || ''}`}
                 </span>
                 <b>{REPORT_REASON[r.reason]}</b>
-                <span className="text-gray-500">{r.at.replace('T', ' ')}</span>
+                <span className="text-gray-500">{fmt(r.at)}</span>
               </div>
               <div className="font-bold text-[#0f1b33] mt-1">{r.annTitle}</div>
               {r.comment && <p className="text-gray-700 mt-1 whitespace-pre-line">{r.comment}</p>}
@@ -94,8 +94,8 @@ const ReportsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
 
 type Tab = 'moderation' | 'review' | 'posts' | 'push' | 'users' | 'reports' | 'weather' | 'stats';
 
-const fmt = (iso: string) =>
-  iso ? new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+/** Дата и время по Бишкеку в одном формате для всей панели */
+const fmt = formatKgDateTime;
 const STALE_MS = 3 * 86400_000;
 
 /** Почему действующую публикацию нужно сверить с первоисточником (пусто — всё в порядке) */
@@ -644,6 +644,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   const [tab, setTab] = useState<Tab>('moderation');
   const [serverItems, setServerItems] = useState<Announcement[]>([]);
   const [hidden, setHidden] = useState<string[]>([]);
+  const [checked, setChecked] = useState<Record<string, string>>({});
   const [users, setUsers] = useState<api.AdminUser[]>([]);
   const [editing, setEditing] = useState<Announcement | null | 'new'>(null);
   const [query, setQuery] = useState('');
@@ -663,6 +664,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       .then((r) => {
         setServerItems(r.items);
         setHidden(r.hidden);
+        setChecked(r.checked || {});
       })
       .catch((e: api.ApiError) => {
         if (e.status === 401 || e.status === 403) {
@@ -715,13 +717,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       } as Announcement)
     : null;
 
-  const merged = useMemo(() => {
-    const byId = new Map<string, Announcement>();
-    INITIAL_ANNOUNCEMENTS.forEach((a) => byId.set(a.id, a));
-    serverItems.forEach((a) => byId.set(a.id, a));
-    hidden.forEach((id) => byId.delete(id));
-    return [...byId.values()];
-  }, [serverItems, hidden]);
+  const merged = useMemo(() => mergeAnnouncements(serverItems, hidden, checked), [serverItems, hidden, checked]);
   const toReview = useMemo(
     () =>
       merged
@@ -790,7 +786,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
 
   const tabs: [Tab, string, string, number][] = [
     ['moderation', 'Модерация', 'fact_check', pending.length],
-    ['review', 'Требует проверки', 'rule', toReview.length],
+    ['review', 'Сверка с источниками', 'rule', toReview.length],
     ['posts', 'Публикации', 'article', 0],
     ['push', 'Уведомления', 'notifications', 0],
     ['users', 'Пользователи', 'group', unpaid.length],
@@ -916,7 +912,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                 </div>
               ) : tab === 'moderation' ? (
                 <>
-                  <h2 className="text-xl font-extrabold text-[#0f1b33]">Ожидают проверки: {pending.length}</h2>
+                  <h2 className="text-xl font-extrabold text-[#0f1b33]">Ожидают модерации: {pending.length}</h2>
                   {pending.length === 0 ? (
                     <div className="py-12 text-center text-gray-500 bg-white rounded-2xl">Новых публикаций нет 🎉</div>
                   ) : (

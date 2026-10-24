@@ -14,6 +14,7 @@ import { hgetJson, hsetJson, hvalsJson } from './_lib/kv';
 import { handler, HttpError, json, randomId, rateLimit, readBody, requireAdmin } from './_lib/http';
 import { ANN_KEY, saveAnnouncement, withHistory } from './_lib/announcements';
 import { kgNowLocal } from '../src/utils/time';
+import { isCheckOnlyCopy } from '../src/utils/mergeAnnouncements';
 
 export const config = { runtime: 'edge' };
 
@@ -34,7 +35,9 @@ export default handler(async (req) => {
     const annId = String(body.annId || '').slice(0, 80);
     const reason = REASONS.includes(body.reason as Report['reason']) ? (body.reason as Report['reason']) : null;
     if (!annId || !reason) throw new HttpError('missing_field', 400, 'Укажите причину жалобы');
-    const stored = await hgetJson<Announcement>(ANN_KEY, annId);
+    const raw = await hgetJson<Announcement>(ANN_KEY, annId);
+    // Копия встроенной публикации ради даты проверки — жалоба относится к версии из кода
+    const stored = raw && !isCheckOnlyCopy(raw) ? raw : null;
     const builtin = INITIAL_ANNOUNCEMENTS.find((a) => a.id === annId);
     if (!stored && !builtin) throw new HttpError('not_found', 404);
     const report: Report = {

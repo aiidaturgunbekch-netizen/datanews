@@ -14,7 +14,7 @@ import {
 import { INITIAL_ANNOUNCEMENTS } from './data/initialAnnouncements';
 import { mergeAnnouncements } from './utils/mergeAnnouncements';
 import * as api from './services/api';
-import { trackView } from './services/analytics';
+import { fetchPopular, trackRead, trackView } from './services/analytics';
 import { addDaysStr, kgDateStr, kgTs } from './utils/time';
 import { alertLevel, isAlert, isExpired, isListed } from './utils/urgency';
 import { CATEGORY_IDS, normalizeCity, REGIONS } from './config/regions';
@@ -28,7 +28,7 @@ import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { SectionsDrawer } from './components/SectionsDrawer';
 import { MainAlerts } from './components/MainAlerts';
 import { TopStories } from './components/TopStories';
-import { RubricIndex } from './components/RubricIndex';
+import { PopularNews } from './components/PopularNews';
 import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
 import { FullCalendarView } from './components/FullCalendarView';
@@ -242,6 +242,24 @@ export default function App() {
     const top = new Set(topStories.map((a) => a.id));
     return eventsList.filter((a) => !top.has(a.id));
   }, [eventsList, topStories]);
+  // «Самое читаемое»: реальные прочтения карточек за 7 дней; пока их нет — «Скоро» (ближайшие по дате)
+  const [popularReads, setPopularReads] = useState<Record<string, number>>({});
+  useEffect(() => {
+    fetchPopular().then(setPopularReads);
+  }, []);
+  useEffect(() => {
+    if (activeNoticeDetail && role !== 'admin') trackRead(activeNoticeDetail.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNoticeDetail?.id]);
+  const sideNews = useMemo(() => {
+    const top = new Set(topStories.map((a) => a.id));
+    const pool = eventsList.filter((a) => isFresh(a) && !top.has(a.id));
+    const read = pool.filter((a) => (popularReads[a.id] || 0) > 0).sort((a, b) => popularReads[b.id] - popularReads[a.id]);
+    if (read.length > 0) return { mode: 'popular' as const, items: read.slice(0, 5) };
+    const now = Date.now();
+    const soon = pool.filter((a) => kgTs(a.startDate) >= now).sort((a, b) => kgTs(a.startDate) - kgTs(b.startDate));
+    return { mode: 'soon' as const, items: soon.slice(0, 5) };
+  }, [eventsList, topStories, popularReads]);
   const rubric = rubricOf(activeRubric);
   const rubricItems = useMemo(
     () => (rubric ? announcements.filter((a) => matchesScope(a, true) && rubric.categories.includes(a.category)) : []),
@@ -472,7 +490,13 @@ export default function App() {
                         />
                       </div>
                       <aside className="lg:col-span-4 min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
-                        <RubricIndex lang={currentLanguage} announcements={announcements} inScope={(a) => matchesScope(a, true)} onSelect={selectRubric} />
+                        <PopularNews
+                          lang={currentLanguage}
+                          items={sideNews.items}
+                          mode={sideNews.mode}
+                          reads={popularReads}
+                          onOpen={setActiveNoticeDetail}
+                        />
                         <EmergencyBox lang={currentLanguage} />
                       </aside>
                     </div>

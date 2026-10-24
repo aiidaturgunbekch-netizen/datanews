@@ -138,8 +138,12 @@ export function isFresh(ann: Announcement, referenceDate: Date = new Date()): bo
   if (status === 'completed' || status === 'cancelled') return false;
   if (status === 'inForce' || status === 'published' || status === 'notYet') {
     if (status === 'notYet') return true;
+    // Срок ещё не истёк (указана дата окончания в будущем или начало ещё впереди) — всегда среди актуального
+    const now = referenceDate.getTime();
+    if ((ann.endDate && endTs(ann) >= now) || kgTs(ann.startDate) > now) return true;
+    // Старая новость без срока — в архив через неделю после публикации
     const pub = kgTs(ann.legal?.officialPublishedAt || ann.publishedAt || ann.startDate);
-    return referenceDate.getTime() - pub <= FRESH_NEWS_DAYS * 86400_000;
+    return now - pub <= FRESH_NEWS_DAYS * 86400_000;
   }
   return true;
 }

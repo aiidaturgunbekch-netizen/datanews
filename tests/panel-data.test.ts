@@ -15,6 +15,7 @@ const { default: auth } = await import('../api/auth');
 const { default: announcements } = await import('../api/announcements');
 const { default: usersApi } = await import('../api/users');
 const { reviewReasons } = await import('../src/utils/review');
+const { default: track } = await import('../api/track');
 const { cmd, hsetJson, hvalsJson } = await import('../api/_lib/kv');
 const { ANN_KEY, CHECKED_KEY } = await import('../api/_lib/announcements');
 const { INITIAL_ANNOUNCEMENTS } = await import('../src/data/initialAnnouncements');
@@ -217,5 +218,26 @@ describe('модерация и подтверждение достоверно�
     const a = mergeAnnouncements(body.items, body.hidden, body.checked).find((x) => x.id === verified.id)!;
     assert.equal(a.isVerified, true);
     assert.equal(a.title.ru, verified.title.ru);
+  });
+});
+
+describe('прочтения для «Самого читаемого»', () => {
+  const read = (annId: string, ua = 'Mozilla/5.0') =>
+    track(new Request('http://localhost/api/track', { method: 'POST', headers: { 'user-agent': ua, 'x-forwarded-for': '10.20.0.1' }, body: JSON.stringify({ annId }) }));
+  it('считает прочтения по публикациям и отдаёт список по убыванию, без личных данных', async () => {
+    await read('ann-a-1');
+    await read('ann-b-2');
+    await read('ann-b-2');
+    const r = await track(new Request('http://localhost/api/track?popular=1'));
+    const body = await r.json();
+    assert.equal(body.days, 7);
+    assert.deepEqual(body.items.slice(0, 2), [{ id: 'ann-b-2', reads: 2 }, { id: 'ann-a-1', reads: 1 }]);
+    assert.ok(!JSON.stringify(body).includes('10.20.0.1'));
+  });
+  it('роботы и некорректные id не считаются', async () => {
+    await read('ann-a-1', 'Googlebot/2.1');
+    assert.equal((await read('bad id!')).status, 400);
+    const body = await (await track(new Request('http://localhost/api/track?popular=1'))).json();
+    assert.equal(body.items.find((x: { id: string }) => x.id === 'ann-a-1').reads, 1);
   });
 });

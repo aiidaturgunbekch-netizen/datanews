@@ -4,6 +4,12 @@
  */
 declare const process: { env: Record<string, string | undefined> };
 
+/** Значение из панели Vercel без случайных пробелов, переносов строки и обрамляющих кавычек */
+const tidy = (v: string | undefined) => {
+  const s = (v ?? '').trim().replace(/^(['"])(.*)\1$/s, '$2').trim();
+  return s || undefined;
+};
+
 const read = () => {
   try {
     return {
@@ -32,4 +38,4 @@ export const env = (
     | 'VAPID_PRIVATE_KEY'
     | 'VAPID_SUBJECT'
 ) =>
-  read()[name] || undefined;
+  tidy(read()[name]);

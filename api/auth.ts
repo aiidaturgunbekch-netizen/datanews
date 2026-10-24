@@ -5,6 +5,7 @@
  *   POST { action: 'admin-login', password }
  *   POST { action: 'payment', paymentRef }   (пользователь сообщает номер платежа)
  *   GET                                       (текущий пользователь по токену)
+ *   GET ?check=storage                        (проверка подключения к базе, без секретов)
  */
 import { cmd, hgetJson, hsetJson } from './_lib/kv';
 import {
@@ -31,6 +32,11 @@ const clean = (v: unknown, max = 200) => String(v ?? '').trim().slice(0, max);
 
 export default handler(async (req) => {
   if (req.method === 'GET') {
+    // Проверка подключения к базе без пароля: /api/auth?check=storage → { storage: 'ok' } или код ошибки (без секретов)
+    if (new URL(req.url).searchParams.get('check') === 'storage') {
+      await cmd('PING');
+      return json({ storage: 'ok' });
+    }
     const s = await readSession(req);
     if (!s) return json({ role: 'guest' });
     if (s.role === 'admin') return json({ role: 'admin' });

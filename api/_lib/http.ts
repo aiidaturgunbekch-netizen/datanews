@@ -1,7 +1,7 @@
 /**
  * Общие функции для серверных функций Vercel: ответы, токены входа, пароли.
  */
-import { cmd, isConfigured, StorageNotConfiguredError } from './kv';
+import { cmd, isConfigured, StorageError, StorageNotConfiguredError } from './kv';
 import { env } from './env';
 
 export type Role = 'admin' | 'user';
@@ -33,8 +33,13 @@ export const handler =
         return error('storage_not_configured', 503, 'Подключите Upstash Redis в Vercel (Storage) и задайте ADMIN_PASSWORD');
       }
       if (e instanceof HttpError) return error(e.code, e.status, e.message);
-      console.error(e);
-      return error('server_error', 500);
+      if (e instanceof StorageError) {
+        // В лог — только код и краткая причина, без адреса базы и токена
+        console.error(`[storage] ${e.code}${e.detail ? ` (${e.detail})` : ''}`);
+        return error(e.code, 503, e.message);
+      }
+      console.error('[server]', e instanceof Error ? `${e.name}: ${e.message}` : 'unknown error');
+      return error('server_error', 500, 'Внутренняя ошибка сервера. Подробности — в логах Vercel (Deployments → сборка → Logs).');
     }
   };
 

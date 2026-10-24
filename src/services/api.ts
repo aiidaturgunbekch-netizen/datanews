@@ -53,7 +53,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401 && session) setSession(null);
-    throw new ApiError(data.error || 'error', res.status, data.message || 'Ошибка сервера');
+    throw new ApiError(data.error || 'error', res.status, data.message || `Ошибка сервера (код ${res.status})`);
   }
   return data as T;
 }

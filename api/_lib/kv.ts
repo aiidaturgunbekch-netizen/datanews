@@ -18,8 +18,44 @@ export class StorageNotConfiguredError extends Error {
   }
 }
 
-const restUrl = () => env('KV_REST_API_URL');
+/**
+ * Ошибка подключения к базе с понятной причиной (ответ 503). Сообщение не содержит адреса базы и токена.
+ *   storage_bad_url      — в KV_REST_API_URL не REST-адрес (например, redis://… или адрес без https://)
+ *   storage_auth_failed  — Upstash не принял токен (неверный или от другой базы)
+ *   storage_readonly     — токен «только для чтения»
+ *   storage_unreachable  — база не отвечает
+ *   storage_error        — другой ответ Upstash
+ */
+export class StorageError extends Error {
+  constructor(public code: string, message: string, public detail = '') {
+    super(message);
+  }
+}
+
 const restToken = () => env('KV_REST_API_TOKEN');
+/** REST-адрес Upstash: https://<имя>.upstash.io. Голое имя хоста дополняем https:// */
+const restUrl = () => {
+  const raw = env('KV_REST_API_URL');
+  if (!raw) return undefined;
+  if (/^rediss?:\/\//i.test(raw)) {
+    throw new StorageError(
+      'storage_bad_url',
+      'KV_REST_API_URL содержит адрес вида redis://… Нужен REST-адрес https://…upstash.io из раздела «REST API» консоли Upstash.'
+    );
+  }
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+  let u: URL;
+  try {
+    u = new URL(withScheme);
+  } catch {
+    throw new StorageError('storage_bad_url', 'KV_REST_API_URL не похож на адрес. Нужен REST-адрес https://…upstash.io из консоли Upstash.');
+  }
+  const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+  if (u.protocol !== 'https:' && !(local && u.protocol === 'http:')) {
+    throw new StorageError('storage_bad_url', 'KV_REST_API_URL должен начинаться с https://');
+  }
+  return u.origin + u.pathname.replace(/\/$/, '');
+};
 
 // ---------- in-memory implementation (dev only) ----------
 const mem: { strings: Map<string, string>; hashes: Map<string, Map<string, string>>; sets: Map<string, Set<string>> } =
@@ -39,6 +75,8 @@ const runMemory = (cmd: Cmd): unknown => {
   const [name, ...rawArgs] = cmd;
   const args = rawArgs.map(String);
   switch (String(name).toUpperCase()) {
+    case 'PING':
+      return 'PONG';
     case 'GET':
       return mem.strings.get(args[0]) ?? null;
     case 'SET': {
@@ -102,7 +140,7 @@ const runMemory = (cmd: Cmd): unknown => {
 // ---------- public API ----------
 export const isMemoryMode = () => env('DATANEWS_MEMORY_KV') === '1';
 
-export const isConfigured = () => isMemoryMode() || Boolean(restUrl() && restToken());
+export const isConfigured = () => isMemoryMode() || Boolean(env('KV_REST_API_URL') && restToken());
 
 export async function pipeline(cmds: Cmd[]): Promise<unknown[]> {
   if (cmds.length === 0) return [];
@@ -111,15 +149,40 @@ export async function pipeline(cmds: Cmd[]): Promise<unknown[]> {
   const token = restToken();
   if (!url || !token) throw new StorageNotConfiguredError();
 
-  const res = await fetch(`${url.replace(/\/$/, '')}/pipeline`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(cmds),
-  });
-  if (!res.ok) throw new Error(`redis http ${res.status}`);
-  const data = (await res.json()) as { result?: unknown; error?: string }[];
+  let res: Response;
+  try {
+    res = await fetch(`${url}/pipeline`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(cmds),
+    });
+  } catch (e) {
+    // Недопустимые символы в токене тоже дают исключение fetch — текст ошибки не логируем, в нём может быть заголовок
+    const kind = e instanceof TypeError && /header/i.test(String(e.message)) ? 'bad header' : 'network';
+    throw new StorageError(
+      kind === 'bad header' ? 'storage_auth_failed' : 'storage_unreachable',
+      kind === 'bad header'
+        ? 'KV_REST_API_TOKEN содержит недопустимые символы. Скопируйте токен заново из раздела «REST API» консоли Upstash.'
+        : 'База данных Upstash не отвечает. Проверьте KV_REST_API_URL и что база не удалена.',
+      kind
+    );
+  }
+  if (res.status === 401 || res.status === 403) {
+    throw new StorageError('storage_auth_failed', 'Upstash не принял KV_REST_API_TOKEN: токен неверный или от другой базы. Скопируйте его из раздела «REST API».', `http ${res.status}`);
+  }
+  if (!res.ok) throw new StorageError('storage_error', `Ошибка базы данных Upstash (код ${res.status}).`, `http ${res.status}`);
+  let data: { result?: unknown; error?: string }[];
+  try {
+    data = (await res.json()) as { result?: unknown; error?: string }[];
+  } catch {
+    throw new StorageError('storage_error', 'Upstash вернул неожиданный ответ. Проверьте, что KV_REST_API_URL — REST-адрес базы.', 'bad json');
+  }
+  if (!Array.isArray(data)) throw new StorageError('storage_error', 'Upstash вернул неожиданный ответ. Проверьте, что KV_REST_API_URL — REST-адрес базы.', 'not array');
   return data.map((r) => {
-    if (r.error) throw new Error(`redis: ${r.error}`);
+    if (r.error && /NOPERM/i.test(r.error)) {
+      throw new StorageError('storage_readonly', 'KV_REST_API_TOKEN — токен «только для чтения». Нужен основной токен из раздела «REST API» (не Read-Only).', 'noperm');
+    }
+    if (r.error) throw new StorageError('storage_error', 'База данных отклонила команду.', r.error.slice(0, 80));
     return r.result;
   });
 }

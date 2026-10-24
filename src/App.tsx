@@ -441,10 +441,10 @@ export default function App() {
             {!rubric && selectedCategory === 'all' && (
               <>
                 {/* Главное: одна главная история, важные рядом и действующие предупреждения */}
-                <section className="w-full bg-white pt-6 pb-10 sm:pt-8 sm:pb-12" aria-labelledby="top-stories-title">
+                <section className="w-full bg-white pt-4 pb-10 sm:pt-5 sm:pb-12" aria-labelledby="top-stories-title">
                   <div className="max-w-[1280px] mx-auto px-4 md:px-6">
                     {/* Подпись над обеими колонками — верх главной фотографии и блока предупреждений на одной линии */}
-                    <h2 id="top-stories-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-4">
+                    <h2 id="top-stories-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-3">
                       {currentLanguage === 'kg' ? 'Башкы жаңылыктар' : currentLanguage === 'en' ? 'Top stories' : 'Главное'}
                     </h2>
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">

@@ -64,7 +64,7 @@ export const SocialLinks: React.FC<{ lang: Language; className?: string }> = ({ 
     { key: 'ig', href: CONTACTS.instagramUrl, label: `Instagram ${CONTACTS.instagramHandle}` },
   ];
   return (
-    <ul className={`flex items-center gap-3 ${className}`} aria-label={lang === 'kg' ? 'Социалдык тармактар' : lang === 'en' ? 'Social media' : 'Социальные сети'}>
+    <ul className={`flex items-center gap-2.5 ${className}`} aria-label={lang === 'kg' ? 'Социалдык тармактар' : lang === 'en' ? 'Social media' : 'Социальные сети'}>
       {items.map((i) => (
         <li key={i.key}>
           <a
@@ -73,9 +73,9 @@ export const SocialLinks: React.FC<{ lang: Language; className?: string }> = ({ 
             rel="noopener noreferrer"
             aria-label={i.label}
             title={i.label}
-            className="w-11 h-11 rounded-full border border-[#12327A]/25 text-[#12327A] hover:bg-[#12327A] hover:text-white focus-visible:ring-2 focus-visible:ring-[#12327A] transition-colors flex items-center justify-center"
+            className="w-9 h-9 rounded-full border border-[#12327A]/25 text-[#12327A] hover:bg-[#12327A] hover:text-white focus-visible:ring-2 focus-visible:ring-[#12327A] transition-colors flex items-center justify-center"
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
               {SOCIAL_ICONS[i.key]}
             </svg>
           </a>

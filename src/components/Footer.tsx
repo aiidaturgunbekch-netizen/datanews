@@ -15,8 +15,8 @@ type Link = { label: Record<Language, string>; onClick: () => void };
 /** Колонка ссылок подвала */
 const Column: React.FC<{ title: string; links: Link[]; lang: Language }> = ({ title, links, lang }) => (
   <div>
-    <h4 className="text-xs font-bold text-[#0f1b33] mb-5 uppercase tracking-wider">{title}</h4>
-    <ul className="space-y-3 text-sm text-gray-600">
+    <h4 className="text-[11px] font-bold text-[#0f1b33] mb-3 uppercase tracking-wider">{title}</h4>
+    <ul className="space-y-2 text-[13px] leading-snug text-gray-600">
       {links.map((l) => (
         <li key={l.label.ru}>
           <button type="button" onClick={l.onClick} className="hover:text-[#12327A] transition-colors text-left">
@@ -52,12 +52,13 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigat
 
   return (
     <footer className="w-full bg-[#f1f4fa] border-t border-gray-200">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 pt-14 pb-10">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 mb-12">
+      {/* Снизу запас под плавающую кнопку чат-бота, чтобы она не закрывала текст */}
+      <div className="max-w-[1280px] mx-auto px-4 md:px-6 pt-10 pb-20">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-12 gap-x-6 gap-y-8 lg:gap-8 mb-8">
           {/* Бренд */}
-          <div className="lg:col-span-4">
-            <Logo className="h-10 mb-5" lang={lang} />
-            <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{t('appSlogan')}</p>
+          <div className="col-span-2 sm:col-span-3 lg:col-span-4">
+            <Logo className="h-8 mb-3" lang={lang} />
+            <p className="text-[13px] text-gray-600 leading-snug max-w-xs">{t('appSlogan')}</p>
           </div>
 
           <div className="lg:col-span-2">
@@ -72,16 +73,17 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigat
 
           {/* Контакты — только значки соцсетей */}
           <div className="lg:col-span-2">
-            <h4 className="text-xs font-bold text-[#0f1b33] mb-5 uppercase tracking-wider">
+            <h4 className="text-[11px] font-bold text-[#0f1b33] mb-3 uppercase tracking-wider">
               {lang === 'kg' ? 'Байланыштар' : lang === 'en' ? 'Contacts' : 'Контакты'}
             </h4>
             <SocialLinks lang={lang} />
           </div>
         </div>
 
-        <div className="pt-6 border-t border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs text-gray-600">
-          <p className="max-w-2xl leading-relaxed">{t('disclaimer.bannerText')}</p>
-          <p className="shrink-0">{t('disclaimer.copyright')}</p>
+        {/* Нижняя строка: обе фразы одного размера, выровнены по одному краю */}
+        <div className="pt-5 border-t border-gray-200 space-y-1 text-xs leading-relaxed text-gray-600">
+          <p>{t('disclaimer.bannerText')}</p>
+          <p>{t('disclaimer.copyright')}</p>
         </div>
       </div>
     </footer>

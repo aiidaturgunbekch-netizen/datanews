@@ -28,6 +28,7 @@ import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { SectionsDrawer } from './components/SectionsDrawer';
 import { MainAlerts } from './components/MainAlerts';
 import { TopStories } from './components/TopStories';
+import { RubricIndex } from './components/RubricIndex';
 import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
 import { FullCalendarView } from './components/FullCalendarView';
@@ -40,7 +41,7 @@ import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel'
 import { EmergencyBox, HydrometLine, WeatherSafety } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
 import { freshOrder, isFresh } from './utils/statusUtils';
-import { rubricOf } from './config/rubrics';
+import { diversePick, importanceOf, rubricOf } from './config/rubrics';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -212,15 +213,30 @@ export default function App() {
     [announcements, selectedCity]
   );
   const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
-  // «Главное»: одна главная история и четыре важных — из актуального (не предупреждения: у них свой блок рядом)
+  // «Главное»: одна главная история и четыре важных — из актуального (не предупреждения: у них свой блок рядом).
+  // Порядок: срочная строка, затем значимость раздела (решения государства — выше досуга), затем свежесть;
+  // не больше двух материалов одной рубрики, чтобы серьёзное шло вперемешку с интересным
   const topStories = useMemo(
     () =>
-      eventsList
-        .filter((a) => isFresh(a))
-        .sort((a, b) => Number(Boolean(b.isUrgentTicker)) - Number(Boolean(a.isUrgentTicker)) || freshOrder(a, b))
-        .slice(0, 5),
+      diversePick(
+        eventsList
+          .filter((a) => isFresh(a))
+          .sort(
+            (a, b) =>
+              Number(Boolean(b.isUrgentTicker)) - Number(Boolean(a.isUrgentTicker)) ||
+              importanceOf(a.category) - importanceOf(b.category) ||
+              freshOrder(a, b)
+          ),
+        5
+      ),
     [eventsList]
   );
+  // Главной историей ставим материал с настоящей фотографией (из первых трёх по значимости), остальные — следом
+  const topOrdered = useMemo(() => {
+    const hasPhoto = (a: Announcement) => Boolean(a.imageUrl) && !a.imageUrl!.startsWith('/illustrations/');
+    const i = topStories.slice(0, 3).findIndex(hasPhoto);
+    return i > 0 ? [topStories[i], ...topStories.filter((_, j) => j !== i)] : topStories;
+  }, [topStories]);
   // Лента ниже не повторяет материалы из «Главного»
   const feedList = useMemo(() => {
     const top = new Set(topStories.map((a) => a.id));
@@ -340,7 +356,7 @@ export default function App() {
 
       {/* Main Content Area (padding-top accounts for header + urgent ticker) */}
       {/* Отступ сверху = высота шапки: служебная строка 36px + основная 56px + рубрики 44px */}
-      <main className="flex-1 w-full pt-[136px]">
+      <main className="flex-1 w-full pt-[var(--header-h,136px)]">
         {/* VIEW: HOME */}
         {currentView === 'home' && (
           <div className="w-full flex flex-col">
@@ -411,15 +427,22 @@ export default function App() {
                   <div className="max-w-[1280px] mx-auto px-4 md:px-6">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
                       <div className="lg:col-span-8 min-w-0">
-                        <TopStories lang={currentLanguage} stories={topStories} onOpen={setActiveNoticeDetail} />
+                        <TopStories lang={currentLanguage} stories={topOrdered} onOpen={setActiveNoticeDetail} />
                       </div>
-                      <div className="lg:col-span-4 min-w-0">
+                      <div className="lg:col-span-4 min-w-0 space-y-6">
                         <MainAlerts
                           lang={currentLanguage}
                           alerts={alertsList}
                           city={selectedCity}
                           onOpen={setActiveNoticeDetail}
                           onOpenAll={() => setCurrentView('alerts')}
+                        />
+                        <InteractiveCalendar
+                          currentLanguage={currentLanguage}
+                          announcements={announcements}
+                          selectedDate={calendarSelectedDate}
+                          onSelectDate={setCalendarSelectedDate}
+                          onSelectAnnouncement={setActiveNoticeDetail}
                         />
                       </div>
                     </div>
@@ -436,7 +459,7 @@ export default function App() {
                 />
 
                 {/* Лента (без повторов из «Главного»), сбоку — календарь и экстренные службы */}
-                <section id="events-feed" className="w-full py-12 sm:py-16 bg-[#f6f8fd] border-t border-gray-200 scroll-mt-40">
+                <section id="events-feed" className="w-full py-12 sm:py-16 bg-[#f6f8fd] border-t border-gray-200 scroll-mt-[calc(var(--header-h,136px)+1rem)]">
                   <div className="max-w-[1280px] mx-auto px-4 md:px-6">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                       <div className="lg:col-span-8 min-w-0">
@@ -448,14 +471,8 @@ export default function App() {
                           onOpenFullCalendar={() => setCurrentView('calendar')}
                         />
                       </div>
-                      <aside className="lg:col-span-4 min-w-0 space-y-6">
-                        <InteractiveCalendar
-                          currentLanguage={currentLanguage}
-                          announcements={announcements}
-                          selectedDate={calendarSelectedDate}
-                          onSelectDate={setCalendarSelectedDate}
-                          onSelectAnnouncement={setActiveNoticeDetail}
-                        />
+                      <aside className="lg:col-span-4 min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
+                        <RubricIndex lang={currentLanguage} announcements={announcements} inScope={(a) => matchesScope(a, true)} onSelect={selectRubric} />
                         <EmergencyBox lang={currentLanguage} />
                       </aside>
                     </div>

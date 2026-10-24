@@ -42,9 +42,9 @@ export const TopStories: React.FC<{ lang: Language; stories: Announcement[]; onO
       <h2 id="top-stories-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-4">
         {T.title[lang]}
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 lg:gap-8">
-        {/* Главная история */}
-        <article className="md:col-span-3">
+      <div>
+        {/* Главная история — на всю ширину колонки */}
+        <article>
           <button type="button" onClick={() => onOpen(lead)} className="group w-full text-left focus-visible:outline-none">
             <EventImage item={lead} lang={lang} className="w-full aspect-[16/9] rounded-xl mb-4" />
             <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -61,12 +61,12 @@ export const TopStories: React.FC<{ lang: Language; stories: Announcement[]; onO
           </button>
         </article>
 
-        {/* Важные рядом */}
+        {/* Важные — под главной, в две колонки */}
         {rest.length > 0 && (
-          <ul className="md:col-span-2 divide-y divide-gray-200 border-t border-gray-200 md:border-t-0">
+          <ul className="mt-8 pt-6 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
             {rest.map((a) => (
               <li key={a.id}>
-                <button type="button" onClick={() => onOpen(a)} className="group w-full text-left py-4 md:first:pt-0 flex gap-4">
+                <button type="button" onClick={() => onOpen(a)} className="group w-full text-left flex gap-4">
                   <span className="flex-1 min-w-0">
                     <span className="flex flex-wrap items-center gap-2 mb-1">
                       {label(a)}

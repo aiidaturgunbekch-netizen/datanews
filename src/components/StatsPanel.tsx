@@ -282,7 +282,7 @@ export const CategoryResults: React.FC<{
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   return (
-    <section id="category-results" className="w-full py-10 bg-white border-b border-gray-100 scroll-mt-40">
+    <section id="category-results" className="w-full py-10 bg-white border-b border-gray-100 scroll-mt-[calc(var(--header-h,136px)+1rem)]">
       <div className="max-w-[1280px] mx-auto px-4 md:px-6">
         <button
           onClick={goHome}

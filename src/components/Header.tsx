@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { PLACE_IDS } from '../config/regions';
 import { Language, CityId, ViewMode, Announcement } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -50,12 +50,24 @@ export const Header: React.FC<HeaderProps> = ({
 
   const cityLabels = Object.fromEntries([...PLACE_IDS, 'karakol'].map((id) => [id, t(`cities.${id}`)])) as Record<CityId, string>;
 
+  // Высота шапки меняется (строка рубрик переносится на узких экранах) — сообщаем её странице через CSS-переменную
+  const headerRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const apply = () => document.documentElement.style.setProperty('--header-h', `${el.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const today = new Date();
   const todayLabel = `${WEEKDAYS[currentLanguage][today.getDay()]}, ${formatDayMonth(today, currentLanguage)}`;
   const sectionsLabel = currentLanguage === 'kg' ? 'Бөлүмдөр' : currentLanguage === 'en' ? 'Sections' : 'Разделы';
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 text-white shadow-[0_2px_12px_rgba(0,0,0,0.15)]">
+    <header ref={headerRef} className="fixed top-0 inset-x-0 z-50 text-white shadow-[0_2px_12px_rgba(0,0,0,0.15)]">
       {/* Служебная строка: дата, для организаций, язык */}
       <div className="h-9 bg-[#081a42] border-b border-white/10">
         <div className="h-full max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-4 text-xs">
@@ -203,16 +215,20 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Строка рубрик: главные страницы и рубрики, сгруппированные по смыслу (на телефоне — прокрутка вбок) */}
-      <nav aria-label={currentLanguage === 'kg' ? 'Рубрикалар' : currentLanguage === 'en' ? 'Sections' : 'Рубрики'} className="bg-white border-b border-gray-200 text-[#0f1b33]">
-        <div className="max-w-[1280px] mx-auto px-1 sm:px-2 md:px-4 overflow-x-auto scrollbar-none">
-          <ul className="flex items-stretch h-11 min-w-max">
+      <nav
+        aria-label={currentLanguage === 'kg' ? 'Рубрикалар' : currentLanguage === 'en' ? 'Sections' : 'Рубрики'}
+        className="relative bg-white border-b border-gray-200 text-[#0f1b33] after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-10 after:bg-gradient-to-l after:from-white after:to-transparent after:pointer-events-none md:after:hidden"
+      >
+        {/* Телефон — одна строка с прокруткой; ноутбук и шире — рубрики переносятся, ни одна не обрезается */}
+        <div className="max-w-[1280px] mx-auto px-1 sm:px-2 md:px-4 overflow-x-auto md:overflow-visible scrollbar-none">
+          <ul className="flex items-stretch min-w-max md:min-w-0 md:flex-wrap">
             {[
               { key: 'home', label: t('nav.home'), active: currentView === 'home' && !activeRubric, onClick: () => { onSelectRubric(null); onViewChange('home'); } },
               { key: 'alerts', label: t('nav.alerts'), active: currentView === 'alerts', onClick: () => { onSelectRubric(null); onViewChange('alerts'); } },
               ...RUBRICS.map((r) => ({ key: r.id, label: r.label[currentLanguage], active: currentView === 'home' && activeRubric === r.id, onClick: () => onSelectRubric(r.id) })),
               { key: 'calendar', label: t('nav.calendar'), active: currentView === 'calendar', onClick: () => { onSelectRubric(null); onViewChange('calendar'); } },
             ].map((item) => (
-              <li key={item.key} className="flex">
+              <li key={item.key} className="flex h-11">
                 <button
                   type="button"
                   onClick={item.onClick}

@@ -78,14 +78,36 @@ export const setMailSettings = async (enabled: boolean): Promise<MailSettings> =
   return v;
 };
 
-/** Состояние приёма для панели — без значений секретов */
-export const mailStatus = async () => ({
-  ...(await getMailSettings()),
+export const MIN_SECRET_LENGTH = 32;
+export type SecretState = 'ok' | 'missing' | 'too_short';
+
+/** Есть ли секрет подписи в этой сборке — только состояние, без значения, фрагментов и длины */
+export const secretState = (): SecretState => {
+  const s = env('MAIL_INGEST_SECRET') || '';
+  if (!s) return 'missing';
+  return s.length < MIN_SECRET_LENGTH ? 'too_short' : 'ok';
+};
+
+/** Какая это сборка: окружение, ветка и короткий номер коммита (Vercel задаёт их сам, они не секретны) */
+export const buildInfo = () => ({
   environment: deployEnv(),
-  productionBlocked: deployEnv() === 'production',
-  secretConfigured: (env('MAIL_INGEST_SECRET') || '').length >= 32,
-  envSwitchOff: env('MAIL_INGEST_ENABLED') === '0',
+  branch: (env('VERCEL_GIT_COMMIT_REF') || '').slice(0, 120) || undefined,
+  commit: /^[0-9a-f]{7,40}$/i.test(env('VERCEL_GIT_COMMIT_SHA') || '') ? env('VERCEL_GIT_COMMIT_SHA')!.slice(0, 7) : undefined,
 });
+
+/** Состояние приёма для панели — без значений секретов */
+export const mailStatus = async () => {
+  const state = secretState();
+  return {
+    ...(await getMailSettings()),
+    environment: deployEnv(),
+    build: buildInfo(),
+    productionBlocked: deployEnv() === 'production',
+    secretState: state,
+    secretConfigured: state === 'ok',
+    envSwitchOff: env('MAIL_INGEST_ENABLED') === '0',
+  };
+};
 
 /**
  * Можно ли сейчас принимать письма. Порядок: Production → выключатель в Vercel → выключатель в панели.
@@ -99,9 +121,10 @@ export const assertIngestOpen = async () => {
 
 /** Секрет приёма почты; без него приём недоступен */
 const ingestSecret = () => {
-  const s = env('MAIL_INGEST_SECRET') || '';
-  if (s.length < 32) throw new HttpError('mail_not_configured', 503, 'Приём писем не настроен: задайте MAIL_INGEST_SECRET (не короче 32 символов) в Vercel');
-  return s;
+  const state = secretState();
+  if (state === 'missing') throw new HttpError('mail_not_configured', 503, 'Приём писем не настроен: секрет MAIL_INGEST_SECRET не задан в этой сборке');
+  if (state === 'too_short') throw new HttpError('mail_not_configured', 503, `Приём писем не настроен: секрет MAIL_INGEST_SECRET короче ${MIN_SECRET_LENGTH} символов`);
+  return env('MAIL_INGEST_SECRET')!;
 };
 
 /**

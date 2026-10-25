@@ -326,6 +326,106 @@ describe('действия редактора', () => {
   });
 });
 
+describe('состояние секрета и сборки в панели', () => {
+  const status = async () => {
+    const r = await sources(new Request(`${BASE}?mail=settings`, { headers: { Authorization: `Bearer ${admin}` } }));
+    return { status: r.status, text: await r.text() };
+  };
+  /** Всё, что пишется в консоль (логи), — чтобы убедиться, что секрета там нет */
+  const captureConsole = async (fn: () => Promise<void>) => {
+    const out: string[] = [];
+    const orig = { log: console.log, error: console.error, warn: console.warn, info: console.info };
+    for (const k of Object.keys(orig) as (keyof typeof orig)[]) console[k] = (...a: unknown[]) => void out.push(a.map(String).join(' '));
+    try {
+      await fn();
+    } finally {
+      Object.assign(console, orig);
+    }
+    return out.join('\n');
+  };
+
+  it('«Секрет задан» — без значения, фрагментов и длины', async () => {
+    const r = await status();
+    assert.equal(r.status, 200);
+    const st = JSON.parse(r.text);
+    assert.equal(st.secretState, 'ok');
+    assert.equal(st.secretConfigured, true);
+    assert.ok(!r.text.includes(SECRET) && !r.text.includes(SECRET.slice(0, 8)) && !r.text.includes(SECRET.slice(-8)));
+    assert.ok(!r.text.includes(String(SECRET.length)), 'длина секрета не выводится');
+  });
+
+  it('«Секрет не задан в этой сборке»', async () => {
+    delete process.env.MAIL_INGEST_SECRET;
+    try {
+      const st = JSON.parse((await status()).text);
+      assert.equal(st.secretState, 'missing');
+      assert.equal(st.secretConfigured, false);
+      const r = await send(await signed(letter()));
+      assert.equal(r.status, 503);
+      assert.match(r.body.message, /не задан в этой сборке/);
+    } finally {
+      process.env.MAIL_INGEST_SECRET = SECRET;
+    }
+  });
+
+  it('«Секрет задан, но короче 32 символов» — значение и длина не выводятся, в логах секрета нет', async () => {
+    const SHORT = 'short-secret-Qw7';
+    process.env.MAIL_INGEST_SECRET = SHORT;
+    try {
+      let text = '';
+      let ingestText = '';
+      const logs = await captureConsole(async () => {
+        text = (await status()).text;
+        ingestText = await (await sources(await signed(letter(), { secret: SHORT }))).text();
+      });
+      const st = JSON.parse(text);
+      assert.equal(st.secretState, 'too_short');
+      assert.equal(st.secretConfigured, false);
+      assert.match(JSON.parse(ingestText).message, /короче 32 символов/);
+      for (const t of [text, ingestText, logs]) {
+        assert.ok(!t.includes(SHORT) && !t.includes(SHORT.slice(0, 6)), 'секрет и его части не выводятся');
+        assert.ok(!new RegExp(`\\b${SHORT.length}\\b`).test(t), 'длина секрета не выводится');
+      }
+    } finally {
+      process.env.MAIL_INGEST_SECRET = SECRET;
+    }
+  });
+
+  it('секрет не попадает в логи при приёме письма, ошибке подписи и сбое', async () => {
+    const logs = await captureConsole(async () => {
+      await sources(await signed(letter()));
+      await sources(await signed(letter(), { secret: 'y'.repeat(40) }));
+      await status();
+    });
+    assert.ok(!logs.includes(SECRET) && !logs.includes(SECRET.slice(0, 8)));
+  });
+
+  it('сборка: окружение, ветка и короткий номер коммита', async () => {
+    process.env.VERCEL_ENV = 'preview';
+    process.env.VERCEL_GIT_COMMIT_REF = 'claude/datanews-events-moderation-stats-w1kyl5';
+    process.env.VERCEL_GIT_COMMIT_SHA = '42e856f0123456789abcdef0123456789abcdef0';
+    try {
+      const st = JSON.parse((await status()).text);
+      assert.deepEqual(st.build, { environment: 'preview', branch: 'claude/datanews-events-moderation-stats-w1kyl5', commit: '42e856f' });
+    } finally {
+      delete process.env.VERCEL_ENV;
+      delete process.env.VERCEL_GIT_COMMIT_REF;
+      delete process.env.VERCEL_GIT_COMMIT_SHA;
+    }
+  });
+
+  it('приём почты по умолчанию выключен (новая база)', async () => {
+    const { MAIL_SETTINGS_KEY, getMailSettings } = await import('../api/_lib/mail');
+    const saved = await cmd<string | null>('GET', MAIL_SETTINGS_KEY);
+    await cmd('DEL', MAIL_SETTINGS_KEY);
+    try {
+      assert.equal((await getMailSettings()).enabled, false);
+    } finally {
+      if (saved) await cmd('SET', MAIL_SETTINGS_KEY, saved);
+    }
+  });
+});
+
 describe('настройка и сбои', () => {
   it('без секрета приём выключен — 503, письмо не сохраняется', async () => {
     delete process.env.MAIL_INGEST_SECRET;

@@ -145,7 +145,10 @@ export interface MailIngestStatus {
   at?: string;
   environment: 'production' | 'preview' | 'local';
   productionBlocked: boolean;
+  /** ok — задан; missing — не задан в этой сборке; too_short — задан, но короче 32 символов */
+  secretState: 'ok' | 'missing' | 'too_short';
   secretConfigured: boolean;
+  build: { environment: 'production' | 'preview' | 'local'; branch?: string; commit?: string };
   envSwitchOff: boolean;
 }
 export const fetchMailStatus = () => request<MailIngestStatus>('sources?mail=settings');

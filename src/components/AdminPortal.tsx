@@ -321,8 +321,21 @@ const MailSwitchBox: React.FC = () => {
         )}
       </div>
       {st?.productionBlocked && <p className="text-xs font-semibold text-gray-700 mt-2">На основном сайте приём почты отключён — он работает только в Preview.</p>}
-      {st && !st.productionBlocked && !st.secretConfigured && (
-        <p className="text-xs font-semibold text-amber-800 mt-2">Секрет подписи MAIL_INGEST_SECRET в Vercel не задан — письма приниматься не будут.</p>
+      {st && !st.productionBlocked && (
+        <p className={`text-xs font-semibold mt-2 ${st.secretState === 'ok' ? 'text-emerald-700' : 'text-amber-800'}`}>
+          {st.secretState === 'ok'
+            ? 'Секрет подписи MAIL_INGEST_SECRET задан.'
+            : st.secretState === 'too_short'
+              ? 'Секрет подписи MAIL_INGEST_SECRET задан, но короче 32 символов — письма приниматься не будут.'
+              : 'Секрет подписи MAIL_INGEST_SECRET не задан в этой сборке — письма приниматься не будут.'}
+        </p>
+      )}
+      {st?.build && (
+        <p className="text-xs text-gray-500 mt-1">
+          Сборка: {st.build.environment === 'production' ? 'Production' : st.build.environment === 'preview' ? 'Preview' : 'локальный запуск'}
+          {st.build.branch ? ` · ветка ${st.build.branch}` : ''}
+          {st.build.commit ? ` · коммит ${st.build.commit}` : ''}
+        </p>
       )}
       {st?.envSwitchOff && <p className="text-xs font-semibold text-amber-800 mt-2">В Vercel задано MAIL_INGEST_ENABLED=0 — приём выключен независимо от этого выключателя.</p>}
       {st?.at && <p className="text-xs text-gray-500 mt-2">Последнее изменение: {formatKgDateTime(st.at)}</p>}

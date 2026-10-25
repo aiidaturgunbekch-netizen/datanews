@@ -61,10 +61,11 @@ export const EmergencyBox: React.FC<{ lang: Language }> = ({ lang }) => (
         <li key={e.phone}>
           <a
             href={`tel:${e.phone}`}
-            className="flex items-center gap-2.5 h-full rounded-xl bg-[#f3f6fc] hover:bg-[#e6ecf8] focus-visible:ring-2 focus-visible:ring-[#12327A] px-3 py-2.5"
+            className="flex flex-col items-start gap-1 h-full min-w-0 rounded-xl bg-[#f3f6fc] hover:bg-[#e6ecf8] focus-visible:ring-2 focus-visible:ring-[#12327A] px-3 py-2.5"
           >
-            <span className="text-lg font-black text-[#12327A] tabular-nums">{e.phone}</span>
-            <span className="text-xs text-gray-700 leading-tight">{e.name[lang]}</span>
+            {/* Номер сверху, название под ним — длинные названия («…реагирования (МЧС)») остаются внутри плитки */}
+            <span className="text-lg font-black text-[#12327A] tabular-nums leading-none">{e.phone}</span>
+            <span className="w-full text-xs text-gray-700 leading-snug [overflow-wrap:anywhere] hyphens-auto">{e.name[lang]}</span>
           </a>
         </li>
       ))}

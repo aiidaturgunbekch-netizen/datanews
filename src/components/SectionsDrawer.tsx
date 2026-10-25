@@ -60,7 +60,8 @@ export const SectionsDrawer: React.FC<SectionsDrawerProps> = ({
   const title = lang === 'kg' ? 'Бөлүмдөр' : lang === 'en' ? 'Sections' : 'Разделы';
 
   return (
-    <div className={`fixed inset-0 z-[60] ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open}>
+    // inert: у закрытого меню кнопки недоступны и для клавиши Tab, и для программ чтения с экрана
+    <div className={`fixed inset-0 z-[60] ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open} inert={!open}>
       <div
         className={`absolute inset-0 bg-[#0d2459]/40 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}

@@ -28,6 +28,8 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   const now = new Date();
   const [currentYear, setCurrentYear] = useState(() => now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => now.getMonth()); // 9 = October
+  // На телефоне по умолчанию — компактная полоса ближайших 7 дней, весь месяц — по нажатию
+  const [expanded, setExpanded] = useState(false);
 
 
   const handlePrevMonth = () => {
@@ -95,8 +97,64 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   // Today string
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
+  const localStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const weekStrip = Array.from({ length: 7 }, (_, i) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + i));
+  const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+  /** Цветные точки дня: красная мигающая — срочное (0–3 дня), жёлтая — предупреждение позже, бирюзовая — событие */
+  const Dots = ({ dateStr, isSelected }: { dateStr: string; isSelected: boolean }) => {
+    const dayItems = itemsByDate[dateStr] || [];
+    const hasEmergency = dayItems.some((i) => alertLevel(i) === 'urgent');
+    const hasPlanned = dayItems.some((i) => alertLevel(i) === 'soon');
+    const hasEvent = dayItems.some((i) => !isAlert(i) && i.status !== 'cancelled');
+    return (
+      <span className="flex items-center gap-0.5 mt-0.5 h-1.5">
+        {hasEmergency && <span className={`w-1.5 h-1.5 rounded-full dn-urgent-blink ${isSelected ? 'bg-red-300' : 'bg-red-600'}`} />}
+        {hasPlanned && <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-200' : 'bg-amber-400'}`} />}
+        {hasEvent && <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-[#68f9e5]' : 'bg-[#20C7B5]'}`} />}
+      </span>
+    );
+  };
+  const toggleLabel = expanded
+    ? currentLanguage === 'kg' ? 'Жыйноо' : currentLanguage === 'en' ? 'Collapse' : 'Свернуть'
+    : currentLanguage === 'kg' ? 'Бүт ай' : currentLanguage === 'en' ? 'Whole month' : 'Весь месяц';
+
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
+      {/* Телефон: ближайшие 7 дней одной строкой */}
+      <div className={expanded ? 'hidden' : 'lg:hidden'}>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <span className="text-base font-bold text-[#0f1b33]">{t('views.calendar')}</span>
+          <button type="button" onClick={() => setExpanded(true)} aria-expanded={false} className="text-sm font-bold text-[#12327A] inline-flex items-center gap-0.5">
+            {toggleLabel}
+            <span className="material-symbols-outlined text-[18px]">expand_more</span>
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {weekStrip.map((d) => {
+            const dateStr = localStr(d);
+            const isSelected = selectedDate === dateStr;
+            const wk = WEEKDAY_KEYS[d.getDay()];
+            return (
+              <button
+                key={dateStr}
+                type="button"
+                onClick={() => onSelectDate(dateStr)}
+                aria-pressed={isSelected}
+                className={`py-1.5 rounded-xl font-bold flex flex-col items-center ${
+                  isSelected ? 'bg-[#12327A] text-white' : dateStr === todayStr ? 'bg-blue-50 text-[#12327A] ring-1 ring-[#20C7B5]' : 'text-gray-700'
+                }`}
+              >
+                <span className={`text-[10px] uppercase ${isSelected ? 'text-white/80' : wk === 'sat' || wk === 'sun' ? 'text-[#dc2626]' : 'text-gray-500'}`}>{t(`days.${wk}`)}</span>
+                <span className="text-sm">{d.getDate()}</span>
+                <Dots dateStr={dateStr} isSelected={isSelected} />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className={expanded ? '' : 'hidden lg:block'}>
       {/* Month Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -108,6 +166,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           </span>
         </div>
         <div className="flex items-center gap-1">
+          <button type="button" onClick={() => setExpanded(false)} className="lg:hidden mr-1 text-sm font-bold text-[#12327A] inline-flex items-center whitespace-nowrap" aria-expanded={true}>
+            {toggleLabel}
+            <span className="material-symbols-outlined text-[18px]">expand_less</span>
+          </button>
           <button
             type="button"
             onClick={handlePrevMonth}
@@ -148,7 +210,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
         {Array.from({ length: startOffset }).map((_, idx) => {
           const prevDayNum = daysInPrevMonth - startOffset + idx + 1;
           return (
-            <span key={`prev-${idx}`} className="py-2 text-gray-300 font-medium select-none">
+            <span key={`prev-${idx}`} aria-hidden="true" className="py-2 text-gray-500 font-normal select-none">
               {prevDayNum}
             </span>
           );
@@ -162,13 +224,6 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           const dateStr = `${currentYear}-${padMonth}-${padDay}`;
           const isSelected = selectedDate === dateStr;
           const isToday = todayStr === dateStr;
-          const dayItems = itemsByDate[dateStr] || [];
-
-          // Красная мигающая точка — срочное предупреждение (0–3 дня), жёлтая — предупреждение позже, бирюзовая — событие
-          const hasEmergency = dayItems.some((i) => alertLevel(i) === 'urgent');
-          const hasPlanned = dayItems.some((i) => alertLevel(i) === 'soon');
-          const hasEvent = dayItems.some((i) => !isAlert(i) && i.status !== 'cancelled');
-
           return (
             <button
               key={dateStr}
@@ -184,37 +239,14 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
             >
               <span>{dayNum}</span>
 
-              {/* Indicator Dots */}
-              <span className="flex items-center gap-0.5 mt-0.5 h-1.5">
-                {hasEmergency && (
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full dn-urgent-blink ${
-                      isSelected ? 'bg-red-300' : 'bg-red-600'
-                    }`}
-                  />
-                )}
-                {hasPlanned && (
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isSelected ? 'bg-amber-200' : 'bg-amber-400'
-                    }`}
-                  />
-                )}
-                {hasEvent && (
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isSelected ? 'bg-[#68f9e5]' : 'bg-[#20C7B5]'
-                    }`}
-                  />
-                )}
-              </span>
+              <Dots dateStr={dateStr} isSelected={isSelected} />
             </button>
           );
         })}
       </div>
 
       {/* Calendar Color Legend */}
-      <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100 mb-4">
+      <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-red-600" />
           <span>{t('views.legendEmergency')}</span>
@@ -229,8 +261,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
         </span>
       </div>
 
+      </div>
+
       {/* Selected Day Summary Box */}
-      <div className="p-3.5 rounded-xl bg-[#f8fafc] border border-gray-100">
+      <div className="mt-4 p-3.5 rounded-xl bg-[#f8fafc] border border-gray-100">
         <div className="flex items-center justify-between mb-2.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#12327A]">
             {t('views.selectedDate')}:{' '}

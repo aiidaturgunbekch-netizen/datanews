@@ -6,7 +6,7 @@ import { StorageService } from '../services/storage';
 import { EventImage } from './EventImage';
 import { PaidBadge } from './PaidBadge';
 import { ticketLink } from '../utils/links';
-import { MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT, formatDate } from '../utils/dates';
+import { MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT, formatDate, formatWhen } from '../utils/dates';
 import { freshOrder, getAnnouncementDisplayStatus, getStatusBadgeConfig, isFresh } from '../utils/statusUtils';
 
 interface EventsFeedProps {
@@ -66,11 +66,8 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
       {/* Section Header Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-[#00796b] text-xs font-bold uppercase tracking-wider mb-1">
-            <span className="material-symbols-outlined text-[16px]">calendar_today</span>
-            <span>{t('sections.upcomingSubtitle')}</span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f1b33] tracking-tight">
+          <div className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-1">{t('sections.upcomingSubtitle')}</div>
+          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#0f1b33]">
             {t('sections.upcomingTitle')}
           </h2>
         </div>
@@ -202,138 +199,77 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
           )}
         </div>
       ) : displayMode === 'list' ? (
-        <div className="space-y-4">
+        /* Список в стиле новостной ленты: строки без теней, маленькое фото справа, вся строка — ссылка на статью */
+        <ul className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-200 px-4 sm:px-5">
           {filteredEvents.slice(0, visibleCount).map((item) => {
-            const startDate = new Date(item.startDate);
             const isFav = favorites.includes(item.id);
-            const dayNum = String(startDate.getDate()).padStart(2, '0');
-            const monthStr = getMonthLabel(startDate);
-            const weekdayStr = getWeekdayLabel(startDate);
-
             const displayStatus = getAnnouncementDisplayStatus(item);
             const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
-
             const title = item.title[currentLanguage] || item.title.ru;
             const location = item.location[currentLanguage] || item.location.ru;
             const price = item.eventDetails?.priceText
               ? item.eventDetails.priceText[currentLanguage] || item.eventDetails.priceText.ru
               : null;
+            const tickets = ticketLink(item);
 
             return (
-              <div
-                key={item.id}
-                onClick={() => onSelectAnnouncement(item)}
-                className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row gap-4 sm:gap-5 group cursor-pointer border ${
-                  displayStatus === 'completed'
-                    ? 'border-gray-200 opacity-85'
-                    : 'border-gray-100'
-                }`}
-              >
-                {/* Фото / афиша события с датой поверх */}
-                <div className="relative w-full sm:w-44 flex-shrink-0">
-                  <EventImage item={item} lang={currentLanguage} className="w-full h-40 sm:h-full sm:min-h-32 rounded-xl" />
-                  <div className="absolute top-2 left-2 rounded-lg bg-white/95 px-2 py-1 text-center shadow-sm">
-                    <div className="text-xl font-black text-[#12327A] leading-none">{dayNum}</div>
-                    {isKg ? (
-                      <div className="text-[11px] font-bold text-gray-600 leading-tight">
-                        <div>{monthStr}</div>
-                        <div className="font-semibold text-gray-500">{weekdayStr}</div>
-                      </div>
-                    ) : (
-                      <div className="text-[10px] font-bold uppercase text-gray-500">
-                        {monthStr} • {weekdayStr}
-                      </div>
-                    )}
+              <li key={item.id} className={`relative group flex gap-4 py-4 sm:py-5 ${displayStatus === 'completed' ? 'opacity-80' : ''}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5 text-[11px] font-bold">
+                    <span className="uppercase tracking-wider text-[#12327A]">{t(`categories.${item.category}`)}</span>
+                    <span className={`inline-flex items-center gap-1 ${statusCfg.text}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+                      {statusCfg.label}
+                    </span>
+                    <PaidBadge item={item} lang={currentLanguage} />
                   </div>
-                </div>
-
-                {/* Main Event Content */}
-                <div className="flex-1 min-w-0 flex flex-col justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44] text-[11px] font-bold">
-                          {t(`categories.${item.category}`)}
-                        </span>
-
-                        {/* Distinct Status Pill */}
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
-                          <span>{statusCfg.label}</span>
-                        </span>
-                        <PaidBadge item={item} lang={currentLanguage} />
-
-                        {item.eventDetails?.timeRange && (
-                          <span className="text-xs text-gray-500 font-medium">
-                            {item.eventDetails.timeRange}
-                          </span>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={(e) => toggleFav(e, item.id)}
-                        aria-label="Save Favorite"
-                        className={`p-1 transition-colors ${
-                          isFav ? 'text-red-500' : 'text-gray-300 hover:text-red-400'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[20px]">
-                          {isFav ? 'favorite' : 'favorite_border'}
-                        </span>
-                      </button>
-                    </div>
-
-                    <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#0f1b33] mb-2 group-hover:text-[#12327A] transition-colors leading-snug">
+                  <h3 className="font-serif text-[17px] sm:text-xl font-semibold leading-snug text-[#0f1b33] line-clamp-3 [overflow-wrap:anywhere]">
+                    {/* Растянутая ссылка: нажатие в любом месте строки открывает статью, работает и с клавиатуры */}
+                    <button
+                      type="button"
+                      onClick={() => onSelectAnnouncement(item)}
+                      className="text-left group-hover:text-[#12327A] group-hover:underline underline-offset-2 after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-[#12327A] focus-visible:after:rounded-lg"
+                    >
                       {title}
-                    </h3>
-
-                    <div className="flex items-center gap-1.5 text-gray-500 text-xs sm:text-sm mb-3">
-                      <span className="material-symbols-outlined text-[#00796b] text-[18px] flex-shrink-0">
-                        location_on
-                      </span>
-                      <span className="truncate">{location}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100 mt-2">
-                    <div className="flex items-center gap-2">
-                      {price && (
-                        <span className="text-xs font-bold text-[#12327A] bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
-                          {price}
-                        </span>
-                      )}
-                      {ticketLink(item).verified && ticketLink(item).url && (
+                    </button>
+                  </h3>
+                  <p className="mt-1.5 text-xs sm:text-[13px] text-gray-600 [overflow-wrap:anywhere]">
+                    <time dateTime={item.startDate}>{formatWhen(item.startDate, item.endDate, currentLanguage, false, item.timeTBA, item.allDay)}</time>
+                    {location && <span> · {location}</span>}
+                  </p>
+                  {(price || (tickets.verified && tickets.url)) && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      {price && <span className="font-bold text-[#12327A]">{price}</span>}
+                      {tickets.verified && tickets.url && (
                         <a
-                          href={ticketLink(item).url}
+                          href={tickets.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-xs font-extrabold text-[#002f29] bg-[#20C7B5] hover:bg-[#1bb3a2] px-2.5 py-1 rounded-lg inline-flex items-center gap-1"
+                          className="relative z-10 font-extrabold text-[#002f29] bg-[#20C7B5] hover:bg-[#1bb3a2] px-2.5 py-1 rounded-lg inline-flex items-center gap-1"
                         >
                           <span className="material-symbols-outlined text-[14px]">confirmation_number</span>
                           {currentLanguage === 'kg' ? 'Билеттерди сатып алуу' : currentLanguage === 'en' ? 'Buy tickets' : 'Купить билет'}
                         </a>
                       )}
-                      {item.eventDetails?.organizer && (
-                        <span className="text-xs text-gray-500 hidden sm:inline">
-                          {item.eventDetails.organizer}
-                        </span>
-                      )}
                     </div>
-
-                    <span className="px-3.5 py-1.5 rounded-xl bg-[#f0f4fc] text-[#12327A] group-hover:bg-[#12327A] group-hover:text-white text-xs font-bold transition-all inline-flex items-center gap-1">
-                      <span>{currentLanguage === 'kg' ? 'Толугураак' : currentLanguage === 'en' ? 'More details' : 'Подробнее'}</span>
-                      <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                    </span>
-                  </div>
+                  )}
                 </div>
-              </div>
+                <div className="relative shrink-0 flex flex-col items-end gap-2">
+                  <EventImage item={item} lang={currentLanguage} compact className="w-24 h-[72px] sm:w-40 sm:h-[104px] rounded-lg" />
+                  <button
+                    type="button"
+                    onClick={(e) => toggleFav(e, item.id)}
+                    aria-label={currentLanguage === 'kg' ? 'Тандалгандарга' : currentLanguage === 'en' ? 'Save to favourites' : 'В избранное'}
+                    aria-pressed={isFav}
+                    className={`relative z-10 p-1 -m-1 transition-colors ${isFav ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                  >
+                    <span className="material-symbols-outlined text-[20px]">{isFav ? 'favorite' : 'favorite_border'}</span>
+                  </button>
+                </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       ) : (
         /* Grid Display Mode */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -357,7 +293,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               <div
                 key={item.id}
                 onClick={() => onSelectAnnouncement(item)}
-                className={`bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer border ${
+                className={`bg-white rounded-2xl p-5 hover:border-[#12327A]/30 transition-colors flex flex-col justify-between group cursor-pointer border ${
                   displayStatus === 'completed'
                     ? 'border-gray-200 opacity-85'
                     : 'border-gray-100'
@@ -406,13 +342,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-                  <span className="font-bold text-[#12327A]">{price || ''}</span>
-                  <span className="font-semibold text-gray-500 group-hover:text-[#12327A] inline-flex items-center gap-1">
-                    <span>{t('nav.more')}</span>
-                    <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                  </span>
-                </div>
+                {price && <div className="pt-3 border-t border-gray-100 text-xs font-bold text-[#12327A]">{price}</div>}
               </div>
             );
           })}

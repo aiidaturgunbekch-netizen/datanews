@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import {
   Announcement,
   CategoryId,
@@ -31,12 +31,7 @@ import { TopStories } from './components/TopStories';
 import { PopularNews } from './components/PopularNews';
 import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
-import { FullCalendarView } from './components/FullCalendarView';
-import { CitiesPage } from './components/CitiesPage';
-import { OrganizationsPage } from './components/OrganizationsPage';
-import { AdminPortal } from './components/AdminPortal';
 import { SearchModal } from './components/SearchModal';
-import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
 import { EmergencyBox, HydrometLine, WeatherSafety } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
@@ -46,6 +41,13 @@ import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { InfoPage, InfoView } from './components/InfoPages';
+
+// Редко нужные части грузятся только при открытии — читателю главной не приходится скачивать панель администратора и формы
+const FullCalendarView = lazy(() => import('./components/FullCalendarView').then((m) => ({ default: m.FullCalendarView })));
+const CitiesPage = lazy(() => import('./components/CitiesPage').then((m) => ({ default: m.CitiesPage })));
+const OrganizationsPage = lazy(() => import('./components/OrganizationsPage').then((m) => ({ default: m.OrganizationsPage })));
+const AdminPortal = lazy(() => import('./components/AdminPortal').then((m) => ({ default: m.AdminPortal })));
+const AccountPortal = lazy(() => import('./components/AccountPortal').then((m) => ({ default: m.AccountPortal })));
 
 
 const isAdminHash = () => window.location.hash.replace('#', '').toLowerCase() === 'admin';
@@ -392,6 +394,7 @@ export default function App() {
       {/* Main Content Area (padding-top accounts for header + urgent ticker) */}
       {/* Отступ сверху = высота шапки: служебная строка 36px + основная 56px + рубрики 44px */}
       <main className="flex-1 w-full pt-[var(--header-h,136px)]">
+      <Suspense fallback={<div className="min-h-[60vh]" />}>
         {/* VIEW: HOME */}
         {currentView === 'home' && (
           <div className="w-full flex flex-col">
@@ -632,6 +635,7 @@ export default function App() {
         {(['about', 'sources', 'privacy', 'rules', 'contacts'] as const).includes(currentView as InfoView) && (
           <InfoPage view={currentView as InfoView} lang={currentLanguage} onNavigate={setCurrentView} />
         )}
+      </Suspense>
       </main>
 
       {/* Footer */}
@@ -719,6 +723,7 @@ export default function App() {
         />
       )}
 
+      <Suspense fallback={null}>
       {/* 3. Панель управления — только для администратора */}
       {isAdminOpen && (
         <AdminPortal
@@ -738,6 +743,7 @@ export default function App() {
           onClose={() => setAccountMode(null)}
         />
       )}
+      </Suspense>
     </div>
   );
 }

@@ -62,6 +62,21 @@ export const Header: React.FC<HeaderProps> = ({
     return () => ro.disconnect();
   }, []);
 
+  // Телефон: при прокрутке вниз служебная строка (дата, языки) уезжает вверх, при прокрутке вверх — возвращается
+  const [tucked, setTucked] = useState(false);
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (window.innerWidth >= 768 || y < 120) setTucked(false);
+      else if (y > lastY + 4) setTucked(true);
+      else if (y < lastY - 4) setTucked(false);
+      lastY = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   // Дата и время — по Кыргызстану (UTC+6), независимо от часового пояса компьютера; часы обновляются каждые 15 секунд
   const [nowTs, setNowTs] = useState(() => Date.now());
   useEffect(() => {
@@ -77,7 +92,12 @@ export const Header: React.FC<HeaderProps> = ({
   const sectionsLabel = currentLanguage === 'kg' ? 'Бөлүмдөр' : currentLanguage === 'en' ? 'Sections' : 'Разделы';
 
   return (
-    <header ref={headerRef} className="fixed top-0 inset-x-0 z-50 text-white shadow-[0_2px_12px_rgba(0,0,0,0.15)]">
+    <header
+      ref={headerRef}
+      onFocus={() => setTucked(false)}
+      style={tucked ? { transform: 'translateY(-36px)' } : undefined}
+      className="fixed top-0 inset-x-0 z-50 text-white shadow-[0_2px_12px_rgba(0,0,0,0.15)] transition-transform duration-200 motion-reduce:transition-none"
+    >
       {/* Служебная строка: дата, для организаций, язык */}
       <div className="h-9 bg-[#081a42] border-b border-white/10">
         <div className="h-full max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-4 text-xs">

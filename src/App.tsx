@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Announcement,
   CategoryId,
@@ -12,8 +12,9 @@ import {
   ViewMode,
 } from './types';
 import { INITIAL_ANNOUNCEMENTS } from './data/initialAnnouncements';
+import { mergeAnnouncements } from './utils/mergeAnnouncements';
 import * as api from './services/api';
-import { trackView } from './services/analytics';
+import { fetchPopular, trackRead, trackView } from './services/analytics';
 import { addDaysStr, kgDateStr, kgTs } from './utils/time';
 import { alertLevel, isAlert, isExpired, isListed } from './utils/urgency';
 import { CATEGORY_IDS, normalizeCity, REGIONS } from './config/regions';
@@ -24,8 +25,10 @@ import { CategoryChips } from './components/CategoryChips';
 import { AlertsGrid } from './components/AlertsGrid';
 import { EventsFeed } from './components/EventsFeed';
 import { InteractiveCalendar } from './components/InteractiveCalendar';
-import { CityMosaic } from './components/CityMosaic';
-import { ForOrganizationsSection } from './components/ForOrganizationsSection';
+import { SectionsDrawer } from './components/SectionsDrawer';
+import { MainAlerts } from './components/MainAlerts';
+import { TopStories } from './components/TopStories';
+import { PopularNews } from './components/PopularNews';
 import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
 import { FullCalendarView } from './components/FullCalendarView';
@@ -37,20 +40,13 @@ import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
 import { EmergencyBox, HydrometLine, WeatherSafety } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
-import { isFresh } from './utils/statusUtils';
+import { freshOrder, isFresh } from './utils/statusUtils';
+import { diversePick, importanceOf, rubricOf } from './config/rubrics';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { InfoPage, InfoView } from './components/InfoPages';
 
-/** Встроенные проверенные события + одобренные публикации с сервера */
-const mergeAnnouncements = (server: Announcement[], hidden: string[]) => {
-  const byId = new Map<string, Announcement>();
-  INITIAL_ANNOUNCEMENTS.forEach((a) => byId.set(a.id, a));
-  server.forEach((a) => byId.set(a.id, a));
-  hidden.forEach((id) => byId.delete(id));
-  return [...byId.values()];
-};
 
 const isAdminHash = () => window.location.hash.replace('#', '').toLowerCase() === 'admin';
 
@@ -70,6 +66,11 @@ export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('home');
 
   // Filters
+  // Панель «Разделы» скрыта по умолчанию, открывается кнопкой в шапке
+  const [sectionsOpen, setSectionsOpen] = useState(false);
+  const closeSections = useCallback(() => setSectionsOpen(false), []);
+  // Рубрика строки навигации (группа разделов); null — главная без фильтра
+  const [activeRubric, setActiveRubric] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<CityId>('bishkek');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -98,7 +99,8 @@ export default function App() {
         setAnnouncements(
           mergeAnnouncements(
             (Array.isArray(r.items) ? r.items : []).filter((a) => a && a.id && a.title?.ru && a.location && typeof a.startDate === 'string' && a.category),
-            Array.isArray(r.hidden) ? r.hidden : []
+            Array.isArray(r.hidden) ? r.hidden : [],
+            r.checked && typeof r.checked === 'object' ? r.checked : {}
           )
         )
       )
@@ -211,6 +213,65 @@ export default function App() {
     [announcements, selectedCity]
   );
   const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
+  // «Главное»: одна главная история и четыре важных — из актуального (не предупреждения: у них свой блок рядом).
+  // Порядок: срочная строка, затем значимость раздела (решения государства — выше досуга), затем свежесть;
+  // не больше двух материалов одной рубрики, чтобы серьёзное шло вперемешку с интересным
+  const topStories = useMemo(
+    () =>
+      diversePick(
+        eventsList
+          .filter((a) => isFresh(a))
+          .sort(
+            (a, b) =>
+              Number(Boolean(b.isUrgentTicker)) - Number(Boolean(a.isUrgentTicker)) ||
+              importanceOf(a.category) - importanceOf(b.category) ||
+              freshOrder(a, b)
+          ),
+        5
+      ),
+    [eventsList]
+  );
+  // Главной историей ставим материал с настоящей фотографией (из первых трёх по значимости), остальные — следом
+  const topOrdered = useMemo(() => {
+    const hasPhoto = (a: Announcement) => Boolean(a.imageUrl) && !a.imageUrl!.startsWith('/illustrations/');
+    const i = topStories.slice(0, 3).findIndex(hasPhoto);
+    return i > 0 ? [topStories[i], ...topStories.filter((_, j) => j !== i)] : topStories;
+  }, [topStories]);
+  // Лента ниже не повторяет материалы из «Главного»
+  const feedList = useMemo(() => {
+    const top = new Set(topStories.map((a) => a.id));
+    return eventsList.filter((a) => !top.has(a.id));
+  }, [eventsList, topStories]);
+  // «Самое читаемое»: реальные прочтения карточек за 7 дней; пока их нет — «Скоро» (ближайшие по дате)
+  const [popularReads, setPopularReads] = useState<Record<string, number>>({});
+  useEffect(() => {
+    fetchPopular().then(setPopularReads);
+  }, []);
+  useEffect(() => {
+    if (activeNoticeDetail && role !== 'admin') trackRead(activeNoticeDetail.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNoticeDetail?.id]);
+  const sideNews = useMemo(() => {
+    const top = new Set(topStories.map((a) => a.id));
+    const pool = eventsList.filter((a) => isFresh(a) && !top.has(a.id));
+    const read = pool.filter((a) => (popularReads[a.id] || 0) > 0).sort((a, b) => popularReads[b.id] - popularReads[a.id]);
+    if (read.length > 0) return { mode: 'popular' as const, items: read.slice(0, 5) };
+    const now = Date.now();
+    const soon = pool.filter((a) => kgTs(a.startDate) >= now).sort((a, b) => kgTs(a.startDate) - kgTs(b.startDate));
+    return { mode: 'soon' as const, items: soon.slice(0, 5) };
+  }, [eventsList, topStories, popularReads]);
+  const rubric = rubricOf(activeRubric);
+  const rubricItems = useMemo(
+    () => (rubric ? announcements.filter((a) => matchesScope(a, true) && rubric.categories.includes(a.category)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [announcements, rubric, selectedCity, dateFilter, searchQuery]
+  );
+  const selectRubric = (id: string | null) => {
+    setActiveRubric(id);
+    setSelectedCategory('all');
+    setCurrentView('home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Счётчики категорий — по тем же правилам, что и список (кроме самой категории)
   const categoryCounts = useMemo(() => {
@@ -289,10 +350,31 @@ export default function App() {
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenAccount={() => setAccountMode('cabinet')}
         onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
+        onOpenSections={() => setSectionsOpen(true)}
+        activeRubric={activeRubric}
+        onSelectRubric={selectRubric}
+      />
+
+      <SectionsDrawer
+        open={sectionsOpen}
+        onClose={closeSections}
+        lang={currentLanguage}
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        selectedCategory={selectedCategory}
+        onSelectCategory={(cat) => {
+          setActiveRubric(null);
+          setSelectedCategory(cat);
+          setCurrentView('home');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        categoryCounts={categoryCounts}
+        onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
       />
 
       {/* Main Content Area (padding-top accounts for header + urgent ticker) */}
-      <main className="flex-1 w-full pt-16">
+      {/* Отступ сверху = высота шапки: служебная строка 36px + основная 56px + рубрики 44px */}
+      <main className="flex-1 w-full pt-[var(--header-h,136px)]">
         {/* VIEW: HOME */}
         {currentView === 'home' && (
           <div className="w-full flex flex-col">
@@ -316,31 +398,30 @@ export default function App() {
               onTagClick={handleTagClick}
               stats={heroStats}
               onOpenStats={setStatsMode}
+              compact
             />
 
-            {/* Разделы: на компьютере — меню сбоку, на телефоне — одна строка с прокруткой */}
-            <div className="lg:max-w-[1440px] lg:mx-auto lg:flex lg:items-start lg:gap-2 lg:pl-4">
-            <aside className="hidden lg:block w-60 shrink-0 sticky top-28 self-start py-6 max-h-[calc(100vh-8rem)] overflow-y-auto scrollbar-none">
-              <CategoryChips
-                variant="sidebar"
-                currentLanguage={currentLanguage}
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                categoryCounts={categoryCounts}
+            {/* Выбрана рубрика в строке навигации — её разделы вместе */}
+            {rubric && (
+              <CategoryResults
+                lang={currentLanguage}
+                category={rubric.categories[0]}
+                title={rubric.label[currentLanguage]}
+                items={rubricItems}
+                onOpen={setActiveNoticeDetail}
+                onReset={() => selectRubric(null)}
+                extra={
+                  rubric.id === 'weather' ? (
+                    <HydrometLine lang={currentLanguage} />
+                  ) : rubric.id === 'culture' ? (
+                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
+                  ) : undefined
+                }
               />
-            </aside>
-            <div className="flex-1 min-w-0">
-            <div className="lg:hidden">
-              <CategoryChips
-                currentLanguage={currentLanguage}
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                categoryCounts={categoryCounts}
-              />
-            </div>
+            )}
 
-            {/* Выбрана категория — показываем ровно те публикации, что учтены в счётчике чипа */}
-            {selectedCategory !== 'all' && (
+            {/* Выбран раздел (из панели «Разделы») — ровно те публикации, что учтены в счётчике раздела */}
+            {!rubric && selectedCategory !== 'all' && (
               <CategoryResults
                 lang={currentLanguage}
                 category={selectedCategory}
@@ -357,91 +438,78 @@ export default function App() {
               />
             )}
 
-            {/* Погода и безопасность: официальные предупреждения, прогноз, перевалы — выше обычных новостей */}
-            {selectedCategory === 'all' && (
-              <WeatherSafety
-                lang={currentLanguage}
-                announcements={announcements}
-                city={selectedCity}
-                onOpen={setActiveNoticeDetail}
-              />
-            )}
-
-            {/* Urgent & Important Alerts Section — только если есть предупреждения */}
-            {selectedCategory === 'all' && alertsList.length > 0 && (
-            <AlertsGrid
-              currentLanguage={currentLanguage}
-              alerts={alertsList}
-              selectedCity={selectedCity}
-              onCityFilterChange={setSelectedCity}
-              onSelectAnnouncement={setActiveNoticeDetail}
-            />
-            )}
-
-            {/* Upcoming Events Feed & Interactive Calendar Mosaic */}
-            {selectedCategory === 'all' && (
-            <section id="events-feed" className="w-full py-10 sm:py-14 bg-[#eef2f9] border-t border-gray-200 scroll-mt-24">
-              <div className="max-w-[1280px] mx-auto px-4 md:px-6">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                  {/* Left 8 Cols: Date-First Events Feed */}
-                  <div className="lg:col-span-8">
-                    <EventsFeed
-                      currentLanguage={currentLanguage}
-                      events={eventsList}
-                      city={selectedCity}
-                      onSelectAnnouncement={setActiveNoticeDetail}
-                      onOpenFullCalendar={() => setCurrentView('calendar')}
-                    />
+            {!rubric && selectedCategory === 'all' && (
+              <>
+                {/* Главное: одна главная история, важные рядом и действующие предупреждения */}
+                <section className="w-full bg-white pt-4 pb-10 sm:pt-5 sm:pb-12" aria-labelledby="top-stories-title">
+                  <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+                    {/* Подпись над обеими колонками — верх главной фотографии и блока предупреждений на одной линии */}
+                    <h2 id="top-stories-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-3">
+                      {currentLanguage === 'kg' ? 'Башкы жаңылыктар' : currentLanguage === 'en' ? 'Top stories' : 'Главное'}
+                    </h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+                      <div className="lg:col-span-8 min-w-0">
+                        <TopStories lang={currentLanguage} stories={topOrdered} onOpen={setActiveNoticeDetail} hideTitle />
+                      </div>
+                      <div className="lg:col-span-4 min-w-0 space-y-6">
+                        <MainAlerts
+                          lang={currentLanguage}
+                          alerts={alertsList}
+                          city={selectedCity}
+                          onOpen={setActiveNoticeDetail}
+                          onOpenAll={() => setCurrentView('alerts')}
+                        />
+                        <InteractiveCalendar
+                          currentLanguage={currentLanguage}
+                          announcements={announcements}
+                          selectedDate={calendarSelectedDate}
+                          onSelectDate={setCalendarSelectedDate}
+                          onSelectAnnouncement={setActiveNoticeDetail}
+                        />
+                      </div>
+                    </div>
                   </div>
+                </section>
 
-                  {/* Right 4 Cols: Interactive Calendar Widget Panel */}
-                  <div className="lg:col-span-4">
-                    <InteractiveCalendar
-                      currentLanguage={currentLanguage}
-                      announcements={announcements}
-                      selectedDate={calendarSelectedDate}
-                      onSelectDate={setCalendarSelectedDate}
-                      onSelectAnnouncement={setActiveNoticeDetail}
-                    />
+                {/* Официальный прогноз Кыргызгидромета (предупреждения — в блоке выше) */}
+                <WeatherSafety
+                  lang={currentLanguage}
+                  announcements={announcements}
+                  city={selectedCity}
+                  onOpen={setActiveNoticeDetail}
+                  showWarnings={false}
+                />
+
+                {/* Лента (без повторов из «Главного»), сбоку — календарь и экстренные службы */}
+                <section id="events-feed" className="w-full py-12 sm:py-16 bg-[#f6f8fd] border-t border-gray-200 scroll-mt-[calc(var(--header-h,136px)+1rem)]">
+                  <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                      <div className="lg:col-span-8 min-w-0">
+                        <EventsFeed
+                          currentLanguage={currentLanguage}
+                          events={feedList}
+                          city={selectedCity}
+                          onSelectAnnouncement={setActiveNoticeDetail}
+                          onOpenFullCalendar={() => setCurrentView('calendar')}
+                        />
+                      </div>
+                      <aside className="lg:col-span-4 min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
+                        <PopularNews
+                          lang={currentLanguage}
+                          items={sideNews.items}
+                          mode={sideNews.mode}
+                          reads={popularReads}
+                          onOpen={setActiveNoticeDetail}
+                        />
+                        <EmergencyBox lang={currentLanguage} />
+                      </aside>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </section>
+                </section>
+
+                <TheatreSchedule lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
+              </>
             )}
-
-            {selectedCategory === 'all' && (
-              <TheatreSchedule lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
-            )}
-            </div>
-            </div>
-
-            {/* Browse by City / Regional Portals Mosaic */}
-            <CityMosaic
-              announcements={announcements}
-              currentLanguage={currentLanguage}
-              onSelectCity={(cityId) => {
-                setSelectedCity(cityId);
-                window.scrollTo({ top: 300, behavior: 'smooth' });
-              }}
-              onOpenAllCities={() => setCurrentView('cities')}
-              onOpenAnnouncement={setActiveNoticeDetail}
-            />
-
-            {/* Экстренные службы — внизу, чтобы не отвлекать от свежих новостей */}
-            <section className="w-full py-6 bg-white border-t border-gray-100">
-              <div className="max-w-[1280px] mx-auto px-4 md:px-6">
-                <div className="md:max-w-md">
-                  <EmergencyBox lang={currentLanguage} />
-                </div>
-              </div>
-            </section>
-
-            {/* For Municipalities & Organizations Section */}
-            <ForOrganizationsSection
-              currentLanguage={currentLanguage}
-              onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
-              onOpenPricing={() => setCurrentView('pricing')}
-            />
           </div>
         )}
 
@@ -536,6 +604,7 @@ export default function App() {
         {/* VIEW: ORGANIZATIONS & PRICING */}
         {(currentView === 'organizations' || currentView === 'pricing') && (
           <OrganizationsPage
+            focus={currentView === 'pricing' ? 'plans' : 'top'}
             currentLanguage={currentLanguage}
             onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
             onBackToHome={() => setCurrentView('home')}

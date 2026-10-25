@@ -53,7 +53,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401 && session) setSession(null);
-    throw new ApiError(data.error || 'error', res.status, data.message || 'Ошибка сервера');
+    throw new ApiError(data.error || 'error', res.status, data.message || `Ошибка сервера (код ${res.status})`);
   }
   return data as T;
 }
@@ -94,9 +94,10 @@ export const reportPayment = (paymentRef: string, plan: PlanId) =>
   post<{ user: PublicUser; usage?: PlanUsage }>('auth', { action: 'payment', paymentRef, plan });
 
 // ---------- announcements ----------
-export const fetchPublicAnnouncements = () => request<{ items: Announcement[]; hidden: string[] }>('announcements');
+export const fetchPublicAnnouncements = () => request<{ items: Announcement[]; hidden: string[]; checked?: Record<string, string> }>('announcements');
 export const fetchMyAnnouncements = () => request<{ items: Announcement[] }>('announcements?scope=mine').then((r) => r.items);
-export const fetchAllAnnouncements = () => request<{ items: Announcement[]; hidden: string[] }>('announcements?scope=all');
+export const fetchAllAnnouncements = () =>
+  request<{ items: Announcement[]; hidden: string[]; checked?: Record<string, string> }>('announcements?scope=all');
 
 /** item может содержать imageData (data:image/...) — фото сохранится на сервере */
 export const submitAnnouncement = (item: Record<string, unknown>, force = false) =>

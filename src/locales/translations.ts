@@ -12,6 +12,8 @@ export const translations = {
     kg: 'Кыргызстан',
     en: 'Kyrgyzstan',
   },
+  // Девиз DataNews
+  motto: { ru: 'Знай дату — планируй день!', kg: 'Датаны бил — күнүңдү пландаштыр!', en: 'Know the date — plan your day!' },
   appSlogan: {
     ru: 'Знай, что, где и когда',
     kg: 'Эмне, кайда жана качан болорун бил',

@@ -24,3 +24,21 @@ export const addDaysStr = (day: string, n: number) => new Date(Date.parse(`${day
 
 /** Текущий момент как локальное время Бишкека «YYYY-MM-DDTHH:mm» (в таком виде хранятся даты публикаций) */
 export const kgNowLocal = (ts: number = Date.now()) => new Date(ts + KG_OFFSET_MS).toISOString().slice(0, 16);
+
+/**
+ * Дата и время по Бишкеку в одном формате для всей панели («24 окт. 2026 г., 18:36»).
+ * Метки с часовым поясом (…Z, +06:00) переводятся в бишкекское время; метки без пояса уже бишкекские.
+ */
+export const formatKgDateTime = (s?: string) => {
+  if (!s) return '—';
+  const ts = /(?:[zZ]|[+-]\d\d:?\d\d)$/.test(s) ? Date.parse(s) : kgTs(s);
+  if (Number.isNaN(ts)) return s;
+  return new Date(ts).toLocaleString('ru-RU', {
+    timeZone: 'Asia/Bishkek',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};

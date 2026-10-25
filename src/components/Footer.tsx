@@ -1,4 +1,4 @@
-import { ContactButtons } from './ContactButtons';
+import { SocialLinks } from './ContactButtons';
 import React from 'react';
 import { Language, ViewMode } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -10,161 +10,81 @@ interface FooterProps {
   onOpenAccount: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ currentLanguage, onNavigate, onOpenAccount }) => {
-  const { t } = getTranslation(currentLanguage);
+type Link = { label: Record<Language, string>; onClick: () => void };
+
+/** Колонка ссылок подвала */
+const Column: React.FC<{ title: string; links: Link[]; lang: Language }> = ({ title, links, lang }) => (
+  <div>
+    <h4 className="text-[11px] font-bold text-[#0f1b33] mb-3 uppercase tracking-wider">{title}</h4>
+    <ul className="space-y-2 text-[13px] leading-snug text-gray-600">
+      {links.map((l) => (
+        <li key={l.label.ru}>
+          <button type="button" onClick={l.onClick} className="hover:text-[#12327A] transition-colors text-left">
+            {l.label[lang]}
+          </button>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
+export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigate, onOpenAccount }) => {
+  const { t } = getTranslation(lang);
+  const nav = (v: ViewMode) => () => onNavigate(v);
+
+  const sections: Link[] = [
+    { label: { ru: t('nav.calendar'), kg: t('nav.calendar'), en: t('nav.calendar') }, onClick: nav('calendar') },
+    { label: { ru: t('nav.alerts'), kg: t('nav.alerts'), en: t('nav.alerts') }, onClick: nav('alerts') },
+    { label: { ru: t('nav.events'), kg: t('nav.events'), en: t('nav.events') }, onClick: nav('events') },
+    { label: { ru: t('nav.cities'), kg: t('nav.cities'), en: t('nav.cities') }, onClick: nav('cities') },
+  ];
+  const forOrg: Link[] = [
+    { label: { ru: 'Публикация объявлений', kg: 'Жарыяларды жайгаштыруу', en: 'Notice publication' }, onClick: nav('organizations') },
+    { label: { ru: 'Тарифы и подписка', kg: 'Тарифтер жана жазылуу', en: 'Pricing' }, onClick: nav('pricing') },
+    { label: { ru: 'Личный кабинет', kg: 'Жеке кабинет', en: 'My account' }, onClick: onOpenAccount },
+  ];
+  const about: Link[] = [
+    { label: { ru: 'О проекте', kg: 'Долбоор жөнүндө', en: 'About' }, onClick: nav('about') },
+    { label: { ru: 'Источники информации', kg: 'Маалымат булактары', en: 'Information sources' }, onClick: nav('sources') },
+    { label: { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' }, onClick: nav('rules') },
+    { label: { ru: 'Политика конфиденциальности', kg: 'Купуялуулук саясаты', en: 'Privacy policy' }, onClick: nav('privacy') },
+  ];
 
   return (
     <footer className="w-full bg-[#f1f4fa] border-t border-gray-200">
-      {/* Prototype Verification / Civic Tech Disclaimer Banner */}
-      <div className="w-full bg-white py-3 border-b border-gray-200">
-        <div className="max-w-[1280px] mx-auto px-4 md:px-6 flex items-center justify-center gap-2 text-gray-500 text-xs sm:text-sm text-center">
-          <span className="material-symbols-outlined text-[#12327A] text-[18px] flex-shrink-0">
-            info
-          </span>
-          <span>{t('disclaimer.bannerText')}</span>
-        </div>
-      </div>
-
-      {/* Main 4-Column Footer */}
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
-          {/* Col 1: Brand & Slogan */}
-          <div>
-            <div className="mb-4">
-              <Logo className="h-10" lang={currentLanguage} />
-            </div>
-            <p className="text-xs sm:text-sm text-gray-600 mb-4 leading-relaxed">
-              {t('appSlogan')}. {t('appHeroDesc')}
-            </p>
-            {/* Ведёт на страницу «Источники информации» */}
-            <button
-              type="button"
-              onClick={() => onNavigate('sources')}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white text-gray-700 text-xs font-bold border border-gray-200 shadow-2xs hover:border-[#20C7B5] transition-colors"
-            >
-              <span className="w-2 h-2 rounded-full bg-[#20C7B5]" />
-              <span>{currentLanguage === 'kg' ? 'Текшерилген булактар' : currentLanguage === 'en' ? 'Verified sources' : 'Проверенные источники'}</span>
-            </button>
+      {/* Снизу запас под плавающую кнопку чат-бота, чтобы она не закрывала текст */}
+      <div className="max-w-[1280px] mx-auto px-4 md:px-6 pt-10 pb-20">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-12 gap-x-6 gap-y-8 lg:gap-8 mb-8">
+          {/* Бренд */}
+          <div className="col-span-2 sm:col-span-3 lg:col-span-4">
+            <Logo className="h-8 mb-3" lang={lang} />
+            <p className="text-[13px] font-semibold text-[#12327A] leading-snug max-w-xs">{t('motto')}</p>
+            <p className="text-[13px] text-gray-600 leading-snug max-w-xs mt-1">{t('appSlogan')}</p>
           </div>
 
-          {/* Col 2: Sections */}
-          <div>
-            <h4 className="text-xs font-bold text-[#0f1b33] mb-4 uppercase tracking-wider">
-              {currentLanguage === 'kg' ? 'Бөлүмдөр' : currentLanguage === 'en' ? 'Sections' : 'Разделы'}
-            </h4>
-            <ul className="space-y-2.5 text-xs sm:text-sm text-gray-600">
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate('calendar')}
-                  className="hover:text-[#12327A] transition-colors text-left"
-                >
-                  {t('nav.calendar')}
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate('alerts')}
-                  className="hover:text-[#12327A] transition-colors text-left"
-                >
-                  {t('nav.alerts')}
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate('events')}
-                  className="hover:text-[#12327A] transition-colors text-left"
-                >
-                  {t('nav.events')}
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate('cities')}
-                  className="hover:text-[#12327A] transition-colors text-left"
-                >
-                  {t('nav.cities')}
-                </button>
-              </li>
-            </ul>
+          <div className="lg:col-span-2">
+            <Column title={lang === 'kg' ? 'Бөлүмдөр' : lang === 'en' ? 'Sections' : 'Разделы'} links={sections} lang={lang} />
+          </div>
+          <div className="lg:col-span-2">
+            <Column title={t('nav.forOrg')} links={forOrg} lang={lang} />
+          </div>
+          <div className="lg:col-span-2">
+            <Column title={lang === 'kg' ? 'Долбоор жөнүндө' : lang === 'en' ? 'About' : 'О проекте'} links={about} lang={lang} />
           </div>
 
-          {/* Col 3: For Organizations */}
-          <div>
-            <h4 className="text-xs font-bold text-[#0f1b33] mb-4 uppercase tracking-wider">
-              {t('nav.forOrg')}
+          {/* Контакты — только значки соцсетей */}
+          <div className="lg:col-span-2">
+            <h4 className="text-[11px] font-bold text-[#0f1b33] mb-3 uppercase tracking-wider">
+              {lang === 'kg' ? 'Байланыштар' : lang === 'en' ? 'Contacts' : 'Контакты'}
             </h4>
-            <ul className="space-y-2.5 text-xs sm:text-sm text-gray-600">
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate('organizations')}
-                  className="hover:text-[#12327A] transition-colors text-left"
-                >
-                  {currentLanguage === 'kg' ? 'Жарыяларды жайгаштыруу' : currentLanguage === 'en' ? 'Notice Publication' : 'Публикация объявлений'}
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate('pricing')}
-                  className="hover:text-[#12327A] transition-colors text-left"
-                >
-                  {t('nav.pricing')}
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={onOpenAccount}
-                  className="hover:text-[#12327A] transition-colors text-left"
-                >
-                  {currentLanguage === 'kg' ? 'Жеке кабинет' : currentLanguage === 'en' ? 'My account' : 'Личный кабинет'}
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={() => onNavigate('rules')} className="hover:text-[#12327A] transition-colors text-left">
-                  {currentLanguage === 'kg' ? 'Модерация регламенти' : currentLanguage === 'en' ? 'Moderation Policy' : 'Регламент модерации'}
-                </button>
-              </li>
-            </ul>
-          </div>
-
-          {/* Col 4: Contacts & Channels */}
-          <div>
-            <h4 className="text-xs font-bold text-[#0f1b33] mb-4 uppercase tracking-wider">
-              {currentLanguage === 'kg' ? 'Байланыштар жана каналдар' : currentLanguage === 'en' ? 'Contacts & Channels' : 'Контакты и каналы'}
-            </h4>
-            <ContactButtons lang={currentLanguage} compact className="mb-4" />
-            <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
-              {(
-                [
-                  ['contacts', { ru: 'Связаться с DataNews', kg: 'DataNews менен байланышуу', en: 'Contact DataNews' }],
-                  ['about', { ru: 'О проекте', kg: 'Долбоор жөнүндө', en: 'About' }],
-                  ['sources', { ru: 'Источники информации', kg: 'Маалымат булактары', en: 'Information sources' }],
-                  ['rules', { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' }],
-                  ['privacy', { ru: 'Политика конфиденциальности', kg: 'Купуялуулук саясаты', en: 'Privacy policy' }],
-                ] as [ViewMode, Record<Language, string>][]
-              ).map(([v, l]) => (
-                <li key={v}>
-                  <button type="button" onClick={() => onNavigate(v)} className="hover:text-[#12327A] transition-colors text-left">
-                    {l[currentLanguage]}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <SocialLinks lang={lang} />
           </div>
         </div>
 
-        {/* Bottom Strip */}
-        <div className="pt-6 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-gray-500">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700 font-semibold text-center">
-            <span>{t('disclaimer.footerNotice')}</span>
-          </div>
-          <div className="text-gray-600">{t('disclaimer.copyright')}</div>
+        {/* Нижняя строка: обе фразы одного размера, выровнены по одному краю */}
+        <div className="pt-5 border-t border-gray-200 space-y-1 text-xs leading-relaxed text-gray-600">
+          <p>{t('disclaimer.bannerText')}</p>
+          <p>{t('disclaimer.copyright')}</p>
         </div>
       </div>
     </footer>

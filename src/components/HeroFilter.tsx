@@ -13,9 +13,12 @@ interface HeroFilterProps {
   dateFilter: string;
   onDateFilterChange: (d: string) => void;
   onSearchSubmit: () => void;
-  onTagClick: (tag: string) => void;
+  /** Больше не используется: быстрые ссылки заменены панелью «Разделы» */
+  onTagClick?: (tag: string) => void;
   stats: { publications: number; activeAlerts: number; regions: number };
   onOpenStats: (mode: 'all' | 'alerts' | 'regions') => void;
+  /** Компактная строка поиска для новостной главной (без большого вступительного блока) */
+  compact?: boolean;
 }
 
 export const HeroFilter: React.FC<HeroFilterProps> = ({
@@ -27,9 +30,9 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
   dateFilter,
   onDateFilterChange,
   onSearchSubmit,
-  onTagClick,
   stats,
   onOpenStats,
+  compact = false,
 }) => {
   const { t } = getTranslation(currentLanguage);
 
@@ -48,35 +51,88 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
     { id: 'week', label: t('search.thisWeek') },
   ];
 
-  // Быстрые переходы
-  const quickLinks: { key: string; icon: string; color: string; label: Record<'ru' | 'kg' | 'en', string> }[] = [
-    { key: 'today', icon: 'today', color: 'bg-emerald-50 text-emerald-800 border-emerald-200 [&>span]:text-emerald-600', label: { ru: 'Сегодня', kg: 'Бүгүн', en: 'Today' } },
-    { key: 'tomorrow', icon: 'event_upcoming', color: 'bg-sky-50 text-sky-800 border-sky-200 [&>span]:text-sky-600', label: { ru: 'Завтра', kg: 'Эртең', en: 'Tomorrow' } },
-    { key: 'week', icon: 'date_range', color: 'bg-indigo-50 text-indigo-800 border-indigo-200 [&>span]:text-indigo-600', label: { ru: 'На этой неделе', kg: 'Ушул жумада', en: 'This week' } },
-    { key: 'alerts', icon: 'warning', color: 'bg-red-50 text-red-800 border-red-200 [&>span]:text-red-600', label: { ru: 'Предупреждения', kg: 'Эскертүүлөр', en: 'Alerts' } },
-    { key: 'weather', icon: 'partly_cloudy_day', color: 'bg-amber-50 text-amber-900 border-amber-200 [&>span]:text-amber-500', label: { ru: 'Погода', kg: 'Аба ырайы', en: 'Weather' } },
-    { key: 'state', icon: 'account_balance', color: 'bg-blue-50 text-[#12327A] border-blue-200 [&>span]:text-[#12327A]', label: { ru: 'Государственные решения', kg: 'Мамлекеттик чечимдер', en: 'State decisions' } },
-    { key: 'laws', icon: 'gavel', color: 'bg-slate-100 text-slate-800 border-slate-300 [&>span]:text-slate-600', label: { ru: 'Законы', kg: 'Мыйзамдар', en: 'Laws' } },
-    { key: 'shows', icon: 'theater_comedy', color: 'bg-fuchsia-50 text-fuchsia-800 border-fuchsia-200 [&>span]:text-fuchsia-600', label: { ru: 'Кино и концерты', kg: 'Кино жана концерттер', en: 'Cinema & concerts' } },
-  ];
+  const heading =
+    currentLanguage === 'kg' ? 'Кыргызстанда эмне, кайда жана качан?' : currentLanguage === 'en' ? 'What, Where and When in Kyrgyzstan?' : 'Что, где и когда в Кыргызстане?';
+  const fieldCls =
+    'w-full rounded-lg bg-[#f3f6fc] text-[#0f1b33] text-sm border border-gray-200 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#20C7B5] focus:border-transparent';
+
+  if (compact) {
+    const statLine = [
+      { mode: 'all' as const, value: stats.publications, label: t('search.eventsOnDate') },
+      { mode: 'alerts' as const, value: stats.activeAlerts, label: t('search.activeAlerts') },
+      { mode: 'regions' as const, value: stats.regions, label: t('search.regionsCount') },
+    ];
+    return (
+      <section className="w-full bg-white border-b border-gray-200">
+        <h1 className="sr-only">{heading}</h1>
+        <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
+          {/* Девиз на телефоне и планшете (на широких экранах он стоит в шапке рядом с логотипом) */}
+          <p className="lg:hidden text-sm font-semibold text-[#12327A]">{t('motto')}</p>
+          <form
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSearchSubmit();
+            }}
+            className="flex-1 grid grid-cols-2 sm:grid-cols-12 gap-2"
+          >
+            <label className="col-span-2 sm:col-span-6 relative">
+              <span className="sr-only">{t('search.whatLabel')}</span>
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[20px]" aria-hidden="true">
+                search
+              </span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => onSearchQueryChange(e.target.value)}
+                placeholder={t('search.whatPlaceholder')}
+                className={`${fieldCls} pl-10 pr-3 py-2.5`}
+              />
+            </label>
+            <label className="sm:col-span-3">
+              <span className="sr-only">{t('search.whenLabel')}</span>
+              <select value={dateFilter} onChange={(e) => onDateFilterChange(e.target.value)} className={`${fieldCls} px-3 py-2.5 font-semibold cursor-pointer`}>
+                {dateOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="sm:col-span-3">
+              <span className="sr-only">{t('search.whereLabel')}</span>
+              <select value={selectedCity} onChange={(e) => onCityChange(e.target.value as CityId)} className={`${fieldCls} px-3 py-2.5 font-semibold cursor-pointer`}>
+                {cityOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </form>
+          {/* Показатели — тихой строкой, каждый открывает список */}
+          <ul className="flex items-center gap-4 text-sm text-gray-600 shrink-0">
+            {statLine.map((m) => (
+              <li key={m.mode}>
+                <button type="button" onClick={() => onOpenStats(m.mode)} className="hover:text-[#12327A] underline decoration-dotted underline-offset-4">
+                  <b className="text-[#12327A] tabular-nums">{m.value}</b> {m.label.toLowerCase()}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className="w-full relative overflow-hidden bg-[#eef2f9] py-8 lg:py-12 border-b border-gray-200">
-      {/* Soft Civic Background Lighting */}
-      <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-[#20C7B5]/15 blur-3xl pointer-events-none" />
-      <div className="absolute -left-20 bottom-0 w-80 h-80 rounded-full bg-[#12327A]/10 blur-2xl pointer-events-none" />
+    <section className="w-full relative bg-[#eef2f9] py-8 sm:py-14 lg:py-16 border-b border-gray-200">
 
       <div className="max-w-[1280px] mx-auto px-4 md:px-6 relative z-10">
-        <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 mb-8">
+        <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 sm:gap-8 mb-8 sm:mb-10">
           <div className="max-w-3xl">
-            {/* Civic Purpose Pill */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-[#12327A] font-bold text-xs tracking-wide shadow-sm mb-3 border border-blue-100">
-              <span className="w-2 h-2 rounded-full bg-[#20C7B5] animate-ping" />
-              <span>{t('appSlogan')}</span>
-            </div>
-
             {/* Main Headline */}
-            <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-extrabold text-[#0f1b33] tracking-tight leading-tight mb-2">
+            <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-extrabold text-[#0f1b33] tracking-tight leading-[1.15] mb-4">
               {currentLanguage === 'kg'
                 ? 'Кыргызстанда эмне, кайда жана качан?'
                 : currentLanguage === 'en'
@@ -85,9 +141,8 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
             </h1>
 
             {/* Official Brand Slogan (TASK 2) */}
-            <div className="mt-1.5 mb-4 inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white border border-[#20C7B5]/40 shadow-xs">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#20C7B5] flex-shrink-0 animate-pulse" />
-              <p className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-[#12327A]">
+            <div className="mb-4">
+              <p className="text-lg sm:text-xl font-bold tracking-tight text-[#12327A]">
                 {currentLanguage === 'kg' ? (
                   <>
                     <span>Датаны бил</span> <span className="text-[#20C7B5]">—</span> <span>күнүңдү пландаштыр</span>
@@ -104,7 +159,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
               </p>
             </div>
 
-            <p className="text-base sm:text-lg text-[#444651] max-w-2xl leading-relaxed">
+            <p className="hidden sm:block text-base sm:text-lg text-[#444651] max-w-2xl leading-relaxed sm:leading-8">
               {t('appHeroDesc')}
             </p>
           </div>
@@ -114,8 +169,8 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
             {(
               [
                 { mode: 'all', value: stats.publications, label: t('search.eventsOnDate'), color: 'text-[#12327A]' },
-                { mode: 'alerts', value: stats.activeAlerts, label: t('search.activeAlerts'), color: 'text-[#dc2626]' },
-                { mode: 'regions', value: stats.regions, label: t('search.regionsCount'), color: 'text-[#00796b]' },
+                { mode: 'alerts', value: stats.activeAlerts, label: t('search.activeAlerts'), color: 'text-[#12327A]' },
+                { mode: 'regions', value: stats.regions, label: t('search.regionsCount'), color: 'text-[#12327A]' },
               ] as const
             ).map((m, i) => (
               <React.Fragment key={m.mode}>
@@ -137,7 +192,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
         </div>
 
         {/* Advanced Civic Filter Box */}
-        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-md border border-gray-100">
+        <div className="bg-white p-5 sm:p-7 rounded-2xl shadow-sm border border-gray-200">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -222,23 +277,6 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
             </div>
           </form>
 
-          {/* Quick Query Tags */}
-          <div className="mt-4 pt-3 flex flex-wrap items-center gap-1.5 text-gray-600 border-t border-gray-100">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mr-1">
-              {currentLanguage === 'kg' ? 'Тез өтүү' : currentLanguage === 'en' ? 'Quick links' : 'Быстро'}
-            </span>
-            {quickLinks.map((q) => (
-              <button
-                key={q.key}
-                type="button"
-                onClick={() => onTagClick(q.key)}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-semibold hover:brightness-95 hover:shadow-sm transition ${q.color}`}
-              >
-                <span className="material-symbols-outlined text-[16px]">{q.icon}</span>
-                {q.label[currentLanguage]}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </section>

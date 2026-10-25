@@ -96,7 +96,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 sticky top-28">
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
       {/* Month Header */}
       <div className="flex items-center justify-between mb-4">
         <div>

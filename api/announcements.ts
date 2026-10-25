@@ -19,7 +19,8 @@
 import type { Announcement } from '../src/types';
 import { cmd, hgetJson, hvalsJson } from './_lib/kv';
 import { handler, HttpError, json, rateLimit, readBody, readSession, requireAdmin, requireUser } from './_lib/http';
-import { ANN_KEY, diffFields, HIDDEN_KEY, publicView, sanitize, saveAnnouncement, withHistory } from './_lib/announcements';
+import { ANN_KEY, CHECKED_KEY, diffFields, HIDDEN_KEY, publicView, sanitize, saveAnnouncement, splitChecked, withHistory } from './_lib/announcements';
+import { CHECK_NOTE, isCheckOnlyCopy } from '../src/utils/mergeAnnouncements';
 import { StoredUser, USERS_KEY } from './_lib/users';
 import { checkPlanCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
 import { kgNowLocal } from '../src/utils/time';
@@ -65,15 +66,17 @@ export default handler(async (req) => {
     if (scope === 'all') {
       await requireAdmin(req);
       const hidden = ((await cmd<string[]>('HVALS', HIDDEN_KEY)) || []) as string[];
-      return json({ items: all, hidden });
+      const { items, checked } = await splitChecked(all);
+      return json({ items, hidden, checked });
     }
     if (scope === 'mine') {
       const s = await requireUser(req);
       return json({ items: all.filter((a) => a.submittedBy?.email === s.sub) });
     }
     const hidden = ((await cmd<string[]>('HVALS', HIDDEN_KEY)) || []) as string[];
+    const { items, checked } = await splitChecked(all);
     return json(
-      { items: all.filter(isPublic).map(publicView), hidden },
+      { items: items.filter(isPublic).map(publicView), hidden, checked },
       200,
       { 'Cache-Control': 'public, max-age=0, s-maxage=30, stale-while-revalidate=60' }
     );
@@ -86,7 +89,9 @@ export default handler(async (req) => {
     if (!body.item) throw new HttpError('missing_item', 400);
 
     if (session.role === 'admin') {
-      const existing = typeof body.item.id === 'string' ? await hgetJson<Announcement>(ANN_KEY, body.item.id) : null;
+      const stored = typeof body.item.id === 'string' ? await hgetJson<Announcement>(ANN_KEY, body.item.id) : null;
+      // Копия встроенной публикации ради даты проверки — не основа для правки: правим версию из кода
+      const existing = stored && !isCheckOnlyCopy(stored) ? stored : null;
       const base = existing || (typeof body.item.id === 'string' ? ({ id: body.item.id } as Announcement) : undefined);
       let item = await sanitize(body.item as Record<string, any>, base);
       // Защита от дублей: та же новость, перепечатанная с другого сайта (заголовок + дата, или та же ссылка на источник)
@@ -153,14 +158,14 @@ export default handler(async (req) => {
       await requireAdmin(req);
       if (!current) throw new HttpError('not_found', 404);
       const ok = body.action !== 'reject';
+      // Модерация разрешает публикацию, но не подтверждает достоверность: отметку «Подтверждено по первоисточнику»
+      // и дату сверки ставит редактор отдельно (форма и «Проверено сегодня»)
       const next = withHistory(
         {
           ...current,
           moderationStatus: ok ? 'approved' : 'rejected',
           moderationNote: note,
-          isVerified: ok && !current.publishedByGov ? true : current.isVerified,
           updatedAt: kgNowLocal(),
-          lastCheckedAt: ok ? kgNowLocal() : current.lastCheckedAt,
         },
         'admin',
         body.action === 'approve' ? 'approved' : body.action === 'restore' ? 'restored' : 'rejected',
@@ -173,11 +178,18 @@ export default handler(async (req) => {
     // Модератор сверил публикацию с первоисточником: обновляем только дату проверки
     if (body.action === 'checked') {
       await requireAdmin(req);
-      const base = current || INITIAL_ANNOUNCEMENTS.find((a) => a.id === id);
-      if (!base) throw new HttpError('not_found', 404);
-      const next = withHistory({ ...base, lastCheckedAt: kgNowLocal() }, 'admin', 'edited', 'Сверено с первоисточником');
-      await saveAnnouncement(next);
-      return json({ item: next });
+      const now = kgNowLocal();
+      // Публикация из базы (пользовательская или правленая) — обновляем дату в её записи
+      if (current && !isCheckOnlyCopy(current)) {
+        const next = withHistory({ ...current, lastCheckedAt: now }, 'admin', 'edited', CHECK_NOTE);
+        await saveAnnouncement(next);
+        return json({ item: next });
+      }
+      // Встроенная публикация — храним только дату проверки, чтобы версия из кода оставалась основной
+      const builtin = INITIAL_ANNOUNCEMENTS.find((a) => a.id === id);
+      if (!builtin) throw new HttpError('not_found', 404);
+      await cmd('HSET', CHECKED_KEY, id, now);
+      return json({ item: { ...builtin, lastCheckedAt: now } });
     }
 
     if (body.action === 'withdraw') {

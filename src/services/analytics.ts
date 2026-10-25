@@ -19,6 +19,39 @@ const visitorId = () => {
 
 let firstHit = true;
 
+const READS_KEY = 'datanews_reads_v1';
+/**
+ * Прочтение публикации (открыта карточка) — для блока «Самое читаемое».
+ * Один раз в день на браузер для каждой публикации, чтобы обновления страницы не накручивали счётчик.
+ */
+export const trackRead = (annId: string) => {
+  const day = new Date(Date.now() + 6 * 3600_000).toISOString().slice(0, 10);
+  try {
+    const seen = JSON.parse(localStorage.getItem(READS_KEY) || '{}') as Record<string, string>;
+    if (seen[annId] === day) return;
+    // храним только сегодняшние отметки
+    const next = Object.fromEntries(Object.entries(seen).filter(([, d]) => d === day));
+    next[annId] = day;
+    localStorage.setItem(READS_KEY, JSON.stringify(next));
+  } catch {
+    /* без хранилища считаем каждое открытие */
+  }
+  fetch('/api/track', { method: 'POST', body: JSON.stringify({ annId }), keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(
+    () => {}
+  );
+};
+
+/** Самые читаемые публикации за неделю: id → число прочтений */
+export const fetchPopular = async (): Promise<Record<string, number>> => {
+  try {
+    const r = await fetch('/api/track?popular=1');
+    const d = (await r.json()) as { items?: { id: string; reads: number }[] };
+    return Object.fromEntries((d.items || []).map((x) => [x.id, x.reads]));
+  } catch {
+    return {};
+  }
+};
+
 export const trackView = (path: string, lang: string) => {
   const body = JSON.stringify({
     path,

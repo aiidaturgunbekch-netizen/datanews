@@ -12,6 +12,7 @@ import { CONTACTS } from '../config/contacts';
 type L3 = Record<Language, string>;
 const T: Record<string, L3> = {
   open: { ru: 'Спросить DataNews AI', kg: 'DataNews AI\'дан суроо', en: 'Ask DataNews AI' },
+  short: { ru: 'Спросить AI', kg: 'AI\'дан суроо', en: 'Ask AI' },
   title: { ru: 'DataNews AI', kg: 'DataNews AI', en: 'DataNews AI' },
   sub: {
     ru: 'Бот по данным сайта — без внешнего ИИ',
@@ -150,13 +151,13 @@ export const ChatWidget: React.FC<{
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-4 right-4 z-[90] inline-flex items-center gap-2 px-4 py-3 rounded-full bg-[#12327A] text-white font-bold shadow-xl hover:bg-[#0d2459] focus-visible:ring-4 focus-visible:ring-[#20C7B5]/50"
+          className="fixed bottom-4 right-4 z-[90] inline-flex items-center gap-1.5 h-10 px-3 sm:pl-3 sm:pr-4 rounded-full bg-[#12327A]/95 text-white text-sm font-semibold shadow-lg hover:bg-[#0d2459] focus-visible:ring-4 focus-visible:ring-[#20C7B5]/50"
           aria-label={T.open[lang]}
         >
-          <span className="material-symbols-outlined" aria-hidden="true">
+          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
             smart_toy
           </span>
-          <span className="hidden sm:inline">{T.open[lang]}</span>
+          <span className="hidden sm:inline">{T.short[lang]}</span>
         </button>
       )}
       {open && (

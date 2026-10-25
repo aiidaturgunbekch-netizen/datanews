@@ -49,18 +49,21 @@ const tel = (s: string) => `tel:${s.replace(/[^\d+]/g, '')}`;
 
 /** Экстренные службы — отдельный квадрат с номерами и названиями */
 export const EmergencyBox: React.FC<{ lang: Language }> = ({ lang }) => (
-  <div className="rounded-2xl bg-white border border-gray-100 p-4">
-    <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2 flex items-center gap-1.5">
-      <span className="material-symbols-outlined text-[18px] text-red-600" aria-hidden="true">
+  <div className="rounded-2xl bg-white border border-gray-200 p-5">
+    <h3 className="text-base font-extrabold text-[#0f1b33] mb-4 flex items-center gap-2">
+      <span className="material-symbols-outlined text-[20px] text-[#12327A]" aria-hidden="true">
         emergency
       </span>
       {T.emergency[lang]}
     </h3>
-    <ul className="grid grid-cols-2 gap-2">
+    <ul className="grid grid-cols-2 gap-3">
       {EMERGENCY_NUMBERS.map((e) => (
         <li key={e.phone}>
-          <a href={`tel:${e.phone}`} className="flex items-center gap-2 h-full rounded-xl bg-red-50 hover:bg-red-100 px-3 py-2">
-            <span className="text-lg font-black text-red-700">{e.phone}</span>
+          <a
+            href={`tel:${e.phone}`}
+            className="flex items-center gap-2.5 h-full rounded-xl bg-[#f3f6fc] hover:bg-[#e6ecf8] focus-visible:ring-2 focus-visible:ring-[#12327A] px-3 py-2.5"
+          >
+            <span className="text-lg font-black text-[#12327A] tabular-nums">{e.phone}</span>
             <span className="text-xs text-gray-700 leading-tight">{e.name[lang]}</span>
           </a>
         </li>
@@ -90,12 +93,14 @@ export const HydrometLine: React.FC<{ lang: Language }> = ({ lang }) => (
  * официальные предупреждения и официальный прогноз Кыргызгидромета, внесённый редакцией.
  * Если их нет, остаётся одна короткая строка с экстренными номерами.
  */
-export const WeatherSafety: React.FC<{ lang: Language; announcements: Announcement[]; city: CityId; onOpen: (a: Announcement) => void }> = ({
-  lang,
-  announcements,
-  city,
-  onOpen,
-}) => {
+export const WeatherSafety: React.FC<{
+  lang: Language;
+  announcements: Announcement[];
+  city: CityId;
+  onOpen: (a: Announcement) => void;
+  /** false — на главной предупреждения уже показаны в блоке «Главное», здесь только официальный прогноз */
+  showWarnings?: boolean;
+}> = ({ lang, announcements, city, onOpen, showWarnings = true }) => {
   const { t } = getTranslation(lang);
   const [official, setOfficial] = useState<api.WeatherResponse['official']>(null);
 
@@ -121,10 +126,10 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
 
 
   // На главной — только когда есть подтверждённые сведения; экстренные номера — внизу страницы
-  if (warnings.length === 0 && !forecast) return null;
+  if ((!showWarnings || warnings.length === 0) && !forecast) return null;
 
   return (
-    <section id="weather-safety" className="w-full border-b border-gray-100 py-6 bg-[#f6f8fd]">
+    <section id="weather-safety" className="w-full border-b border-gray-100 py-10 bg-[#f6f8fd]">
       <div className="max-w-[1280px] mx-auto px-4 md:px-6">
         <div className="space-y-4 min-w-0">
           <div className="flex items-center gap-2">
@@ -132,7 +137,7 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
             <h2 className="text-lg sm:text-xl font-bold text-[#0f1b33]">{T.title[lang]}</h2>
           </div>
 
-          {warnings.length > 0 && (
+          {showWarnings && warnings.length > 0 && (
             <div>
               <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2">{T.warnings[lang]}</h3>
               <ul className="space-y-2">
@@ -166,7 +171,7 @@ export const WeatherSafety: React.FC<{ lang: Language; announcements: Announceme
           )}
 
           {forecast && (
-            <div className="rounded-2xl bg-white border-2 border-emerald-200 p-3 sm:p-4 max-w-2xl">
+            <div className="rounded-2xl bg-white border border-gray-200 p-4 sm:p-5 max-w-2xl">
               <h3 className="text-sm font-extrabold text-[#0f1b33] mb-1">
                 {forecast.date === today ? T.todayTitle[lang] : T.tomorrow[lang]} — {formatDayMonth(forecast.date, lang)}
               </h3>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { PLAN_IDS, PLANS, planTerms, planUnit } from '../config/site';
@@ -7,13 +7,22 @@ interface OrganizationsPageProps {
   currentLanguage: Language;
   onOpenPublish: () => void;
   onBackToHome: () => void;
+  /** 'plans' — открыть сразу на разделе тарифов (ссылка «Тарифы и подписка») */
+  focus?: 'top' | 'plans';
 }
 
 export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
   currentLanguage,
   onOpenPublish,
   onBackToHome,
+  focus = 'top',
 }) => {
+  const plansRef = useRef<HTMLDivElement>(null);
+  // «Публикация объявлений» — начало страницы, «Тарифы и подписка» — сразу раздел тарифов
+  useEffect(() => {
+    if (focus === 'plans') plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [focus]);
   const { t } = getTranslation(currentLanguage);
 
   const lang = currentLanguage;
@@ -88,7 +97,7 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
       </div>
 
       {/* Tiers Grid */}
-      <div className="mb-12">
+      <div ref={plansRef} id="plans" className="mb-12 scroll-mt-[calc(var(--header-h,136px)+1rem)]">
         <div className="text-center max-w-xl mx-auto mb-8">
           <h2 className="text-2xl font-bold text-[#0f1b33] mb-2">{tx.plansTitle[lang]}</h2>
           <p className="text-xs sm:text-sm text-gray-500">

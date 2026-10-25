@@ -18,6 +18,7 @@ import { isPushConfigured, isPushEndpoint, sendPush, vapidPublicKey } from './_l
 import { env } from './_lib/env';
 import { isAlert, isExpired } from '../src/utils/urgency';
 import { kgNowLocal } from '../src/utils/time';
+import { isCheckOnlyCopy } from '../src/utils/mergeAnnouncements';
 
 export const config = { runtime: 'edge' };
 
@@ -80,7 +81,8 @@ export default handler(async (req) => {
     if (!isPushConfigured()) throw new HttpError('push_not_configured', 503, 'Добавьте ключи VAPID в настройки Vercel');
     const body = await readBody<{ annId?: string }>(req, 2000);
     const id = String(body.annId || '');
-    const stored = await hgetJson<Announcement>(ANN_KEY, id);
+    const raw = await hgetJson<Announcement>(ANN_KEY, id);
+    const stored = raw && !isCheckOnlyCopy(raw) ? raw : null;
     const a = stored || INITIAL_ANNOUNCEMENTS.find((x) => x.id === id);
     if (!a) throw new HttpError('not_found', 404);
     if (!isAlert(a) || isExpired(a)) throw new HttpError('not_alert', 400, 'Уведомление можно отправить только по действующему предупреждению');

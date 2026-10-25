@@ -2,9 +2,33 @@ import { kgNowLocal } from '../../src/utils/time';
 import type { Announcement, CategoryId, CityId, HistoryChange, HistoryEntry, LocalizedString, SourceKind, UrgencyType } from '../../src/types';
 import { cmd, hsetJson } from './kv';
 import { HttpError, randomId } from './http';
+import { isCheckOnlyCopy } from '../../src/utils/mergeAnnouncements';
 
 export const ANN_KEY = 'dn:ann'; // id → JSON объявления (публикации пользователей и правки админа)
 export const HIDDEN_KEY = 'dn:ann:hidden'; // id встроенных объявлений, удалённых админом
+export const CHECKED_KEY = 'dn:ann:checked'; // id встроенного объявления → дата последней сверки с источником
+
+/**
+ * Делит записи из базы: настоящие публикации и правки — отдельно, а для встроенных публикаций берёт только дату проверки.
+ * Старые полные копии, сохранённые кнопкой «Проверено сегодня», превращаются в такую дату (сами записи не удаляются).
+ */
+export const splitChecked = async (stored: Announcement[]) => {
+  const checked: Record<string, string> = toStringMap(await cmd<unknown>('HGETALL', CHECKED_KEY));
+  const items: Announcement[] = [];
+  for (const a of stored) {
+    if (isCheckOnlyCopy(a)) {
+      if (a.lastCheckedAt && (!checked[a.id] || a.lastCheckedAt > checked[a.id])) checked[a.id] = a.lastCheckedAt;
+    } else items.push(a);
+  }
+  return { items, checked };
+};
+
+const toStringMap = (flat: unknown): Record<string, string> => {
+  const out: Record<string, string> = {};
+  const arr = Array.isArray(flat) ? flat : [];
+  for (let i = 0; i + 1 < arr.length; i += 2) out[String(arr[i])] = String(arr[i + 1]);
+  return out;
+};
 export const IMG_KEY = 'dn:img'; // id → data:image/...;base64
 
 const CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs', 'concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education', 'gov', 'hazard', 'state', 'laws'];

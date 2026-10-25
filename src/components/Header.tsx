@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PLACE_IDS } from '../config/regions';
 import { Language, CityId, ViewMode, Announcement } from '../types';
 import { getTranslation } from '../locales/translations';
 import { Logo } from './Logo';
+import { WEEKDAYS, formatDayMonth } from '../utils/dates';
+import { RUBRICS } from '../config/rubrics';
 
 interface HeaderProps {
   currentLanguage: Language;
@@ -18,6 +20,11 @@ interface HeaderProps {
   onOpenAdmin: () => void;
   onOpenAccount: () => void;
   onOpenPublish: () => void;
+  /** Открыть выдвижную панель «Разделы» */
+  onOpenSections: () => void;
+  /** Выбранная рубрика строки навигации (null — главная без фильтра) */
+  activeRubric: string | null;
+  onSelectRubric: (id: string | null) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,54 +41,105 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdmin,
   onOpenAccount,
   onOpenPublish,
+  onOpenSections,
+  activeRubric,
+  onSelectRubric,
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const cityLabels = Object.fromEntries([...PLACE_IDS, 'karakol'].map((id) => [id, t(`cities.${id}`)])) as Record<CityId, string>;
 
-  const navItems: { view: ViewMode; label: string }[] = [
-    { view: 'calendar', label: t('nav.calendar') },
-    { view: 'alerts', label: t('nav.alerts') },
-    { view: 'events', label: t('nav.events') },
-    { view: 'cities', label: t('nav.cities') },
-    { view: 'organizations', label: t('nav.forOrg') },
-  ];
+  // Высота шапки меняется (строка рубрик переносится на узких экранах) — сообщаем её странице через CSS-переменную
+  const headerRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const apply = () => document.documentElement.style.setProperty('--header-h', `${el.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Дата и время — по Кыргызстану (UTC+6), независимо от часового пояса компьютера; часы обновляются каждые 15 секунд
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTs(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const kg = new Date(nowTs + 6 * 3600_000); // поля UTC этой даты = местное время Бишкека
+  const today = new Date(kg.getUTCFullYear(), kg.getUTCMonth(), kg.getUTCDate());
+  const weekday = WEEKDAYS[currentLanguage][today.getDay()];
+  const todayLabel = `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${formatDayMonth(today, currentLanguage)}`;
+  const timeLabel = `${String(kg.getUTCHours()).padStart(2, '0')}:${String(kg.getUTCMinutes()).padStart(2, '0')}`;
+  const kgTimeName = currentLanguage === 'kg' ? 'КР убактысы' : currentLanguage === 'en' ? 'Kyrgyzstan time' : 'время КР';
+  const sectionsLabel = currentLanguage === 'kg' ? 'Бөлүмдөр' : currentLanguage === 'en' ? 'Sections' : 'Разделы';
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-[#0d2459] shadow-[0_2px_12px_rgba(0,0,0,0.15)] text-white">
-      {/* Main Bar */}
-      <div className="h-16 max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
-        {/* Left: Brand Logo & Navigation */}
-        <div className="flex items-center gap-6 lg:gap-8">
+    <header ref={headerRef} className="fixed top-0 inset-x-0 z-50 text-white shadow-[0_2px_12px_rgba(0,0,0,0.15)]">
+      {/* Служебная строка: дата, для организаций, язык */}
+      <div className="h-9 bg-[#081a42] border-b border-white/10">
+        <div className="h-full max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-4 text-xs">
+          <span className="text-[#c8d2ee]">
+            <span className="hidden sm:inline">{todayLabel} · </span>
+            <time dateTime={`${kg.toISOString().slice(0, 16)}+06:00`} className="font-semibold text-white tabular-nums">
+              {timeLabel}
+            </time>{' '}
+            <span>({kgTimeName})</span>
+          </span>
+          <div className="flex items-center gap-4 sm:gap-6 ml-auto">
+            <button
+              onClick={() => onViewChange('organizations')}
+              className={`font-semibold transition-colors ${currentView === 'organizations' ? 'text-white' : 'text-[#c8d2ee] hover:text-white'}`}
+            >
+              {t('nav.forOrg')}
+            </button>
+            <span className="w-px h-4 bg-white/15" aria-hidden="true" />
+            <div className="flex items-center gap-1" role="group" aria-label={currentLanguage === 'kg' ? 'Тил' : currentLanguage === 'en' ? 'Language' : 'Язык'}>
+              {(['ru', 'kg', 'en'] as Language[]).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => onLanguageChange(lang)}
+                  aria-pressed={currentLanguage === lang}
+                  className={`px-1.5 py-0.5 rounded font-bold uppercase tracking-wide transition-colors ${
+                    currentLanguage === lang ? 'text-[#0d2459] bg-[#20C7B5]' : 'text-[#c8d2ee] hover:text-white'
+                  }`}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Основная строка */}
+      <div className="bg-[#0d2459]">
+      <div className="h-14 max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
+        {/* Left: Sections, Brand Logo */}
+        <div className="flex items-center gap-3 lg:gap-6 min-w-0">
+          <button
+            onClick={onOpenSections}
+            aria-label={sectionsLabel}
+            title={sectionsLabel}
+            className="inline-flex items-center gap-1.5 p-2 sm:pl-2 sm:pr-3 rounded-lg text-white hover:bg-white/10 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[24px]">menu</span>
+            <span className="hidden xl:inline text-sm font-semibold">{sectionsLabel}</span>
+          </button>
           <button
             onClick={() => onViewChange('home')}
             className="flex items-center text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#20C7B5] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d2459]"
             aria-label="DataNews Home"
           >
-            <Logo isLightMode={true} compactOnMobile className="h-8 sm:h-10" lang={currentLanguage} />
+            <Logo isLightMode={true} className="h-8 sm:h-10" lang={currentLanguage} />
           </button>
+          {/* Девиз — рядом с логотипом на широких экранах */}
+          <span className="hidden lg:block pl-5 ml-1 border-l border-white/20 text-sm font-semibold text-[#20C7B5] whitespace-nowrap">
+            {t('motto')}
+          </span>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1">
-            {navItems.map((item) => {
-              const isActive = currentView === item.view;
-              return (
-                <button
-                  key={item.view}
-                  onClick={() => onViewChange(item.view)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    isActive
-                      ? 'bg-white/15 text-white shadow-sm'
-                      : 'text-[#dbe1ff] hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
         </div>
 
         {/* Right: City Selector, Language Picker, Search, Post Button & Admin */}
@@ -132,26 +190,6 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Languages: RU | KG | EN Switcher */}
-          <div className="flex items-center bg-[#07173d] p-0.5 rounded-lg border border-white/10">
-            {(['ru', 'kg', 'en'] as Language[]).map((lang) => {
-              const isSelected = currentLanguage === lang;
-              return (
-                <button
-                  key={lang}
-                  onClick={() => onLanguageChange(lang)}
-                  className={`px-2 py-1 rounded text-xs font-bold uppercase transition-all ${
-                    isSelected
-                      ? 'bg-[#20C7B5] text-[#002f29] shadow-sm'
-                      : 'text-[#dbe1ff] hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {lang}
-                </button>
-              );
-            })}
-          </div>
-
           {/* Search Trigger */}
           <button
             onClick={onOpenSearch}
@@ -191,51 +229,41 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* Mobile Menu Toggle Button */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-1.5 text-white hover:bg-white/10 rounded-lg"
-            aria-label="Menu"
-          >
-            <span className="material-symbols-outlined text-[24px]">
-              {isMobileMenuOpen ? 'close' : 'menu'}
-            </span>
-          </button>
         </div>
       </div>
 
-      {/* Mobile Drawer Menu */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden bg-[#0a1e4a] border-t border-white/10 px-4 py-3 space-y-2">
-          {navItems.map((item) => (
-            <button
-              key={item.view}
-              onClick={() => {
-                onViewChange(item.view);
-                setIsMobileMenuOpen(false);
-              }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-between ${
-                currentView === item.view ? 'bg-white/15 text-white' : 'text-[#dbe1ff] hover:bg-white/5'
-              }`}
-            >
-              <span>{item.label}</span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-            </button>
-          ))}
-          <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-            <button
-              onClick={() => {
-                onOpenPublish();
-                setIsMobileMenuOpen(false);
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-[#20C7B5] text-[#002f29] font-bold text-sm"
-            >
-              <span className="material-symbols-outlined text-[18px]">add_circle</span>
-              <span>{t('nav.publishBtn')}</span>
-            </button>
-          </div>
+      </div>
+
+      {/* Строка рубрик: главные страницы и рубрики, сгруппированные по смыслу (на телефоне — прокрутка вбок) */}
+      <nav
+        aria-label={currentLanguage === 'kg' ? 'Рубрикалар' : currentLanguage === 'en' ? 'Sections' : 'Рубрики'}
+        className="relative bg-white border-b border-gray-200 text-[#0f1b33] after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-10 after:bg-gradient-to-l after:from-white after:to-transparent after:pointer-events-none md:after:hidden"
+      >
+        {/* Телефон — одна строка с прокруткой; ноутбук и шире — рубрики переносятся, ни одна не обрезается */}
+        <div className="max-w-[1280px] mx-auto px-1 sm:px-2 md:px-4 overflow-x-auto md:overflow-visible scrollbar-none">
+          <ul className="flex items-stretch min-w-max md:min-w-0 md:flex-wrap">
+            {[
+              { key: 'home', label: t('nav.home'), active: currentView === 'home' && !activeRubric, onClick: () => { onSelectRubric(null); onViewChange('home'); } },
+              { key: 'alerts', label: t('nav.alerts'), active: currentView === 'alerts', onClick: () => { onSelectRubric(null); onViewChange('alerts'); } },
+              ...RUBRICS.map((r) => ({ key: r.id, label: r.label[currentLanguage], active: currentView === 'home' && activeRubric === r.id, onClick: () => onSelectRubric(r.id) })),
+              { key: 'calendar', label: t('nav.calendar'), active: currentView === 'calendar', onClick: () => { onSelectRubric(null); onViewChange('calendar'); } },
+            ].map((item) => (
+              <li key={item.key} className="flex h-11">
+                <button
+                  type="button"
+                  onClick={item.onClick}
+                  aria-current={item.active ? 'page' : undefined}
+                  className={`px-2.5 text-sm font-semibold whitespace-nowrap border-b-[3px] transition-colors ${
+                    item.active ? 'border-[#20C7B5] text-[#12327A]' : 'border-transparent text-[#0f1b33] hover:text-[#12327A] hover:border-[#12327A]/30'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
-      )}
+      </nav>
     </header>
   );
 };

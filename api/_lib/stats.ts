@@ -14,6 +14,8 @@ export const K = {
   devices: (day: string) => `dn:st:d:${day}`,
   langs: (day: string) => `dn:st:l:${day}`,
   cities: (day: string) => `dn:st:c:${day}`,
+  /** Прочтения публикаций за день: id публикации → число открытий карточки */
+  reads: (day: string) => `dn:st:n:${day}`,
   allVisitors: 'dn:st:u:all',
   allViews: 'dn:st:v:all',
 };

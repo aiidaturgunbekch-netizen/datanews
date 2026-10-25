@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Announcement, HistoryEntry, Language, PaymentStatus, Report, SiteStats } from '../types';
 import * as api from '../services/api';
-import { INITIAL_ANNOUNCEMENTS } from '../data/initialAnnouncements';
+import { mergeAnnouncements } from '../utils/mergeAnnouncements';
 import { normalizePlan, PLANS } from '../config/site';
 import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './AnnouncementForm';
 import { EventImage } from './EventImage';
 import { eventSource, ticketLink } from '../utils/links';
 import { historyLabel, MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
 import { isAlert, isExpired } from '../utils/urgency';
-import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
+import { addDaysStr, formatKgDateTime, kgDateStr, kgTs } from '../utils/time';
+import { reviewReasons, STALE_MS } from '../utils/review';
 import { FORECAST_REGIONS, OfficialForecast } from '../config/weather';
 import { parseOfficialText } from '../utils/officialForecast';
 import { ImportResult, parseNotice } from '../utils/importText';
@@ -69,7 +70,7 @@ const ReportsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
                   {r.status === 'open' ? 'Открыта' : `Закрыта: ${r.resolution || ''}`}
                 </span>
                 <b>{REPORT_REASON[r.reason]}</b>
-                <span className="text-gray-500">{r.at.replace('T', ' ')}</span>
+                <span className="text-gray-500">{fmt(r.at)}</span>
               </div>
               <div className="font-bold text-[#0f1b33] mt-1">{r.annTitle}</div>
               {r.comment && <p className="text-gray-700 mt-1 whitespace-pre-line">{r.comment}</p>}
@@ -94,23 +95,8 @@ const ReportsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
 
 type Tab = 'moderation' | 'review' | 'posts' | 'push' | 'users' | 'reports' | 'weather' | 'stats';
 
-const fmt = (iso: string) =>
-  iso ? new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-const STALE_MS = 3 * 86400_000;
-
-/** Почему действующую публикацию нужно сверить с первоисточником (пусто — всё в порядке) */
-const reviewReasons = (a: Announcement): string[] => {
-  if (isExpired(a) || (a.moderationStatus && a.moderationStatus !== 'approved')) return [];
-  const r: string[] = [];
-  if (!a.lastCheckedAt) r.push('Дата проверки не указана');
-  else if (Date.now() - kgTs(a.lastCheckedAt) > STALE_MS) r.push(`Проверено давно (${fmt(a.lastCheckedAt)})`);
-  if (!a.isVerified && !a.publishedByGov) r.push('Не подтверждено');
-  if (a.category === 'laws' || a.category === 'state' || a.legal) {
-    if (!a.legal?.docUrl) r.push('Нет ссылки на документ');
-    if (!a.legal?.effectiveFrom) r.push('Нет даты вступления в силу');
-  }
-  return r;
-};
+/** Дата и время по Бишкеку в одном формате для всей панели */
+const fmt = formatKgDateTime;
 
 const catLabel = (id: string) => CATEGORY_OPTIONS.find((c) => c.id === id)?.label || id;
 const cityLabel = (id: string) => CITY_OPTIONS.find((c) => c.id === id)?.label || id;
@@ -502,13 +488,20 @@ const b64url = (buf: ArrayBuffer | Uint8Array) => {
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 
-const PushPanel: React.FC<{ items: Announcement[] }> = ({ items }) => {
+const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) => void }> = ({ items, onTotal }) => {
   const [stats, setStats] = useState<api.PushStats | null>(null);
   const [keys, setKeys] = useState<{ pub: string; priv: string } | null>(null);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
-  const load = () => api.pushStats().then(setStats).catch((e: Error) => setErr(e.message));
+  const load = () =>
+    api
+      .pushStats()
+      .then((r) => {
+        setStats(r);
+        onTotal(r.total); // после рассылки недействующие подписки удаляются — счётчик в меню обновляется
+      })
+      .catch((e: Error) => setErr(e.message));
   useEffect(() => {
     load();
   }, []);
@@ -644,7 +637,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   const [tab, setTab] = useState<Tab>('moderation');
   const [serverItems, setServerItems] = useState<Announcement[]>([]);
   const [hidden, setHidden] = useState<string[]>([]);
+  const [checked, setChecked] = useState<Record<string, string>>({});
   const [users, setUsers] = useState<api.AdminUser[]>([]);
+  const [pushTotal, setPushTotal] = useState<number | null>(null);
   const [editing, setEditing] = useState<Announcement | null | 'new'>(null);
   const [query, setQuery] = useState('');
   const [msg, setMsg] = useState('');
@@ -656,6 +651,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Число открытых жалоб — обновляется и при каждой перезагрузке данных панели (например, после закрытия жалобы)
+  const refreshReportsCount = () =>
+    api
+      .fetchReports()
+      .then((r) => setOpenReports(r.filter((x) => x.status === 'open').length))
+      .catch(() => {});
+
   const load = () => {
     setErr('');
     api
@@ -663,6 +665,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       .then((r) => {
         setServerItems(r.items);
         setHidden(r.hidden);
+        setChecked(r.checked || {});
       })
       .catch((e: api.ApiError) => {
         if (e.status === 401 || e.status === 403) {
@@ -675,6 +678,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       .fetchUsers()
       .then(setUsers)
       .catch(() => {});
+    api
+      .pushStats()
+      .then((r) => setPushTotal(r.total))
+      .catch(() => setPushTotal(null));
+    refreshReportsCount();
   };
 
   useEffect(() => {
@@ -686,7 +694,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   const unpaid = users.filter((u) => u.paymentStatus === 'pending' || u.govStatus === 'pending');
   const [openReports, setOpenReports] = useState(0);
   useEffect(() => {
-    if (isAdmin) api.fetchReports().then((r) => setOpenReports(r.filter((x) => x.status === 'open').length)).catch(() => {});
+    if (isAdmin) refreshReportsCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, tab]);
   const [historyOf, setHistoryOf] = useState<string | null>(null);
 
@@ -715,13 +724,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       } as Announcement)
     : null;
 
-  const merged = useMemo(() => {
-    const byId = new Map<string, Announcement>();
-    INITIAL_ANNOUNCEMENTS.forEach((a) => byId.set(a.id, a));
-    serverItems.forEach((a) => byId.set(a.id, a));
-    hidden.forEach((id) => byId.delete(id));
-    return [...byId.values()];
-  }, [serverItems, hidden]);
+  const merged = useMemo(() => mergeAnnouncements(serverItems, hidden, checked), [serverItems, hidden, checked]);
   const toReview = useMemo(
     () =>
       merged
@@ -762,9 +765,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       onRoleChange('admin');
     } catch (ex) {
       const e2 = ex as api.ApiError;
+      // Две разные причины — разные подсказки, чтобы было видно, какой переменной не хватает
       setLoginErr(
-        e2.code === 'storage_not_configured' || e2.code === 'admin_not_configured'
-          ? 'Сервер ещё не настроен: подключите Upstash Redis в Vercel (Storage) и задайте переменную ADMIN_PASSWORD. Инструкция — в ADMIN_GUIDE.md.'
+        e2.code === 'storage_not_configured'
+          ? 'Сервер не видит базу данных: для этой версии сайта не заданы KV_REST_API_URL и KV_REST_API_TOKEN (или UPSTASH_REDIS_REST_URL и UPSTASH_REDIS_REST_TOKEN). Проверьте окружение и ветку переменных в Vercel и сделайте Redeploy. Инструкция — в ADMIN_GUIDE.md.'
+          : e2.code === 'admin_not_configured'
+          ? 'База данных подключена, но для этой версии сайта не задана переменная ADMIN_PASSWORD. Добавьте её в Vercel для этого окружения и сделайте Redeploy. Инструкция — в ADMIN_GUIDE.md.'
           : e2.message
       );
     } finally {
@@ -785,15 +791,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     act(() => api.moderateAnnouncement(a.id, 'reject', note), 'Публикация отклонена, автор увидит причину');
   };
 
-  const tabs: [Tab, string, string, number][] = [
-    ['moderation', 'Модерация', 'fact_check', pending.length],
-    ['review', 'Требует проверки', 'rule', toReview.length],
-    ['posts', 'Публикации', 'article', 0],
-    ['push', 'Уведомления', 'notifications', 0],
-    ['users', 'Пользователи', 'group', unpaid.length],
-    ['reports', 'Жалобы', 'flag', openReports],
-    ['weather', 'Прогноз погоды', 'thermostat', 0],
-    ['stats', 'Статистика', 'monitoring', 0],
+  /**
+   * Счётчик пункта меню: «внимание» (жёлтый) — что-то ждёт действия; «всего» (спокойный) — справочное число.
+   * null — счётчика нет (данные не загрузились или раздел без числа).
+   */
+  type Badge = { value: number; attention: boolean; title: string } | null;
+  const tabs: [Tab, string, string, Badge][] = [
+    ['moderation', 'Модерация', 'fact_check', { value: pending.length, attention: pending.length > 0, title: `Ожидают модерации: ${pending.length}` }],
+    ['review', 'Сверка с источниками', 'rule', { value: toReview.length, attention: toReview.length > 0, title: `Нужно сверить с источником: ${toReview.length}` }],
+    ['posts', 'Публикации', 'article', { value: merged.length, attention: false, title: `Всего публикаций: ${merged.length}` }],
+    ['push', 'Уведомления', 'notifications', pushTotal === null ? null : { value: pushTotal, attention: false, title: `Подписчиков на уведомления: ${pushTotal}` }],
+    [
+      'users',
+      'Пользователи',
+      'group',
+      unpaid.length > 0
+        ? { value: unpaid.length, attention: true, title: `Ждут подтверждения оплаты или статуса госоргана: ${unpaid.length}` }
+        : { value: users.length, attention: false, title: `Зарегистрировано пользователей: ${users.length}` },
+    ],
+    ['reports', 'Жалобы', 'flag', { value: openReports, attention: openReports > 0, title: `Открытых жалоб: ${openReports}` }],
+    ['weather', 'Прогноз погоды', 'thermostat', null],
+    ['stats', 'Статистика', 'monitoring', null],
   ];
 
   return (
@@ -841,7 +859,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
           </div>
         ) : (
           <div className="flex-1 flex flex-col sm:flex-row min-h-0">
-            <nav className="sm:w-52 bg-white border-b sm:border-b-0 sm:border-r border-gray-100 p-2 flex sm:flex-col gap-1 overflow-x-auto">
+            {/* На телефоне — сетка в две колонки, чтобы все пункты и счётчики были видны без прокрутки вбок */}
+            <nav className="sm:w-64 shrink-0 bg-white border-b sm:border-b-0 sm:border-r border-gray-100 p-2 grid grid-cols-2 sm:flex sm:flex-col gap-1 sm:overflow-y-auto">
               {tabs.map(([id, label, icon, badge]) => (
                 <button
                   key={id}
@@ -850,18 +869,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     setEditing(null);
                     setMsg('');
                   }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold whitespace-nowrap ${
+                  title={badge?.title}
+                  className={`min-w-0 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold ${
                     tab === id ? 'bg-[#12327A] text-white' : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[18px]">{icon}</span>
-                  <span className="flex-1 text-left">{label}</span>
-                  {badge > 0 && <span className="px-1.5 rounded-full bg-amber-400 text-[#0f1b33] text-[11px] font-black">{badge}</span>}
+                  <span className="material-symbols-outlined text-[18px] shrink-0">{icon}</span>
+                  <span className="flex-1 min-w-0 text-left leading-tight">{label}</span>
+                  {badge && (
+                    <span
+                      aria-label={badge.title}
+                      className={`shrink-0 inline-flex items-center justify-center min-w-[1.75rem] h-6 px-2 rounded-full text-xs font-extrabold tabular-nums leading-none ${
+                        badge.attention
+                          ? 'bg-amber-400 text-[#0f1b33] ring-1 ring-amber-500/40'
+                          : tab === id
+                          ? 'bg-white text-[#12327A]'
+                          : 'bg-[#e6ecf8] text-[#12327A]'
+                      }`}
+                    >
+                      {badge.value}
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4">
               {msg && <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-semibold">{msg}</div>}
               {err && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">{err}</div>}
 
@@ -913,7 +946,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                 </div>
               ) : tab === 'moderation' ? (
                 <>
-                  <h2 className="text-xl font-extrabold text-[#0f1b33]">Ожидают проверки: {pending.length}</h2>
+                  <h2 className="text-xl font-extrabold text-[#0f1b33]">Ожидают модерации: {pending.length}</h2>
+                  <p className="text-xs text-gray-600">
+                    «Одобрить» — разрешить публикацию после модерации. Достоверность это не подтверждает: публикация попадёт в «Сверку с источниками»,
+                    а отметку «Подтверждено по первоисточнику» ставит редактор в форме после сверки.
+                  </p>
                   {pending.length === 0 ? (
                     <div className="py-12 text-center text-gray-500 bg-white rounded-2xl">Новых публикаций нет 🎉</div>
                   ) : (
@@ -983,8 +1020,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                         return (
                           <div key={a.id} className="bg-white rounded-2xl border border-gray-100 p-3 flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
                             <div className="flex-1 min-w-0">
-                              <div className="font-bold text-sm text-[#0f1b33] truncate">{a.title.ru}</div>
-                              <div className="text-[11px] text-gray-500">
+                              <div className="font-bold text-sm text-[#0f1b33] line-clamp-2 [overflow-wrap:anywhere]" title={a.title.ru}>
+                                {a.title.ru}
+                              </div>
+                              <div className="text-[11px] text-gray-500 [overflow-wrap:anywhere]">
                                 {catLabel(a.category)} • {fmt(a.startDate)}
                                 {a.sourceName ? ` • ${a.sourceName}` : ''}
                               </div>
@@ -996,7 +1035,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                 ))}
                               </div>
                             </div>
-                            <div className="flex items-center gap-1 self-end sm:self-auto">
+                            <div className="flex flex-wrap items-center justify-end gap-1 self-end sm:self-auto shrink-0">
                               {src && (
                                 <a href={src} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Открыть первоисточник">
                                   <span className="material-symbols-outlined text-[20px]">open_in_new</span>
@@ -1019,7 +1058,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                   )}
                 </>
               ) : tab === 'push' ? (
-                <PushPanel items={merged} />
+                <PushPanel items={merged} onTotal={setPushTotal} />
               ) : tab === 'posts' ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">

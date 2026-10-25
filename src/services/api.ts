@@ -1,6 +1,6 @@
 import type { OfficialForecast } from '../config/weather';
 import type { BotIntent, BotReply } from '../types/bot';
-import { Announcement, GovVerification, PaymentStatus, PlanId, PlanUsage, PublicUser, Report, SiteStats } from '../types';
+import { Announcement, GovVerification, MailItem, PaymentStatus, PlanId, PlanUsage, PublicUser, Report, SiteStats } from '../types';
 
 /**
  * Клиент серверных функций /api (Vercel). Токен входа хранится в браузере.
@@ -103,6 +103,10 @@ export const fetchAllAnnouncements = () =>
 export const submitAnnouncement = (item: Record<string, unknown>, force = false) =>
   post<{ item: Announcement }>('announcements', { item, force }).then((r) => r.item);
 
+/** Черновик администратора (в т.ч. из письма): попадает в «Модерацию», на сайте не виден до «Одобрить» */
+export const submitDraft = (item: Record<string, unknown>, mailId?: string, force = false) =>
+  post<{ item: Announcement }>('announcements', { item, force, asDraft: true, mailId }).then((r) => r.item);
+
 export const updateAnnouncement = (id: string, item: Record<string, unknown>) =>
   post<{ item: Announcement }>('announcements', { id, item }, 'PATCH').then((r) => r.item);
 
@@ -152,6 +156,11 @@ export interface MailIngestStatus {
   envSwitchOff: boolean;
 }
 export const fetchMailStatus = () => request<MailIngestStatus>('sources?mail=settings');
+export const fetchMailList = () => request<{ items: MailItem[] }>('sources?mail=list').then((r) => r.items);
+export const fetchMailAttachment = (key: string) =>
+  request<{ dataUrl: string }>(`sources?mail=att&key=${encodeURIComponent(key)}`).then((r) => r.dataUrl);
+export const mailItemAction = (id: string, action: 'reject' | 'duplicate' | 'reopen' | 'reparse' | 'prepared' | 'published', extra: { annId?: string; duplicateOf?: string; note?: string } = {}) =>
+  post<{ item: MailItem }>('sources?mail=action', { id, action, ...extra }).then((r) => r.item);
 export const setMailEnabled = (enabled: boolean) => post<MailIngestStatus>('sources?mail=settings', { enabled });
 
 /** Резервная копия данных (только админ): скачивается файлом JSON */

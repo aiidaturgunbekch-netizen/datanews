@@ -4,6 +4,8 @@
  *   GET ?scope=mine        публикации текущего пользователя (со статусом модерации и историей)
  *   GET ?scope=all         все публикации, включая ожидающие модерации (только админ)
  *   POST { item }          админ — публикует сразу;
+ *   POST { item, asDraft: true, mailId? } админ — черновик (в т.ч. из редакционной почты): статус «на модерации»,
+ *                          на сайте не виден, публикуется только кнопкой «Одобрить» в «Модерации»;
  *                          подтверждённый госорган с активным тарифом «Муниципалитет / госорган» — публикует сразу,
  *                            без предварительной модерации (сам отвечает за сведения);
  *                          остальные — отправляют на модерацию. Лимиты тарифа — api/_lib/quota.ts
@@ -85,7 +87,7 @@ export default handler(async (req) => {
   if (req.method === 'POST') {
     const session = await readSession(req);
     if (!session) throw new HttpError('unauthorized', 401, 'Войдите в личный кабинет');
-    const body = await readBody<{ item?: Record<string, unknown> }>(req);
+    const body = await readBody<{ item?: Record<string, unknown>; asDraft?: boolean; mailId?: string }>(req);
     if (!body.item) throw new HttpError('missing_item', 400);
 
     if (session.role === 'admin') {
@@ -99,12 +101,19 @@ export default handler(async (req) => {
         const dup = findDuplicate(item, [...(await hvalsJson<Announcement>(ANN_KEY)), ...INITIAL_ANNOUNCEMENTS]);
         if (dup) throw new HttpError('duplicate', 409, `Похожая публикация уже есть: «${dup.title.ru}» (${dup.startDate.slice(0, 10)})`);
       }
-      item.moderationStatus = 'approved';
+      // Черновик (например, из письма): только новая публикация, на сайт не попадает до «Одобрить»; дату сверки не ставим
+      const asDraft = body.asDraft === true && !base;
+      item.moderationStatus = asDraft ? 'pending' : 'approved';
       item.dataOrigin = item.dataOrigin || 'manual';
-      item.lastCheckedAt = item.updatedAt;
+      item.lastCheckedAt = asDraft ? undefined : item.updatedAt;
       // Правка существующей (в т.ч. встроенной) публикации — с перечнем существенных изменений
       const prev = existing || INITIAL_ANNOUNCEMENTS.find((a) => a.id === item.id) || null;
-      item = prev ? withHistory(item, 'admin', 'edited', undefined, diffFields(prev, item)) : withHistory(item, 'admin', 'published');
+      const mailNote = /^[A-Za-z0-9_-]{6,64}$/.test(String(body.mailId || '')) ? `Черновик из редакционной почты (письмо ${body.mailId})` : 'Черновик редакции';
+      item = asDraft
+        ? withHistory(item, 'admin', 'created', mailNote)
+        : prev
+          ? withHistory(item, 'admin', 'edited', undefined, diffFields(prev, item))
+          : withHistory(item, 'admin', 'published');
       await saveAnnouncement(item);
       return json({ item }, 201);
     }

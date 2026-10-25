@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Announcement, HistoryEntry, Language, PaymentStatus, Report, SiteStats } from '../types';
+import { Announcement, HistoryEntry, Language, MailItem, PaymentStatus, Report, SiteStats } from '../types';
 import * as api from '../services/api';
 import { mergeAnnouncements } from '../utils/mergeAnnouncements';
 import { normalizePlan, PLANS } from '../config/site';
 import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './AnnouncementForm';
 import { EventImage } from './EventImage';
+import { MailInbox } from './MailInbox';
 import { eventSource, ticketLink } from '../utils/links';
 import { historyLabel, MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
 import { isAlert, isExpired } from '../utils/urgency';
@@ -93,7 +94,7 @@ const ReportsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
   );
 };
 
-type Tab = 'moderation' | 'review' | 'posts' | 'push' | 'users' | 'reports' | 'weather' | 'stats';
+type Tab = 'moderation' | 'mail' | 'review' | 'posts' | 'push' | 'users' | 'reports' | 'weather' | 'stats';
 
 /** Дата и время по Бишкеку в одном формате для всей панели */
 const fmt = formatKgDateTime;
@@ -788,6 +789,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       .fetchUsers()
       .then(setUsers)
       .catch(() => {});
+    loadMail();
     api
       .pushStats()
       .then((r) => setPushTotal(r.total))
@@ -808,6 +810,48 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, tab]);
   const [historyOf, setHistoryOf] = useState<string | null>(null);
+
+  // Редакционная почта: письма (dn:mail) и черновик из письма — сохраняется в «Модерацию», на сайте только после «Одобрить»
+  const [mailItems, setMailItems] = useState<MailItem[] | null>(null);
+  const [mailErr, setMailErr] = useState('');
+  const [fromMail, setFromMail] = useState<MailItem | null>(null);
+  const [mailImage, setMailImage] = useState('');
+  const loadMail = () =>
+    api
+      .fetchMailList()
+      .then((items) => {
+        setMailItems(items);
+        setMailErr('');
+      })
+      .catch((e: Error) => setMailErr(e.message));
+  /** Фото из письма уменьшается так же, как при загрузке в форме (лимит хранилища ~950 КБ) */
+  const shrinkMailPhoto = async (dataUrl: string) => {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], 'mail-photo', { type: blob.type });
+    for (const [side, q] of [[1600, 0.85], [1280, 0.8], [1024, 0.75]] as const) {
+      const out = await api.compressImage(file, side, q);
+      if (out.length <= 900_000) return out;
+    }
+    return '';
+  };
+  const prepareFromMail = async (m: MailItem, photo?: string) => {
+    const image = photo ? await shrinkMailPhoto(photo) : '';
+    setImported({
+      // Только то, что найдено в письме; источник — известная организация, если адрес есть в списке отправителей
+      draft: { ...m.suggestion.draft, sourceName: m.sender.orgName || undefined },
+      found: m.suggestion.found,
+      missing: m.suggestion.missing,
+    });
+    setFromMail(m);
+    setMailImage(image);
+    setEditing('new');
+  };
+  const closeEditor = () => {
+    setEditing(null);
+    setImported(null);
+    setFromMail(null);
+    setMailImage('');
+  };
 
   // Импорт из официального сообщения: текст + ссылка → черновик в форме, публикует редактор
   const [importOpen, setImportOpen] = useState(false);
@@ -908,6 +952,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   type Badge = { value: number; attention: boolean; title: string } | null;
   const tabs: [Tab, string, string, Badge][] = [
     ['moderation', 'Модерация', 'fact_check', { value: pending.length, attention: pending.length > 0, title: `Ожидают модерации: ${pending.length}` }],
+    [
+      'mail',
+      'Материалы из почты',
+      'mail',
+      mailItems === null
+        ? null
+        : { value: mailItems.filter((m) => m.status === 'new').length, attention: mailItems.some((m) => m.status === 'new'), title: `Новых писем: ${mailItems.filter((m) => m.status === 'new').length}` },
+    ],
     ['review', 'Сверка с источниками', 'rule', { value: toReview.length, attention: toReview.length > 0, title: `Нужно сверить с источником: ${toReview.length}` }],
     ['posts', 'Публикации', 'article', { value: merged.length, attention: false, title: `Всего публикаций: ${merged.length}` }],
     ['push', 'Уведомления', 'notifications', pushTotal === null ? null : { value: pushTotal, attention: false, title: `Подписчиков на уведомления: ${pushTotal}` }],
@@ -976,7 +1028,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                   key={id}
                   onClick={() => {
                     setTab(id);
-                    setEditing(null);
+                    closeEditor();
                     setMsg('');
                   }}
                   title={badge?.title}
@@ -1010,7 +1062,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
 
               {editing ? (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100">
-                  <h3 className="font-extrabold text-[#0f1b33] mb-4">{editing === 'new' ? (imported ? 'Черновик из сообщения' : 'Новая публикация') : 'Редактирование'}</h3>
+                  <h3 className="font-extrabold text-[#0f1b33] mb-4">{editing === 'new' ? (fromMail ? 'Черновик из письма' : imported ? 'Черновик из сообщения' : 'Новая публикация') : 'Редактирование'}</h3>
+                  {editing === 'new' && fromMail && (
+                    <div className="mb-4 p-3 rounded-xl bg-amber-50 text-[#5c3d00] text-xs space-y-1">
+                      <div>
+                        <b>Письмо:</b> «{fromMail.subject || 'без темы'}» от {fromMail.from.address}, получено {fmt(fromMail.receivedAt)}.
+                      </div>
+                      <div>
+                        Сохранение создаст <b>черновик в «Модерации»</b> — на сайте он не появится, пока вы не нажмёте «Одобрить». «Подтверждено по
+                        первоисточнику» отмечайте только после сверки с первоисточником.
+                      </div>
+                      {(!fromMail.suggestion.draft.category || !fromMail.suggestion.draft.city) && (
+                        <div>
+                          <b>Раздел и/или город в письме не найдены</b> — в форме стоят значения по умолчанию, выберите правильные.
+                        </div>
+                      )}
+                      {mailImage && <div>Фото из письма уменьшено для сайта. Укажите автора фото, если он известен.</div>}
+                    </div>
+                  )}
                   {editing === 'new' && imported && (
                     <div className="mb-4 p-3 rounded-xl bg-sky-50 text-sky-900 text-xs space-y-1">
                       <div>
@@ -1026,14 +1095,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                   )}
                   <AnnouncementForm
                     mode="admin"
-                    key={editing === 'new' ? `new-${imported ? 'import' : 'blank'}` : editing.id}
+                    key={editing === 'new' ? `new-${fromMail ? `mail-${fromMail.id}` : imported ? 'import' : 'blank'}` : editing.id}
                     initial={editing === 'new' ? importDraft : editing}
-                    submitLabel={editing === 'new' ? 'Опубликовать' : 'Сохранить'}
-                    onCancel={() => {
-                      setEditing(null);
-                      setImported(null);
-                    }}
+                    initialImageData={editing === 'new' && fromMail ? mailImage || undefined : undefined}
+                    submitLabel={editing === 'new' ? (fromMail ? 'Сохранить черновик в «Модерацию»' : 'Опубликовать') : 'Сохранить'}
+                    onCancel={closeEditor}
                     onSubmit={async (item) => {
+                      if (editing === 'new' && fromMail) {
+                        // Черновик из письма: только в «Модерацию», без публикации
+                        let saved: Announcement;
+                        try {
+                          saved = await api.submitDraft(item, fromMail.id);
+                        } catch (e) {
+                          if ((e as api.ApiError).code === 'duplicate' && window.confirm(`${(e as Error).message}\n\nВсё равно сохранить черновик?`)) {
+                            saved = await api.submitDraft(item, fromMail.id, true);
+                          } else throw e;
+                        }
+                        await api.mailItemAction(fromMail.id, 'prepared', { annId: saved.id });
+                        closeEditor();
+                        setMsg('Черновик сохранён в «Модерацию». На сайте его нет, пока вы не нажмёте «Одобрить».');
+                        load();
+                        loadMail();
+                        return;
+                      }
                       if (editing === 'new') {
                         try {
                           await api.submitAnnouncement(item);
@@ -1046,14 +1130,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                       }
                       else if (serverItems.some((s) => s.id === editing.id)) await api.updateAnnouncement(editing.id, item);
                       else await api.submitAnnouncement({ ...item, id: editing.id }); // правка встроенного события
-                      setEditing(null);
-                      setImported(null);
+                      closeEditor();
                       setMsg('Сохранено');
                       load();
                       onRefreshData();
                     }}
                   />
                 </div>
+              ) : tab === 'mail' ? (
+                <MailInbox
+                  items={mailItems}
+                  error={mailErr}
+                  announcements={serverItems}
+                  onReload={loadMail}
+                  onPrepare={prepareFromMail}
+                  onOpenModeration={() => setTab('moderation')}
+                />
               ) : tab === 'moderation' ? (
                 <>
                   <h2 className="text-xl font-extrabold text-[#0f1b33]">Ожидают модерации: {pending.length}</h2>

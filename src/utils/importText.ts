@@ -45,9 +45,9 @@ const findDates = (s: string, year: number): string[] => {
   return [...new Set(out)].sort();
 };
 
-/** Время «09:00», «9.30» (не часть даты 17.10.2026) */
+/** Время «09:00», «9.30», в том числе в конце предложения («в 10:00.»), но не часть даты 17.10.2026 */
 const findTimes = (s: string): string[] =>
-  [...s.matchAll(/(?<![\d.])([01]?\d|2[0-3])[:.]([0-5]\d)(?![.\d])/g)].map((m) => `${pad(m[1])}:${m[2]}`);
+  [...s.matchAll(/(?<![\d.])([01]?\d|2[0-3])[:.]([0-5]\d)(?!\d|\.\d)/g)].map((m) => `${pad(m[1])}:${m[2]}`);
 
 export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today = kgDateStr()): ImportResult => {
   const raw = text.replace(/\r/g, '').trim();

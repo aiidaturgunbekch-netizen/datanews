@@ -59,7 +59,7 @@ export const TopStories: React.FC<{
               {label(lead)}
               <PaidBadge item={lead} lang={lang} />
             </div>
-            <h3 className="text-2xl sm:text-[28px] font-extrabold leading-tight text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline decoration-2 underline-offset-4 [overflow-wrap:anywhere]">
+            <h3 className="font-serif text-[28px] sm:text-[34px] font-bold leading-[1.15] text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline decoration-2 underline-offset-4 [overflow-wrap:anywhere]">
               {lead.title[lang] || lead.title.ru}
             </h3>
             {(lead.summary[lang] || lead.summary.ru) && (
@@ -80,7 +80,7 @@ export const TopStories: React.FC<{
                       {label(a)}
                       <PaidBadge item={a} lang={lang} />
                     </span>
-                    <span className="block font-bold text-base leading-snug text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline underline-offset-2 line-clamp-3 [overflow-wrap:anywhere]">
+                    <span className="block font-serif font-semibold text-lg leading-snug text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline underline-offset-2 line-clamp-3 [overflow-wrap:anywhere]">
                       {a.title[lang] || a.title.ru}
                     </span>
                     <Meta a={a} lang={lang} className="mt-1.5" />

@@ -286,7 +286,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                       </button>
                     </div>
 
-                    <h3 className="text-base sm:text-lg font-bold text-[#0f1b33] mb-2 group-hover:text-[#12327A] transition-colors leading-snug">
+                    <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#0f1b33] mb-2 group-hover:text-[#12327A] transition-colors leading-snug">
                       {title}
                     </h3>
 
@@ -396,7 +396,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                     <PaidBadge item={item} lang={currentLanguage} />
                   </div>
 
-                  <h3 className="text-base font-bold text-[#0f1b33] mb-2 group-hover:text-[#12327A] transition-colors leading-snug">
+                  <h3 className="font-serif text-lg font-semibold text-[#0f1b33] mb-2 group-hover:text-[#12327A] transition-colors leading-snug">
                     {title}
                   </h3>
 

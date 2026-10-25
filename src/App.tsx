@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Announcement,
   CategoryId,
@@ -126,12 +126,17 @@ export default function App() {
   }, [currentLanguage]);
 
   // Отдельная ссылка на каждую публикацию: /#/n/<id> (короткая ссылка для мессенджеров — /n/<id>, см. api/share.ts)
+  // Статья, открытая с сайта, добавляет шаг в историю: кнопка «Назад» телефона закрывает её, а не уводит с сайта
+  const articlePushed = useRef(false);
   useEffect(() => {
-    const openFromHash = () => {
+    const openFromHash = (e?: Event) => {
       const m = window.location.hash.match(/^#\/n\/([\w-]+)/);
       if (m) {
         const found = announcements.find((a) => a.id === m[1]);
         if (found) setActiveNoticeDetail(found);
+      } else if (e) {
+        articlePushed.current = false;
+        setActiveNoticeDetail(null);
       }
     };
     openFromHash();
@@ -141,10 +146,22 @@ export default function App() {
   useEffect(() => {
     const base = window.location.pathname + window.location.search;
     if (activeNoticeDetail) {
-      if (window.location.hash !== `#/n/${activeNoticeDetail.id}`) history.replaceState(null, '', `${base}#/n/${activeNoticeDetail.id}`);
+      const target = `#/n/${activeNoticeDetail.id}`;
+      if (window.location.hash !== target) {
+        if (window.location.hash.startsWith('#/n/')) history.replaceState(null, '', base + target);
+        else {
+          history.pushState(null, '', base + target);
+          articlePushed.current = true;
+        }
+      }
       document.title = `${activeNoticeDetail.title[currentLanguage]} — DataNews Kyrgyzstan`;
     } else {
-      if (window.location.hash.startsWith('#/n/')) history.replaceState(null, '', base);
+      if (window.location.hash.startsWith('#/n/')) {
+        if (articlePushed.current) {
+          articlePushed.current = false;
+          history.back();
+        } else history.replaceState(null, '', base);
+      }
       if (currentView === 'home') document.title = 'DataNews Кыргызстан — Что, где и когда в Кыргызстане';
     }
   }, [activeNoticeDetail, currentLanguage, currentView]);

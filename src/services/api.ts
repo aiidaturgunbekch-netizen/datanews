@@ -139,6 +139,18 @@ export const setGovStatus = (email: string, gov: 'verify' | 'reject' | 'revoke',
 
 export const fetchStats = (days: number) => request<SiteStats>(`stats?days=${days}`);
 
+/** Состояние приёма редакционной почты (без значений секретов) */
+export interface MailIngestStatus {
+  enabled: boolean;
+  at?: string;
+  environment: 'production' | 'preview' | 'local';
+  productionBlocked: boolean;
+  secretConfigured: boolean;
+  envSwitchOff: boolean;
+}
+export const fetchMailStatus = () => request<MailIngestStatus>('sources?mail=settings');
+export const setMailEnabled = (enabled: boolean) => post<MailIngestStatus>('sources?mail=settings', { enabled });
+
 /** Резервная копия данных (только админ): скачивается файлом JSON */
 export const downloadBackup = async (withImages: boolean) => {
   const session = getSession();

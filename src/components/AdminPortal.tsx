@@ -252,7 +252,7 @@ const BackupBox: React.FC = () => {
     <div className="p-4 rounded-2xl bg-white border border-gray-200 text-sm">
       <div className="font-bold text-[#0f1b33]">Резервная копия данных</div>
       <p className="text-xs text-gray-600 mt-1">
-        Файл JSON: публикации и правки, скрытые и сверенные публикации, жалобы, официальный прогноз, учётные записи организаций. Пароли в копию не
+        Файл JSON: публикации и правки, скрытые и сверенные публикации, жалобы, официальный прогноз, письма редакционной почты, учётные записи организаций. Пароли в копию не
         входят. Храните файл в надёжном месте — в нём есть контакты пользователей.
       </p>
       <div className="flex flex-wrap gap-2 mt-3">
@@ -266,6 +266,67 @@ const BackupBox: React.FC = () => {
       {state === 'busy' && <p className="text-xs text-gray-500 mt-2">Готовим файл…</p>}
       {state === 'ok' && <p className="text-xs text-emerald-700 font-semibold mt-2">Файл скачан.</p>}
       {state && state !== 'busy' && state !== 'ok' && <p className="text-xs text-red-700 font-semibold mt-2">{state}</p>}
+    </div>
+  );
+};
+
+/**
+ * Выключатель приёма редакционной почты (Google Apps Script → входящие письма).
+ * Выключен — новые письма не принимаются (остаются в почтовом ящике). Публикации, модерацию и другие разделы не затрагивает.
+ */
+const MailSwitchBox: React.FC = () => {
+  const [st, setSt] = useState<api.MailIngestStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    api.fetchMailStatus().then(setSt).catch((e: Error) => setErr(e.message));
+  }, []);
+  const toggle = async () => {
+    if (!st) return;
+    setBusy(true);
+    setErr('');
+    try {
+      setSt(await api.setMailEnabled(!st.enabled));
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const on = Boolean(st?.enabled) && !st?.productionBlocked && !st?.envSwitchOff;
+  return (
+    <div className="p-4 rounded-2xl bg-white border border-gray-200 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="font-bold text-[#0f1b33]">
+            Приём почты:{' '}
+            <span className={on ? 'text-emerald-700' : 'text-gray-600'}>{st ? (on ? 'включён' : 'выключен') : '…'}</span>
+          </div>
+          <p className="text-xs text-gray-600 mt-1">
+            Письма из редакционной почты попадают только во входящие материалы и ничего не публикуют. Когда приём выключен, новые письма не
+            принимаются и остаются в почтовом ящике.
+          </p>
+        </div>
+        {st && !st.productionBlocked && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={st.enabled}
+            disabled={busy}
+            onClick={toggle}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-60 ${st.enabled ? 'bg-white border border-gray-300 text-[#0f1b33]' : 'bg-[#12327A] text-white'}`}
+          >
+            {st.enabled ? 'Выключить приём' : 'Включить приём'}
+          </button>
+        )}
+      </div>
+      {st?.productionBlocked && <p className="text-xs font-semibold text-gray-700 mt-2">На основном сайте приём почты отключён — он работает только в Preview.</p>}
+      {st && !st.productionBlocked && !st.secretConfigured && (
+        <p className="text-xs font-semibold text-amber-800 mt-2">Секрет подписи MAIL_INGEST_SECRET в Vercel не задан — письма приниматься не будут.</p>
+      )}
+      {st?.envSwitchOff && <p className="text-xs font-semibold text-amber-800 mt-2">В Vercel задано MAIL_INGEST_ENABLED=0 — приём выключен независимо от этого выключателя.</p>}
+      {st?.at && <p className="text-xs text-gray-500 mt-2">Последнее изменение: {formatKgDateTime(st.at)}</p>}
+      {err && <p className="text-xs font-semibold text-red-700 mt-2">{err}</p>}
     </div>
   );
 };
@@ -287,6 +348,7 @@ const StatsTab: React.FC = () => {
   return (
     <div className="space-y-4">
       <BackupBox />
+      <MailSwitchBox />
       <div className="flex flex-wrap items-center gap-2">
         {[7, 30, 90].map((d) => (
           <button

@@ -23,6 +23,7 @@ export const MAIL_FP_KEY = 'dn:mail:fp'; // отпечаток содержан�
 export const MAIL_RFC_KEY = 'dn:mail:rfc'; // заголовок Message-ID → id письма
 export const mailAttKey = (id: string, n: number) => `dn:mail:att:${id}:${n}`;
 const NONCE_KEY = (n: string) => `dn:mail:nonce:${n}`;
+export const MAIL_SETTINGS_KEY = 'dn:mail:settings'; // выключатель в панели: { enabled, at }
 
 export const MAX_BODY = 4_000_000; // символов JSON в одном запросе (одно письмо)
 export const SIGNATURE_TTL_MS = 5 * 60_000;
@@ -48,9 +49,56 @@ export const hmacHex = async (secret: string, data: string) => {
 };
 const sha256 = async (s: string) => hex(await crypto.subtle.digest('SHA-256', enc.encode(s)));
 
-/** Секрет приёма почты; без него (или если приём выключен) приём недоступен */
-const ingestSecret = () => {
+/** Где работает сайт: Production, Preview или локально (npm run dev, тесты) */
+export const deployEnv = (): 'production' | 'preview' | 'local' => {
+  const v = env('VERCEL_ENV');
+  return v === 'production' ? 'production' : v === 'preview' ? 'preview' : 'local';
+};
+
+export interface MailSettings {
+  enabled: boolean;
+  at?: string;
+}
+
+/** Выключатель «Приём почты» из панели. Пока его не включили — приём выключен. */
+export const getMailSettings = async (): Promise<MailSettings> => {
+  const raw = await cmd<string | null>('GET', MAIL_SETTINGS_KEY);
+  try {
+    const v = raw ? (JSON.parse(raw) as MailSettings) : null;
+    return { enabled: v?.enabled === true, at: v?.at };
+  } catch {
+    return { enabled: false };
+  }
+};
+
+export const setMailSettings = async (enabled: boolean): Promise<MailSettings> => {
+  if (enabled && deployEnv() === 'production') throw new HttpError('mail_production_disabled', 403, 'На основном сайте приём почты отключён');
+  const v: MailSettings = { enabled, at: kgNowLocal() };
+  await cmd('SET', MAIL_SETTINGS_KEY, JSON.stringify(v));
+  return v;
+};
+
+/** Состояние приёма для панели — без значений секретов */
+export const mailStatus = async () => ({
+  ...(await getMailSettings()),
+  environment: deployEnv(),
+  productionBlocked: deployEnv() === 'production',
+  secretConfigured: (env('MAIL_INGEST_SECRET') || '').length >= 32,
+  envSwitchOff: env('MAIL_INGEST_ENABLED') === '0',
+});
+
+/**
+ * Можно ли сейчас принимать письма. Порядок: Production → выключатель в Vercel → выключатель в панели.
+ * Отказ — до чтения тела и проверки подписи; письмо остаётся в ящике и уйдёт, когда приём включат.
+ */
+export const assertIngestOpen = async () => {
+  if (deployEnv() === 'production') throw new HttpError('mail_production_disabled', 503, 'На основном сайте приём почты отключён');
   if (env('MAIL_INGEST_ENABLED') === '0') throw new HttpError('mail_disabled', 503, 'Приём писем выключен (MAIL_INGEST_ENABLED=0)');
+  if (!(await getMailSettings()).enabled) throw new HttpError('mail_paused', 503, 'Приём почты выключен в панели администратора');
+};
+
+/** Секрет приёма почты; без него приём недоступен */
+const ingestSecret = () => {
   const s = env('MAIL_INGEST_SECRET') || '';
   if (s.length < 32) throw new HttpError('mail_not_configured', 503, 'Приём писем не настроен: задайте MAIL_INGEST_SECRET (не короче 32 символов) в Vercel');
   return s;
@@ -61,6 +109,7 @@ const ingestSecret = () => {
  * подпись считается именно по нему, до разбора JSON.
  */
 export const verifyIngestRequest = async (req: Request, now = Date.now()) => {
+  await assertIngestOpen();
   const secret = ingestSecret();
   const ts = req.headers.get('x-datanews-timestamp') || '';
   const nonce = req.headers.get('x-datanews-nonce') || '';

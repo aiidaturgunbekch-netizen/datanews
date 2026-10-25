@@ -8,10 +8,14 @@
  *   GET  ?mail=list              — входящие письма (только администратор)
  *   GET  ?mail=att&key=…         — временная копия фото из письма (только администратор)
  *   POST ?mail=action { id, action, annId?, duplicateOf?, note? } — отметки редактора (только администратор)
+ *   GET  ?mail=settings          — состояние приёма: выключатель, окружение, задан ли секрет (без значения; только администратор)
+ *   POST ?mail=settings { enabled } — выключатель «Приём почты» (только администратор; на Production включить нельзя)
+ *
+ * Приём работает только в Preview-сборках (и локально); на Production он отключён независимо от секретов.
  */
 import { handler, HttpError, json, rateLimit, readBody, requireAdmin } from './_lib/http';
 import { getStatuses, SOURCES } from './_lib/sources';
-import { getMailAttachment, ingestMail, listMail, mailAction, MailAction, verifyIngestRequest } from './_lib/mail';
+import { getMailAttachment, ingestMail, listMail, mailAction, MailAction, mailStatus, setMailSettings, verifyIngestRequest } from './_lib/mail';
 
 export const config = { runtime: 'edge' };
 
@@ -51,6 +55,16 @@ export default handler(async (req) => {
     await requireAdmin(req);
     const b = await readBody<{ id?: string; action?: MailAction; annId?: string; duplicateOf?: string; note?: string }>(req);
     return json({ item: await mailAction(String(b.id || ''), b.action as MailAction, b) }, 200, NO_STORE);
+  }
+
+  if (mail === 'settings') {
+    await requireAdmin(req);
+    if (req.method === 'POST') {
+      const b = await readBody<{ enabled?: unknown }>(req);
+      if (typeof b.enabled !== 'boolean') throw new HttpError('bad_payload', 400, 'Укажите enabled: true или false');
+      await setMailSettings(b.enabled);
+    }
+    return json(await mailStatus(), 200, NO_STORE);
   }
 
   if (mail) throw new HttpError('not_found', 404);

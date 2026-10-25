@@ -53,7 +53,8 @@ const letter = (over: Record<string, unknown> = {}) => ({
   from: 'Пресс-служба <press@example.gov.kg>',
   subject: 'Отключение холодной воды в Бишкеке',
   receivedAt: '2026-10-25T08:00:00Z',
-  text: 'Отключение холодной воды 28 октября 2026 года с 09:00 до 17:00.\nПо адресу: ул. Токтогула, 100, г. Бишкек.',
+  // номер в конце — чтобы разные тестовые письма не совпадали по содержанию (иначе это «дубль»)
+  text: `Отключение холодной воды 28 октября 2026 года с 09:00 до 17:00.\nПо адресу: ул. Токтогула, 100, г. Бишкек.\nИсх. № ${Math.random().toString(36).slice(2, 8)}`,
   authResults: 'mx.google.com; dkim=pass header.i=@example.gov.kg; spf=pass; dmarc=pass',
   permalink: 'https://mail.google.com/mail/u/0/#inbox/abc',
   attachments: [],
@@ -69,6 +70,82 @@ before(async () => {
 after(() => {
   delete process.env.MAIL_INGEST_SECRET;
   delete process.env.MAIL_INGEST_ENABLED;
+});
+
+const setSwitch = async (enabled: boolean, token = admin) =>
+  sources(
+    new Request(`${BASE}?mail=settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ enabled }),
+    })
+  );
+
+describe('выключатель «Приём почты» и только Preview', () => {
+  it('по умолчанию приём выключен — письмо не принимается и не сохраняется', async () => {
+    const l = letter();
+    const r = await send(await signed(l));
+    assert.equal(r.status, 503);
+    assert.equal(r.body.error, 'mail_paused');
+    assert.equal(await cmd('HGET', MAIL_KEY, l.messageId), null);
+  });
+
+  it('выключатель доступен только администратору', async () => {
+    assert.equal((await setSwitch(true, '')).status, 403);
+    assert.equal((await sources(new Request(`${BASE}?mail=settings`))).status, 403);
+  });
+
+  it('администратор включает приём; состояние без значений секретов', async () => {
+    const r = await setSwitch(true);
+    assert.equal(r.status, 200);
+    const text = await r.text();
+    assert.ok(!text.includes(SECRET));
+    const st = JSON.parse(text);
+    assert.equal(st.enabled, true);
+    assert.equal(st.environment, 'local');
+    assert.equal(st.secretConfigured, true);
+    assert.equal((await send(await signed(letter()))).body.result, 'stored');
+  });
+
+  it('выключение останавливает приём новых писем и не трогает публикации и уже принятые письма', async () => {
+    const before = await annCount();
+    const mailBefore = (await hvalsJson(MAIL_KEY)).length;
+    assert.equal((await setSwitch(false)).status, 200);
+    const l = letter();
+    const r = await send(await signed(l));
+    assert.equal(r.status, 503);
+    assert.equal(r.body.error, 'mail_paused');
+    assert.equal(await cmd('HGET', MAIL_KEY, l.messageId), null);
+    assert.equal((await hvalsJson(MAIL_KEY)).length, mailBefore);
+    assert.equal(await annCount(), before);
+    assert.equal((await setSwitch(true)).status, 200);
+    assert.equal((await send(await signed(l))).body.result, 'stored', 'после включения письмо принимается');
+  });
+
+  it('на Production приём отключён даже при заданном секрете и включённом выключателе', async () => {
+    process.env.VERCEL_ENV = 'production';
+    try {
+      const l = letter();
+      const r = await send(await signed(l));
+      assert.equal(r.status, 503);
+      assert.equal(r.body.error, 'mail_production_disabled');
+      assert.equal(await cmd('HGET', MAIL_KEY, l.messageId), null);
+      assert.equal((await setSwitch(true)).status, 403, 'включить на Production нельзя');
+      const st = await (await sources(new Request(`${BASE}?mail=settings`, { headers: { Authorization: `Bearer ${admin}` } }))).json();
+      assert.equal(st.productionBlocked, true);
+    } finally {
+      delete process.env.VERCEL_ENV;
+    }
+  });
+
+  it('в Preview-сборке приём работает', async () => {
+    process.env.VERCEL_ENV = 'preview';
+    try {
+      assert.equal((await send(await signed(letter()))).body.result, 'stored');
+    } finally {
+      delete process.env.VERCEL_ENV;
+    }
+  });
 });
 
 describe('подпись запроса', () => {
@@ -297,6 +374,10 @@ describe('настройка и сбои', () => {
     // Счётчик попыток и одноразовая метка запроса проходят, чтение и запись письма — сбой базы (HTTP 500)
     globalThis.fetch = (async (_url: string, init: RequestInit) => {
       const cmds = JSON.parse(String(init.body)) as string[][];
+      // выключатель в панели включён
+      if (String(cmds[0][0]).toUpperCase() === 'GET' && cmds[0][1] === 'dn:mail:settings') {
+        return new Response(JSON.stringify([{ result: JSON.stringify({ enabled: true }) }]), { status: 200 });
+      }
       if (cmds.every((c) => ['INCR', 'EXPIRE', 'SET'].includes(String(c[0]).toUpperCase()))) {
         return new Response(JSON.stringify(cmds.map((c) => ({ result: String(c[0]).toUpperCase() === 'SET' ? 'OK' : 1 }))), { status: 200 });
       }

@@ -1,8 +1,9 @@
-/** /api/stats?days=30 — статистика посещений сайта (только админ) */
+/** /api/stats?days=30 — статистика посещений сайта; /api/stats?backup=1[&images=1] — резервная копия данных (только админ) */
 import type { SiteStats } from '../src/types';
 import { pipeline, toCountMap } from './_lib/kv';
 import { handler, json, requireAdmin } from './_lib/http';
 import { dayKey, K } from './_lib/stats';
+import { buildBackup } from './_lib/backup';
 
 export const config = { runtime: 'edge' };
 
@@ -17,7 +18,19 @@ const top = (maps: Record<string, number>[], n = 10) => {
 
 export default handler(async (req) => {
   await requireAdmin(req);
-  const days = Math.min(Math.max(Number(new URL(req.url).searchParams.get('days')) || 30, 1), 365);
+  const params = new URL(req.url).searchParams;
+  if (params.get('backup') === '1') {
+    const backup = await buildBackup(params.get('images') === '1');
+    const name = `datanews-backup-${backup.createdAt.slice(0, 10)}${backup.includesImages ? '-with-photos' : ''}.json`;
+    return new Response(JSON.stringify(backup, null, 1), {
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${name}"`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+  const days = Math.min(Math.max(Number(params.get('days')) || 30, 1), 365);
   const dates = Array.from({ length: days }, (_, i) => dayKey(new Date(Date.now() - (days - 1 - i) * 86400_000)));
 
   const perDay = await pipeline(dates.flatMap((d) => [['GET', K.views(d)], ['PFCOUNT', K.visitors(d)]]));

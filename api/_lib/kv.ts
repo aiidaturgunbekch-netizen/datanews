@@ -158,6 +158,8 @@ const runMemory = (cmd: Cmd): unknown => {
     }
     case 'HVALS':
       return [...hash(args[0]).values()];
+    case 'HKEYS':
+      return [...hash(args[0]).keys()];
     case 'HINCRBY': {
       const h = hash(args[0]);
       const v = Number(h.get(args[1]) || 0) + Number(args[2]);

@@ -236,6 +236,40 @@ const placeRu = (key: string) => {
   return city ? `${CITY_RU[city] || city}, ${c}` : c;
 };
 
+/** Резервная копия: публикации, жалобы, прогноз, учётные записи (без паролей); фото — отдельным файлом */
+const BackupBox: React.FC = () => {
+  const [state, setState] = useState<'' | 'busy' | 'ok' | string>('');
+  const run = async (withImages: boolean) => {
+    setState('busy');
+    try {
+      await api.downloadBackup(withImages);
+      setState('ok');
+    } catch (e) {
+      setState((e as Error).message || 'Не удалось скачать копию');
+    }
+  };
+  return (
+    <div className="p-4 rounded-2xl bg-white border border-gray-200 text-sm">
+      <div className="font-bold text-[#0f1b33]">Резервная копия данных</div>
+      <p className="text-xs text-gray-600 mt-1">
+        Файл JSON: публикации и правки, скрытые и сверенные публикации, жалобы, официальный прогноз, учётные записи организаций. Пароли в копию не
+        входят. Храните файл в надёжном месте — в нём есть контакты пользователей.
+      </p>
+      <div className="flex flex-wrap gap-2 mt-3">
+        <button disabled={state === 'busy'} onClick={() => run(false)} className="px-3 py-1.5 rounded-lg bg-[#12327A] text-white text-xs font-bold disabled:opacity-60">
+          Скачать копию
+        </button>
+        <button disabled={state === 'busy'} onClick={() => run(true)} className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-[#12327A] text-xs font-bold disabled:opacity-60">
+          Скачать копию с фото (больше)
+        </button>
+      </div>
+      {state === 'busy' && <p className="text-xs text-gray-500 mt-2">Готовим файл…</p>}
+      {state === 'ok' && <p className="text-xs text-emerald-700 font-semibold mt-2">Файл скачан.</p>}
+      {state && state !== 'busy' && state !== 'ok' && <p className="text-xs text-red-700 font-semibold mt-2">{state}</p>}
+    </div>
+  );
+};
+
 const StatsTab: React.FC = () => {
   const [days, setDays] = useState(30);
   const [stats, setStats] = useState<SiteStats | null>(null);
@@ -252,6 +286,7 @@ const StatsTab: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      <BackupBox />
       <div className="flex flex-wrap items-center gap-2">
         {[7, 30, 90].map((d) => (
           <button

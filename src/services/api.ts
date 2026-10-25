@@ -139,6 +139,27 @@ export const setGovStatus = (email: string, gov: 'verify' | 'reject' | 'revoke',
 
 export const fetchStats = (days: number) => request<SiteStats>(`stats?days=${days}`);
 
+/** Резервная копия данных (только админ): скачивается файлом JSON */
+export const downloadBackup = async (withImages: boolean) => {
+  const session = getSession();
+  const res = await fetch(`/api/stats?backup=1${withImages ? '&images=1' : ''}`, {
+    headers: session ? { Authorization: `Bearer ${session.token}` } : {},
+  }).catch(() => {
+    throw new ApiError('network', 0, 'Нет связи с сервером');
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError(data.error || 'error', res.status, data.message || `Ошибка сервера (код ${res.status})`);
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || 'datanews-backup.json';
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
 // ---------- погода и источники ----------
 export interface WeatherResponse {
   snapshot: {

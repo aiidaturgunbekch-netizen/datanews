@@ -17,6 +17,7 @@
  *
  * Функции для ручного запуска (таймер НЕ создаётся автоматически):
  *   checkSetup()   — проверить, что свойства заданы (значения не выводятся)
+ *   checkSignature() — проверить, что INGEST_SECRET совпадает с MAIL_INGEST_SECRET на сайте; письма не читает и не отправляет
  *   dryRun()       — показать в журнале, что было бы отправлено по 3 последним письмам; НИЧЕГО не отправляет
  *   processTest()  — отправить только письма с темой «TEST DataNews» или «ТЕСТ DataNews» (до 3 штук)
  *   processNew()   — отправить новые письма за 3 дня (для будущего таймера; запускать только после успешного теста)
@@ -64,9 +65,33 @@ function checkSetup() {
     Logger.log('INGEST_SECRET: задан, но короче 32 символов');
     ok = false;
   } else Logger.log('INGEST_SECRET: задан');
-  Logger.log(bypass ? 'VERCEL_BYPASS: задан' : 'VERCEL_BYPASS: не задан (нужен, если Preview закрыт входом Vercel)');
+  if (bypass && bypass !== bypass.trim()) {
+    Logger.log('VERCEL_BYPASS: есть пробел или перенос строки в начале или конце — удалите их');
+    ok = false;
+  } else Logger.log(bypass ? 'VERCEL_BYPASS: задан' : 'VERCEL_BYPASS: не задан (нужен, если Preview закрыт входом Vercel)');
   Logger.log(ok ? 'Настройки в порядке.' : 'Исправьте настройки: Настройки проекта → Свойства скрипта.');
   return ok;
+}
+
+/**
+ * Проверка подписи без писем: отправляет на сайт только { ping: true } (латиница, без текста писем).
+ * Сайт сверяет подпись тем же способом, что и для писем, и ничего не сохраняет. Значения секретов не выводятся.
+ * Приём почты в панели должен быть включён.
+ */
+function checkSignature() {
+  if (!checkSetup()) return false;
+  var r = send_({ ping: true });
+  if (r.code === 200 && r.result === 'pong') {
+    Logger.log('Подпись совпадает: INGEST_SECRET в скрипте совпадает с MAIL_INGEST_SECRET этой сборки Preview.');
+    return true;
+  }
+  if (r.error === 'bad_signature') {
+    Logger.log('Подпись НЕ совпадает: INGEST_SECRET в скрипте отличается от MAIL_INGEST_SECRET этой сборки Preview. ' +
+      'Вставьте в INGEST_SECRET точное значение из Vercel (Preview) и запустите checkSignature снова.');
+  } else {
+    Logger.log('Проверка не выполнена: сайт ответил ' + r.code + ' ' + (r.error || '') + (r.message ? ' — ' + r.message : ''));
+  }
+  return false;
 }
 
 /** Показать, что было бы отправлено. Ничего не отправляет и ничего не меняет. */
@@ -137,6 +162,7 @@ function process_(query, limit, testOnly) {
     } else if (r.code === 503 || r.code === 401 || r.code === 403) {
       // Приём выключен, не настроен, закрыт защитой Vercel или неверная подпись — остановка: письма уйдут при следующем запуске
       Logger.log('Остановлено: сайт ответил ' + r.code + ' ' + (r.error || '') + (r.message ? ' — ' + r.message : ''));
+      if (r.error === 'bad_signature') Logger.log('Подсказка: запустите checkSignature — она покажет, совпадает ли INGEST_SECRET с секретом сайта.');
       return { sent: sent, stopped: r.error || String(r.code) };
     } else {
       Logger.log('Ошибка для «' + subject + '»: ' + r.code + ' ' + (r.error || '') + (r.message ? ' — ' + r.message : '') + '. Письмо будет отправлено снова при следующем запуске.');
@@ -256,10 +282,11 @@ function send_(payload) {
   var p = props_();
   var url = p.getProperty('INGEST_URL') || '';
   if (!INGEST_URL_RE.test(url)) return { code: 0, error: 'bad_ingest_url' };
-  var body = JSON.stringify(payload);
+  // Подписываются ровно те байты UTF-8, которые уходят на сайт (кириллица в тексте письма не должна менять подпись)
+  var bodyBytes = utf8_(JSON.stringify(payload));
   var ts = String(Date.now());
   var nonce = Utilities.getUuid().replace(/-/g, '');
-  var sig = Utilities.computeHmacSha256Signature(ts + '.' + nonce + '.' + body, p.getProperty('INGEST_SECRET'), Utilities.Charset.UTF_8);
+  var sig = Utilities.computeHmacSha256Signature(utf8_(ts + '.' + nonce + '.').concat(bodyBytes), utf8_(p.getProperty('INGEST_SECRET') || ''));
   var headers = {
     'X-DataNews-Timestamp': ts,
     'X-DataNews-Nonce': nonce,
@@ -270,7 +297,7 @@ function send_(payload) {
   var res = UrlFetchApp.fetch(url, {
     method: 'post',
     contentType: 'application/json; charset=utf-8',
-    payload: body,
+    payload: bodyBytes,
     headers: headers,
     muteHttpExceptions: true,
     followRedirects: false,
@@ -285,6 +312,10 @@ function send_(payload) {
   if (!data || typeof data !== 'object') data = {};
   if (!data.error && code !== 200) data.error = code === 401 || code === 403 ? 'vercel_protection_or_auth' : 'not_json';
   return { code: code, result: data.result, status: data.status, error: data.error, message: data.message };
+}
+
+function utf8_(s) {
+  return Utilities.newBlob('').setDataFromString(s, 'UTF-8').getBytes();
 }
 
 function toHex_(bytes) {

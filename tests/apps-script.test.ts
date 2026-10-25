@@ -107,8 +107,18 @@ const makeEnv = (messages: FakeMsg[], respond: (req: { url: string; headers: Rec
       getUuid: () => randomUUID(),
       base64Encode: (bytes: number[]) => unsigned(bytes).toString('base64'),
       base64DecodeWebSafe: (s: string) => signed(Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64')),
-      newBlob: (bytes: number[]) => ({ getDataAsString: (cs?: string) => unsigned(bytes).toString(/utf-?8/i.test(cs || 'utf-8') ? 'utf8' : 'latin1') }),
-      computeHmacSha256Signature: (value: string, key: string) => signed(createHmac('sha256', key).update(value, 'utf8').digest()),
+      newBlob: (data: number[] | string) => {
+        let buf = typeof data === 'string' ? Buffer.from(data, 'utf8') : unsigned(data);
+        const blob = {
+          getDataAsString: (cs?: string) => buf.toString(/utf-?8/i.test(cs || 'utf-8') ? 'utf8' : 'latin1'),
+          setDataFromString: (s: string, cs: string) => ((buf = Buffer.from(s, /utf-?8/i.test(cs) ? 'utf8' : 'latin1')), blob),
+          getBytes: () => signed(buf),
+        };
+        return blob;
+      },
+      // Как в Apps Script: строки (с кодировкой) или массивы байтов
+      computeHmacSha256Signature: (value: string | number[], key: string | number[]) =>
+        signed(createHmac('sha256', typeof key === 'string' ? Buffer.from(key, 'utf8') : unsigned(key)).update(typeof value === 'string' ? Buffer.from(value, 'utf8') : unsigned(value)).digest()),
     },
     // Встроенная служба Gmail API — только методы чтения
     Gmail: {
@@ -137,8 +147,9 @@ const makeEnv = (messages: FakeMsg[], respond: (req: { url: string; headers: Rec
       },
     },
     UrlFetchApp: {
-      fetch: (url: string, o: { headers: Record<string, string>; payload: string }) => {
-        const req = { url, headers: o.headers, payload: o.payload };
+      fetch: (url: string, o: { headers: Record<string, string>; payload: string | number[] }) => {
+        // байты тела, как их получит сайт
+        const req = { url, headers: o.headers, payload: typeof o.payload === 'string' ? o.payload : unsigned(o.payload).toString('utf8') };
         sent.push(req);
         const r = respond(req);
         return { getResponseCode: () => r.code, getContentText: () => (typeof r.body === 'string' ? r.body : JSON.stringify(r.body)) };
@@ -234,6 +245,62 @@ describe('Apps Script ↔ сервер', () => {
     env.props.set('INGEST_SECRET', `${SECRET} `);
     assert.equal(env.ctx.checkSetup(), false);
     assert.match(env.logs.join('\n'), /пробел или перенос строки/);
+  });
+
+  it('checkSignature: совпадение секрета подтверждается без писем и без записи на сайте; несовпадение — понятная подсказка', async () => {
+    const mailBefore = (await hvalsJson('dn:mail')).length;
+    let captured: { url: string; headers: Record<string, string>; payload: string } | null = null;
+    const env = makeEnv([TEST_MSG], (req) => {
+      captured = req;
+      return { code: 200, body: { result: 'pong' } };
+    });
+    assert.equal(env.ctx.checkSignature(), true);
+    assert.deepEqual(env.gmailCalls, [], 'письма не читаются');
+    const req = captured as unknown as { url: string; headers: Record<string, string>; payload: string };
+    assert.deepEqual(JSON.parse(req.payload), { ping: true });
+    const ok = await replay(req);
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    assert.equal(ok.body.result, 'pong');
+    assert.equal((await hvalsJson('dn:mail')).length, mailBefore, 'ничего не сохранено');
+    assert.match(env.logs.join('\n'), /Подпись совпадает/);
+
+    // другой секрет в скрипте — сервер отвечает bad_signature, скрипт подсказывает, что делать
+    let bad: any = null;
+    const env2 = makeEnv([], (r) => {
+      bad = r;
+      return { code: 200, body: {} };
+    });
+    env2.props.set('INGEST_SECRET', 'z'.repeat(40));
+    env2.ctx.checkSignature();
+    const r2 = await replay(bad);
+    assert.equal(r2.status, 401);
+    assert.equal(r2.body.error, 'bad_signature');
+    const env3 = makeEnv([], () => ({ code: 401, body: r2.body }));
+    env3.props.set('INGEST_SECRET', 'z'.repeat(40));
+    assert.equal(env3.ctx.checkSignature(), false);
+    const log = env3.logs.join('\n');
+    assert.match(log, /Подпись НЕ совпадает/);
+    assert.ok(!log.includes('z'.repeat(10)) && !log.includes(SECRET), 'секреты не выводятся');
+  });
+
+  it('подпись считается по байтам UTF-8, которые уходят на сайт (кириллица, эмодзи)', async () => {
+    let captured: any = null;
+    const env = makeEnv([{ ...TEST_MSG, id: '19a2b3c4d5e6f7d2', subject: 'ТЕСТ DataNews — «кавычки» 🙂', body: `${TEST_MSG.body}\nКыргызча: өөрчүлүү, ңң. Исх. utf8`, atts: [] }], (req) => {
+      captured = req;
+      return { code: 200, body: { result: 'stored' } };
+    });
+    env.ctx.processTest();
+    const r = await replay(captured);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.result, 'stored');
+  });
+
+  it('пробел в VERCEL_BYPASS замечается checkSetup', () => {
+    const env = makeEnv([], () => ({ code: 200, body: {} }));
+    env.props.set('VERCEL_BYPASS', `${BYPASS}\n`);
+    assert.equal(env.ctx.checkSetup(), false);
+    assert.match(env.logs.join('\n'), /VERCEL_BYPASS: есть пробел/);
+    assert.ok(!env.logs.join('\n').includes(BYPASS));
   });
 
   it('сухой прогон ничего не отправляет и не скачивает вложения', () => {

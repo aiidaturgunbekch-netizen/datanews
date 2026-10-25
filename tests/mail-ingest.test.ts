@@ -391,6 +391,28 @@ describe('состояние секрета и сборки в панели', ()
     }
   });
 
+  it('пробел, перенос строки или кавычки по краям значения в Vercel не мешают подписи (сайт убирает их сам)', async () => {
+    process.env.MAIL_INGEST_SECRET = ` "${SECRET}"\n`;
+    try {
+      assert.equal(JSON.parse((await status()).text).secretState, 'ok');
+      const r = await send(await signed(letter()));
+      assert.equal(r.status, 200, JSON.stringify(r.body));
+    } finally {
+      process.env.MAIL_INGEST_SECRET = SECRET;
+    }
+  });
+
+  it('проверка подписи { ping: true } — ответ pong, ничего не сохраняется; с чужим секретом — bad_signature', async () => {
+    const before = (await cmd<string[]>('HKEYS', 'dn:mail')).length;
+    const ok = await send(await signed({ ping: true }));
+    assert.equal(ok.status, 200);
+    assert.equal(ok.body.result, 'pong');
+    assert.equal((await cmd<string[]>('HKEYS', 'dn:mail')).length, before);
+    const bad = await send(await signed({ ping: true }, { secret: 'y'.repeat(40) }));
+    assert.equal(bad.status, 401);
+    assert.equal(bad.body.error, 'bad_signature');
+  });
+
   it('секрет не попадает в логи при приёме письма, ошибке подписи и сбое', async () => {
     const logs = await captureConsole(async () => {
       await sources(await signed(letter()));

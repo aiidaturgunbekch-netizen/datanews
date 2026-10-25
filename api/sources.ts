@@ -5,6 +5,7 @@
  * Редакционная почта (api/_lib/mail.ts):
  *   POST ?mail=ingest            — письмо от Google Apps Script; только с подписью HMAC, сроком и однократностью
  *                                  (вход администратора здесь не используется и не принимается). Ничего не публикует.
+ *                                  Тело { ping: true } — только проверка подписи (ответ pong), ничего не сохраняет.
  *   GET  ?mail=list              — входящие письма (только администратор)
  *   GET  ?mail=att&key=…         — временная копия фото из письма (только администратор)
  *   POST ?mail=action { id, action, annId?, duplicateOf?, note? } — отметки редактора (только администратор)
@@ -35,6 +36,8 @@ export default handler(async (req) => {
     } catch {
       throw new HttpError('bad_json', 400);
     }
+    // Проверка подписи из Apps Script (checkSignature): подпись уже сверена выше, ничего не сохраняется
+    if (payload && payload.ping === true && Object.keys(payload).length === 1) return json({ result: 'pong' }, 200, NO_STORE);
     return json(await ingestMail(payload), 200, NO_STORE);
   }
 

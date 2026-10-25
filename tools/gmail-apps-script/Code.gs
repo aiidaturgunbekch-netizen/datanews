@@ -18,7 +18,7 @@
  * Функции для ручного запуска (таймер НЕ создаётся автоматически):
  *   checkSetup()   — проверить, что свойства заданы (значения не выводятся)
  *   dryRun()       — показать в журнале, что было бы отправлено по 3 последним письмам; НИЧЕГО не отправляет
- *   processTest()  — отправить только письма с темой «ТЕСТ DataNews» (до 3 штук)
+ *   processTest()  — отправить только письма с темой «TEST DataNews» или «ТЕСТ DataNews» (до 3 штук)
  *   processNew()   — отправить новые письма за 3 дня (для будущего таймера; запускать только после успешного теста)
  *
  * Обрабатываются текст письма и фотографии JPG/PNG/WEBP. PDF на этом этапе НЕ обрабатываются:
@@ -28,7 +28,8 @@
  * Повторы: обработанные письма запоминаются в свойстве PROCESSED_IDS; сайт к тому же сам не принимает одно письмо дважды.
  */
 
-var TEST_SUBJECT = 'ТЕСТ DataNews';
+// Тема тестового письма: латиницей (TEST) или кириллицей (ТЕСТ) — принимаются оба написания
+var TEST_SUBJECTS = ['TEST DataNews', 'ТЕСТ DataNews'];
 var MAX_IMAGE_BYTES = 2000000; // фото крупнее не пересылаются — редактор возьмёт их из письма
 var MAX_TOTAL_IMAGE_B64 = 3000000; // все фото одного письма вместе (лимит размера запроса)
 var MAX_TEXT = 50000;
@@ -96,9 +97,18 @@ function dryRun() {
   Logger.log('Сухой прогон окончен: на сайт ничего не отправлено.');
 }
 
-/** Отправить только тестовые письма с темой «ТЕСТ DataNews» */
+/** Отправить только тестовые письма с темой «TEST DataNews» или «ТЕСТ DataNews» */
 function processTest() {
-  return process_('subject:"' + TEST_SUBJECT + '" newer_than:7d', 3, true);
+  var q = TEST_SUBJECTS.map(function (t) {
+    return 'subject:"' + t + '"';
+  }).join(' OR ');
+  return process_('(' + q + ') newer_than:7d', 3, true);
+}
+
+function isTestSubject_(subject) {
+  return TEST_SUBJECTS.some(function (t) {
+    return subject.indexOf(t) >= 0;
+  });
 }
 
 /** Отправить новые письма за 3 дня (только после успешного теста; таймер включается вручную) */
@@ -116,7 +126,7 @@ function process_(query, limit, testOnly) {
     if (processed.indexOf(id) >= 0) continue;
     var msg = Gmail.Users.Messages.get('me', id, { format: 'full' });
     var subject = header_(msg, 'Subject');
-    if (testOnly && subject.indexOf(TEST_SUBJECT) < 0) continue;
+    if (testOnly && !isTestSubject_(subject)) continue;
     if (SKIP_SENDERS.test(header_(msg, 'From'))) continue;
     var r = send_(buildPayload_(msg, true));
     if (r.code === 200 && (r.result === 'stored' || r.result === 'already')) {

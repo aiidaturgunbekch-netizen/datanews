@@ -84,6 +84,7 @@ const makeEnv = (messages: FakeMsg[], respond: (req: { url: string; headers: Rec
   const sent: { url: string; headers: Record<string, string>; payload: string }[] = [];
   const forbidden: string[] = [];
   const gmailCalls: string[] = [];
+  const gmailQueries: string[] = [];
   /** Любое обращение к службе вне разрешений — фиксируется и падает, как в настоящем Apps Script */
   const deny = (name: string) =>
     new Proxy(
@@ -115,8 +116,10 @@ const makeEnv = (messages: FakeMsg[], respond: (req: { url: string; headers: Rec
         Messages: {
           list: (_u: string, o: { q: string; maxResults: number }) => {
             gmailCalls.push('Messages.list');
-            const test = /subject:"ТЕСТ DataNews"/.test(o.q);
-            const items = messages.filter((m) => !test || m.subject.includes('ТЕСТ DataNews')).slice(0, o.maxResults);
+            gmailQueries.push(o.q);
+            // поиск Gmail: если в запросе есть subject:"…", подходят только письма с одной из этих тем
+            const subjects = [...o.q.matchAll(/subject:"([^"]+)"/g)].map((x) => x[1]);
+            const items = messages.filter((m) => !subjects.length || subjects.some((t) => m.subject.includes(t))).slice(0, o.maxResults);
             return { messages: items.map((m) => ({ id: m.id, threadId: `t${m.id}` })) };
           },
           get: (_u: string, id: string) => {
@@ -149,7 +152,7 @@ const makeEnv = (messages: FakeMsg[], respond: (req: { url: string; headers: Rec
   };
   vm.createContext(ctx);
   vm.runInContext(CODE, ctx);
-  return { ctx: ctx as Record<string, any>, logs, sent, props, forbidden, gmailCalls };
+  return { ctx: ctx as Record<string, any>, logs, sent, props, forbidden, gmailCalls, gmailQueries };
 };
 
 /** Повторить на настоящем сервере запрос, который сделал скрипт */
@@ -320,6 +323,33 @@ describe('Apps Script ↔ сервер', () => {
     const r = env.ctx.processTest();
     assert.equal(r.stopped, 'vercel_protection_or_auth');
     assert.ok(!env.props.get('PROCESSED_IDS'));
+  });
+
+  it('тема латиницей «TEST DataNews» и кириллицей «ТЕСТ DataNews» — обе принимаются; другие письма — нет', () => {
+    const env = makeEnv(
+      [
+        { ...TEST_MSG, id: 'lat1lat1lat1', subject: 'TEST DataNews', atts: [] },
+        { ...TEST_MSG, id: 'cyr1cyr1cyr1', subject: 'ТЕСТ DataNews', atts: [] },
+        { ...TEST_MSG, id: 'oth1oth1oth1', subject: 'Отключение воды', atts: [] },
+        { ...TEST_MSG, id: 'oth2oth2oth2', subject: 'Test datanews', atts: [] },
+      ],
+      () => ({ code: 200, body: { result: 'stored' } })
+    );
+    env.ctx.processTest();
+    assert.deepEqual(env.sent.map((s) => JSON.parse(s.payload).subject).sort(), ['TEST DataNews', 'ТЕСТ DataNews']);
+    assert.match(env.gmailQueries.at(-1)!, /^\(subject:"TEST DataNews" OR subject:"ТЕСТ DataNews"\) newer_than:7d$/);
+  });
+
+  it('служебные письма Google и Claude не отправляются даже с тестовой темой', () => {
+    const env = makeEnv(
+      [
+        { ...TEST_MSG, id: 'svc1svc1svc1', subject: 'TEST DataNews', from: 'Google <no-reply@accounts.google.com>' },
+        { ...TEST_MSG, id: 'svc2svc2svc2', subject: 'TEST DataNews', from: 'Claude <no-reply@email.claude.com>' },
+      ],
+      () => ({ code: 200, body: { result: 'stored' } })
+    );
+    env.ctx.processTest();
+    assert.equal(env.sent.length, 0);
   });
 
   it('служебные письма Google не отправляются', () => {

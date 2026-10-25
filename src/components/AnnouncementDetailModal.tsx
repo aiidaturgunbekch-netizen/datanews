@@ -4,6 +4,7 @@ import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { EventImage } from './EventImage';
 import { Logo } from './Logo';
+import { SHARE_TITLE, ShareMenu } from './ShareMenu';
 import { rubricIdOf } from '../config/rubrics';
 import { getTranslation } from '../locales/translations';
 import { formatDate, formatDayMonthTime, formatWhen } from '../utils/dates';
@@ -145,10 +146,17 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   onSelectOtherNotice,
   allAnnouncements,
 }) => {
-  const [copied, setCopied] = useState(false);
+  // Меню «Поделиться» в верхней строке; Escape сначала закрывает меню, потом статью
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareOpenRef = useRef(false);
+  shareOpenRef.current = shareOpen;
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (shareOpenRef.current) setShareOpen(false);
+      else onClose();
+    };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -199,6 +207,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   useEffect(() => {
     // при переходе к другому событию форма жалобы начинается заново
     setReportOpen(false);
+    setShareOpen(false);
     setReportState('');
     setComment('');
   }, [a.id]);
@@ -250,21 +259,8 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     URL.revokeObjectURL(url);
   };
 
-  const share = async () => {
-    // Ссылка на саму публикацию DataNews — мессенджеры покажут заголовок, описание и картинку (api/share.ts)
-    const data = { title: a.title[lang], text: a.summary[lang], url: `${window.location.origin}/n/${a.id}${lang === 'ru' ? '' : `?lang=${lang}`}` };
-    try {
-      if (navigator.share) {
-        await navigator.share(data);
-        return;
-      }
-      await navigator.clipboard.writeText(`${data.title}\n${data.url}`);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* пользователь отменил */
-    }
-  };
+  // Ссылка на саму публикацию DataNews — мессенджеры покажут заголовок, описание и картинку (api/share.ts)
+  const shareUrl = `${window.location.origin}/n/${a.id}${lang === 'ru' ? '' : `?lang=${lang}`}`;
 
   const cityLabel = t(`cities.${a.city === 'karakol' ? 'issykkul' : a.city}`);
   const title = a.title[lang] || a.title.ru;
@@ -304,14 +300,26 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           <button type="button" onClick={onClose} aria-label={L.close[lang]} className="hidden sm:block">
             <Logo className="h-8" lang={lang} />
           </button>
-          <button
-            type="button"
-            onClick={share}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold text-[#12327A] hover:bg-[#eef2f9]"
-          >
-            <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'share'}</span>
-            <span className="hidden min-[400px]:inline">{copied ? L.copied[lang] : L.share[lang]}</span>
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShareOpen((v) => !v)}
+              aria-expanded={shareOpen}
+              aria-haspopup="true"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold text-[#12327A] hover:bg-[#eef2f9]"
+            >
+              <span className="material-symbols-outlined text-[18px]">share</span>
+              <span className="hidden min-[400px]:inline">{L.share[lang]}</span>
+            </button>
+            {shareOpen && (
+              <>
+                <div className="fixed inset-0" onClick={() => setShareOpen(false)} aria-hidden="true" />
+                <div className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl bg-white border border-gray-200 shadow-xl p-2 z-10">
+                  <ShareMenu url={shareUrl} title={title} lang={lang} variant="menu" />
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -478,6 +486,12 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         {body && body !== summary && (
           <div className="mt-8 text-[18px] leading-[1.75] text-[#1f2937] whitespace-pre-line [overflow-wrap:anywhere]">{body}</div>
         )}
+
+        {/* Поделиться — сразу после текста, где читатель решает, отправить ли новость */}
+        <section aria-label={SHARE_TITLE[lang]} className="mt-8">
+          <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-3">{SHARE_TITLE[lang]}</h2>
+          <ShareMenu url={shareUrl} title={title} lang={lang} />
+        </section>
 
         {a.legal && (
           <section className="mt-10 pt-6 border-t border-gray-200">

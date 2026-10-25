@@ -356,3 +356,66 @@ export interface SiteStats {
 }
 
 export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'admin' | 'about' | 'sources' | 'privacy' | 'rules' | 'contacts';
+
+/**
+ * Письмо из редакционной почты (dn:mail). Это входящий материал, а не публикация:
+ * из него редактор готовит публикацию в обычной форме; само письмо ничего не публикует.
+ */
+export type MailStatus = 'new' | 'prepared' | 'published' | 'rejected' | 'duplicate';
+
+export type MailFlag =
+  | 'needs_review'
+  | 'no_date'
+  | 'no_place'
+  | 'no_category'
+  | 'no_city'
+  | 'year_guessed'
+  | 'wide_date_range'
+  | 'unknown_sender'
+  | 'auth_failed'
+  | 'possible_correction'
+  | 'from_pdf'
+  | 'text_truncated'
+  | 'image_too_large'
+  | 'attachment_skipped';
+
+export interface MailAttachment {
+  name: string;
+  mimeType: string;
+  size: number;
+  kind: 'image' | 'pdf' | 'other';
+  /** Ключ временной копии фото (dn:mail:att:…), если фото сохранено */
+  storedKey?: string;
+  /** Текст, извлечённый из PDF (сам PDF не хранится) */
+  text?: string;
+  note?: string;
+}
+
+export interface MailItem {
+  /** Идентификатор письма Gmail */
+  id: string;
+  threadId?: string;
+  /** Заголовок Message-ID письма */
+  rfcMessageId?: string;
+  fingerprint: string;
+  from: { raw: string; name?: string; address: string; domain: string };
+  subject: string;
+  /** Когда письмо пришло — не дата события */
+  receivedAt: string;
+  ingestedAt: string;
+  permalink?: string;
+  text: string;
+  links: string[];
+  auth: { spf?: string; dkim?: string; dmarc?: string };
+  attachments: MailAttachment[];
+  sender: { known: boolean; orgName?: string; orgType?: string; govDomain: boolean };
+  /** Что помощник импорта нашёл в тексте письма — предложение для формы, не публикация */
+  suggestion: { draft: Partial<Announcement>; found: string[]; missing: string[]; fromPdf: boolean };
+  flags: MailFlag[];
+  relatedIds: string[];
+  duplicateOf?: string;
+  status: MailStatus;
+  /** Публикация, подготовленная из письма (её создаёт и публикует редактор обычной формой) */
+  annId?: string;
+  history: { at: string; action: string; note?: string }[];
+}

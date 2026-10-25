@@ -236,7 +236,7 @@ export const ChatWidget: React.FC<{
                                   {T.open_post[lang]}
                                 </button>
                               ) : (
-                                <a href={`/#/n/${it.id}`} className="text-[#12327A] hover:underline">
+                                <a href={`/n/${it.id}`} className="text-[#12327A] hover:underline">
                                   {T.open_post[lang]}
                                 </a>
                               )}

@@ -14,6 +14,12 @@ const localApi = (): Plugin => ({
     if (!process.env.KV_REST_API_URL && !process.env.UPSTASH_REDIS_REST_URL) {
       process.env.DATANEWS_MEMORY_KV = '1';
     }
+    // Как rewrite в vercel.json: /n/<id> — страница новости из api/share.ts
+    server.middlewares.use((req, _res, next) => {
+      const m = (req.url || '').match(/^\/n\/([\w-]+)\/?(?:\?(.*))?$/);
+      if (m) req.url = `/api/share?id=${m[1]}${m[2] ? `&${m[2]}` : ''}`;
+      next();
+    });
     server.middlewares.use('/api', async (req, res, next) => {
       const name = (req.url || '').split('?')[0].replace(/^\/+/, '').replace(/\/$/, '');
       if (!/^[a-z-]+$/.test(name)) return next();

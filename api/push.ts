@@ -87,7 +87,7 @@ export default handler(async (req) => {
     if (!a) throw new HttpError('not_found', 404);
     if (!isAlert(a) || isExpired(a)) throw new HttpError('not_alert', 400, 'Уведомление можно отправить только по действующему предупреждению');
 
-    const message: PushMessage = { id: a.id, at: kgNowLocal(), title: a.title, body: a.summary, url: `/#/n/${a.id}` };
+    const message: PushMessage = { id: a.id, at: kgNowLocal(), title: a.title, body: a.summary, url: `/n/${a.id}` };
     await cmd('SET', LAST_KEY, JSON.stringify(message));
 
     const subs = (await hvalsJson<Sub>(SUBS_KEY)).filter((s) => s.city === 'all' || a.city === 'all' || s.city === a.city || (s.city === 'issykkul' && a.city === 'karakol'));

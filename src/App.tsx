@@ -51,11 +51,17 @@ const AccountPortal = lazy(() => import('./components/AccountPortal').then((m) =
 
 
 const isAdminHash = () => window.location.hash.replace('#', '').toLowerCase() === 'admin';
+/** id публикации из адреса: /n/<id> или старый вид /#/n/<id> */
+const articleIdFromUrl = () =>
+  window.location.pathname.match(/^\/n\/([\w-]+)\/?$/)?.[1] || window.location.hash.match(/^#\/n\/([\w-]+)/)?.[1] || null;
 
 
 export default function App() {
   // Multilingual State
   const [currentLanguage, setCurrentLanguage] = useState<Language>(() => {
+    // Ссылка на новость может задавать язык (?lang=kg) — так получатель видит ту же версию, что и отправитель
+    const fromUrl = new URLSearchParams(window.location.search).get('lang');
+    if (fromUrl === 'ru' || fromUrl === 'kg' || fromUrl === 'en') return fromUrl;
     return (localStorage.getItem('datanews_kg_lang') as Language) || 'ru';
   });
 
@@ -127,43 +133,52 @@ export default function App() {
     document.documentElement.lang = currentLanguage === 'kg' ? 'ky' : currentLanguage;
   }, [currentLanguage]);
 
-  // Отдельная ссылка на каждую публикацию: /#/n/<id> (короткая ссылка для мессенджеров — /n/<id>, см. api/share.ts)
+  // Постоянный адрес каждой публикации — /n/<id>: страницу с текстом новости для поисковиков отдаёт api/share.ts,
+  // а сайт по этому же адресу открывает статью. Старые ссылки /#/n/<id> тоже открываются и переписываются на новый адрес.
   // Статья, открытая с сайта, добавляет шаг в историю: кнопка «Назад» телефона закрывает её, а не уводит с сайта
   const articlePushed = useRef(false);
+  const shownArticle = useRef<string | null>(null);
   useEffect(() => {
-    const openFromHash = (e?: Event) => {
-      const m = window.location.hash.match(/^#\/n\/([\w-]+)/);
-      if (m) {
-        const found = announcements.find((a) => a.id === m[1]);
+    const openFromUrl = (e?: Event) => {
+      const id = articleIdFromUrl();
+      if (id) {
+        const found = announcements.find((a) => a.id === id);
         if (found) setActiveNoticeDetail(found);
       } else if (e) {
         articlePushed.current = false;
         setActiveNoticeDetail(null);
       }
     };
-    openFromHash();
-    window.addEventListener('hashchange', openFromHash);
-    return () => window.removeEventListener('hashchange', openFromHash);
+    openFromUrl();
+    window.addEventListener('popstate', openFromUrl);
+    window.addEventListener('hashchange', openFromUrl);
+    return () => {
+      window.removeEventListener('popstate', openFromUrl);
+      window.removeEventListener('hashchange', openFromUrl);
+    };
   }, [announcements]);
   useEffect(() => {
-    const base = window.location.pathname + window.location.search;
+    const onArticleUrl = Boolean(articleIdFromUrl());
     if (activeNoticeDetail) {
-      const target = `#/n/${activeNoticeDetail.id}`;
-      if (window.location.hash !== target) {
-        if (window.location.hash.startsWith('#/n/')) history.replaceState(null, '', base + target);
+      const target = `/n/${activeNoticeDetail.id}`;
+      if (window.location.pathname !== target || window.location.hash.startsWith('#/n/')) {
+        if (onArticleUrl) history.replaceState(null, '', target);
         else {
-          history.pushState(null, '', base + target);
+          history.pushState(null, '', target);
           articlePushed.current = true;
         }
       }
+      shownArticle.current = activeNoticeDetail.id;
       document.title = `${activeNoticeDetail.title[currentLanguage]} — DataNews Kyrgyzstan`;
     } else {
-      if (window.location.hash.startsWith('#/n/')) {
+      // Адрес меняем, только когда статью закрыли (а не пока публикация из базы ещё загружается)
+      if (shownArticle.current && onArticleUrl) {
         if (articlePushed.current) {
           articlePushed.current = false;
           history.back();
-        } else history.replaceState(null, '', base);
+        } else history.replaceState(null, '', '/');
       }
+      shownArticle.current = null;
       if (currentView === 'home') document.title = 'DataNews Кыргызстан — Что, где и когда в Кыргызстане';
     }
   }, [activeNoticeDetail, currentLanguage, currentView]);

@@ -61,3 +61,14 @@ test('без подключённой базы страницы строятся
   const items = await loadForPages();
   assert.ok(items.some((a) => a.id === sample.id));
 });
+
+test('название источника: на KG/EN без русских пояснений в скобках, на EN — адрес сайта вместо русского названия', async () => {
+  const { sourceLabel, eventSource, hostOf } = await import('../src/utils/links');
+  const a = { ...sample, sourceName: 'Kaktus.media (со ссылкой на Минводсельпром КР)' };
+  assert.equal(sourceLabel(a, 'ru'), 'Kaktus.media (со ссылкой на Минводсельпром КР)');
+  assert.equal(sourceLabel(a, 'kg'), 'Kaktus.media');
+  assert.equal(sourceLabel(a, 'en'), 'Kaktus.media');
+  const ru = { ...sample, sourceName: 'Минводсельпром КР' };
+  assert.equal(sourceLabel(ru, 'kg'), 'Минводсельпром КР');
+  assert.equal(sourceLabel(ru, 'en'), eventSource(ru) ? hostOf(eventSource(ru)!) : 'Минводсельпром КР');
+});

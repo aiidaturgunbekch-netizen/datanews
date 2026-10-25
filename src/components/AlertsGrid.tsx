@@ -8,6 +8,7 @@ import { alertLevel } from '../utils/urgency';
 import { EventImage } from './EventImage';
 import { PaidBadge } from './PaidBadge';
 import { PushToggle } from './PushToggle';
+import { sourceLabel } from '../utils/links';
 
 interface AlertsGridProps {
   currentLanguage: Language;
@@ -245,7 +246,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                       <PaidBadge item={ann} lang={currentLanguage} />
                       {updatedOn(ann) && displayStatus !== 'completed' && (
                         <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 text-[11px] font-bold" title={formatWhen(updatedOn(ann)!, undefined, currentLanguage)}>
-                          {L('Обновлено', 'Жаңыланды', 'Updated')}
+                          {L('Обновлено', 'Жаңыртылды', 'Updated')}
                         </span>
                       )}
 
@@ -300,7 +301,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                         {orgTypeLabel(ann.sourceOrgType, currentLanguage)}
                       </span>
                       <span className="text-xs text-gray-500 truncate max-w-[140px]">
-                        {ann.sourceName}
+                        {sourceLabel(ann, currentLanguage)}
                       </span>
                     </div>
 

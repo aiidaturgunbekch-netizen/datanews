@@ -4,6 +4,7 @@ import { getTranslation } from '../locales/translations';
 import { formatWhen } from '../utils/dates';
 import { EventImage } from './EventImage';
 import { PaidBadge } from './PaidBadge';
+import { sourceLabel } from '../utils/links';
 
 const T = {
   title: { ru: 'Главное', kg: 'Башкы жаңылыктар', en: 'Top stories' },
@@ -18,7 +19,7 @@ const Meta: React.FC<{ a: Announcement; lang: Language; className?: string }> = 
       <>
         {' · '}
         <span>
-          {T.source[lang]}: {a.sourceName}
+          {T.source[lang]}: {sourceLabel(a, lang)}
         </span>
       </>
     )}

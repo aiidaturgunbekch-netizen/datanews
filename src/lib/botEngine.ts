@@ -331,9 +331,9 @@ export const answer = (input: BotInput, source: Announcement[], official: Offici
         const v = fc.regions[id as CityId]!;
         return `• ${t(`cities.${id}`)}: ${tr({ ru: 'ночью', kg: 'түнкүсүн', en: 'night' }, lang)} ${sign(v.nightFrom)}…${sign(v.nightTo)}, ${tr({ ru: 'днём', kg: 'күндүз', en: 'day' }, lang)} ${sign(v.dayFrom)}…${sign(v.dayTo)} °C`;
       });
-      links.unshift({ label: `${tr({ ru: 'Источник', kg: 'Булак', en: 'Source' }, lang)}: ${fc.sourceName}`, href: fc.sourceUrl });
+      links.unshift({ label: `${tr({ ru: 'Источник', kg: 'Булагы', en: 'Source' }, lang)}: ${fc.sourceName}`, href: fc.sourceUrl });
       return reply({
-        answer: `${tr({ ru: 'Официальный прогноз', kg: 'Расмий божомол', en: 'Official forecast' }, lang)} (${fc.sourceName}) — ${formatDayMonth(fc.date, lang)}:\n${rows.join('\n')}${fc.text ? `\n${fc.text}` : ''}${fc.updatedAt ? `\n${tr({ ru: 'Обновлено', kg: 'Жаңыланды', en: 'Updated' }, lang)}: ${formatDayMonthTime(kgNowLocal(Date.parse(fc.updatedAt)), lang)}` : ''}`,
+        answer: `${tr({ ru: 'Официальный прогноз', kg: 'Расмий божомол', en: 'Official forecast' }, lang)} (${fc.sourceName}) — ${formatDayMonth(fc.date, lang)}:\n${rows.join('\n')}${fc.text ? `\n${fc.text}` : ''}${fc.updatedAt ? `\n${tr({ ru: 'Обновлено', kg: 'Жаңыртылды', en: 'Updated' }, lang)}: ${formatDayMonthTime(kgNowLocal(Date.parse(fc.updatedAt)), lang)}` : ''}`,
         links,
         actions: follow(lang, 'storm', 'passes'),
       });

@@ -16,12 +16,12 @@ export type StatsMode = 'all' | 'alerts' | 'regions';
 const NATIONWIDE = '__nationwide';
 
 const T = {
-  allTitle: { ru: 'Все публикации', kg: 'Бардык жарыялар', en: 'All posts' },
+  allTitle: { ru: 'Все публикации', kg: 'Баардык жарыялар', en: 'All posts' },
   alertsTitle: { ru: 'Актуальные предупреждения', kg: 'Актуалдуу эскертүүлөр', en: 'Current alerts' },
   regionsTitle: { ru: 'Области Кыргызстана', kg: 'Кыргызстандын облустары', en: 'Regions of Kyrgyzstan' },
   category: { ru: 'Категория', kg: 'Категория', en: 'Category' },
   period: { ru: 'Период', kg: 'Мезгил', en: 'Period' },
-  any: { ru: 'Все', kg: 'Бардыгы', en: 'All' },
+  any: { ru: 'Все', kg: 'Баары', en: 'All' },
   today: { ru: 'Сегодня', kg: 'Бүгүн', en: 'Today' },
   week: { ru: 'Ближайшие 7 дней', kg: 'Жакынкы 7 күн', en: 'Next 7 days' },
   upcoming: { ru: 'Предстоящие', kg: 'Алдыдагылар', en: 'Upcoming' },
@@ -45,12 +45,12 @@ const T = {
   nationwide: { ru: 'Весь Кыргызстан', kg: 'Бүт Кыргызстан', en: 'All of Kyrgyzstan' },
   withNationwide: {
     ru: 'События области и общие для всей страны',
-    kg: 'Облустун жана бүт өлкөгө тиешелүү окуялар',
+    kg: 'Облуска жана бүт өлкөгө тиешелүү окуялар',
     en: 'Regional events plus nationwide ones',
   },
   posts: { ru: 'публикаций', kg: 'жарыя', en: 'posts' },
   close: { ru: 'Закрыть', kg: 'Жабуу', en: 'Close' },
-  back: { ru: 'Все области', kg: 'Бардык облустар', en: 'All regions' },
+  back: { ru: 'Все области', kg: 'Баардык облустар', en: 'All regions' },
 };
 
 /** Строка публикации в списках: миниатюра, бейджи, дата, место */

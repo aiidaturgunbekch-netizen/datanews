@@ -304,7 +304,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ),
     category: 'gov',
     city: 'bishkek',
-    location: L('г. Бишкек, все районы', 'Бишкек ш., бардык райондор', 'Bishkek, all districts'),
+    location: L('г. Бишкек, все районы', 'Бишкек ш., баардык райондор', 'Bishkek, all districts'),
     startDate: '2026-10-13T08:00',
     endDate: '2026-10-13T23:59',
     urgency: 'regular',
@@ -333,7 +333,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     protocolCode: '#KG-EV-ARBENINA',
     title: L(
       'Диана Арбенина и «Ночные снайперы» в Nomad Arena',
-      'Диана Арбенина жана «Ночные снайперы» Nomad Arenaда',
+      'Диана Арбенина жана «Ночные снайперы» «Nomad Arena» аянтчасында',
       'Diana Arbenina & Night Snipers at Nomad Arena'
     ),
     summary: L(
@@ -669,7 +669,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ),
     description: L(
       'Сольный концерт MALIKA DINA пройдёт в субботу, 31 октября 2026 года, в 19:00 в «Жаштык Арене» (ул. Тоголок Молдо, 17/7). Продолжительность — около двух часов. Билеты от 1 500 сом продаются на Kassir.kg.',
-      'MALIKA DINAнын жеке концерти 2026-жылдын 31-октябрында, ишемби күнү, саат 19:00дө «Жаштык Аренада» (Тоголок Молдо көч., 17/7) өтөт. Узактыгы — болжол менен эки саат. Билеттер 1 500 сомдон Kassir.kg сайтында сатылат.',
+      'MALIKA DINA ырчынын жеке концерти 2026-жылдын 31-октябрында, ишемби күнү, саат 19:00дө «Жаштык Аренада» (Тоголок Молдо көч., 17/7) өтөт. Узактыгы — болжол менен эки саат. Билеттер 1 500 сомдон Kassir.kg сайтында сатылат.',
       'MALIKA DINA performs on Saturday 31 October 2026 at 19:00 at Zhashtyk Arena (17/7 Togolok Moldo St). About two hours. Tickets from 1,500 KGS on Kassir.kg.'
     ),
     category: 'concerts',
@@ -824,7 +824,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ),
     description: L(
       'По данным AKIpress, матчи отборочного раунда Кубка Азии (U-17) в группе F стартуют 8 ноября 2026 года и пройдут в Кыргызстане. Соперники сборной Кыргызстана (тренер Игорь Кудренко) — Йемен, Туркменистан, Монголия и Северные Марианские острова. Расписание матчей и стадион пока не опубликованы.',
-      'AKIpressтин маалыматы боюнча, Азия кубогунун (U-17) тандоо айлампасынын F тайпасындагы беттештер 2026-жылдын 8-ноябрында башталып, Кыргызстанда өтөт. Кыргызстан курамасынын (машыктыруучу Игорь Кудренко) атаандаштары — Йемен, Түркмөнстан, Монголия жана Түндүк Мариан аралдары. Беттештердин графиги жана стадион азырынча жарыялана элек.',
+      'AKIpress агенттигинин маалыматы боюнча, Азия кубогунун (U-17) тандоо айлампасынын F тайпасындагы беттештер 2026-жылдын 8-ноябрында башталып, Кыргызстанда өтөт. Кыргызстан курамасынын (машыктыруучу Игорь Кудренко) атаандаштары — Йемен, Түркмөнстан, Монголия жана Түндүк Мариан аралдары. Беттештердин графиги жана стадион азырынча жарыялана элек.',
       'According to AKIpress, AFC U-17 Asian Cup qualifying Group F starts on 8 November 2026 in Kyrgyzstan. Kyrgyzstan (coach Igor Kudrenko) face Yemen, Turkmenistan, Mongolia and the Northern Mariana Islands. The fixture list and stadium have not been published yet.'
     ),
     category: 'sport',
@@ -852,12 +852,12 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     title: L('XCHO в Бишкеке', 'XCHO Бишкекте', 'XCHO in Bishkek'),
     summary: L(
       'Концерт исполнителя XCHO в Nomad Arena. Билеты продают несколько билетных сервисов.',
-      'XCHO аткаруучусунун Nomad Arenaдагы концерти. Билеттерди бир нече билет кызматы сатат.',
+      'XCHO аткаруучусунун «Nomad Arena» аянтчасындагы концерти. Билеттерди бир нече билет кызматы сатат.',
       'XCHO live at Nomad Arena. Tickets are sold by several ticket services.'
     ),
     description: L(
       'Концерт XCHO пройдёт 11 ноября 2026 года в 19:00 в Nomad Arena (ул. Виноградная, 1/3). По данным афиши Bishkek.events, билеты продаются на Kassir.kg, Ticket.kg и Ticketon.kg; цены в разных сервисах указаны по-разному — проверяйте при покупке.',
-      'XCHOнун концерти 2026-жылдын 11-ноябрында саат 19:00дө Nomad Arenaда (Виноградная көч., 1/3) өтөт. Bishkek.events афишасынын маалыматы боюнча, билеттер Kassir.kg, Ticket.kg жана Ticketon.kg сайттарында сатылат; баалар ар кайсы кызматта ар башка — сатып алууда текшериңиз.',
+      'XCHO аткаруучусунун концерти 2026-жылдын 11-ноябрында саат 19:00дө «Nomad Arena» аянтчасында (Виноградная көч., 1/3) өтөт. Bishkek.events афишасынын маалыматы боюнча, билеттер Kassir.kg, Ticket.kg жана Ticketon.kg сайттарында сатылат; баалар ар кайсы кызматта ар башка — сатып алууда текшериңиз.',
       'XCHO performs on 11 November 2026 at 19:00 at Nomad Arena (1/3 Vinogradnaya St). According to Bishkek.events, tickets are on Kassir.kg, Ticket.kg and Ticketon.kg; prices differ between services — check when buying.'
     ),
     category: 'concerts',
@@ -960,12 +960,12 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     title: L('Марьяна Локель: «Нано тур»', 'Марьяна Локель: «Нано тур»', 'Maryana Lokel: Nano Tour'),
     summary: L(
       'Концерт Марьяны Локель в Nomad Arena в рамках «Нано тура». Около полутора часов.',
-      'Марьяна Локелдин «Нано тур» алкагындагы Nomad Arenaдагы концерти. Болжол менен бир жарым саат.',
+      'Марьяна Локелдин «Нано тур» алкагында «Nomad Arena» аянтчасында өтүүчү концерти. Болжол менен бир жарым саат.',
       'Maryana Lokel’s Nano Tour concert at Nomad Arena. About an hour and a half.'
     ),
     description: L(
       'Марьяна Локель выступит в Бишкеке в четверг, 26 ноября 2026 года, в 19:00 в Nomad Arena (ул. Виноградная, 1/3). Продолжительность — около полутора часов. Билеты от 2 500 сом на Kassir.kg; концерт указан и на официальном сайте артистки.',
-      'Марьяна Локель 2026-жылдын 26-ноябрында, бейшемби күнү, саат 19:00дө Бишкектеги Nomad Arenaда (Виноградная көч., 1/3) концерт берет. Узактыгы — болжол менен бир жарым саат. Билеттер Kassir.kg сайтында 2 500 сомдон; концерт артисттин расмий сайтында да көрсөтүлгөн.',
+      'Марьяна Локель 2026-жылдын 26-ноябрында, бейшемби күнү, саат 19:00дө Бишкектеги «Nomad Arena» аянтчасында (Виноградная көч., 1/3) концерт берет. Узактыгы — болжол менен бир жарым саат. Билеттер Kassir.kg сайтында 2 500 сомдон; концерт артисттин расмий сайтында да көрсөтүлгөн.',
       'Maryana Lokel performs in Bishkek on Thursday 26 November 2026 at 19:00 at Nomad Arena (1/3 Vinogradnaya St). About an hour and a half. Tickets from 2,500 KGS on Kassir.kg; the show is also listed on her official site.'
     ),
     category: 'concerts',

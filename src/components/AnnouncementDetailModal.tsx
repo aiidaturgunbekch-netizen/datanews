@@ -8,7 +8,7 @@ import { SHARE_TITLE, ShareMenu } from './ShareMenu';
 import { rubricIdOf } from '../config/rubrics';
 import { getTranslation } from '../locales/translations';
 import { formatDate, formatDayMonthTime, formatWhen } from '../utils/dates';
-import { eventSource, groupedSources, hostOf, isGovTicket, SourceLink, ticketLink } from '../utils/links';
+import { eventSource, groupedSources, hostOf, isGovTicket, SourceLink, sourceLabel, ticketLink } from '../utils/links';
 import * as api from '../services/api';
 import { Report } from '../types';
 
@@ -40,7 +40,7 @@ const L = {
   where: { ru: 'Где', kg: 'Кайда', en: 'Where' },
   price: { ru: 'Стоимость', kg: 'Баасы', en: 'Price' },
   about: { ru: 'Подробности', kg: 'Кеңири маалымат', en: 'Details' },
-  source: { ru: 'Источник', kg: 'Булак', en: 'Source' },
+  source: { ru: 'Источник', kg: 'Булагы', en: 'Source' },
   openSource: { ru: 'Открыть источник', kg: 'Булакты ачуу', en: 'Open source' },
   map: { ru: 'Показать на карте', kg: 'Картадан көрсөтүү', en: 'Show on map' },
   ics: { ru: 'Добавить в календарь', kg: 'Календарга кошуу', en: 'Add to calendar' },
@@ -55,7 +55,7 @@ const L = {
   document: { ru: 'Документ', kg: 'Документ', en: 'Document' },
   close: { ru: 'Закрыть', kg: 'Жабуу', en: 'Close' },
   until: { ru: 'до', kg: 'чейин', en: 'until' },
-  buy: { ru: 'Купить билет', kg: 'Билеттерди сатып алуу', en: 'Buy tickets' },
+  buy: { ru: 'Купить билет', kg: 'Билет сатып алуу', en: 'Buy tickets' },
   ticketUnverified: {
     ru: 'Ссылка на билеты от организатора пока не подтверждена',
     kg: 'Уюштуруучунун билет шилтемеси азырынча тастыктала элек',
@@ -63,7 +63,7 @@ const L = {
   },
   noTickets: {
     ru: 'Ссылка на покупку билетов пока не подтверждена',
-    kg: 'Билет сатып алуучу шилтеме азырынча тастыктала элек',
+    kg: 'Билет сатып алуу шилтемеси азырынча тастыктала элек',
     en: 'Ticket link not yet confirmed',
   },
   links: { ru: 'Первоисточники', kg: 'Түпкү булактар', en: 'Primary sources' },
@@ -360,10 +360,10 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             {L.source[lang]}:{' '}
             {source ? (
               <a href={source} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline">
-                {a.sourceName}
+                {sourceLabel(a, lang)}
               </a>
             ) : (
-              <b className="text-[#0f1b33]">{a.sourceName}</b>
+              <b className="text-[#0f1b33]">{sourceLabel(a, lang)}</b>
             )}
           </span>
           <span>

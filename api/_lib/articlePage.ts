@@ -7,7 +7,7 @@
 import type { Announcement, Language } from '../../src/types';
 import { getTranslation } from '../../src/locales/translations';
 import { formatDayMonthTime, formatWhen } from '../../src/utils/dates';
-import { eventSource } from '../../src/utils/links';
+import { eventSource, sourceLabel } from '../../src/utils/links';
 import { mergeAnnouncements } from '../../src/utils/mergeAnnouncements';
 import { isConfigured } from './kv';
 import { loadPublished } from './assistant';
@@ -30,12 +30,12 @@ export const loadForPages = async (): Promise<Announcement[]> => {
 };
 
 const T = {
-  source: { ru: 'Источник', kg: 'Булак', en: 'Source' },
+  source: { ru: 'Источник', kg: 'Булагы', en: 'Source' },
   published: { ru: 'Опубликовано', kg: 'Жарыяланды', en: 'Published' },
   updated: { ru: 'Обновлено', kg: 'Жаңыртылды', en: 'Updated' },
   when: { ru: 'Когда', kg: 'Качан', en: 'When' },
   where: { ru: 'Где', kg: 'Кайда', en: 'Where' },
-  home: { ru: 'Все новости DataNews', kg: 'DataNews бардык жаңылыктары', en: 'All DataNews stories' },
+  home: { ru: 'Все новости DataNews', kg: 'DataNews баардык жаңылыктары', en: 'All DataNews stories' },
 };
 
 /** Время на сайте — бишкекское без пояса (YYYY-MM-DDTHH:mm); для поисковиков добавляем +06:00 */
@@ -63,8 +63,8 @@ export const articleHtml = (a: Announcement, lang: Language) => {
   const city = t(`cities.${a.city === 'karakol' ? 'issykkul' : a.city}`);
   const source = eventSource(a);
   const sourceHtml = source
-    ? `<a href="${esc(source)}" rel="noopener" class="font-bold text-[#12327A] hover:underline">${esc(a.sourceName)}</a>`
-    : `<b class="text-[#0f1b33]">${esc(a.sourceName)}</b>`;
+    ? `<a href="${esc(source)}" rel="noopener" class="font-bold text-[#12327A] hover:underline">${esc(sourceLabel(a, lang))}</a>`
+    : `<b class="text-[#0f1b33]">${esc(sourceLabel(a, lang))}</b>`;
   const updated =
     a.updatedAt && a.updatedAt !== a.publishedAt
       ? ` · ${T.updated[lang]}: <time datetime="${esc(toIsoKg(a.updatedAt) || '')}">${esc(formatDayMonthTime(a.updatedAt, lang))}</time>`

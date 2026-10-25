@@ -72,3 +72,20 @@ export const groupedSources = (a: Announcement) => {
     mediaOnly: kind === 'media' && !official.some((o) => o.label === 'official'),
   };
 };
+
+/**
+ * Название источника для показа. Названия источников записаны по-русски; на кыргызской и английской версиях
+ * убираем русские пояснения в скобках («со ссылкой на …», «афиша кинотеатра»), а на английской
+ * вместо оставшегося русского названия показываем адрес сайта источника, если он есть.
+ */
+export const sourceLabel = (a: Announcement, lang: 'ru' | 'kg' | 'en') => {
+  const name = a.sourceName || '';
+  if (lang === 'ru') return name;
+  const short = name.replace(/\s*\([^)]*[а-яё][^)]*\)/gi, '').trim() || name;
+  if (lang === 'en' && /[а-яё]/i.test(short)) {
+    const src = eventSource(a);
+    if (src) return hostOf(src);
+  }
+  return short;
+};
+

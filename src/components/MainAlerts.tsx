@@ -12,7 +12,7 @@ const T = {
     kg: 'Азыр күчүндөгү эскертүүлөр жок.',
     en: 'There are no active warnings right now.',
   },
-  all: { ru: 'Все предупреждения и архив', kg: 'Бардык эскертүүлөр жана архив', en: 'All warnings and archive' },
+  all: { ru: 'Все предупреждения и архив', kg: 'Баардык эскертүүлөр жана архив', en: 'All warnings and archive' },
   more: { ru: 'ещё', kg: 'дагы', en: 'more' },
 };
 

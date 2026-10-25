@@ -145,7 +145,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               districtCode ? 'bg-[#12327A] text-white border-[#12327A]' : 'bg-white text-gray-600 border-gray-200'
             }`}
           >
-            <option value="">{currentLanguage === 'kg' ? 'Бардык райондор' : currentLanguage === 'en' ? 'All districts' : 'Все районы'}</option>
+            <option value="">{currentLanguage === 'kg' ? 'Баардык райондор' : currentLanguage === 'en' ? 'All districts' : 'Все районы'}</option>
             {districtList.map((d) => {
               const n = allEvents.filter((a) => inDistrict(a, d)).length;
               return (
@@ -175,7 +175,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               onClick={() => setDistrictCode('')}
               className="mt-3 px-4 py-2 rounded-xl bg-gray-100 text-[#12327A] text-xs font-bold hover:bg-gray-200"
             >
-              {currentLanguage === 'kg' ? 'Бардык райондорду көрсөтүү' : currentLanguage === 'en' ? 'Show all districts' : 'Показать все районы'}
+              {currentLanguage === 'kg' ? 'Баардык райондорду көрсөтүү' : currentLanguage === 'en' ? 'Show all districts' : 'Показать все районы'}
             </button>
           )}
           {/* В актуальном пусто, а в архиве есть — подсказываем и даём перейти */}
@@ -248,7 +248,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                           className="relative z-10 font-extrabold text-[#002f29] bg-[#20C7B5] hover:bg-[#1bb3a2] px-2.5 py-1 rounded-lg inline-flex items-center gap-1"
                         >
                           <span className="material-symbols-outlined text-[14px]">confirmation_number</span>
-                          {currentLanguage === 'kg' ? 'Билеттерди сатып алуу' : currentLanguage === 'en' ? 'Buy tickets' : 'Купить билет'}
+                          {currentLanguage === 'kg' ? 'Билет сатып алуу' : currentLanguage === 'en' ? 'Buy tickets' : 'Купить билет'}
                         </a>
                       )}
                     </div>

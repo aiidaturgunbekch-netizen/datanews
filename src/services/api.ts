@@ -57,17 +57,36 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (session) headers.Authorization = `Bearer ${session.token}`;
   let res: Response;
   try {
-    res = await fetch(`/api/${path}`, { ...init, headers: { ...headers, ...(init.headers as Record<string, string>) } });
+    // Наш API никогда не перенаправляет; перенаправление — это страница входа защиты Vercel (её распознаём ниже)
+    res = await fetch(`/api/${path}`, { ...init, redirect: 'manual', headers: { ...headers, ...(init.headers as Record<string, string>) } });
   } catch {
-    throw new ApiError('network', 0, 'Нет связи с сервером');
+    throw new ApiError('network', 0, NETWORK_MESSAGE);
   }
+  const fail = responseFailure(res);
+  if (fail) throw fail;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401 && session) setSession(null);
-    throw new ApiError(data.error || 'error', res.status, data.message || `Ошибка сервера (код ${res.status})`);
+    if (res.status === 401 && session && data.error) setSession(null);
+    throw new ApiError(data.error || 'error', res.status, data.message || nonJsonMessage(res));
   }
   return data as T;
 }
+
+const NETWORK_MESSAGE = 'Нет связи с сервером: запрос не получил ответа (нет интернета, сайт недоступен или запрос заблокирован браузером / расширением). Обновите страницу и попробуйте снова.';
+const PREVIEW_AUTH_MESSAGE =
+  'Запрос перенаправлен на страницу входа Vercel: истёк вход в защищённый Preview. Обновите страницу (F5), при необходимости войдите в Vercel, и повторите действие.';
+
+/** Ответ не от нашего API: перенаправление на вход Vercel (Preview под защитой) */
+const responseFailure = (res: Response): ApiError | null =>
+  res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400) ? new ApiError('preview_auth', res.status, PREVIEW_AUTH_MESSAGE) : null;
+
+/** Понятная причина, если сервер ответил не JSON (сбой платформы, защита Vercel) */
+const nonJsonMessage = (res: Response) => {
+  const vercelError = res.headers.get('x-vercel-error');
+  if (vercelError) return `Сбой платформы Vercel: ${vercelError} (код ${res.status}). Функция сайта не ответила — попробуйте ещё раз; если повторяется, это ошибка развёртывания.`;
+  if (res.status === 401 || res.status === 403) return `Доступ закрыт защитой Vercel Preview (код ${res.status}). Обновите страницу и войдите в Vercel.`;
+  return `Ошибка сервера (код ${res.status})`;
+};
 
 const post = <T>(path: string, body: unknown, method = 'POST') => request<T>(path, { method, body: JSON.stringify(body) });
 
@@ -183,13 +202,16 @@ export const setMailEnabled = (enabled: boolean) => post<MailIngestStatus>('sour
 export const downloadBackup = async (withImages: boolean) => {
   const session = getSession();
   const res = await fetch(`/api/stats?backup=1${withImages ? '&images=1' : ''}`, {
+    redirect: 'manual',
     headers: session ? { Authorization: `Bearer ${session.token}` } : {},
   }).catch(() => {
-    throw new ApiError('network', 0, 'Нет связи с сервером');
+    throw new ApiError('network', 0, NETWORK_MESSAGE);
   });
+  const fail = responseFailure(res);
+  if (fail) throw fail;
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new ApiError(data.error || 'error', res.status, data.message || `Ошибка сервера (код ${res.status})`);
+    throw new ApiError(data.error || 'error', res.status, data.message || nonJsonMessage(res));
   }
   const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || 'datanews-backup.json';
   const url = URL.createObjectURL(await res.blob());

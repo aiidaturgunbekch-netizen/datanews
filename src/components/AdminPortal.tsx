@@ -800,6 +800,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   const [hidden, setHidden] = useState<string[]>([]);
   const [checked, setChecked] = useState<Record<string, string>>({});
   const [users, setUsers] = useState<api.AdminUser[]>([]);
+  // Ошибка загрузки списка пользователей — показывается во вкладке, а не скрывается
+  const [usersErr, setUsersErr] = useState('');
   const [pushTotal, setPushTotal] = useState<number | null>(null);
   const [editing, setEditing] = useState<Announcement | null | 'new'>(null);
   const [query, setQuery] = useState('');
@@ -837,8 +839,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       });
     api
       .fetchUsers()
-      .then(setUsers)
-      .catch(() => {});
+      .then((u) => {
+        setUsers(u);
+        setUsersErr('');
+      })
+      .catch((e: api.ApiError) => setUsersErr(`Список пользователей не загрузился: ${e.message}`));
     loadMail();
     api
       .pushStats()
@@ -1433,9 +1438,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                 </>
               ) : tab === 'users' ? (
                 <>
-                  <StaffAccountBox onCreate={(u) => act(() => api.createUserAccount(u), `Учётная запись ${u.email} создана. Передайте сотруднику e-mail и пароль.`)} />
+                  <StaffAccountBox
+                    onCreate={(u) =>
+                      act(
+                        () =>
+                          api.createUserAccount(u).catch((e: api.ApiError) => {
+                            throw new Error(`Учётная запись не создана: ${e.message}`);
+                          }),
+                        `Учётная запись ${u.email} создана. Передайте сотруднику e-mail и пароль.`
+                      )
+                    }
+                  />
                   <h2 className="text-xl font-extrabold text-[#0f1b33]">Зарегистрированные пользователи: {users.length}</h2>
-                  {users.length === 0 ? (
+                  {usersErr && (
+                    <div role="alert" className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">
+                      {usersErr}
+                    </div>
+                  )}
+                  {usersErr ? null : users.length === 0 ? (
                     <div className="py-12 text-center text-gray-500 bg-white rounded-2xl">Пока никто не зарегистрировался</div>
                   ) : (
                     <div className="space-y-2">

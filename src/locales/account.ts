@@ -313,7 +313,16 @@ export const ta = (key: AccountKey, lang: Language) => T[key][lang] || T[key].ru
 
 /** Сообщения об ошибках сервера по коду ответа */
 const ERRORS: Record<string, LocalizedString> = {
-  network: { ru: 'Нет связи с сервером', kg: 'Сервер менен байланыш жок', en: 'Cannot reach the server' },
+  network: {
+    ru: 'Нет связи с сервером: запрос не получил ответа. Проверьте интернет, обновите страницу и попробуйте снова.',
+    kg: 'Сервер менен байланыш жок: суроого жооп келген жок. Интернетти текшерип, баракты жаңылап, кайра аракет кылыңыз.',
+    en: 'Cannot reach the server: the request got no response. Check your connection, reload the page and try again.',
+  },
+  preview_auth: {
+    ru: 'Истёк вход в защищённый Preview Vercel. Обновите страницу (F5), при необходимости войдите в Vercel, и повторите действие.',
+    kg: 'Vercel Preview коргоосуна кирүү мөөнөтү бүттү. Баракты жаңылаңыз (F5), керек болсо Vercelге кириңиз жана аракетти кайталаңыз.',
+    en: 'Your sign-in to the protected Vercel Preview has expired. Reload the page (F5), sign in to Vercel if asked, and try again.',
+  },
   storage_not_configured: {
     ru: 'Сервер ещё не настроен. Попробуйте позже.',
     kg: 'Сервер азырынча орнотула элек. Кийинчерээк аракет кылыңыз.',

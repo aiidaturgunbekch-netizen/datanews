@@ -6,13 +6,17 @@
  *   PATCH { email, paymentStatus: 'unpaid' }    приостановить доступ (текущий период прекращается сейчас)
  *   PATCH { email, paymentStatus: 'rejected' }  платёж не найден
  *   PATCH { email, gov: 'verify' | 'reject' | 'revoke', note? }   подтвердить / отклонить / отозвать статус госоргана
+ *   POST  { name, email, phone, organization, password, plan }   учётная запись для сотрудника или помощника:
+ *       обычный пользователь (входит только в личный кабинет, без доступа к панели); оплата не подтверждается,
+ *       статус госоргана не присваивается — это отдельные действия администратора
+ *   PATCH { email, password }                   задать новый пароль (например, если сотрудник его забыл или ушёл)
  *
  * Тариф «Муниципалитет / госорган» можно активировать только после подтверждения статуса.
  */
 import type { PaymentStatus } from '../src/types';
 import { hgetJson, hsetJson, hvalsJson } from './_lib/kv';
-import { handler, HttpError, json, readBody, requireAdmin } from './_lib/http';
-import { StoredUser, toPublic, USERS_KEY } from './_lib/users';
+import { handler, hashPassword, HttpError, json, readBody, requireAdmin } from './_lib/http';
+import { checkPassword, newUser, StoredUser, toPublic, USERS_KEY } from './_lib/users';
 import { normalizePlan, PLANS } from '../src/config/site';
 import { addPeriod, getUsage, periodsOf, suspendPeriods } from './_lib/quota';
 
@@ -30,14 +34,26 @@ export default handler(async (req) => {
     return json({ users });
   }
 
+  if (req.method === 'POST') {
+    const body = await readBody<Record<string, unknown>>(req, 5000);
+    // только поля учётной записи: роль, оплата и статус госоргана из запроса не принимаются
+    const user = await newUser({ name: body.name, email: body.email, phone: body.phone, organization: body.organization, password: body.password, plan: body.plan });
+    await hsetJson(USERS_KEY, user.email, user);
+    return json({ user: await view(user) }, 201);
+  }
+
   if (req.method === 'PATCH') {
-    const body = await readBody<{ email?: string; paymentStatus?: PaymentStatus; plan?: string; gov?: string; note?: string }>(req, 5000);
+    const body = await readBody<{ email?: string; paymentStatus?: PaymentStatus; plan?: string; gov?: string; note?: string; password?: string }>(req, 5000);
     const email = String(body.email || '').toLowerCase();
     const u = await hgetJson<StoredUser>(USERS_KEY, email);
     if (!u) throw new HttpError('not_found', 404);
     let next: StoredUser = u;
 
-    if (body.gov) {
+    if (typeof body.password === 'string') {
+      checkPassword(body.password);
+      // новый пароль закрывает все прежние входы этой учётной записи (например, если сотрудник ушёл)
+      next = { ...u, ...(await hashPassword(body.password)), sessionVersion: (u.sessionVersion || 0) + 1 };
+    } else if (body.gov) {
       if (!['verify', 'reject', 'revoke'].includes(body.gov)) throw new HttpError('bad_status', 400);
       if (body.gov === 'verify' && !u.gov) throw new HttpError('gov_no_request', 400, 'Организация не подавала заявку на подтверждение');
       const note = String(body.note || '').slice(0, 500) || undefined;

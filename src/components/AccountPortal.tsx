@@ -12,6 +12,10 @@ import { EventImage } from './EventImage';
 interface Props {
   lang: Language;
   initialTab: 'cabinet' | 'publish';
+  /** Открыт вход (#login): сначала форма входа, а не регистрации */
+  startWithLogin?: boolean;
+  /** В этом браузере сейчас сеанс администратора — вход в кабинет его завершит */
+  adminSession?: boolean;
   onRoleChange: (role: api.Role) => void;
   onClose: () => void;
 }
@@ -206,12 +210,12 @@ const GovBlock: React.FC<{ lang: Language; user: PublicUser; onUser: (u: PublicU
   );
 };
 
-export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange, onClose }) => {
+export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogin, adminSession, onRoleChange, onClose }) => {
   const tr = (k: AccountKey) => ta(k, lang);
   const [user, setUser] = useState<PublicUser | null>(null);
   const [usage, setUsage] = useState<PlanUsage | null>(null);
   const [loading, setLoading] = useState(Boolean(api.getSession()));
-  const [authTab, setAuthTab] = useState<'login' | 'register'>('register');
+  const [authTab, setAuthTab] = useState<'login' | 'register'>(startWithLogin || adminSession ? 'login' : 'register');
   const [tab, setTab] = useState<Tab>(initialTab);
   const [mine, setMine] = useState<Announcement[]>([]);
   const [editing, setEditing] = useState<Announcement | null>(null);
@@ -345,6 +349,15 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
           ) : !user ? (
             /* ───────── Гость: регистрация / вход ───────── */
             <div className="space-y-5">
+              {adminSession && (
+                <div className="p-3 rounded-xl bg-amber-50 text-amber-900 text-sm">{tr('adminSessionNote')}</div>
+              )}
+              {/* Ошибка входа или регистрации (например, «Неверный e-mail или пароль») */}
+              {err && (
+                <div role="alert" className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">
+                  {err}
+                </div>
+              )}
               <div className="p-4 rounded-2xl bg-[#effdfb] border border-[#20C7B5]/30 text-sm text-[#0f1b33]">
                 <div className="font-extrabold mb-1">{tr('howTitle')}</div>
                 <ol className="list-decimal ml-5 space-y-0.5 text-gray-700">

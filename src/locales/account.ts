@@ -155,6 +155,11 @@ const T = {
     en: 'Thank you! The administrator will check the payment and enable posting.',
   },
   logout: { ru: 'Выйти', kg: 'Чыгуу', en: 'Log out' },
+  adminSessionNote: {
+    ru: 'Сейчас в этом браузере открыт вход администратора. Личный кабинет — это отдельная учётная запись пользователя: вход в кабинет завершит сеанс администратора в этом браузере.',
+    kg: 'Азыр бул браузерде администратор кирген. Жеке кабинет — колдонуучунун өзүнчө эсеби: кабинетке киргенде бул браузердеги администратордун сеансы бүтөт.',
+    en: 'You are signed in as administrator in this browser. The account area uses a separate user account: signing in there ends the administrator session in this browser.',
+  },
   lockedTitle: { ru: 'Публикация откроется после оплаты', kg: 'Жарыялоо төлөмдөн кийин ачылат', en: 'Posting opens after payment' },
   lockedStatus: { ru: 'Статус оплаты', kg: 'Төлөмдүн абалы', en: 'Payment status' },
   lockedHint: {

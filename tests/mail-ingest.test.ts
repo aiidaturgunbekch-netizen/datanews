@@ -384,7 +384,9 @@ describe('состояние секрета и сборки в панели', ()
       assert.match(JSON.parse(ingestText).message, /короче 32 символов/);
       for (const t of [text, ingestText, logs]) {
         assert.ok(!t.includes(SHORT) && !t.includes(SHORT.slice(0, 6)), 'секрет и его части не выводятся');
-        assert.ok(!new RegExp(`\\b${SHORT.length}\\b`).test(t), 'длина секрета не выводится');
+        // время (например, «16:05» в метке выключателя) не считается выводом длины
+        const noTime = t.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z?/g, '');
+        assert.ok(!new RegExp(`\\b${SHORT.length}\\b`).test(noTime), 'длина секрета не выводится');
       }
     } finally {
       process.env.MAIL_INGEST_SECRET = SECRET;

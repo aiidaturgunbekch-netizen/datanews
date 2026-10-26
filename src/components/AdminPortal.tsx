@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Announcement, HistoryEntry, Language, MailItem, PaymentStatus, Report, SiteStats } from '../types';
+import { Announcement, HistoryEntry, Language, MailItem, PaymentStatus, PlanId, Report, SiteStats } from '../types';
 import * as api from '../services/api';
 import { mergeAnnouncements } from '../utils/mergeAnnouncements';
-import { normalizePlan, PLANS } from '../config/site';
+import { normalizePlan, PLAN_IDS, PLANS } from '../config/site';
 import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './AnnouncementForm';
 import { EventImage } from './EventImage';
 import { MailInbox } from './MailInbox';
@@ -740,6 +740,55 @@ const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) => void 
 };
 
 // ─────────────────────────── Панель ───────────────────────────
+/**
+ * Учётная запись для сотрудника или помощника: обычный пользователь — входит только в личный кабинет
+ * («Войти» на сайте), размещает публикации на модерацию в пределах тарифа. Панель управления, пользователи,
+ * тарифы, оплата и модерация ему недоступны (проверяет сервер). Публиковать он сможет после «Подтвердить оплату».
+ */
+const StaffAccountBox: React.FC<{ onCreate: (u: { name: string; email: string; phone: string; organization: string; password: string; plan: PlanId }) => void }> = ({ onCreate }) => {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ name: '', email: '', phone: '', organization: '', password: '', plan: 'start' as PlanId });
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-4">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="font-bold text-[#12327A] text-sm inline-flex items-center gap-1">
+        <span className="material-symbols-outlined text-[18px]">person_add</span>Учётная запись для сотрудника
+      </button>
+      {open && (
+        <form
+          className="mt-3 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onCreate(f);
+            setF({ ...f, email: '', password: '' });
+          }}
+        >
+          <p className="text-xs text-gray-600">
+            Отдельная учётная запись для каждого человека. Сотрудник входит кнопкой «Войти» на сайте — только в личный кабинет, без доступа к панели.
+            Публикации идут на модерацию и считаются по тарифу этой учётной записи. Чтобы он мог публиковать, после создания нажмите «Подтвердить оплату».
+            Статус госоргана не присваивается.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input className={inputCls} placeholder="Имя сотрудника" value={f.name} onChange={set('name')} required />
+            <input className={inputCls} placeholder="Организация (от чьего имени публикации)" value={f.organization} onChange={set('organization')} required />
+            <input className={inputCls} type="email" placeholder="E-mail для входа" value={f.email} onChange={set('email')} required />
+            <input className={inputCls} type="tel" placeholder="Телефон" value={f.phone} onChange={set('phone')} required />
+            <input className={inputCls} type="text" autoComplete="new-password" placeholder="Пароль (не короче 6 символов)" value={f.password} onChange={set('password')} minLength={6} required />
+            <select className={inputCls} value={f.plan} onChange={set('plan')} aria-label="Тариф">
+              {PLAN_IDS.filter((id) => !PLANS[id].govOnly).map((id) => (
+                <option key={id} value={id}>
+                  {PLANS[id].name.ru}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-bold">Создать учётную запись</button>
+        </form>
+      )}
+    </div>
+  );
+};
+
 export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleChange, onClose }) => {
   const [isAdmin, setIsAdmin] = useState(api.getSession()?.role === 'admin');
   const [password, setPassword] = useState('');
@@ -1384,6 +1433,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                 </>
               ) : tab === 'users' ? (
                 <>
+                  <StaffAccountBox onCreate={(u) => act(() => api.createUserAccount(u), `Учётная запись ${u.email} создана. Передайте сотруднику e-mail и пароль.`)} />
                   <h2 className="text-xl font-extrabold text-[#0f1b33]">Зарегистрированные пользователи: {users.length}</h2>
                   {users.length === 0 ? (
                     <div className="py-12 text-center text-gray-500 bg-white rounded-2xl">Пока никто не зарегистрировался</div>
@@ -1394,6 +1444,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                         const plan = PLANS[normalizePlan(u.plan)];
                         const us = u.usage;
                         const setPay = (s: PaymentStatus, m: string) => act(() => api.setPaymentStatus(u.email, s), m);
+                        const resetPassword = () => {
+                          const pw = window.prompt(`Новый пароль для ${u.email} (не короче 6 символов). Передайте его владельцу учётной записи лично.`);
+                          if (pw) act(() => api.setUserPassword(u.email, pw), 'Пароль изменён');
+                        };
                         const govOk = u.govStatus === 'verified';
                         return (
                           <div key={u.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
@@ -1403,7 +1457,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                   {u.name} {u.organization && <span className="font-normal text-gray-500">— {u.organization}</span>}
                                 </div>
                                 <div className="text-gray-600 text-xs">
-                                  {u.email} • {u.phone} • с {fmt(u.createdAt)}
+                                  {u.email} • {u.phone} • с {fmt(u.createdAt)} •{' '}
+                                  <button type="button" onClick={resetPassword} className="font-bold text-[#12327A] hover:underline">
+                                    Новый пароль
+                                  </button>
                                 </div>
                                 <div className="text-xs mt-1 flex flex-wrap gap-2 items-center">
                                   <span className={`px-2 py-0.5 rounded-full font-bold ${pb.cls}`}>{pb.label}</span>

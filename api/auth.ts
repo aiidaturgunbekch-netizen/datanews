@@ -23,7 +23,7 @@ import {
   signSession,
   verifyPassword,
 } from './_lib/http';
-import { StoredUser, toPublic, USERS_KEY } from './_lib/users';
+import { newUser, StoredUser, toPublic, USERS_KEY } from './_lib/users';
 import { normalizePlan, PLANS } from '../src/config/site';
 import { getUsage, periodsOf } from './_lib/quota';
 
@@ -117,33 +117,9 @@ const authHandler = handler(async (req) => {
 
   if (action === 'register') {
     await rateLimit(req, 'register', 5);
-    const email = clean(body.email, 120).toLowerCase();
-    const name = clean(body.name, 120);
-    const phone = clean(body.phone, 40);
-    const password = String(body.password ?? '');
-    const plan = normalizePlan(body.plan);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError('bad_email', 400, 'Проверьте e-mail');
-    if (name.length < 2) throw new HttpError('bad_name', 400, 'Укажите имя');
-    if (phone.replace(/\D/g, '').length < 9) throw new HttpError('bad_phone', 400, 'Укажите телефон');
-    if (clean(body.organization, 160).length < 2) throw new HttpError('missing_field', 400, 'Укажите организацию или личность');
-    if (password.length < 6) throw new HttpError('weak_password', 400, 'Пароль — не короче 6 символов');
-    if (await hgetJson(USERS_KEY, email)) throw new HttpError('email_taken', 409, 'Этот e-mail уже зарегистрирован');
-
-    const paymentRef = clean(body.paymentRef, 120);
-    const user: StoredUser = {
-      id: randomId('usr'),
-      name,
-      email,
-      phone,
-      organization: clean(body.organization, 160) || undefined,
-      plan,
-      paymentStatus: paymentRef ? 'pending' : 'unpaid',
-      paymentRef: paymentRef || undefined,
-      createdAt: new Date().toISOString(),
-      ...(await hashPassword(password)),
-    };
-    await hsetJson(USERS_KEY, email, user);
-    return json({ role: 'user', user: toPublic(user), token: await signSession(email, 'user') }, 201);
+    const user = await newUser(body);
+    await hsetJson(USERS_KEY, user.email, user);
+    return json({ role: 'user', user: toPublic(user), token: await signSession(user.email, 'user') }, 201);
   }
 
   if (action === 'login') {
@@ -153,7 +129,18 @@ const authHandler = handler(async (req) => {
     if (!u || !(await verifyPassword(String(body.password ?? ''), u.salt, u.hash))) {
       throw new HttpError('wrong_credentials', 401, 'Неверный e-mail или пароль');
     }
-    return json({ role: 'user', user: toPublic(u), usage: await getUsage(u), token: await signSession(email, 'user') });
+    return json({ role: 'user', user: toPublic(u), usage: await getUsage(u), token: await signSession(email, 'user', 30, u.sessionVersion) });
+  }
+
+  if (action === 'logout') {
+    // Выход пользователя: все его прежние входы (на всех устройствах) перестают действовать.
+    // Вход администратора хранится только в браузере и удаляется там же.
+    const s = await readSession(req);
+    if (s?.role === 'user') {
+      const u = await hgetJson<StoredUser>(USERS_KEY, s.sub);
+      if (u) await hsetJson(USERS_KEY, s.sub, { ...u, sessionVersion: (u.sessionVersion || 0) + 1 });
+    }
+    return json({ ok: true });
   }
 
   if (action === 'payment') {

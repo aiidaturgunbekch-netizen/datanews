@@ -41,6 +41,7 @@ import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { InfoPage, InfoView } from './components/InfoPages';
+import { hashFor, Screen, screenFromHash } from './utils/route';
 
 // Редко нужные части грузятся только при открытии — читателю главной не приходится скачивать панель администратора и формы
 const FullCalendarView = lazy(() => import('./components/FullCalendarView').then((m) => ({ default: m.FullCalendarView })));
@@ -50,7 +51,14 @@ const AdminPortal = lazy(() => import('./components/AdminPortal').then((m) => ({
 const AccountPortal = lazy(() => import('./components/AccountPortal').then((m) => ({ default: m.AccountPortal })));
 
 
-const isAdminHash = () => window.location.hash.replace('#', '').toLowerCase() === 'admin';
+const screenNow = () => screenFromHash(window.location.hash);
+const isAdminHash = () => screenNow() === 'admin';
+/** Адрес без перезагрузки: #login / #cabinet / пусто (публичная главная) */
+const setScreenHash = (s: Screen) => {
+  if (screenNow() === s) return;
+  history.replaceState(null, '', window.location.pathname + window.location.search + hashFor(s));
+};
+const accountFromHash = (): null | 'cabinet' | 'login' => (screenNow() === 'login' ? 'login' : screenNow() === 'cabinet' ? 'cabinet' : null);
 /** id публикации из адреса: /n/<id> или старый вид /#/n/<id> */
 const articleIdFromUrl = () =>
   window.location.pathname.match(/^\/n\/([\w-]+)\/?$/)?.[1] || window.location.hash.match(/^#\/n\/([\w-]+)/)?.[1] || null;
@@ -96,7 +104,12 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   // Панель управления открывается только по адресу сайта с #admin и только после входа админа
   const [isAdminOpen, setIsAdminOpen] = useState(isAdminHash);
-  const [accountMode, setAccountMode] = useState<null | 'cabinet' | 'publish'>(null);
+  // Личный кабинет: по кнопке «Войти» / «Кабинет» или по адресу #login / #cabinet (обычное открытие сайта — публичная главная)
+  const [accountMode, setAccountModeState] = useState<null | 'cabinet' | 'publish' | 'login'>(accountFromHash);
+  const setAccountMode = (m: null | 'cabinet' | 'publish' | 'login') => {
+    setAccountModeState(m);
+    setScreenHash(m === null ? 'home' : m === 'login' ? 'login' : 'cabinet');
+  };
   const [statsMode, setStatsMode] = useState<StatsMode | null>(null);
 
   const refreshData = () => {
@@ -123,7 +136,11 @@ export default function App() {
         .then((r) => setRole(r.role))
         .catch(() => {});
     }
-    const onHash = () => isAdminHash() && setIsAdminOpen(true);
+    const onHash = () => {
+      if (isAdminHash()) setIsAdminOpen(true);
+      const acc = accountFromHash();
+      if (acc) setAccountModeState((m) => m || acc);
+    };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
@@ -382,7 +399,7 @@ export default function App() {
         featuredNotice={featuredNotice}
         role={role}
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenAccount={() => setAccountMode('cabinet')}
+        onOpenAccount={() => setAccountMode(role === 'user' ? 'cabinet' : 'login')}
         onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
         onOpenSections={() => setSectionsOpen(true)}
         activeRubric={activeRubric}
@@ -654,7 +671,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} onOpenAccount={() => setAccountMode('cabinet')} />
+      <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} onOpenAccount={() => setAccountMode(role === 'user' ? 'cabinet' : 'login')} />
 
       {/* Ассистент DataNews AI — на всех страницах */}
       <ErrorBoundary
@@ -753,7 +770,9 @@ export default function App() {
       {accountMode && (
         <AccountPortal
           lang={currentLanguage}
-          initialTab={accountMode}
+          initialTab={accountMode === 'login' ? 'cabinet' : accountMode}
+          startWithLogin={accountMode === 'login'}
+          adminSession={role === 'admin'}
           onRoleChange={setRole}
           onClose={() => setAccountMode(null)}
         />

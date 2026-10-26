@@ -239,13 +239,16 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
             </button>
           ) : (
+            // Гость — «Войти» (вход в личный кабинет), вошедший пользователь — «Кабинет»
             <button
               onClick={onOpenAccount}
-              aria-label={t('nav.account')}
               title={t('nav.account')}
-              className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors border border-white/20 text-[#20C7B5]"
+              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg bg-white/15 hover:bg-white/25 transition-colors border border-white/20 text-white text-xs sm:text-sm font-bold"
             >
-              <span className="material-symbols-outlined text-[18px]">{role === 'user' ? 'account_circle' : 'person'}</span>
+              <span className="material-symbols-outlined text-[18px] text-[#20C7B5]" aria-hidden="true">
+                {role === 'user' ? 'account_circle' : 'login'}
+              </span>
+              <span>{role === 'user' ? t('nav.cabinetBtn') : t('nav.loginBtn')}</span>
             </button>
           )}
 

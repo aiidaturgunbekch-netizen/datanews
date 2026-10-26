@@ -3,6 +3,7 @@
  */
 import { cmd, isConfigured, StorageError, StorageNotConfiguredError } from './kv';
 import { env } from './env';
+import { USERS_KEY } from './users';
 
 export type Role = 'admin' | 'user';
 
@@ -10,6 +11,8 @@ export interface Session {
   sub: string; // email пользователя или 'admin'
   role: Role;
   exp: number;
+  /** Номер «поколения» входов пользователя: выход и смена пароля увеличивают его, старые входы перестают действовать */
+  v?: number;
 }
 
 
@@ -93,8 +96,8 @@ const safeEqual = (a: string, b: string) => {
   return diff === 0;
 };
 
-export const signSession = async (sub: string, role: Role, days = 30) => {
-  const payload = b64url(enc.encode(JSON.stringify({ sub, role, exp: Date.now() + days * 86400_000 } satisfies Session)));
+export const signSession = async (sub: string, role: Role, days = 30, v?: number) => {
+  const payload = b64url(enc.encode(JSON.stringify({ sub, role, exp: Date.now() + days * 86400_000, ...(v ? { v } : {}) } satisfies Session)));
   return `${payload}.${await hmac(payload)}`;
 };
 
@@ -106,8 +109,16 @@ export const readSession = async (req: Request): Promise<Session | null> => {
   if (!safeEqual(sig, await hmac(payload))) return null;
   try {
     const s = JSON.parse(new TextDecoder().decode(fromB64url(payload))) as Session;
-    return s.exp > Date.now() ? s : null;
-  } catch {
+    if (!(s.exp > Date.now())) return null;
+    // Вход пользователя действует, пока учётная запись есть и он не вышел (не сменён пароль)
+    if (s.role === 'user') {
+      const raw = await cmd<string | null>('HGET', USERS_KEY, s.sub);
+      const u = raw ? (JSON.parse(raw) as { sessionVersion?: number }) : null;
+      if (!u || (u.sessionVersion || 0) !== (s.v || 0)) return null;
+    }
+    return s;
+  } catch (e) {
+    if (e instanceof StorageError || e instanceof StorageNotConfiguredError) throw e; // база недоступна — это не «не вошёл»
     return null;
   }
 };

@@ -38,7 +38,18 @@ const setSession = (s: StoredSession | null) => {
   }
 };
 
-export const logout = () => setSession(null);
+/** Выход: браузер сразу забывает вход, а сервер закрывает прежние входы этой учётной записи */
+export const logout = async () => {
+  const s = getSession();
+  setSession(null);
+  if (s?.role === 'user') {
+    await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.token}` },
+      body: JSON.stringify({ action: 'logout' }),
+    }).catch(() => {});
+  }
+};
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const session = getSession();
@@ -140,6 +151,11 @@ export const setPaymentStatus = (email: string, paymentStatus: PaymentStatus, pl
   post<{ user: AdminUser }>('users', { email, paymentStatus, plan }, 'PATCH').then((r) => r.user);
 export const setGovStatus = (email: string, gov: 'verify' | 'reject' | 'revoke', note?: string) =>
   post<{ user: AdminUser }>('users', { email, gov, note }, 'PATCH').then((r) => r.user);
+
+/** Учётная запись для сотрудника / помощника: обычный пользователь, только личный кабинет */
+export const createUserAccount = (u: { name: string; email: string; phone: string; organization: string; password: string; plan: PlanId }) =>
+  post<{ user: AdminUser }>('users', u).then((r) => r.user);
+export const setUserPassword = (email: string, password: string) => post<{ user: AdminUser }>('users', { email, password }, 'PATCH').then((r) => r.user);
 
 export const fetchStats = (days: number) => request<SiteStats>(`stats?days=${days}`);
 

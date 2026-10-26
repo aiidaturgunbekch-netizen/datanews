@@ -42,6 +42,8 @@ export const translations = {
     admin: { ru: 'Управление', kg: 'Башкаруу', en: 'Admin' },
     publishBtn: { ru: 'Разместить', kg: 'Жайгаштыруу', en: 'Publish' },
     account: { ru: 'Личный кабинет', kg: 'Жеке кабинет', en: 'My account' },
+    loginBtn: { ru: 'Войти', kg: 'Кирүү', en: 'Sign in' },
+    cabinetBtn: { ru: 'Кабинет', kg: 'Кабинет', en: 'Account' },
     more: { ru: 'Подробнее', kg: 'Толугураак', en: 'Details' },
     viewMap: { ru: 'Смотреть схему объезда', kg: 'Айланып өтүү схемасын көрүү', en: 'View detour map' },
   },

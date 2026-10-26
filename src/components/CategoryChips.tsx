@@ -39,6 +39,7 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
     { id: 'gov', label: t('categories.gov'), icon: 'campaign' },
     { id: 'state', label: t('categories.state'), icon: 'account_balance' },
     { id: 'laws', label: t('categories.laws'), icon: 'gavel' },
+    { id: 'notices', label: t('categories.notices'), icon: 'campaign' },
   ];
 
   if (variant === 'sidebar') {

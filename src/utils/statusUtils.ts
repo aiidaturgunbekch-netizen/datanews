@@ -24,6 +24,8 @@ export function getAnnouncementDisplayStatus(
   if (ann.status === 'completed' || ann.status === 'archived') return 'completed';
 
   const refTime = referenceDate.getTime();
+  // Объявление — не событие: «Опубликовано», пока не истёк срок действия
+  if (ann.category === 'notices') return refTime > endTs(ann) ? 'completed' : 'published';
   // Даты в данных — время Бишкека (UTC+6), сравниваем независимо от часового пояса посетителя
   const startTime = ann.timeTBA ? kgTs(ann.startDate.slice(0, 10)) : kgTs(ann.startDate);
   const endTime = endTs(ann);

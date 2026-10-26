@@ -93,6 +93,7 @@ export const translations = {
     hazard: { ru: 'Погода и опасные явления', kg: 'Аба ырайы жана коркунучтуу кубулуштар', en: 'Weather & Hazards' },
     state: { ru: 'Государство и решения', kg: 'Мамлекет жана чечимдер', en: 'State & Decisions' },
     laws: { ru: 'Законы и правила', kg: 'Мыйзамдар жана эрежелер', en: 'Laws & Rules' },
+    notices: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' },
   },
 
   // Cities

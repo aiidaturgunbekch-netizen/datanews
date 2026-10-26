@@ -58,7 +58,7 @@ const T = {
     en: 'After paying, enter the transaction number or receipt code — the administrator will check it and enable posting.',
   },
   tabProfile: { ru: 'Профиль и оплата', kg: 'Профиль жана төлөм', en: 'Profile & payment' },
-  tabPublish: { ru: 'Добавить событие', kg: 'Иш-чара кошуу', en: 'Add event' },
+  tabPublish: { ru: 'Разместить', kg: 'Жайгаштыруу', en: 'Publish' },
   tabMine: { ru: 'Мои публикации', kg: 'Менин жарыяларым', en: 'My posts' },
   nameLabel: { ru: 'Имя', kg: 'Аты-жөнү', en: 'Name' },
   plan: { ru: 'Тариф', kg: 'Тариф', en: 'Plan' },
@@ -163,9 +163,9 @@ const T = {
     en: 'Go to “Profile & payment” to enter the payment number.',
   },
   moderationHint: {
-    ru: 'Событие появится на сайте только после проверки администратором. Указывайте точные дату, адрес и контакты.',
-    kg: 'Иш-чара администратор текшергенден кийин гана сайтта чыгат. Датаны, даректи жана байланыштарды так көрсөтүңүз.',
-    en: 'The event appears on the site only after the administrator reviews it. Give the exact date, address and contacts.',
+    ru: 'Публикация появится на сайте только после проверки редакцией.',
+    kg: 'Жарыя редакция текшергенден кийин гана сайтта чыгат.',
+    en: 'Your post appears on the site only after the editors review it.',
   },
   sendToModeration: { ru: 'Отправить на модерацию', kg: 'Модерацияга жөнөтүү', en: 'Send for moderation' },
   sentToModeration: {
@@ -332,14 +332,29 @@ const ERRORS: Record<string, LocalizedString> = {
     en: 'Posting is available once your plan payment is confirmed',
   },
   period_expired: {
-    ru: 'Срок действия тарифа (30 дней) закончился — продлите его в разделе «Профиль и оплата»',
-    kg: 'Тарифтин мөөнөтү бүттү — аны «Профиль жана төлөм» бөлүмүндө узартыңыз',
-    en: 'Your plan has expired — renew it under “Profile & payment”',
+    ru: 'Срок действия тарифа завершён. Продлите тариф, чтобы размещать новые публикации',
+    kg: 'Тарифтин мөөнөтү бүттү. Жаңы жарыяларды жайгаштыруу үчүн тарифти узартыңыз',
+    en: 'Your plan has expired. Renew it to post new publications',
   },
   pack_exhausted: {
-    ru: 'Лимит публикаций в текущем 30-дневном периоде исчерпан. Новый лимит начнётся с продлением тарифа',
-    kg: 'Учурдагы 30 күндүк мезгилдеги жарыялардын чеги бүттү. Жаңы чек тариф узартылганда башталат',
-    en: 'You have used all posts for this 30-day period. A new limit starts when you renew',
+    ru: 'Лимит публикаций по вашему тарифу исчерпан. Выберите другой доступный тариф или дождитесь обновления лимита',
+    kg: 'Тарифиңиз боюнча жарыялардын чеги бүттү. Башка жеткиликтүү тарифти тандаңыз же чектин жаңыланышын күтүңүз',
+    en: 'You have used all posts allowed by your plan. Choose another available plan or wait for the limit to renew',
+  },
+  category_not_allowed: {
+    ru: 'Этот тип публикации недоступен для вашего тарифа или статуса',
+    kg: 'Жарыянын бул түрү тарифиңизге же статусуңузга жеткиликтүү эмес',
+    en: 'This type of post is not available for your plan or status',
+  },
+  category_not_in_plan: {
+    ru: 'Ваш тариф позволяет публиковать только в разделе «Театр и культура»',
+    kg: 'Тарифиңиз «Театр жана маданият» бөлүмүндө гана жарыялоого уруксат берет',
+    en: 'Your plan only allows posts in “Theatre & culture”',
+  },
+  profile_incomplete: {
+    ru: 'Укажите организацию или имя в профиле — один раз, а не в каждой публикации',
+    kg: 'Профилде уюмду же атыңызды бир жолу көрсөтүңүз',
+    en: 'Add your organisation or name to your profile once',
   },
   daily_limit_reached: {
     ru: 'По тарифу «Организатор» можно отправить не более одной новой публикации в день (по времени Кыргызстана). Попробуйте завтра.',

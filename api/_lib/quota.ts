@@ -15,7 +15,8 @@
  * Публикация засчитывается в момент отправки (отклонённая модератором лимит не возвращает).
  * Правка уже отправленной публикации лимит не расходует.
  */
-import type { PlanId, PlanPeriod, PlanUsage } from '../../src/types';
+import type { CategoryId, PlanId, PlanPeriod, PlanUsage } from '../../src/types';
+import { allowedCategories, OFFICIAL_CATS } from '../../src/config/publishTypes';
 import { normalizePlan, PLANS } from '../../src/config/site';
 import { kgDateStr, addDaysStr } from '../../src/utils/time';
 import { cmd } from './kv';
@@ -27,8 +28,8 @@ const periodKey = (email: string, periodId: string) => `dn:quota:period:${email}
 
 const MESSAGES = {
   payment_required: 'Публикация доступна после подтверждения оплаты тарифа',
-  period_expired: 'Срок действия тарифа (30 дней) закончился — продлите его в личном кабинете',
-  pack_exhausted: 'Лимит публикаций в текущем 30-дневном периоде исчерпан. Новый лимит начнётся с продлением тарифа.',
+  period_expired: 'Срок действия тарифа завершён. Продлите тариф, чтобы размещать новые публикации.',
+  pack_exhausted: 'Лимит публикаций по вашему тарифу исчерпан. Выберите другой доступный тариф или дождитесь обновления лимита.',
   daily_limit_reached: 'По тарифу «Организатор» можно отправить не более одной новой публикации в день (по времени Кыргызстана). Попробуйте завтра.',
 } as const;
 
@@ -141,6 +142,25 @@ export const checkPlanCategory = (plan: PlanId, category?: string) => {
   }
 };
 
+/**
+ * Раздел разрешён пользователю: тариф («Культура и театр» — только свой раздел) и роль
+ * (официальные разделы — «Государство и решения», «Гос. оповещения», «Законы», «Погода» — только подтверждённым госорганам).
+ * keepCategory — раздел уже сохранённой публикации: правка старой публикации в её разделе не запрещается.
+ */
+export const checkPublishCategory = (user: StoredUser, plan: PlanId, category: string, keepCategory?: string) => {
+  checkPlanCategory(plan, category);
+  if (category === keepCategory) return;
+  if (!allowedCategories({ plan, govVerified: isGovVerified(user) }).includes(category as CategoryId)) {
+    throw new HttpError(
+      'category_not_allowed',
+      403,
+      OFFICIAL_CATS.includes(category as CategoryId)
+        ? 'Этот раздел доступен только подтверждённым государственным органам'
+        : 'Этот раздел недоступен для вашего тарифа'
+    );
+  }
+};
+
 export async function reservePost(user: StoredUser, category?: string): Promise<{ release: () => Promise<void>; periodId: string; usage: PlanUsage }> {
   const usage = await getUsage(user);
   const cur = currentPeriod(user);
@@ -149,7 +169,7 @@ export async function reservePost(user: StoredUser, category?: string): Promise<
     throw new HttpError(code, code === 'pack_exhausted' ? 403 : 402, MESSAGES[code]);
   }
   const p = PLANS[cur.plan];
-  checkPlanCategory(cur.plan, category);
+  checkPublishCategory(user, cur.plan, category || '');
   const undo: (() => Promise<unknown>)[] = [];
 
   if (p.dailyLimit !== null) {

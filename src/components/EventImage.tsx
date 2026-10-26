@@ -18,6 +18,8 @@ const CATEGORY_STYLE: Record<string, { icon: string; bg: string }> = {
   hazard: { icon: 'thunderstorm', bg: 'from-[#1e293b] via-[#475569] to-[#94a3b8]' },
   state: { icon: 'account_balance', bg: 'from-[#0d2459] via-[#12327A] to-[#3b82f6]' },
   laws: { icon: 'gavel', bg: 'from-[#334155] via-[#64748b] to-[#cbd5e1]' },
+  // без отдельной иллюстрации: однотонная заставка с значком (тоже с подписью «фото нет»)
+  notices: { icon: 'campaign', bg: 'from-[#134e4a] via-[#0f766e] to-[#20C7B5]' },
 };
 
 /** Тематическая иллюстрация категории — запасной вариант, если фото не загрузилось */

@@ -23,6 +23,7 @@ export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
   { id: 'gov', label: 'Гос. оповещения' },
   { id: 'state', label: 'Государство и решения' },
   { id: 'laws', label: 'Законы и правила' },
+  { id: 'notices', label: 'Объявления' },
   { id: 'hazard', label: 'Погода и опасные явления' },
   { id: 'water', label: 'Отключение воды' },
   { id: 'electricity', label: 'Отключение электричества' },
@@ -71,6 +72,21 @@ interface Props {
   /** Фото, выбранное редактором заранее (например, из письма редакционной почты), — как загруженное */
   initialImageData?: string;
 }
+
+/**
+ * Фото / афиша автора. Если файл не больше ORIGINAL_MAX_BYTES — оригинал без изменений.
+ * Если больше — только техническое уменьшение размера: пропорции и содержимое сохраняются, ничего не обрезается.
+ * Ошибки: 'bad' — не изображение JPG/PNG/WEBP, 'too_big' — не удалось уменьшить до допустимого размера.
+ */
+export const loadPhoto = async (file: File): Promise<{ data: string; resized: boolean }> => {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('bad');
+  if (file.size <= ORIGINAL_MAX_BYTES) return { data: await readAsDataUrl(file), resized: false };
+  let data = await compressImage(file, 2000, 0.9);
+  if (data.length > ORIGINAL_MAX_BYTES * 1.37) data = await compressImage(file, 1600, 0.85);
+  if (data.length > ORIGINAL_MAX_BYTES * 1.37) data = await compressImage(file, 1280, 0.8);
+  if (data.length > ORIGINAL_MAX_BYTES * 1.37) throw new Error('too_big');
+  return { data, resized: true };
+};
 
 export const inputCls =
   'w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-[#0f1b33] focus:outline-none focus:ring-2 focus:ring-[#12327A]/30 focus:border-[#12327A]';
@@ -158,22 +174,12 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
     if (!file) return;
     setErr('');
     try {
-      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error(tr('fPhotoBad'));
-      let data: string;
-      if (file.size <= ORIGINAL_MAX_BYTES) {
-        data = await readAsDataUrl(file);
-        setImageNote(tr('fPhotoOriginal'));
-      } else {
-        data = await compressImage(file, 2000, 0.9);
-        if (data.length > ORIGINAL_MAX_BYTES * 1.37) data = await compressImage(file, 1600, 0.85);
-        if (data.length > ORIGINAL_MAX_BYTES * 1.37) data = await compressImage(file, 1280, 0.8);
-        if (data.length > ORIGINAL_MAX_BYTES * 1.37) throw new Error(tr('fPhotoTooBig'));
-        setImageNote(tr('fPhotoResized'));
-      }
-      setImageData(data);
+      const r = await loadPhoto(file);
+      setImageNote(tr(r.resized ? 'fPhotoResized' : 'fPhotoOriginal'));
+      setImageData(r.data);
       setImageUrl('');
     } catch (ex) {
-      setErr((ex as Error).message === tr('fPhotoTooBig') ? tr('fPhotoTooBig') : tr('fPhotoBad'));
+      setErr(tr((ex as Error).message === 'too_big' ? 'fPhotoTooBig' : 'fPhotoBad'));
     }
   };
 
@@ -640,7 +646,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
 };
 
 /** Предпросмотр: публикация в фирменном шаблоне DataNews — так её увидят читатели */
-const FormPreview: React.FC<{ item: Announcement; lang: Language }> = ({ item, lang }) => {
+export const FormPreview: React.FC<{ item: Announcement; lang: Language }> = ({ item, lang }) => {
   const { t } = getTranslation(lang);
   const tr = (k: AccountKey) => ta(k, lang);
   const valid = item.title.ru && item.startDate;

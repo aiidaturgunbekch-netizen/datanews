@@ -60,7 +60,7 @@ const GROUPS: { key: string; cats: CategoryId[]; label: Record<Language, string>
   { key: 'news', cats: ['gov', 'state', 'laws'], label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' } },
   {
     key: 'events',
-    cats: ['concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education'],
+    cats: ['concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education', 'notices'],
     label: { ru: 'Мероприятия и объявления', kg: 'Иш-чаралар жана жарыялар', en: 'Events & notices' },
   },
 ];

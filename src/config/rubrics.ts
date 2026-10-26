@@ -31,6 +31,7 @@ export const RUBRICS: Rubric[] = [
     categories: ['exhibitions', 'fairs'],
   },
   { id: 'education', label: { ru: 'Образование', kg: 'Билим берүү', en: 'Education' }, categories: ['education'] },
+  { id: 'notices', label: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' }, categories: ['notices'] },
 ];
 
 export const rubricOf = (id: string | null | undefined) => RUBRICS.find((r) => r.id === id) || null;

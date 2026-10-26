@@ -26,7 +26,8 @@ import { TEST_MARK_RE } from '../src/config/mailSenders';
 import { MAIL_KEY } from './_lib/mail';
 import { CHECK_NOTE, isCheckOnlyCopy } from '../src/utils/mergeAnnouncements';
 import { StoredUser, USERS_KEY } from './_lib/users';
-import { checkPlanCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
+import { checkPublishCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
+import { normalizePlan } from '../src/config/site';
 import { kgNowLocal } from '../src/utils/time';
 import { INITIAL_ANNOUNCEMENTS } from '../src/data/initialAnnouncements';
 
@@ -49,17 +50,53 @@ const findDuplicate = (a: Announcement, pool: Announcement[]) => {
 
 const isPublic = isPublicItem;
 
-/** Поля, которые автор не может выставить себе сам */
+const ALERT_URGENCY_CATS = ['water', 'electricity', 'roads', 'repairs'];
+
+/**
+ * Поля, которые автор не может выставить себе сам: всё редакционное сбрасывается, что бы ни прислал запрос.
+ * Срочность определяется разделом (не «аварийная»), источник и организация — из профиля (см. ниже).
+ */
 const authorFields = (item: Record<string, unknown>) => ({
   ...item,
   isVerified: false,
   isUrgentTicker: false,
   ticketUrlVerified: false,
   status: 'scheduled',
+  urgency: ALERT_URGENCY_CATS.includes(String(item.category)) ? 'planned' : item.category === 'notices' ? 'regular' : 'event',
   imageFit: 'contain', // оригинальная афиша автора показывается целиком, без обрезки
+  imagePosition: undefined,
   sourceKind: undefined,
+  sourceName: undefined,
+  sourceOrgType: undefined,
+  protocolCode: undefined,
+  dangerLevel: undefined,
+  newsKind: undefined,
+  legal: undefined,
+  additionalSourceUrl: undefined,
+  authorityUrl: undefined,
   geo: undefined, // точку на карте ставит только редактор
 });
+
+/** Редакционные поля, выставленные редакцией, при правке автором сохраняются (автор их не видит и не меняет) */
+const keepEditorial = (item: Announcement, current: Announcement): Announcement => ({
+  ...item,
+  urgency: current.urgency === 'emergency' ? current.urgency : item.urgency,
+  dangerLevel: current.dangerLevel,
+  newsKind: current.newsKind,
+  legal: current.legal,
+  additionalSourceUrl: current.additionalSourceUrl,
+  authorityUrl: current.authorityUrl,
+  sourceKind: current.sourceKind,
+  sourceName: current.sourceName,
+  sourceOrgType: current.sourceOrgType,
+  geo: current.geo,
+  imageFit: current.imageFit,
+  imagePosition: current.imagePosition,
+});
+
+/** Кто размещает: организация из запроса, иначе из профиля (подтверждённый госорган — официальное название) */
+const organizerOf = (item: Announcement, user: StoredUser) =>
+  item.eventDetails?.organizer?.trim() || (isGovVerified(user) && user.gov?.orgName) || user.organization?.trim() || user.name?.trim() || '';
 
 export default handler(async (req) => {
   const url = new URL(req.url);
@@ -134,12 +171,15 @@ export default handler(async (req) => {
     if (mineAll.some((a) => a.title.ru.trim().toLowerCase() === item.title.ru.trim().toLowerCase() && a.startDate === item.startDate && a.moderationStatus !== 'rejected')) {
       throw new HttpError('duplicate', 409, 'Такая публикация уже отправлена');
     }
-    // Кто размещает — организация или частное лицо (обязательно)
-    if (!item.eventDetails?.organizer?.trim()) throw new HttpError('missing_field', 400, 'Укажите организацию или частное лицо');
+    // Кто размещает — из профиля (вводить заново в каждой публикации не нужно)
+    const organizer = organizerOf(item, user);
+    if (!organizer) throw new HttpError('profile_incomplete', 400, 'Укажите организацию или имя в профиле');
+    item.eventDetails = { ...(item.eventDetails || {}), organizer };
     const { release, usage } = await reservePost(user, item.category);
 
     item.submittedBy = { userId: user.id, name: user.name, email: user.email, phone: user.phone, organization: user.organization };
-    item.sourceName = item.sourceName || user.gov?.orgName || user.organization || user.name;
+    // Источник — сам автор; официальное название госоргана — только после подтверждения статуса
+    item.sourceName = (isGovVerified(user) && user.gov?.orgName) || user.organization || user.name;
     item.dataOrigin = 'user';
     if (usage.skipsModeration) {
       // Подтверждённый госорган: без предварительной модерации, организация отвечает за сведения сама
@@ -237,10 +277,10 @@ export default handler(async (req) => {
     if (current.moderationStatus === 'withdrawn' && !current.publishedByGov) throw new HttpError('forbidden', 403);
     await rateLimit(req, 'edit', 30, 3600, session.sub);
     const user = await hgetJson<StoredUser>(USERS_KEY, session.sub);
-    let item = await sanitize(authorFields(body.item), current);
-    // Тариф «Культура и театр»: правка не может перенести публикацию в другой раздел
-    const period = user ? currentPeriod(user) : undefined;
-    if (period) checkPlanCategory(period.plan, item.category);
+    let item = keepEditorial(await sanitize(authorFields(body.item), current), current);
+    // Раздел по тарифу и роли; старая публикация может остаться в своём разделе
+    if (user) checkPublishCategory(user, currentPeriod(user)?.plan || normalizePlan(user.plan), item.category, current.category);
+    if (user) item.eventDetails = { ...(item.eventDetails || {}), organizer: organizerOf(item, user) || current.eventDetails?.organizer };
     item.submittedBy = current.submittedBy;
     if (current.publishedByGov && user && isGovVerified(user)) {
       // Госорган правит свою публикацию сам; правка сразу на сайте и попадает в историю

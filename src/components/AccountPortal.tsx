@@ -4,7 +4,9 @@ import * as api from '../services/api';
 import { normalizePlan, PAYMENT_DETAILS, PLAN_IDS, PLANS, planTerms, planUnit } from '../config/site';
 import { AccountKey, errorText, ta } from '../locales/account';
 import { formatDate, formatDayMonth, formatDayMonthTime } from '../utils/dates';
-import { AnnouncementForm, inputCls } from './AnnouncementForm';
+import { inputCls } from './AnnouncementForm';
+import { SimplePublishForm } from './SimplePublishForm';
+import { PublishKey, tp } from '../locales/publish';
 import { EventImage } from './EventImage';
 
 interface Props {
@@ -298,6 +300,19 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
   };
 
   const pendingCount = mine.filter((m) => m.moderationStatus === 'pending').length;
+  // «Мои публикации»: фильтр по статусу модерации
+  const [mineFilter, setMineFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'withdrawn'>('all');
+  const statusOf = (a: Announcement) => a.moderationStatus || 'pending';
+  const MINE_FILTERS: [typeof mineFilter, PublishKey][] = [
+    ['all', 'filterAll'],
+    ['pending', 'filterPending'],
+    ['approved', 'filterApproved'],
+    ['rejected', 'filterRejected'],
+    ['withdrawn', 'filterWithdrawn'],
+  ];
+  const mineShown = mine.filter((a) => mineFilter === 'all' || statusOf(a) === mineFilter);
+  /** От чьего имени публикация: из профиля (официальное название госоргана — только после подтверждения) */
+  const authorName = user ? (user.govStatus === 'verified' && user.gov?.orgName) || user.organization || user.name : '';
 
   return (
     <div
@@ -587,11 +602,13 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                       {usage?.skipsModeration ? tr('publishDirect') : tr('moderationHint')}
                       {usage && <UsageLine lang={lang} usage={usage} />}
                     </div>
-                    <AnnouncementForm
+                    <SimplePublishForm
                       lang={lang}
-                      mode="user"
-                      allowedCategories={PLANS[usage?.plan || normalizePlan(user.plan)].categories}
-                      defaultOrganizer={user.organization}
+                      plan={usage?.plan || normalizePlan(user.plan)}
+                      govVerified={user.govStatus === 'verified'}
+                      author={authorName}
+                      storageKey={`dn:publish-draft:${user.email}`}
+                      direct={Boolean(usage?.skipsModeration)}
                       submitLabel={usage?.skipsModeration ? tr('publishNow') : tr('sendToModeration')}
                       onSubmit={async (item) => {
                         try {
@@ -601,8 +618,9 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                           await refreshUsage();
                         }
                         await loadMine();
+                        setMineFilter('all');
                         setTab('mine');
-                        setNotice(usage?.skipsModeration ? tr('publishedDirect') : tr('sentToModeration'));
+                        setNotice(tp(usage?.skipsModeration ? 'sentDirect' : 'sent', lang));
                       }}
                     />
                   </>
@@ -610,11 +628,14 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
 
               {tab === 'mine' &&
                 (editing ? (
-                  <AnnouncementForm
+                  <SimplePublishForm
+                    key={editing.id}
                     lang={lang}
-                    mode="user"
+                    plan={usage?.plan || normalizePlan(user.plan)}
+                    govVerified={user.govStatus === 'verified'}
+                    author={authorName}
                     initial={editing}
-                    allowedCategories={PLANS[usage?.plan || normalizePlan(user.plan)].categories}
+                    direct={Boolean(editing.publishedByGov)}
                     submitLabel={editing.publishedByGov ? tr('publishNow') : tr('resubmit')}
                     onCancel={() => setEditing(null)}
                     onSubmit={async (item) => {
@@ -628,7 +649,24 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                   <div className="py-10 text-center text-gray-500 text-sm">{tr('nothingYet')}</div>
                 ) : (
                   <div className="space-y-3">
-                    {[...mine]
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label={tr('tabMine')}>
+                      {MINE_FILTERS.map(([f, k]) => {
+                        const n = f === 'all' ? mine.length : mine.filter((a) => statusOf(a) === f).length;
+                        return (
+                          <button
+                            key={f}
+                            type="button"
+                            aria-pressed={mineFilter === f}
+                            onClick={() => setMineFilter(f)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${mineFilter === f ? 'bg-[#12327A] text-white' : 'bg-white border border-gray-200 text-gray-700'}`}
+                          >
+                            {tp(k, lang)} ({n})
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {mineShown.length === 0 && <div className="py-6 text-center text-gray-500 text-sm">{tp('filterEmpty', lang)}</div>}
+                    {[...mineShown]
                       .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
                       .map((a) => {
                         const b = MODERATION_BADGE[a.moderationStatus || 'pending'];

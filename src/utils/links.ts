@@ -1,4 +1,5 @@
 import { Announcement, SourceKind } from '../types';
+import { isOnline } from '../config/publishTypes';
 
 /** Ссылка на источник события (новое поле eventSourceUrl или старое sourceUrl) */
 export const eventSource = (a: Announcement) => a.eventSourceUrl || a.sourceUrl || '';
@@ -35,7 +36,7 @@ export const sourceKindOf = (a: Announcement): SourceKind => {
 
 export interface SourceLink {
   href: string;
-  label: 'official' | 'authority' | 'organizer' | 'artist' | 'venue' | 'media' | 'ticketPage' | 'additional' | 'image';
+  label: 'official' | 'authority' | 'organizer' | 'artist' | 'venue' | 'join' | 'media' | 'ticketPage' | 'additional' | 'image';
 }
 
 /**
@@ -59,7 +60,8 @@ export const groupedSources = (a: Announcement) => {
   if (a.authorityUrl) official.push({ href: a.authorityUrl, label: 'authority' });
   if (a.organizerUrl) organizer.push({ href: a.organizerUrl, label: 'organizer' });
   if (a.artistUrl) organizer.push({ href: a.artistUrl, label: 'artist' });
-  if (a.venueUrl) organizer.push({ href: a.venueUrl, label: 'venue' });
+  // у онлайн-мероприятия «сайт площадки» — это ссылка на участие
+  if (a.venueUrl) organizer.push({ href: a.venueUrl, label: isOnline(a) ? 'join' : 'venue' });
   if (a.additionalSourceUrl && a.additionalSourceUrl !== src) additional.push({ href: a.additionalSourceUrl, label: 'additional' });
   if (a.imageSourceUrl) additional.push({ href: a.imageSourceUrl, label: 'image' });
   const dedupe = (l: SourceLink[]) => l.filter((x, i) => l.findIndex((y) => y.href === x.href) === i);

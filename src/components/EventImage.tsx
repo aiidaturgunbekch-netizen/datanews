@@ -36,7 +36,8 @@ const CATEGORY_ILLUSTRATION: Record<string, string> = {
  */
 type Lang = 'ru' | 'kg' | 'en';
 const REASON: Record<'missing' | 'failed' | 'illustration', Record<Lang, string>> = {
-  missing: { ru: 'Фото не предоставлено', kg: 'Сүрөт берилген жок', en: 'No photo provided' },
+  // Это иллюстрация раздела, а не снимок события — подпись говорит об этом прямо
+  missing: { ru: 'Иллюстрация — фото нет', kg: 'Иллюстрация — сүрөт жок', en: 'Illustration — no photo' },
   failed: { ru: 'Фото не загрузилось', kg: 'Сүрөт жүктөлгөн жок', en: 'Photo failed to load' },
   illustration: { ru: 'Иллюстрация', kg: 'Иллюстрация', en: 'Illustration' },
 };

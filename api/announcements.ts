@@ -18,10 +18,12 @@
  * Отсутствие предварительной модерации для госорганов не отменяет проверок: обязательные поля,
  * ограничение частоты (не более 10 публикаций в час), запрет дублей, жалобы и снятие материала.
  */
-import type { Announcement } from '../src/types';
+import type { Announcement, MailItem } from '../src/types';
 import { cmd, hgetJson, hvalsJson } from './_lib/kv';
 import { handler, HttpError, json, rateLimit, readBody, readSession, requireAdmin, requireUser } from './_lib/http';
-import { ANN_KEY, CHECKED_KEY, diffFields, HIDDEN_KEY, publicView, sanitize, saveAnnouncement, splitChecked, withHistory } from './_lib/announcements';
+import { ANN_KEY, CHECKED_KEY, diffFields, HIDDEN_KEY, isPublicItem, publicView, sanitize, saveAnnouncement, splitChecked, withHistory } from './_lib/announcements';
+import { TEST_MARK_RE } from '../src/config/mailSenders';
+import { MAIL_KEY } from './_lib/mail';
 import { CHECK_NOTE, isCheckOnlyCopy } from '../src/utils/mergeAnnouncements';
 import { StoredUser, USERS_KEY } from './_lib/users';
 import { checkPlanCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
@@ -45,7 +47,7 @@ const findDuplicate = (a: Announcement, pool: Announcement[]) => {
   });
 };
 
-const isPublic = (a: Announcement) => !a.moderationStatus || a.moderationStatus === 'approved';
+const isPublic = isPublicItem;
 
 /** Поля, которые автор не может выставить себе сам */
 const authorFields = (item: Record<string, unknown>) => ({
@@ -103,12 +105,16 @@ export default handler(async (req) => {
       }
       // Черновик (например, из письма): только новая публикация, на сайт не попадает до «Одобрить»; дату сверки не ставим
       const asDraft = body.asDraft === true && !base;
+      // Тестовое письмо («TEST DataNews») или пометка в самом тексте — материал тестовый: сервер не даст его опубликовать
+      const mailId = /^[A-Za-z0-9_-]{6,64}$/.test(String(body.mailId || '')) ? String(body.mailId) : '';
+      const mail = mailId ? await hgetJson<MailItem>(MAIL_KEY, mailId) : null;
+      if (!base && ((mail && TEST_MARK_RE.test(mail.subject)) || TEST_MARK_RE.test(`${item.title.ru}\n${item.description.ru}`))) item.testMaterial = true;
       item.moderationStatus = asDraft ? 'pending' : 'approved';
       item.dataOrigin = item.dataOrigin || 'manual';
       item.lastCheckedAt = asDraft ? undefined : item.updatedAt;
       // Правка существующей (в т.ч. встроенной) публикации — с перечнем существенных изменений
       const prev = existing || INITIAL_ANNOUNCEMENTS.find((a) => a.id === item.id) || null;
-      const mailNote = /^[A-Za-z0-9_-]{6,64}$/.test(String(body.mailId || '')) ? `Черновик из редакционной почты (письмо ${body.mailId})` : 'Черновик редакции';
+      const mailNote = mailId ? `Черновик из редакционной почты (письмо ${mailId})${item.testMaterial ? ' — тестовое письмо, публикация запрещена' : ''}` : 'Черновик редакции';
       item = asDraft
         ? withHistory(item, 'admin', 'created', mailNote)
         : prev

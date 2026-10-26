@@ -9,6 +9,7 @@ import { EventImage } from './EventImage';
 import { PaidBadge } from './PaidBadge';
 import { PushToggle } from './PushToggle';
 import { sourceLabel } from '../utils/links';
+import { placeText } from '../utils/place';
 
 interface AlertsGridProps {
   currentLanguage: Language;
@@ -210,7 +211,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
 
               const title = ann.title[currentLanguage] || ann.title.ru;
               const summary = ann.summary[currentLanguage] || ann.summary.ru;
-              const location = ann.location[currentLanguage] || ann.location.ru;
+              const location = placeText(ann, currentLanguage);
 
               return (
                 <article
@@ -285,12 +286,14 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                           {formatWhen(ann.startDate, ann.endDate, currentLanguage, false, ann.timeTBA, ann.allDay)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <span className="material-symbols-outlined text-gray-500 text-[18px] flex-shrink-0">
-                          location_on
-                        </span>
-                        <span className="truncate">{location}</span>
-                      </div>
+                      {location && (
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <span className="material-symbols-outlined text-gray-500 text-[18px] flex-shrink-0">
+                            location_on
+                          </span>
+                          <span className="truncate">{location}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -9,6 +9,7 @@ import { getTranslation } from '../../src/locales/translations';
 import { formatDayMonthTime, formatWhen } from '../../src/utils/dates';
 import { eventSource, sourceLabel } from '../../src/utils/links';
 import { mergeAnnouncements } from '../../src/utils/mergeAnnouncements';
+import { placeText } from '../../src/utils/place';
 import { isConfigured } from './kv';
 import { loadPublished } from './assistant';
 
@@ -61,6 +62,8 @@ export const articleHtml = (a: Announcement, lang: Language) => {
   const summary = pick(a.summary);
   const body = pick(a.description);
   const city = t(`cities.${a.city === 'karakol' ? 'issykkul' : a.city}`);
+  // «Где» — только известное: адрес или площадка, иначе территория (без выдуманного адреса)
+  const where = placeText(a, lang) || [a.locality, a.district, city].filter(Boolean).join(' • ');
   const source = eventSource(a);
   const sourceHtml = source
     ? `<a href="${esc(source)}" rel="noopener" class="font-bold text-[#12327A] hover:underline">${esc(sourceLabel(a, lang))}</a>`
@@ -76,7 +79,7 @@ ${summary ? `<p class="mt-4 text-lg sm:text-xl leading-relaxed text-[#3b4252]">$
 <p class="mt-6 py-3 border-y border-gray-200 text-sm text-gray-600">${T.source[lang]}: ${sourceHtml} · ${T.published[lang]}: <time datetime="${esc(toIsoKg(a.publishedAt) || '')}">${esc(formatDayMonthTime(a.publishedAt, lang))}</time>${updated}</p>
 <dl class="mt-8 rounded-2xl bg-[#f3f6fc] p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
 <div><dt class="text-[11px] font-bold uppercase tracking-wider text-gray-500">${T.when[lang]}</dt><dd class="mt-1 text-[15px] font-semibold text-[#0f1b33]">${esc(formatWhen(a.startDate, a.endDate, lang, true, a.timeTBA, a.allDay))}</dd></div>
-<div><dt class="text-[11px] font-bold uppercase tracking-wider text-gray-500">${T.where[lang]}</dt><dd class="mt-1 text-[15px] font-semibold text-[#0f1b33]">${esc(pick(a.location))}</dd></div>
+<div><dt class="text-[11px] font-bold uppercase tracking-wider text-gray-500">${T.where[lang]}</dt><dd class="mt-1 text-[15px] font-semibold text-[#0f1b33]">${esc(where)}</dd></div>
 </dl>
 ${body && body !== summary ? `<div class="mt-8 text-[18px] leading-[1.75] text-[#1f2937] whitespace-pre-line">${esc(body)}</div>` : ''}
 <p class="mt-10"><a href="/" class="text-sm font-bold text-[#12327A] hover:underline">← ${T.home[lang]}</a></p>

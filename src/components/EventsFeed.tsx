@@ -8,6 +8,7 @@ import { PaidBadge } from './PaidBadge';
 import { ticketLink } from '../utils/links';
 import { MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT, formatDate, formatWhen } from '../utils/dates';
 import { freshOrder, getAnnouncementDisplayStatus, getStatusBadgeConfig, isFresh } from '../utils/statusUtils';
+import { placeText } from '../utils/place';
 
 interface EventsFeedProps {
   currentLanguage: Language;
@@ -206,7 +207,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
             const displayStatus = getAnnouncementDisplayStatus(item);
             const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
             const title = item.title[currentLanguage] || item.title.ru;
-            const location = item.location[currentLanguage] || item.location.ru;
+            const location = placeText(item, currentLanguage);
             const price = item.eventDetails?.priceText
               ? item.eventDetails.priceText[currentLanguage] || item.eventDetails.priceText.ru
               : null;
@@ -284,7 +285,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
             const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
 
             const title = item.title[currentLanguage] || item.title.ru;
-            const location = item.location[currentLanguage] || item.location.ru;
+            const location = placeText(item, currentLanguage);
             const price = item.eventDetails?.priceText
               ? item.eventDetails.priceText[currentLanguage] || item.eventDetails.priceText.ru
               : null;
@@ -336,10 +337,12 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                     {title}
                   </h3>
 
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
-                    <span className="material-symbols-outlined text-[16px] text-[#00796b]">location_on</span>
-                    <span className="truncate">{location}</span>
-                  </p>
+                  {location && (
+                    <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
+                      <span className="material-symbols-outlined text-[16px] text-[#00796b]">location_on</span>
+                      <span className="truncate">{location}</span>
+                    </p>
+                  )}
                 </div>
 
                 {price && <div className="pt-3 border-t border-gray-100 text-xs font-bold text-[#12327A]">{price}</div>}

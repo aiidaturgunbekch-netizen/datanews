@@ -26,6 +26,7 @@ const CORR: Record<string, Record<Language, string>> = {
 };
 import { isExpired } from '../utils/urgency';
 import { kgDateStr, kgTs } from '../utils/time';
+import { hasAddress, placeText } from '../utils/place';
 
 interface Props {
   announcement: Announcement;
@@ -170,8 +171,11 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   const status = getAnnouncementDisplayStatus(a);
   const badge = getStatusBadgeConfig(status, lang);
   const isEvent = a.urgency === 'event';
-  const mapQuery = a.coordinates ? `${a.coordinates.lat},${a.coordinates.lng}` : encodeURIComponent(a.location.ru);
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+  // Ссылка на карту — только по известной точке или адресу; без них ссылки нет (не ищем «пустое» место)
+  const point = a.coordinates || a.geo;
+  const mapQuery = point ? `${point.lat},${point.lng}` : hasAddress(a) ? encodeURIComponent(a.location.ru) : '';
+  const mapUrl = mapQuery ? `https://www.google.com/maps/search/?api=1&query=${mapQuery}` : '';
+  const place = placeText(a, lang);
   const tickets = ticketLink(a);
   // Свободный вход — билеты не нужны, пометку «ссылка не подтверждена» не показываем
   const freeEntry = /свободный|бесплатн|акысыз|free/i.test(a.eventDetails?.priceText?.ru || '');
@@ -247,7 +251,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
       `DTSTART:${toIcsDate(a.startDate)}00`,
       `DTEND:${toIcsDate(end)}00`,
       `SUMMARY:${a.title[lang]}`,
-      `LOCATION:${a.location[lang]}`,
+      ...(place ? [`LOCATION:${place}`] : []),
       `DESCRIPTION:${a.summary[lang]}`,
       'END:VEVENT', 'END:VCALENDAR',
     ].join('\r\n');
@@ -392,11 +396,12 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             <Fact icon="event" label={L.when[lang]}>
               {whenText}
             </Fact>
+            {/* «Где»: только известное — адрес или площадка, ниже территория; без адреса — одна территория */}
             <Fact icon="location_on" label={L.where[lang]}>
-              {a.location[lang] || a.location.ru}
-              <span className="block text-xs font-normal text-gray-500 mt-0.5">
-                {[a.locality, a.district, cityLabel].filter(Boolean).join(' • ')}
-              </span>
+              {place || [a.locality, a.district, cityLabel].filter(Boolean).join(' • ')}
+              {place && (
+                <span className="block text-xs font-normal text-gray-500 mt-0.5">{[a.locality, a.district, cityLabel].filter(Boolean).join(' • ')}</span>
+              )}
             </Fact>
             {a.dangerLevel && (
               <Fact icon="emergency_home" label={L.dangerLevel[lang]}>
@@ -475,10 +480,12 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
               <span className="material-symbols-outlined text-[18px]">calendar_add_on</span>
               {L.ics[lang]}
             </button>
-            <a href={mapUrl} target="_blank" rel="noopener noreferrer" className={`${btn} bg-white text-[#12327A] hover:bg-[#dbe1ff]`}>
-              <span className="material-symbols-outlined text-[18px]">map</span>
-              {L.map[lang]}
-            </a>
+            {mapUrl && (
+              <a href={mapUrl} target="_blank" rel="noopener noreferrer" className={`${btn} bg-white text-[#12327A] hover:bg-[#dbe1ff]`}>
+                <span className="material-symbols-outlined text-[18px]">map</span>
+                {L.map[lang]}
+              </a>
+            )}
           </div>
         </section>
 

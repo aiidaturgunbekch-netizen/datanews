@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { PLACE_IDS } from '../config/regions';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { placeText } from '../utils/place';
 
 interface SearchModalProps {
   currentLanguage: Language;
@@ -159,9 +160,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                   <h4 className="text-xs sm:text-sm font-bold text-[#0f1b33] group-hover:text-[#12327A] truncate">
                     {item.title[currentLanguage] || item.title.ru}
                   </h4>
-                  <p className="text-xs text-gray-500 truncate mt-0.5">
-                    {item.location[currentLanguage] || item.location.ru}
-                  </p>
+                  {placeText(item, currentLanguage) && <p className="text-xs text-gray-500 truncate mt-0.5">{placeText(item, currentLanguage)}</p>}
                 </div>
 
                 <span className="material-symbols-outlined text-gray-500 group-hover:text-[#12327A] group-hover:translate-x-1 transition-all text-[18px] flex-shrink-0 mt-2">

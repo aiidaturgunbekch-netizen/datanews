@@ -177,6 +177,11 @@ export interface Announcement {
 
   /** Модерация: публикации пользователей видны только после одобрения админом */
   moderationStatus?: ModerationStatus;
+  /**
+   * Тестовый материал (например, черновик из письма «TEST DataNews»). Ставит только сервер;
+   * такой материал нельзя одобрить и он никогда не попадает на сайт.
+   */
+  testMaterial?: boolean;
   moderationNote?: string;
   submittedBy?: {
     userId: string;

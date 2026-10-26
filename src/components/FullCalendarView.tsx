@@ -7,6 +7,7 @@ import { alertLevel } from '../utils/urgency';
 import { formatDateLong, formatMonthYear, formatTime } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { recordsLabel } from '../utils/plural';
+import { placeText } from '../utils/place';
 
 interface FullCalendarViewProps {
   currentLanguage: Language;
@@ -326,10 +327,12 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                     <h4 className="text-xs font-bold text-[#0f1b33] group-hover:text-[#12327A] transition-colors line-clamp-2 mb-1">
                       {item.title[currentLanguage] || item.title.ru}
                     </h4>
-                    <p className="text-[11px] text-gray-500 truncate flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">location_on</span>
-                      <span>{item.location[currentLanguage] || item.location.ru}</span>
-                    </p>
+                    {placeText(item, currentLanguage) && (
+                      <p className="text-[11px] text-gray-500 truncate flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">location_on</span>
+                        <span>{placeText(item, currentLanguage)}</span>
+                      </p>
+                    )}
                     </div>
                   </div>
                 );

@@ -7,6 +7,7 @@ import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './An
 import { EventImage } from './EventImage';
 import { MailInbox } from './MailInbox';
 import { eventSource, ticketLink } from '../utils/links';
+import { placeText } from '../utils/place';
 import { historyLabel, MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
 import { isAlert, isExpired } from '../utils/urgency';
 import { addDaysStr, formatKgDateTime, kgDateStr, kgTs } from '../utils/time';
@@ -871,7 +872,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
         summary: { ru: '', kg: '', en: '' },
         description: { ru: '', kg: '', en: '' },
         location: { ru: '', kg: '', en: '' },
-        city: 'bishkek',
+        // область не найдена в тексте — без привязки к области, не выдуманный город
+        city: 'all',
         category: 'gov',
         startDate: '',
         ...imported.draft,
@@ -1074,7 +1076,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                       </div>
                       {(!fromMail.suggestion.draft.category || !fromMail.suggestion.draft.city) && (
                         <div>
-                          <b>Раздел и/или город в письме не найдены</b> — в форме стоят значения по умолчанию, выберите правильные.
+                          <b>Раздел и/или область в письме не найдены.</b> Проверьте раздел; область выберите, только если она указана в источнике
+                          (иначе остаётся «Весь Кыргызстан — без привязки к области»).
                         </div>
                       )}
                       {mailImage && <div>Фото из письма уменьшено для сайта. Укажите автора фото, если он известен.</div>}
@@ -1163,13 +1166,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                           <div className="flex flex-wrap gap-2 text-[11px] font-bold">
                             <span className="px-2 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44]">{catLabel(a.category)}</span>
                             <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{cityLabel(a.city)}</span>
+                            {a.testMaterial && <span className="px-2 py-0.5 rounded-full bg-red-600 text-white">ТЕСТ — публикация запрещена</span>}
                           </div>
                           <h3 className="font-extrabold text-[#0f1b33]">{a.title.ru}</h3>
                           <p className="text-sm text-gray-700">{a.summary.ru}</p>
                           {a.description.ru !== a.summary.ru && <p className="text-xs text-gray-600 whitespace-pre-line">{a.description.ru}</p>}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-gray-700">
                             <div>📅 {fmt(a.startDate)}{a.endDate ? ` — ${fmt(a.endDate)}` : ''}</div>
-                            <div>📍 {a.location.ru}</div>
+                            {placeText(a) && <div>📍 {placeText(a)}</div>}
+                            {(a.locality || a.district) && <div>🗺 {[a.locality, a.district].filter(Boolean).join(', ')}</div>}
                             {a.eventDetails?.priceText && <div>🎫 {a.eventDetails.priceText.ru}</div>}
                             {a.eventDetails?.contactPhone && <div>☎ {a.eventDetails.contactPhone}</div>}
                             {ticketLink(a).url && (
@@ -1190,12 +1195,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             </div>
                           )}
                           <div className="flex flex-wrap gap-2 pt-1">
-                            <button
-                              onClick={() => act(() => api.moderateAnnouncement(a.id, 'approve'), 'Опубликовано на сайте')}
-                              className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold inline-flex items-center gap-1"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">check</span>Одобрить
-                            </button>
+                            {/* Тестовый материал сервер не даст одобрить; кнопку не показываем, чтобы не было лишней ошибки */}
+                            {!a.testMaterial && (
+                              <button
+                                onClick={() => act(() => api.moderateAnnouncement(a.id, 'approve'), 'Опубликовано на сайте')}
+                                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold inline-flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[18px]">check</span>Одобрить
+                              </button>
+                            )}
                             <button onClick={() => reject(a)} className="px-4 py-2 rounded-xl bg-red-50 text-red-700 text-sm font-bold inline-flex items-center gap-1">
                               <span className="material-symbols-outlined text-[18px]">close</span>Отклонить
                             </button>

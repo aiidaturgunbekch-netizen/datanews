@@ -26,3 +26,6 @@ export const findKnownSender = (address: string, list: KnownSender[] = KNOWN_SEN
     list.find((s) => s.match.startsWith('@') && a.endsWith(s.match.toLowerCase()))
   );
 };
+
+/** Тестовое письмо: в теме или тексте есть «TEST DataNews» / «ТЕСТ DataNews». Материалы из него нельзя опубликовать. */
+export const TEST_MARK_RE = /(?:TEST|ТЕСТ)\s+DataNews/i;

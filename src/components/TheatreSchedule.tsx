@@ -5,6 +5,7 @@ import { kgDateStr } from '../utils/time';
 import { isFresh } from '../utils/statusUtils';
 import { ticketLink } from '../utils/links';
 import { getTranslation } from '../locales/translations';
+import { placeText } from '../utils/place';
 
 const L = {
   title: { ru: 'Театры: график спектаклей', kg: 'Театрлар: спектаклдердин графиги', en: 'Theatres: performance schedule' },
@@ -65,7 +66,7 @@ export const TheatreSchedule: React.FC<{ lang: Language; announcements: Announce
                       <button onClick={() => onOpen(a)} className="flex-1 min-w-[180px] text-left">
                         <span className="block text-sm font-bold text-[#0f1b33] hover:underline">{a.title[lang] || a.title.ru}</span>
                         <span className="block text-xs text-gray-500">
-                          {a.location[lang] || a.location.ru} • {t(`cities.${a.city}`)}
+                          {[placeText(a, lang), t(`cities.${a.city}`)].filter(Boolean).join(' • ')}
                           {a.timeTBA ? ` • ${L.time[lang]}` : ''}
                         </span>
                       </button>

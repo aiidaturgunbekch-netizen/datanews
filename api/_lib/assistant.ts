@@ -13,13 +13,13 @@ import { isFresh } from '../../src/utils/statusUtils';
 import { formatWhen } from '../../src/utils/dates';
 import { getTranslation } from '../../src/locales/translations';
 import { cmd, hvalsJson } from './kv';
-import { ANN_KEY, HIDDEN_KEY, publicView, splitChecked } from './announcements';
+import { ANN_KEY, HIDDEN_KEY, isPublicItem, publicView, splitChecked } from './announcements';
 import { mergeAnnouncements } from '../../src/utils/mergeAnnouncements';
 
 /** Все опубликованные материалы: встроенные + одобренные из базы (как на сайте) */
 export const loadPublished = async (): Promise<Announcement[]> => {
   const { items, checked } = await splitChecked(await hvalsJson<Announcement>(ANN_KEY));
-  const stored = items.filter((a) => !a.moderationStatus || a.moderationStatus === 'approved').map(publicView);
+  const stored = items.filter(isPublicItem).map(publicView);
   const hidden = ((await cmd<string[]>('HVALS', HIDDEN_KEY)) || []) as string[];
   return mergeAnnouncements(stored, hidden, checked);
 };

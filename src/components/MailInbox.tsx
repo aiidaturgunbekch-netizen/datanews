@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { Announcement, MailFlag, MailItem } from '../types';
 import * as api from '../services/api';
 import { formatKgDateTime } from '../utils/time';
+import { TEST_MARK_RE } from '../config/mailSenders';
 
 /**
  * «Материалы из почты» — входящие письма редакционной почты (dn:mail).
@@ -12,7 +13,7 @@ import { formatKgDateTime } from '../utils/time';
 const FLAG_LABEL: Record<MailFlag, string> = {
   needs_review: 'Требует проверки',
   no_date: 'Нет даты',
-  no_place: 'Нет адреса',
+  no_place: 'Место не указано в источнике',
   no_category: 'Раздел не определён',
   no_city: 'Город не определён',
   year_guessed: 'Год не указан в тексте',
@@ -149,6 +150,7 @@ export const MailInbox: React.FC<{
             <article key={m.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3" aria-label={m.subject || 'Письмо без темы'}>
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
                 <span className={`px-2 py-0.5 rounded-full ${m.status === 'new' ? 'bg-amber-100 text-[#5c3d00]' : 'bg-gray-100 text-gray-700'}`}>{STATUS_LABEL[m.status]}</span>
+                {TEST_MARK_RE.test(m.subject) && <span className="px-2 py-0.5 rounded-full bg-red-600 text-white">ТЕСТ — публиковать нельзя</span>}
                 {m.flags.map((f) => (
                   <span key={f} className={`px-2 py-0.5 rounded-full ${WARN.includes(f) ? 'bg-red-50 text-red-800' : 'bg-[#eef2f9] text-[#12327A]'}`}>
                     {FLAG_LABEL[f] || f}
@@ -177,7 +179,9 @@ export const MailInbox: React.FC<{
                 </div>
                 <div>
                   <dt className="inline text-gray-500">Место (из текста): </dt>
-                  <dd className="inline [overflow-wrap:anywhere]">{d.location?.ru || <b className="text-amber-800">не найдено</b>}</dd>
+                  <dd className="inline [overflow-wrap:anywhere]">
+                    {d.location?.ru || <span className="text-amber-800">Место проведения не указано в источнике. Заполните, если это необходимо для публикации.</span>}
+                  </dd>
                 </div>
                 <div>
                   <dt className="inline text-gray-500">Подлинность письма: </dt>

@@ -107,7 +107,8 @@ export const storeImage = async (dataUrl: string) => {
 export const sanitize = async (raw: Record<string, any>, base?: Announcement): Promise<Announcement> => {
   const category = CATEGORIES.includes(raw.category) ? (raw.category as CategoryId) : base?.category || 'concerts';
   const rawCity = raw.city === 'karakol' ? 'issykkul' : raw.city;
-  const city = CITIES.includes(rawCity) ? (rawCity as CityId) : base?.city === 'karakol' ? 'issykkul' : base?.city || 'bishkek';
+  // Область не указана — «Весь Кыргызстан» (без привязки к области), а не выдуманный город
+  const city = CITIES.includes(rawCity) ? (rawCity as CityId) : base?.city === 'karakol' ? 'issykkul' : base?.city || 'all';
   const urgency = URGENCY.includes(raw.urgency) ? (raw.urgency as UrgencyType) : base?.urgency || 'event';
   const now = kgNowLocal();
 
@@ -128,7 +129,8 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     city,
     district: str(raw.district, 120) || undefined,
     locality: str(raw.locality, 120) || undefined,
-    location: loc(raw.location, 300, true),
+    // Адрес необязателен: у новости госоргана или общего объявления его может не быть. Не подставляем выдуманный.
+    location: loc(raw.location, 300),
     startDate: isoLocal(raw.startDate, true),
     endDate: isoLocal(raw.endDate, false),
     urgency,
@@ -191,7 +193,16 @@ const validGeo = (v: unknown): Announcement['geo'] | undefined => {
   return { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 };
 };
 
-export const saveAnnouncement = (a: Announcement) => hsetJson(ANN_KEY, a.id, a);
+export const TEST_MATERIAL_MESSAGE = 'Тестовый материал из почты — публикация запрещена';
+
+/** Видна ли публикация читателям: одобрена (или старая без модерации) и не тестовая */
+export const isPublicItem = (a: Announcement) => (!a.moderationStatus || a.moderationStatus === 'approved') && !a.testMaterial;
+
+/** Единая точка записи: тестовый материал нельзя сохранить опубликованным — ни «Одобрить», ни прямым запросом */
+export const saveAnnouncement = (a: Announcement) => {
+  if (a.testMaterial && (!a.moderationStatus || a.moderationStatus === 'approved')) throw new HttpError('test_material', 409, TEST_MATERIAL_MESSAGE);
+  return hsetJson(ANN_KEY, a.id, a);
+};
 
 /** Для публичной выдачи скрываем личные контакты автора */
 /**

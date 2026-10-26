@@ -9,6 +9,7 @@ import { eventSource, ticketLink } from '../utils/links';
 import { getTranslation } from '../locales/translations';
 import { DISTRICTS } from '../config/districts';
 import { GeoPicker } from './GeoPicker';
+import { EVENT_CATEGORIES, placeHint, placeText, TERRITORY_CATEGORIES } from '../utils/place';
 
 export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
   { id: 'concerts', label: 'Концерты и шоу' },
@@ -43,6 +44,7 @@ export const CITY_OPTIONS: { id: CityId; label: string }[] = [
 ];
 
 const ALERT_CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs'];
+const HINT_KEY = { event: 'fHintEvent', territory: 'fHintTerritory' } as const;
 
 /** Файл как есть (data:URL) — без перекодирования, чтобы сохранить оригинал */
 const readAsDataUrl = (file: File) =>
@@ -83,7 +85,8 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [summary, setSummary] = useState(initial?.summary.ru || '');
   const [description, setDescription] = useState(initial?.description.ru || '');
   const [category, setCategory] = useState<CategoryId>(initial?.category || allowedCategories?.[0] || 'concerts');
-  const [city, setCity] = useState<CityId>(initial?.city || 'bishkek');
+  // Область не известна — «Весь Кыргызстан» (без привязки), а не выдуманный город
+  const [city, setCity] = useState<CityId>(initial?.city || 'all');
   const [location, setLocation] = useState(initial?.location.ru || '');
   const [startDate, setStartDate] = useState(initial?.startDate || '');
   const [endDate, setEndDate] = useState(initial?.endDate || '');
@@ -206,6 +209,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
     eventDetails: {
       priceText: price.trim() ? { ru: price.trim(), kg: price.trim(), en: price.trim() } : undefined,
       contactPhone: contactPhone.trim() || undefined,
+      venue: venue.trim() || undefined,
     },
     isDemo: false,
   });
@@ -222,7 +226,8 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
-    if (!titleRu.trim() || !description.trim() || !location.trim() || !startDate) {
+    // Адрес не обязателен ни для одного типа публикаций — вместо запрета подсказка у поля
+    if (!titleRu.trim() || !description.trim() || !startDate) {
       setErr(tr('fRequired'));
       return;
     }
@@ -303,6 +308,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
 
   const preview = imageData || imageUrl;
   const isAdmin = mode === 'admin';
+  const hint = placeHint({ category, location, venue, locality, district });
 
   const field = (label: string, node: React.ReactNode, hint?: string) => (
     <div>
@@ -359,7 +365,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
           >
             {CITY_OPTIONS.map((c) => (
               <option key={c.id} value={c.id}>
-                {t(`cities.${c.id}`)}
+                {c.id === 'all' ? tr('fCityAll') : t(`cities.${c.id}`)}
               </option>
             ))}
           </select>
@@ -386,7 +392,11 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       </div>
       {field(
         tr('fLocation'),
-        <input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} placeholder={tr('fLocationPh')} maxLength={300} required />
+        <input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} placeholder={tr('fLocationPh')} maxLength={300} />
+      )}
+      {hint && <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{tr(HINT_KEY[hint])}</p>}
+      {city === 'all' && (hint || TERRITORY_CATEGORIES.includes(category) || EVENT_CATEGORIES.includes(category)) && (
+        <p className="text-xs text-gray-700 bg-[#f3f6fc] rounded-xl px-3 py-2">{tr('fHintNoRegion')}</p>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {field(tr('fLocality'), <input className={inputCls} value={locality} onChange={(e) => setLocality(e.target.value)} maxLength={120} placeholder={tr('fLocalityPh')} />)}
@@ -649,10 +659,10 @@ const FormPreview: React.FC<{ item: Announcement; lang: Language }> = ({ item, l
               <span className="material-symbols-outlined text-[16px] text-[#12327A]">calendar_month</span>
               {formatWhen(item.startDate, item.endDate, lang, true, item.timeTBA, item.allDay)}
             </div>
-            {item.location.ru && (
+            {placeText(item) && (
               <div className="text-xs text-gray-600 flex items-center gap-1">
                 <span className="material-symbols-outlined text-[16px] text-[#12327A]">location_on</span>
-                {t(`cities.${item.city}`)} • {item.location.ru}
+                {t(`cities.${item.city}`)} • {placeText(item)}
               </div>
             )}
             {item.summary.ru && <p className="text-sm text-gray-700">{item.summary.ru}</p>}

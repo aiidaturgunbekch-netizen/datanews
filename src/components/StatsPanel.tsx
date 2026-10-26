@@ -10,6 +10,7 @@ import { alertLevel, isListed } from '../utils/urgency';
 import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
 import { freshOrder, isFresh } from '../utils/statusUtils';
 import { ruPlural } from '../utils/plural';
+import { placeText } from '../utils/place';
 
 export type StatsMode = 'all' | 'alerts' | 'regions';
 
@@ -81,7 +82,7 @@ export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a:
         </div>
         <div className="font-bold text-sm text-[#0f1b33] leading-snug break-words">{item.title[lang] || item.title.ru}</div>
         <div className="text-xs text-gray-500 mt-0.5 break-words">
-          {formatWhen(item.startDate, item.endDate, lang, false, item.timeTBA, item.allDay)} · {item.location[lang] || item.location.ru}
+          {[formatWhen(item.startDate, item.endDate, lang, false, item.timeTBA, item.allDay), placeText(item, lang)].filter(Boolean).join(' · ')}
         </div>
       </div>
     </button>

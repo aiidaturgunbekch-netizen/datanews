@@ -4,6 +4,7 @@ import { getTranslation } from '../locales/translations';
 import { formatWhen } from '../utils/dates';
 import { UrgencyBadge } from './UrgencyBadge';
 import { PushToggle } from './PushToggle';
+import { placeText } from '../utils/place';
 
 const T = {
   title: { ru: 'Предупреждения', kg: 'Эскертүүлөр', en: 'Warnings' },
@@ -69,7 +70,7 @@ export const MainAlerts: React.FC<{
                     {a.title[lang] || a.title.ru}
                   </span>
                   <span className="block text-xs text-gray-500 mt-1 [overflow-wrap:anywhere]">
-                    {formatWhen(a.startDate, a.endDate, lang, false, a.timeTBA, a.allDay)} · {a.location[lang] || a.location.ru}
+                    {[formatWhen(a.startDate, a.endDate, lang, false, a.timeTBA, a.allDay), placeText(a, lang)].filter(Boolean).join(' · ')}
                   </span>
                 </span>
               </button>

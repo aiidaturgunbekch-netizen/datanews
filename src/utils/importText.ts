@@ -111,7 +111,7 @@ export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today
   if (city) {
     draft.city = city;
     found.push(city === 'all' ? 'несколько областей' : 'город / область');
-  } else missing.push('город / область');
+  } else missing.push('область (если указана в источнике)');
   if (districtHits.length === 1) {
     draft.district = districtHits[0].d.ru;
     found.push(`район: ${districtHits[0].d.ru}`);
@@ -120,7 +120,7 @@ export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today
   if (locLine) {
     draft.location = { ru: locLine.slice(0, 300), kg: locLine.slice(0, 300), en: locLine.slice(0, 300) };
     found.push('адрес');
-  } else missing.push('место / адрес');
+  } else missing.push('место (если указано в источнике)');
 
   if (!sourceName.trim()) missing.push('организация');
   if (!sourceUrl.trim()) missing.push('ссылка на первоисточник');

@@ -237,7 +237,7 @@ export const translations = {
     notices: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' },
     news: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' },
     business: { ru: 'Бизнес-новости', kg: 'Бизнес жаңылыктары', en: 'Business News' },
-    tech: { ru: 'Новости ИИ и IT', kg: 'Жасалма интеллект жана IT жаңылыктары', en: 'AI & IT News' },
+    tech: { ru: 'ИИ и IT-технологии', kg: 'Жасалма интеллект жана IT-технологиялар', en: 'AI & IT Technologies' },
   },
 
   // Cities

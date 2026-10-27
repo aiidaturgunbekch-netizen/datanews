@@ -1,5 +1,5 @@
 /**
- * Новые разделы и подвал: «Бизнес-новости» и «Новости ИИ и IT» — настоящие разделы (категория, рубрика, сервер, переводы);
+ * Новые разделы и подвал: «Бизнес-новости» и «ИИ и IT-технологии» — настоящие разделы (категория, рубрика, сервер, переводы);
  * публиковать в них могут только редакция и администратор, права обычных пользователей не меняются.
  * Подвал: короткая навигация и одна ссылка «Реклама»; кнопка страницы «Реклама» ведёт на настоящий контакт редакции.
  */
@@ -24,14 +24,15 @@ const { buildItem, emptyState } = await import('../src/components/SimplePublishF
 
 const LANGS = ['ru', 'kg', 'en'] as const;
 
-describe('разделы «Бизнес-новости» и «Новости ИИ и IT»', () => {
+describe('разделы «Бизнес-новости» и «ИИ и IT-технологии»', () => {
   it('есть в строке рубрик со своей категорией; прежние разделы на месте', () => {
     const byId = Object.fromEntries(RUBRICS.map((r) => [r.id, r]));
     assert.deepEqual(byId.business.categories, ['business']);
     assert.deepEqual(byId.tech.categories, ['tech']);
     assert.equal(byId.business.label.ru, 'Бизнес-новости');
-    assert.equal(byId.tech.label.kg, 'Жасалма интеллект жана IT жаңылыктары');
-    assert.equal(byId.tech.label.en, 'AI & IT News');
+    assert.equal(byId.tech.label.ru, 'ИИ и IT-технологии');
+    assert.equal(byId.tech.label.kg, 'Жасалма интеллект жана IT-технологиялар');
+    assert.equal(byId.tech.label.en, 'AI & IT Technologies');
     // выставки и ярмарки — прежний раздел, только внутренний id стал 'expos'
     assert.deepEqual(byId.expos.categories, ['exhibitions', 'fairs']);
     for (const id of ['weather', 'utilities', 'roads', 'state', 'culture', 'sport', 'education', 'news', 'notices']) assert.ok(byId[id], id);
@@ -71,7 +72,7 @@ describe('переводы новых пунктов', () => {
     const want = {
       'nav.cities': ['Города', 'Шаарлар', 'Cities'],
       'categories.business': ['Бизнес-новости', 'Бизнес жаңылыктары', 'Business News'],
-      'categories.tech': ['Новости ИИ и IT', 'Жасалма интеллект жана IT жаңылыктары', 'AI & IT News'],
+      'categories.tech': ['ИИ и IT-технологии', 'Жасалма интеллект жана IT-технологиялар', 'AI & IT Technologies'],
       'nav.advertising': ['Реклама', 'Жарнама', 'Advertising'],
     };
     for (const [key, vals] of Object.entries(want)) LANGS.forEach((l, i) => assert.equal(getTranslation(l).t(key), vals[i], `${key} ${l}`));

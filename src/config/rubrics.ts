@@ -33,7 +33,7 @@ export const RUBRICS: Rubric[] = [
   { id: 'education', label: { ru: 'Образование', kg: 'Билим берүү', en: 'Education' }, categories: ['education'] },
   { id: 'news', label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' }, categories: ['news'] },
   { id: 'business', label: { ru: 'Бизнес-новости', kg: 'Бизнес жаңылыктары', en: 'Business News' }, categories: ['business'] },
-  { id: 'tech', label: { ru: 'Новости ИИ и IT', kg: 'Жасалма интеллект жана IT жаңылыктары', en: 'AI & IT News' }, categories: ['tech'] },
+  { id: 'tech', label: { ru: 'ИИ и IT-технологии', kg: 'Жасалма интеллект жана IT-технологиялар', en: 'AI & IT Technologies' }, categories: ['tech'] },
   { id: 'notices', label: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' }, categories: ['notices'] },
 ];
 

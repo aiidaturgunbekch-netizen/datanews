@@ -256,7 +256,7 @@ describe('остальные пользователи — как прежде', 
       const r = await call(announcements, 'announcements', 'POST', editor, { item: { ...news().item, category } });
       assert.equal(r.status, 403, category);
     }
-    // редакционные разделы: «Новости», «Бизнес-новости», «Новости ИИ и IT»
+    // редакционные разделы: «Новости», «Бизнес-новости», «ИИ и IT-технологии»
     assert.deepEqual(categoriesFor('news', { plan: 'start', govVerified: false, editor: true }), ['news', 'business', 'tech']);
     assert.ok(!categoriesFor('alert', { plan: 'start', govVerified: false, editor: true }).includes('hazard'));
     // подтверждённый госорган — как раньше: официальные разделы, но не «Новости» редакции

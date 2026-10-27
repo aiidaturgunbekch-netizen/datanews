@@ -75,7 +75,7 @@ export const SectionsDrawer: React.FC<SectionsDrawerProps> = ({
         }`}
       >
         <div className="h-16 shrink-0 px-4 flex items-center justify-between border-b border-gray-100">
-          <BrandLogo size={52} />
+          <BrandLogo height={40} variant="plate" />
           <button
             ref={closeRef}
             onClick={onClose}

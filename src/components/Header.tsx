@@ -153,9 +153,9 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#20C7B5]"
             aria-label="DataNews Home"
           >
-            {/* Утверждённый логотип целиком: фон шапки — тот же фирменный тёмно-синий, поэтому квадрат логотипа сливается с ней */}
-            <BrandLogo size={56} className="lg:hidden" />
-            <BrandLogo size={64} className="hidden lg:block" />
+            {/* Утверждённый горизонтальный логотип, вариант без фона — на тёмно-синей шапке */}
+            <BrandLogo height={32} className="sm:hidden" />
+            <BrandLogo height={40} className="hidden sm:block" />
           </button>
           {/* Девиз — рядом с логотипом на широких экранах */}
           <span className="hidden lg:block pl-5 ml-1 border-l border-white/20 text-sm font-semibold text-[#20C7B5] whitespace-nowrap">

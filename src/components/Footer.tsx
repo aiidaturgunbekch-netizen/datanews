@@ -57,7 +57,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigat
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-12 gap-x-6 gap-y-8 lg:gap-8 mb-8">
           {/* Бренд */}
           <div className="col-span-2 sm:col-span-3 lg:col-span-4">
-            <BrandLogo size={132} className="mb-4" />
+            <BrandLogo height={64} variant="plate" className="mb-4" />
             <p className="text-[13px] font-semibold text-[#12327A] leading-snug max-w-xs">{t('motto')}</p>
             <p className="text-[13px] text-gray-600 leading-snug max-w-xs mt-1">{t('appSlogan')}</p>
           </div>

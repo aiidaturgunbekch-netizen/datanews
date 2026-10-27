@@ -1,21 +1,33 @@
 import React from 'react';
 
+/** Пропорции горизонтального логотипа (ширина / высота) — по утверждённому файлу, без искажений */
+const RATIO = { light: 798 / 216, plate: 870 / 288 };
+
 /**
- * Официальный логотип DataNews Кыргызстан — утверждённое изображение (public/brand/datanews-logo-original.webp),
- * без изменений: только пропорциональное уменьшение (256 и 512 px — для обычных и чётких экранов).
- * Квадратная композиция: значок-календарь с часами, «DataNews», подпись «КЫРГЫЗСТАН».
- * Фон логотипа — фирменный тёмно-синий #041E52 (--color-brand-navy); на нём логотип сливается с шапкой.
+ * Утверждённый горизонтальный логотип DataNews Кыргызстан (public/brand/datanews-logo-horizontal-original.png).
+ *  - light — тот же логотип без собственного фона, для тёмно-синей шапки;
+ *  - plate — с фирменным фоном логотипа и скруглёнными углами, для светлых мест (меню, подвал, страница новости).
+ * Только масштаб и обрезка пустых полей — цвета и начертание не меняются.
  */
-export const BrandLogo: React.FC<{ size: number; className?: string; alt?: string }> = ({ size, className = '', alt = 'DataNews Кыргызстан' }) => (
-  <img
-    src={size > 128 ? '/brand/datanews-logo-512.webp' : '/brand/datanews-logo-256.webp'}
-    srcSet={size > 128 ? undefined : '/brand/datanews-logo-256.webp 1x, /brand/datanews-logo-512.webp 2x'}
-    width={size}
-    height={size}
-    alt={alt}
-    decoding="async"
-    draggable={false}
-    className={`block select-none shrink-0 ${className}`}
-    style={{ width: size, height: size }}
-  />
-);
+export const BrandLogo: React.FC<{ height: number; variant?: 'light' | 'plate'; className?: string; alt?: string }> = ({
+  height,
+  variant = 'light',
+  className = '',
+  alt = 'DataNews Кыргызстан',
+}) => {
+  const width = Math.round(height * RATIO[variant]);
+  // Файл с запасом по высоте (×2–×3) — чёткость на экранах высокой плотности
+  const file = variant === 'light' ? 96 : 192;
+  return (
+    <img
+      src={`/brand/datanews-logo-${variant}-${file}.webp`}
+      width={width}
+      height={height}
+      alt={alt}
+      decoding="async"
+      draggable={false}
+      className={`block select-none shrink-0 ${variant === 'plate' ? 'rounded-lg' : ''} ${className}`}
+      style={{ width, height }}
+    />
+  );
+};

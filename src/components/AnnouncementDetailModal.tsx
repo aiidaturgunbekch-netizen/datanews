@@ -304,7 +304,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             {L.back[lang]}
           </button>
           <button type="button" onClick={onClose} aria-label={L.close[lang]} className="hidden sm:block">
-            <BrandLogo size={44} />
+            <BrandLogo height={32} variant="plate" />
           </button>
           <div className="relative">
             <button

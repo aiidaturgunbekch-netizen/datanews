@@ -39,7 +39,7 @@ const Column: React.FC<{ title: string; links: Link[] }> = ({ title, links }) =>
 /**
  * Подвал: короткая навигация (Главное, Поиск, Архив, Новости) — полный список разделов уже есть в строке рубрик и в «Разделах».
  * Для организаций — одна ссылка «Реклама» (страница для рекламодателей) и личный кабинет; тарифы и оплата — в кабинете.
- * Источники и политика конфиденциальности в подвале не показываются, но остаются вкладками страницы «О проекте».
+ * Источники информации и политика конфиденциальности из публичного интерфейса убраны.
  */
 export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigate, onOpenAccount, onOpenHome, onOpenSearch, onOpenArchive, onOpenNews }) => {
   const { t } = getTranslation(lang);

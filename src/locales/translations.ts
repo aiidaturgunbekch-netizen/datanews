@@ -173,7 +173,6 @@ export const translations = {
       en: 'Want to tell the DataNews audience about your offer? Let’s discuss the right placement format.',
     },
     ctaButton: { ru: 'Обсудить рекламу', kg: 'Жарнаманы талкуулоо', en: 'Discuss advertising' },
-    ctaHint: { ru: 'Откроется WhatsApp редакции DataNews', kg: 'DataNews редакциясынын WhatsAppы ачылат', en: 'Opens the DataNews editors’ WhatsApp' },
     otherContacts: { ru: 'Другие способы связи', kg: 'Башка байланыш жолдору', en: 'Other ways to contact us' },
     terms: {
       ru: 'Стоимость и условия зависят от согласованного формата. Мы не обещаем конкретных охватов, переходов или продаж.',

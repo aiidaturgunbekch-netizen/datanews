@@ -8,18 +8,12 @@ const L = {
   ig: { ru: 'Instagram DataNews', kg: 'Instagram DataNews', en: 'Instagram DataNews' },
 };
 
-/** Кнопки связи с редакцией: WhatsApp, Telegram, Instagram (ссылки открываются в новой вкладке / приложении) */
+/** Кнопки связи с редакцией: WhatsApp, Telegram, Instagram — в едином сдержанном стиле (ссылки открываются в новой вкладке / приложении) */
 export const ContactButtons: React.FC<{ lang: Language; compact?: boolean; className?: string }> = ({ lang, compact, className = '' }) => {
   const items = [
-    { href: CONTACTS.whatsappUrl, label: L.wa[lang], sub: CONTACTS.phone, bg: 'bg-[#0f8072] hover:bg-[#0c6b60] text-white', icon: 'chat' },
-    {
-      href: telegramUrl(),
-      label: L.tg[lang],
-      sub: CONTACTS.telegramUsername ? `@${CONTACTS.telegramUsername}` : CONTACTS.phone,
-      bg: 'bg-[#1877a8] hover:bg-[#14648f] text-white',
-      icon: 'send',
-    },
-    { href: CONTACTS.instagramUrl, label: L.ig[lang], sub: CONTACTS.instagramHandle, bg: 'bg-gradient-to-r from-[#c2410c] via-[#c13584] to-[#8134af] text-white hover:brightness-95', icon: 'photo_camera' },
+    { key: 'wa' as const, href: CONTACTS.whatsappUrl, label: L.wa[lang], sub: CONTACTS.whatsappPhone },
+    { key: 'tg' as const, href: telegramUrl(), label: L.tg[lang], sub: CONTACTS.telegramUsername ? `@${CONTACTS.telegramUsername}` : CONTACTS.telegramPhone },
+    { key: 'ig' as const, href: CONTACTS.instagramUrl, label: L.ig[lang], sub: CONTACTS.instagramHandle },
   ];
   return (
     <div className={`flex flex-wrap gap-2 ${className}`}>
@@ -30,11 +24,11 @@ export const ContactButtons: React.FC<{ lang: Language; compact?: boolean; class
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`${i.label} (${i.sub})`}
-          className={`inline-flex items-center gap-2 rounded-xl font-bold transition ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm'} ${i.bg}`}
+          className={`inline-flex items-center gap-2 rounded-xl font-bold transition border border-[#12327A]/20 bg-white text-[#12327A] hover:bg-[#12327A] hover:text-white ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm'}`}
         >
-          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
-            {i.icon}
-          </span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+            {SOCIAL_ICONS[i.key]}
+          </svg>
           <span className="flex flex-col leading-tight text-left">
             <span>{i.label}</span>
             {!compact && <span className="text-[11px] font-semibold opacity-90">{i.sub}</span>}
@@ -63,9 +57,10 @@ export const SOCIAL_ICONS: Record<'wa' | 'tg' | 'ig' | 'th', React.ReactNode> = 
 /** Ссылки на соцсети только значками — для подвала сайта */
 export const SocialLinks: React.FC<{ lang: Language; className?: string }> = ({ lang, className = '' }) => {
   const items: { key: 'wa' | 'tg' | 'ig'; href: string; label: string }[] = [
-    { key: 'wa', href: CONTACTS.whatsappUrl, label: `WhatsApp ${CONTACTS.phone}` },
-    { key: 'tg', href: telegramUrl(), label: `Telegram ${CONTACTS.telegramUsername ? `@${CONTACTS.telegramUsername}` : CONTACTS.phone}` },
-    { key: 'ig', href: CONTACTS.instagramUrl, label: `Instagram ${CONTACTS.instagramHandle}` },
+    // Только значки: номера и адреса не повторяются рядом (подпись для чтения с экрана — без номера)
+    { key: 'wa', href: CONTACTS.whatsappUrl, label: 'WhatsApp DataNews' },
+    { key: 'tg', href: telegramUrl(), label: 'Telegram DataNews' },
+    { key: 'ig', href: CONTACTS.instagramUrl, label: 'Instagram DataNews' },
   ];
   return (
     <ul className={`flex items-center gap-2.5 ${className}`} aria-label={lang === 'kg' ? 'Социалдык тармактар' : lang === 'en' ? 'Social media' : 'Социальные сети'}>
@@ -77,7 +72,7 @@ export const SocialLinks: React.FC<{ lang: Language; className?: string }> = ({ 
             rel="noopener noreferrer"
             aria-label={i.label}
             title={i.label}
-            className="w-9 h-9 rounded-full border border-[#12327A]/25 text-[#12327A] hover:bg-[#12327A] hover:text-white focus-visible:ring-2 focus-visible:ring-[#12327A] transition-colors flex items-center justify-center"
+            className="w-10 h-10 rounded-full border border-line bg-white text-meta hover:text-brand-navy hover:border-brand-navy/40 focus-visible:ring-2 focus-visible:ring-[#12327A] transition-colors flex items-center justify-center"
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
               {SOCIAL_ICONS[i.key]}

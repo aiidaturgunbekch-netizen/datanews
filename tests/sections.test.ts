@@ -120,7 +120,7 @@ describe('подвал', () => {
 describe('страница «Реклама»', () => {
   it('кнопки ведут в WhatsApp редакции из настроек контактов, с готовым текстом', () => {
     const url = adWhatsappUrl('Здравствуйте!');
-    assert.ok(url.startsWith(CONTACTS.whatsappUrl + '?text='));
+    assert.ok(url.startsWith('https://wa.me/996990000365?text='));
     assert.equal(decodeURIComponent(url.split('?text=')[1]), 'Здравствуйте!');
     const h = renderToStaticMarkup(React.createElement(AdvertisingPage, { lang: 'ru', onOpenContacts: () => {} }));
     assert.equal(h.split(CONTACTS.whatsappUrl).length - 1, 2, 'две кнопки: в начале и в конце страницы');

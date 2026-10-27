@@ -376,7 +376,7 @@ export interface SiteStats {
   cities: { key: string; count: number }[];
 }
 
-export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'advertising' | 'admin' | 'about' | 'sources' | 'privacy' | 'rules' | 'contacts';
+export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'advertising' | 'admin' | 'about' | 'rules' | 'contacts';
 
 /**
  * Письмо из редакционной почты (dn:mail). Это входящий материал, а не публикация:

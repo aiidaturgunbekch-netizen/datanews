@@ -262,9 +262,9 @@ export const answer = (input: BotInput, source: Announcement[], official: Offici
       return reply({
         answer: tr(
           {
-            ru: `Редакция DataNews:\n• WhatsApp: ${CONTACTS.phone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: тот же номер ${CONTACTS.phone} (найдите по номеру в Telegram)\nНе экстренная служба: при опасности звоните 112.`,
-            kg: `DataNews редакциясы:\n• WhatsApp: ${CONTACTS.phone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: ошол эле номер ${CONTACTS.phone} (Telegram'дан номер боюнча табыңыз)\nШашылыш кызмат эмес: коркунучта 112ге чалыңыз.`,
-            en: `DataNews editors:\n• WhatsApp: ${CONTACTS.phone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: same number ${CONTACTS.phone} (search by number in Telegram)\nNot an emergency service: in danger call 112.`,
+            ru: `Редакция DataNews:\n• WhatsApp: ${CONTACTS.whatsappPhone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: ${CONTACTS.telegramPhone} (найдите по номеру в Telegram)\nНе экстренная служба: при опасности звоните 112.`,
+            kg: `DataNews редакциясы:\n• WhatsApp: ${CONTACTS.whatsappPhone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: ${CONTACTS.telegramPhone} (Telegram'дан номер боюнча табыңыз)\nШашылыш кызмат эмес: коркунучта 112ге чалыңыз.`,
+            en: `DataNews editors:\n• WhatsApp: ${CONTACTS.whatsappPhone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: ${CONTACTS.telegramPhone} (search by number in Telegram)\nNot an emergency service: in danger call 112.`,
           },
           lang
         ),

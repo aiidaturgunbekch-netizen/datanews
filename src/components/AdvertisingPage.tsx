@@ -2,6 +2,7 @@ import React from 'react';
 import type { Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { CONTACTS } from '../config/contacts';
+import { SOCIAL_ICONS } from './ContactButtons';
 
 /** Кнопка «Обсудить рекламу» — WhatsApp редакции (тот же номер, что в подвале и на странице «Контакты») с готовым текстом */
 export const adWhatsappUrl = (text: string) => `${CONTACTS.whatsappUrl}?text=${encodeURIComponent(text)}`;
@@ -39,9 +40,10 @@ export const AdvertisingPage: React.FC<{ lang: Language; onOpenContacts: () => v
       rel="noopener noreferrer"
       className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-brand-teal text-[#002f29] font-bold text-[15px] hover:bg-[#1bb3a2] transition-colors focus-visible:outline-offset-4 ${className}`}
     >
-      <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-        forum
-      </span>
+      {/* Значок WhatsApp — кнопка открывает чат редакции */}
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" className="shrink-0">
+        {SOCIAL_ICONS.wa}
+      </svg>
       {label}
     </a>
   );
@@ -54,9 +56,8 @@ export const AdvertisingPage: React.FC<{ lang: Language; onOpenContacts: () => v
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-teal mb-4">{a('kicker')}</p>
           <h1 className="font-serif font-bold text-[30px] leading-[1.12] sm:text-[42px] lg:text-[52px] max-w-4xl text-balance">{a('title')}</h1>
           <p className="mt-5 text-base sm:text-lg leading-relaxed text-white/85 max-w-3xl">{a('subtitle')}</p>
-          <div className="mt-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+          <div className="mt-8">
             <CtaButton label={a('heroCta')} />
-            <span className="text-sm text-white/70">{a('ctaHint')}</span>
           </div>
         </div>
       </section>

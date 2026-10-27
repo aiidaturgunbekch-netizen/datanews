@@ -8,6 +8,8 @@ export interface Rubric {
   id: string;
   label: LocalizedString;
   categories: CategoryId[];
+  /** false — рубрика не показывается в строке меню (материалы доступны в общей ленте, через «Разделы», поиск и подвал) */
+  inNav?: boolean;
 }
 
 export const RUBRICS: Rubric[] = [
@@ -31,11 +33,15 @@ export const RUBRICS: Rubric[] = [
     categories: ['exhibitions', 'fairs'],
   },
   { id: 'education', label: { ru: 'Образование', kg: 'Билим берүү', en: 'Education' }, categories: ['education'] },
-  { id: 'news', label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' }, categories: ['news'] },
+  // «Новости» и «Объявления» — часть общего потока главной; отдельными пунктами меню не показываются
+  { id: 'news', label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' }, categories: ['news'], inNav: false },
   { id: 'business', label: { ru: 'Бизнес-новости', kg: 'Бизнес жаңылыктары', en: 'Business News' }, categories: ['business'] },
   { id: 'tech', label: { ru: 'ИИ и IT-технологии', kg: 'Жасалма интеллект жана IT-технологиялар', en: 'AI & IT Technologies' }, categories: ['tech'] },
-  { id: 'notices', label: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' }, categories: ['notices'] },
+  { id: 'notices', label: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' }, categories: ['notices'], inNav: false },
 ];
+
+/** Рубрики строки меню в шапке */
+export const NAV_RUBRICS = RUBRICS.filter((r) => r.inNav !== false);
 
 export const rubricOf = (id: string | null | undefined) => RUBRICS.find((r) => r.id === id) || null;
 

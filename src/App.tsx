@@ -699,8 +699,8 @@ export default function App() {
           />
         )}
 
-        {/* О проекте, источники, правила, конфиденциальность, контакты */}
-        {(['about', 'sources', 'privacy', 'rules', 'contacts'] as const).includes(currentView as InfoView) && (
+        {/* О проекте, правила, контакты */}
+        {(['about', 'rules', 'contacts'] as const).includes(currentView as InfoView) && (
           <InfoPage view={currentView as InfoView} lang={currentLanguage} onNavigate={setCurrentView} />
         )}
       </Suspense>

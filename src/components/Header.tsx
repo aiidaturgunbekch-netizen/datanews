@@ -4,7 +4,7 @@ import { Language, CityId, ViewMode, Announcement } from '../types';
 import { getTranslation } from '../locales/translations';
 import { BrandLogo } from './BrandLogo';
 import { WEEKDAYS, formatDayMonth } from '../utils/dates';
-import { RUBRICS } from '../config/rubrics';
+import { NAV_RUBRICS } from '../config/rubrics';
 
 interface HeaderProps {
   currentLanguage: Language;
@@ -277,7 +277,7 @@ export const Header: React.FC<HeaderProps> = ({
               { key: 'alerts', label: t('nav.alerts'), active: currentView === 'alerts', onClick: () => { onSelectRubric(null); onViewChange('alerts'); } },
               // Города — публикации по городам и областям (страница с картой и вкладками мест)
               { key: 'cities', label: t('nav.cities'), active: currentView === 'cities', onClick: () => { onSelectRubric(null); onViewChange('cities'); } },
-              ...RUBRICS.map((r) => ({ key: r.id, label: r.label[currentLanguage], active: currentView === 'home' && activeRubric === r.id, onClick: () => onSelectRubric(r.id) })),
+              ...NAV_RUBRICS.map((r) => ({ key: r.id, label: r.label[currentLanguage], active: currentView === 'home' && activeRubric === r.id, onClick: () => onSelectRubric(r.id) })),
             ].map((item) => (
               <li key={item.key} className="flex h-11">
                 <button

@@ -195,7 +195,7 @@ export const searchAnswer = (question: string, lang: Language, found: Announceme
   }
   if (/контакт|связ|whatsapp|ватсап|телеграм|telegram|инстаграм|instagram|байланыш|редакц|contact/.test(q)) {
     parts.push(
-      L3({ ru: `Связаться с DataNews: WhatsApp и Telegram ${CONTACTS.phone}, Instagram ${CONTACTS.instagramHandle}.`, kg: `DataNews менен байланыш: WhatsApp жана Telegram ${CONTACTS.phone}, Instagram ${CONTACTS.instagramHandle}.`, en: `Contact DataNews: WhatsApp and Telegram ${CONTACTS.phone}, Instagram ${CONTACTS.instagramHandle}.` }, lang)
+      L3({ ru: `Связаться с DataNews: WhatsApp ${CONTACTS.whatsappPhone}, Telegram ${CONTACTS.telegramPhone}, Instagram ${CONTACTS.instagramHandle}.`, kg: `DataNews менен байланыш: WhatsApp ${CONTACTS.whatsappPhone}, Telegram ${CONTACTS.telegramPhone}, Instagram ${CONTACTS.instagramHandle}.`, en: `Contact DataNews: WhatsApp ${CONTACTS.whatsappPhone}, Telegram ${CONTACTS.telegramPhone}, Instagram ${CONTACTS.instagramHandle}.` }, lang)
     );
   }
   if (/112|101|102|103|экстрен|скор|пожар|милиц|полиц|мчс|шашылыш|өрт|emergency|ambulance|police|fire/.test(q)) {

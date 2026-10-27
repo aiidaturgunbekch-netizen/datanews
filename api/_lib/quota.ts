@@ -122,7 +122,8 @@ export async function getUsage(user: StoredUser): Promise<PlanUsage> {
 
   // Сотрудник редакции: бесплатно и без лимитов тарифа — публикация открыта без оплаченного периода.
   // Статус оплаты и периоды при этом не меняются (это не оплата).
-  if (isEditor(user)) return { ...usage, active: true, editor: true, skipsModeration: true, postLimit: null, postsLeft: null, dailyLimit: null };
+  // active остаётся «есть оплаченный период» — у сотрудника его может не быть, и панель не должна показывать «Продлить»
+  if (isEditor(user)) return { ...usage, active: Boolean(cur), editor: true, skipsModeration: true, postLimit: null, postsLeft: null, dailyLimit: null };
 
   if (!cur) usage.reason = periodsOf(user).length ? 'period_expired' : 'payment_required';
   else if (p.postLimit !== null && postsUsed >= p.postLimit) usage.reason = 'pack_exhausted';

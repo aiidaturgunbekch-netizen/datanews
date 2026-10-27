@@ -1509,14 +1509,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                   </button>
                                 </div>
                                 <div className="text-xs mt-1 flex flex-wrap gap-2 items-center">
-                                  {editorOn ? (
-                                    <span className="px-2 py-0.5 rounded-full font-bold bg-[#12327A] text-white">Сотрудник редакции с {fmt(u.editor!.since)}</span>
-                                  ) : (
-                                    u.editor?.revokedAt && <span className="px-2 py-0.5 rounded-full font-bold bg-gray-100 text-gray-600">Права сотрудника отозваны {fmt(u.editor.revokedAt)}</span>
-                                  )}
-                                  <button type="button" onClick={toggleEditor} className="px-2 py-0.5 rounded-full font-bold border border-[#12327A]/30 text-[#12327A] hover:bg-[#eef2f9]">
-                                    {editorOn ? 'Отозвать права сотрудника' : 'Назначить сотрудником редакции'}
-                                  </button>
+                                  {editorOn && <span className="px-2 py-0.5 rounded-full font-bold bg-[#12327A] text-white">Сотрудник редакции</span>}
                                   <span className={`px-2 py-0.5 rounded-full font-bold ${pb.cls}`}>{pb.label}</span>
                                   <span>
                                     Выбран тариф: <b>{plan.name.ru}</b>, {plan.priceSom.toLocaleString('ru-RU')} сом / 30 дней
@@ -1584,6 +1577,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                   </button>
                                 )}
                               </div>
+                            </div>
+                            {/* Права сотрудника редакции — отдельно от оплаты: назначение и отзыв не меняют статус оплаты и тариф */}
+                            <div className={`text-xs rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-2 ${editorOn ? 'bg-[#eef2f9]' : 'bg-[#f8fafc]'}`}>
+                              <div className="flex-1 text-gray-700">
+                                <div className="font-bold text-[#0f1b33]">
+                                  Права сотрудника редакции:{' '}
+                                  {editorOn
+                                    ? `назначены ${fmt(u.editor!.since)}`
+                                    : u.editor?.revokedAt
+                                      ? `отозваны ${fmt(u.editor.revokedAt)}`
+                                      : 'не назначены'}
+                                </div>
+                                {editorOn
+                                  ? 'Публикует бесплатно и сразу, без предварительной модерации. Оплата для этого не нужна и не отмечается.'
+                                  : 'Обычный пользователь: оплата тарифа и модерация.'}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={toggleEditor}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${editorOn ? 'bg-red-50 text-red-700' : 'bg-[#12327A] text-white'}`}
+                              >
+                                {editorOn ? 'Отозвать права сотрудника редакции' : 'Назначить сотрудником редакции'}
+                              </button>
                             </div>
                             {(u.govStatus && u.govStatus !== 'none') || plan.govOnly ? (
                               <div className={`text-xs rounded-xl p-3 ${govOk ? 'bg-emerald-50' : u.govStatus === 'pending' ? 'bg-amber-50' : 'bg-[#f8fafc]'}`}>

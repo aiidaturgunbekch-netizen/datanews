@@ -111,6 +111,15 @@ describe('публикация сотрудником', () => {
     assert.equal(a.history.at(-1).action, 'published');
   });
 
+  it('5а. панель видит сотрудника без оплаченного периода: «действующего тарифа» нет, права — отдельно', async () => {
+    const list = (await call(usersApi, 'users', 'GET', admin)).body.users;
+    const u = list.find((x: { email: string }) => x.email === 'editor1@example.com');
+    assert.ok(u.editor?.since && !u.editor.revokedAt, 'права сотрудника видны в списке');
+    assert.equal(u.usage.active, false, 'нет оплаченного периода — кнопки «Продлить» и «Приостановить» не показываются');
+    assert.equal(u.usage.editor, true);
+    assert.equal(u.paymentStatus, 'unpaid');
+  });
+
   it('5. у сотрудника не создаётся оплаченный период и не меняется статус оплаты', async () => {
     const u = (await hgetJson<Record<string, any>>(USERS_KEY, 'editor1@example.com'))!;
     assert.equal(u.paymentStatus, 'unpaid');

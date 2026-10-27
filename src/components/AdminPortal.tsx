@@ -743,7 +743,7 @@ const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) => void 
 /**
  * Учётная запись для сотрудника или помощника: обычный пользователь — входит только в личный кабинет
  * («Войти» на сайте), размещает публикации на модерацию в пределах тарифа. Панель управления, пользователи,
- * тарифы, оплата и модерация ему недоступны (проверяет сервер). Публиковать он сможет после «Подтвердить оплату».
+ * тарифы, оплата и модерация ему недоступны (проверяет сервер). Создание бесплатное: «Не оплачено», без платного периода.
  */
 const StaffAccountBox: React.FC<{ onCreate: (u: { name: string; email: string; phone: string; organization: string; password: string; plan: PlanId }) => void }> = ({ onCreate }) => {
   const [open, setOpen] = useState(false);
@@ -765,8 +765,9 @@ const StaffAccountBox: React.FC<{ onCreate: (u: { name: string; email: string; p
         >
           <p className="text-xs text-gray-600">
             Отдельная учётная запись для каждого человека. Сотрудник входит кнопкой «Войти» на сайте — только в личный кабинет, без доступа к панели.
-            Публикации идут на модерацию и считаются по тарифу этой учётной записи. Чтобы он мог публиковать, после создания нажмите «Подтвердить оплату».
-            Статус госоргана не присваивается.
+            <b> Создание учётной записи бесплатное:</b> статус — «Не оплачено», платный период автоматически не начинается, деньги не списываются.
+            Без оплаченного периода сотрудник может войти в кабинет и работать со своими публикациями, но не может отправлять новые на размещение.
+            «Подтвердить оплату (30 дней)» нажимайте только после фактически полученной оплаты. Статус госоргана не присваивается.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input className={inputCls} placeholder="Имя сотрудника" value={f.name} onChange={set('name')} required />
@@ -1445,7 +1446,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                           api.createUserAccount(u).catch((e: api.ApiError) => {
                             throw new Error(`Учётная запись не создана: ${e.message}`);
                           }),
-                        `Учётная запись ${u.email} создана. Передайте сотруднику e-mail и пароль.`
+                        `Учётная запись ${u.email} создана бесплатно: статус «Не оплачено», платный период не начат. Передайте сотруднику e-mail и пароль.`
                       )
                     }
                   />
@@ -1512,6 +1513,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {u.paymentStatus === 'pending' || !us?.active ? (
+                                  <>
                                   <button
                                     onClick={() =>
                                       plan.govOnly && !govOk
@@ -1522,6 +1524,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                   >
                                     Подтвердить оплату (30 дней)
                                   </button>
+                                  <span className="text-[11px] text-gray-500 self-center">только после фактически полученной оплаты</span>
+                                  </>
                                 ) : (
                                   <button
                                     onClick={() =>

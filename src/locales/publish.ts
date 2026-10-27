@@ -103,6 +103,31 @@ const T = {
     en: 'This is how the post will look. Your government status is verified — it goes live at once.',
   },
 
+  previewNoteEditor: {
+    ru: 'После публикации материал сразу появится на сайте. Проверьте достоверность информации и первоисточник.',
+    kg: 'Жарыялангандан кийин материал дароо сайтта чыгат. Маалыматтын тактыгын жана баштапкы булакты текшериңиз.',
+    en: 'Once published, the item appears on the site at once. Check that the information is accurate and verify the original source.',
+  },
+  verifiedLabel: { ru: 'Подтверждено по первоисточнику', kg: 'Баштапкы булак боюнча тастыкталды', en: 'Verified against the original source' },
+  verifiedHint: {
+    ru: 'Отмечайте, только если вы сами проверили сведения по официальному сообщению или первоисточнику.',
+    kg: 'Маалыматты расмий билдирүү же баштапкы булак боюнча өзүңүз текшерген болсоңуз гана белгилеңиз.',
+    en: 'Tick only if you have checked the details against the official statement or original source yourself.',
+  },
+  type_news_hint_editor: { ru: 'Редакционная новость DataNews', kg: 'DataNews редакциясынын жаңылыгы', en: 'DataNews editorial news' },
+  publish: { ru: 'Опубликовать', kg: 'Жарыялоо', en: 'Publish' },
+  sentEditor: {
+    ru: 'Материал опубликован и уже виден на сайте. Его можно найти в разделе «Мои публикации».',
+    kg: 'Материал жарыяланды жана сайтта көрүнүп турат. Аны «Менин жарыяларым» бөлүмүнөн табасыз.',
+    en: 'Published — it is already live on the site. You can find it under “My posts”.',
+  },
+  profileTab: { ru: 'Профиль', kg: 'Профиль', en: 'Profile' },
+  editorBadge: { ru: 'Сотрудник редакции', kg: 'Редакциянын кызматкери', en: 'Editorial staff' },
+  editorFree: {
+    ru: 'Бесплатная редакционная работа: публикации выходят сразу, без предварительной модерации. Вы отвечаете за достоверность материалов. Права назначает администратор.',
+    kg: 'Акысыз редакциялык иш: жарыялар алдын ала модерациясыз дароо чыгат. Материалдардын тактыгы үчүн сиз жооп бересиз. Укуктарды администратор берет.',
+    en: 'Free editorial work: your posts go live at once, without pre-moderation. You are responsible for their accuracy. Rights are granted by the administrator.',
+  },
   errRequired: { ru: 'Заполните поля, отмеченные звёздочкой', kg: 'Жылдызча менен белгиленген талааларды толтуруңуз', en: 'Fill in the fields marked with an asterisk' },
   errEndBeforeStart: { ru: 'Дата окончания раньше даты начала', kg: 'Аяктоо күнү башталыш күнүнөн эрте', en: 'End date is before the start date' },
   errUrl: { ru: 'Ссылка должна начинаться с https://', kg: 'Шилтеме https:// менен башталышы керек', en: 'Links must start with https://' },

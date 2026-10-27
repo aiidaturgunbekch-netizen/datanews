@@ -101,7 +101,10 @@ export const validate = (s: SimpleState): PublishKey | null => {
  * Только поля выбранного типа; пустое — пустое, ничего не придумывается.
  * `now` — время размещения по Бишкеку (дата объявления и новости по умолчанию).
  */
-export const buildItem = (s: SimpleState, opts: { initial?: Announcement | null; imageData?: string; keepImage?: boolean; now?: string }): Record<string, unknown> => {
+export const buildItem = (
+  s: SimpleState,
+  opts: { initial?: Announcement | null; imageData?: string; keepImage?: boolean; now?: string; /** только сотрудник редакции: явная отметка проверки */ verified?: boolean }
+): Record<string, unknown> => {
   const t = s.type as PublishType;
   const now = opts.now || kgNowLocal();
   const initial = opts.initial || null;
@@ -135,6 +138,7 @@ export const buildItem = (s: SimpleState, opts: { initial?: Announcement | null;
     imageData: opts.imageData || undefined,
     imageCredit: opts.keepImage ? initial?.imageCredit || '' : '',
     imageAlt: '',
+    ...(opts.verified !== undefined ? { isVerified: opts.verified } : {}),
     eventDetails: {
       priceText: v('price') ? { ru: v('price') } : undefined,
       venue: t === 'online' ? ONLINE_VENUE : v('venue'),
@@ -174,6 +178,8 @@ interface Props {
   storageKey?: string;
   /** Подтверждённый госорган публикует сразу — меняется только текст подсказки */
   direct?: boolean;
+  /** Сотрудник редакции: «Новости», публикация сразу и своя отметка «Подтверждено по первоисточнику» */
+  editor?: boolean;
   submitLabel: string;
   onSubmit: (item: Record<string, unknown>) => Promise<void>;
   onCancel?: () => void;
@@ -189,10 +195,10 @@ const readDraft = (key?: string): SimpleState | null => {
   }
 };
 
-export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, author, initial, storageKey, direct, submitLabel, onSubmit, onCancel }) => {
+export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, author, initial, storageKey, direct, editor, submitLabel, onSubmit, onCancel }) => {
   const tr = (k: PublishKey) => tp(k, lang);
   const { t } = getTranslation(lang);
-  const publisher = { plan, govVerified };
+  const publisher = { plan, govVerified, editor: Boolean(editor) };
   const types = availableTypes(publisher);
 
   const [restored] = useState(() => (initial ? null : readDraft(storageKey)));
@@ -203,6 +209,8 @@ export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, au
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [now] = useState(() => kgNowLocal());
+  // «Подтверждено по первоисточнику» — только явная отметка сотрудника редакции после проверки; сама не ставится
+  const [verified, setVerified] = useState(Boolean(editor && initial?.isVerified));
 
   // Черновик новой публикации — в браузере этого посетителя (без фото), чтобы не потерять текст при обновлении страницы
   useEffect(() => {
@@ -224,7 +232,7 @@ export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, au
     if (!s.type) return [];
     const list = categoriesFor(s.type, publisher);
     return initial && initial.category && !list.includes(initial.category) && typeOf(initial) === s.type ? [initial.category, ...list] : list;
-  }, [s.type, plan, govVerified]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [s.type, plan, govVerified, editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const chooseType = (type: PublishType) => {
     const list = categoriesFor(type, publisher);
@@ -245,7 +253,7 @@ export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, au
     }
   };
 
-  const item = s.type ? buildItem(s, { initial, imageData, keepImage, now }) : null;
+  const item = s.type ? buildItem(s, { initial, imageData, keepImage, now, ...(editor ? { verified } : {}) }) : null;
   /** Объект для предпросмотра — как публикация будет выглядеть на сайте */
   const previewItem = (): Announcement => {
     const i = item as Record<string, any>;
@@ -262,7 +270,7 @@ export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, au
       status: 'scheduled',
       sourceName: author,
       sourceOrgType: 'ОРГ',
-      isVerified: false,
+      isVerified: Boolean(editor && verified),
       publishedAt: '',
       updatedAt: '',
       imageUrl: imageData || i.imageUrl || undefined,
@@ -507,7 +515,7 @@ export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, au
                   </span>
                   <span>
                     <span className="block font-extrabold text-[#0f1b33]">{tr(`type_${ty}` as PublishKey)}</span>
-                    <span className="block text-xs text-gray-600 mt-0.5">{tr(`type_${ty}_hint` as PublishKey)}</span>
+                    <span className="block text-xs text-gray-600 mt-0.5">{tr(editor && ty === 'news' && !govVerified ? 'type_news_hint_editor' : (`type_${ty}_hint` as PublishKey))}</span>
                   </span>
                 </button>
               ))}
@@ -578,8 +586,23 @@ export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, au
 
       {step === 3 && item && (
         <section className="space-y-4">
-          <p className="text-sm text-gray-700 bg-[#eef2f9] rounded-xl px-3 py-2">{tr(direct ? 'previewNoteDirect' : 'previewNote')}</p>
+          {editor ? (
+            <p role="note" className="text-sm font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              {tr('previewNoteEditor')}
+            </p>
+          ) : (
+            <p className="text-sm text-gray-700 bg-[#eef2f9] rounded-xl px-3 py-2">{tr(direct ? 'previewNoteDirect' : 'previewNote')}</p>
+          )}
           <FormPreview item={previewItem()} lang={lang} />
+          {editor && (
+            <label className="flex items-start gap-2 text-sm text-[#0f1b33] bg-white border border-gray-200 rounded-xl p-3">
+              <input type="checkbox" className="mt-1" checked={verified} onChange={(e) => setVerified(e.target.checked)} />
+              <span>
+                <b>{tr('verifiedLabel')}</b>
+                <span className="block text-xs text-gray-600">{tr('verifiedHint')}</span>
+              </span>
+            </label>
+          )}
           <div className="flex flex-wrap gap-2 justify-end">
             <button type="button" onClick={() => setStep(2)} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold">
               {tr('editData')}

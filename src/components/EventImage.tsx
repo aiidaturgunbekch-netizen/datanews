@@ -20,6 +20,7 @@ const CATEGORY_STYLE: Record<string, { icon: string; bg: string }> = {
   laws: { icon: 'gavel', bg: 'from-[#334155] via-[#64748b] to-[#cbd5e1]' },
   // без отдельной иллюстрации: однотонная заставка с значком (тоже с подписью «фото нет»)
   notices: { icon: 'campaign', bg: 'from-[#134e4a] via-[#0f766e] to-[#20C7B5]' },
+  news: { icon: 'newspaper', bg: 'from-[#0d2459] via-[#12327A] to-[#20C7B5]' },
 };
 
 /** Тематическая иллюстрация категории — запасной вариант, если фото не загрузилось */

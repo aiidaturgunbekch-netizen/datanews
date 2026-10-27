@@ -12,6 +12,9 @@ export interface StoredUser extends PublicUser {
   sessionVersion?: number;
 }
 
+/** Действующий сотрудник редакции — по записи в базе (назначает только администратор) */
+export const isEditor = (u: Pick<StoredUser, 'editor'> | null | undefined) => Boolean(u?.editor && !u.editor.revokedAt);
+
 export const toPublic = ({ salt: _s, hash: _h, sessionVersion: _v, ...u }: StoredUser): PublicUser => u;
 
 const clean = (v: unknown, max = 200) => String(v ?? '').trim().slice(0, max);

@@ -172,8 +172,10 @@ export const setGovStatus = (email: string, gov: 'verify' | 'reject' | 'revoke',
   post<{ user: AdminUser }>('users', { email, gov, note }, 'PATCH').then((r) => r.user);
 
 /** Учётная запись для сотрудника / помощника: обычный пользователь, только личный кабинет */
-export const createUserAccount = (u: { name: string; email: string; phone: string; organization: string; password: string; plan: PlanId }) =>
+export const createUserAccount = (u: { name: string; email: string; phone: string; organization: string; password: string; plan: PlanId; editor?: boolean }) =>
   post<{ user: AdminUser }>('users', u).then((r) => r.user);
+/** Сотрудник редакции: назначить / отозвать (только администратор) */
+export const setEditor = (email: string, editor: 'grant' | 'revoke') => post<{ user: AdminUser }>('users', { email, editor }, 'PATCH').then((r) => r.user);
 export const setUserPassword = (email: string, password: string) => post<{ user: AdminUser }>('users', { email, password }, 'PATCH').then((r) => r.user);
 
 export const fetchStats = (days: number) => request<SiteStats>(`stats?days=${days}`);

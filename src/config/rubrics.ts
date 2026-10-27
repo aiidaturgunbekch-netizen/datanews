@@ -31,6 +31,7 @@ export const RUBRICS: Rubric[] = [
     categories: ['exhibitions', 'fairs'],
   },
   { id: 'education', label: { ru: 'Образование', kg: 'Билим берүү', en: 'Education' }, categories: ['education'] },
+  { id: 'news', label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' }, categories: ['news'] },
   { id: 'notices', label: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' }, categories: ['notices'] },
 ];
 
@@ -45,6 +46,7 @@ const IMPORTANCE: Partial<Record<CategoryId, number>> = {
   gov: 0,
   laws: 0,
   hazard: 1,
+  news: 1,
   roads: 1,
   water: 1,
   electricity: 1,

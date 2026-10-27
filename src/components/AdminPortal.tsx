@@ -745,9 +745,11 @@ const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) => void 
  * («Войти» на сайте), размещает публикации на модерацию в пределах тарифа. Панель управления, пользователи,
  * тарифы, оплата и модерация ему недоступны (проверяет сервер). Создание бесплатное: «Не оплачено», без платного периода.
  */
-const StaffAccountBox: React.FC<{ onCreate: (u: { name: string; email: string; phone: string; organization: string; password: string; plan: PlanId }) => void }> = ({ onCreate }) => {
+const StaffAccountBox: React.FC<{
+  onCreate: (u: { name: string; email: string; phone: string; organization: string; password: string; plan: PlanId; editor: boolean }) => void;
+}> = ({ onCreate }) => {
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ name: '', email: '', phone: '', organization: '', password: '', plan: 'start' as PlanId });
+  const [f, setF] = useState({ name: '', email: '', phone: '', organization: '', password: '', plan: 'start' as PlanId, editor: false });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -783,6 +785,16 @@ const StaffAccountBox: React.FC<{ onCreate: (u: { name: string; email: string; p
               ))}
             </select>
           </div>
+          <label className="flex items-start gap-2 text-sm text-[#0f1b33]">
+            <input type="checkbox" className="mt-1" checked={f.editor} onChange={(e) => setF({ ...f, editor: e.target.checked })} />
+            <span>
+              <b>Сотрудник редакции</b>
+              <span className="block text-xs text-gray-600">
+                Публикует бесплатно и сразу, без предварительной модерации, в обычных разделах и «Новостях»; правит и снимает только свои материалы.
+                Оплата не отмечается, тариф не действует. Официальные разделы и «Погода» ему закрыты. Права можно отозвать в карточке.
+              </span>
+            </span>
+          </label>
           <button className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-bold">Создать учётную запись</button>
         </form>
       )}
@@ -1375,6 +1387,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
                               <span className={`px-2 py-0.5 rounded-full ${b.cls}`}>{b.label}</span>
                               {a.publishedByGov && <span className="px-2 py-0.5 rounded-full bg-[#e6ecf8] text-[#12327A]">Госорган, без премодерации</span>}
+                              {a.dataOrigin === 'manual' && a.submittedBy && (
+                                <span className="px-2 py-0.5 rounded-full bg-[#12327A] text-white">Редакция · сотрудник {a.submittedBy.name}</span>
+                              )}
                               {!isExpired(a) && (!a.lastCheckedAt || Date.now() - kgTs(a.lastCheckedAt) > STALE_MS) && (
                                 <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800" title="Действующая публикация давно не проверялась: сверьте с первоисточником и обновите дату проверки (кнопка «Редактировать» → «Сохранить»)">
                                   Перепроверить{a.lastCheckedAt ? ` (проверено ${fmt(a.lastCheckedAt)})` : ''}
@@ -1446,7 +1461,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                           api.createUserAccount(u).catch((e: api.ApiError) => {
                             throw new Error(`Учётная запись не создана: ${e.message}`);
                           }),
-                        `Учётная запись ${u.email} создана бесплатно: статус «Не оплачено», платный период не начат. Передайте сотруднику e-mail и пароль.`
+                        u.editor
+                          ? `Учётная запись сотрудника редакции ${u.email} создана: публикует бесплатно и сразу. Оплата не отмечена. Передайте e-mail и пароль лично.`
+                          : `Учётная запись ${u.email} создана бесплатно: статус «Не оплачено», платный период не начат. Передайте сотруднику e-mail и пароль.`
                       )
                     }
                   />
@@ -1470,6 +1487,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                           if (pw) act(() => api.setUserPassword(u.email, pw), 'Пароль изменён');
                         };
                         const govOk = u.govStatus === 'verified';
+                        const editorOn = Boolean(u.editor && !u.editor.revokedAt);
+                        const toggleEditor = () =>
+                          window.confirm(
+                            editorOn
+                              ? `Отозвать права сотрудника редакции у ${u.name}? Со следующего запроса — обычные правила: оплата и модерация. Опубликованное останется на сайте.`
+                              : `Назначить ${u.name} сотрудником редакции? Он будет публиковать бесплатно и сразу, без предварительной модерации, и отвечать за достоверность.`
+                          ) &&
+                          act(() => api.setEditor(u.email, editorOn ? 'revoke' : 'grant'), editorOn ? 'Права сотрудника редакции отозваны' : 'Назначен сотрудником редакции');
                         return (
                           <div key={u.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
                             <div className="flex flex-col md:flex-row md:items-start gap-3">
@@ -1484,6 +1509,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                   </button>
                                 </div>
                                 <div className="text-xs mt-1 flex flex-wrap gap-2 items-center">
+                                  {editorOn ? (
+                                    <span className="px-2 py-0.5 rounded-full font-bold bg-[#12327A] text-white">Сотрудник редакции с {fmt(u.editor!.since)}</span>
+                                  ) : (
+                                    u.editor?.revokedAt && <span className="px-2 py-0.5 rounded-full font-bold bg-gray-100 text-gray-600">Права сотрудника отозваны {fmt(u.editor.revokedAt)}</span>
+                                  )}
+                                  <button type="button" onClick={toggleEditor} className="px-2 py-0.5 rounded-full font-bold border border-[#12327A]/30 text-[#12327A] hover:bg-[#eef2f9]">
+                                    {editorOn ? 'Отозвать права сотрудника' : 'Назначить сотрудником редакции'}
+                                  </button>
                                   <span className={`px-2 py-0.5 rounded-full font-bold ${pb.cls}`}>{pb.label}</span>
                                   <span>
                                     Выбран тариф: <b>{plan.name.ru}</b>, {plan.priceSom.toLocaleString('ru-RU')} сом / 30 дней

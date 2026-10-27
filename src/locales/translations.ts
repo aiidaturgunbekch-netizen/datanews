@@ -96,6 +96,7 @@ export const translations = {
     state: { ru: 'Государство и решения', kg: 'Мамлекет жана чечимдер', en: 'State & Decisions' },
     laws: { ru: 'Законы и правила', kg: 'Мыйзамдар жана эрежелер', en: 'Laws & Rules' },
     notices: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' },
+    news: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' },
   },
 
   // Cities

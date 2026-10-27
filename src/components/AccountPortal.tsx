@@ -315,6 +315,8 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
     ['withdrawn', 'filterWithdrawn'],
   ];
   const mineShown = mine.filter((a) => mineFilter === 'all' || statusOf(a) === mineFilter);
+  /** Сотрудник редакции — решает сервер (назначает администратор); это не оплата */
+  const isEditorUser = Boolean(usage?.editor);
   /** От чьего имени публикация: из профиля (официальное название госоргана — только после подтверждения) */
   const authorName = user ? (user.govStatus === 'verified' && user.gov?.orgName) || user.organization || user.name : '';
 
@@ -445,7 +447,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
               <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-xl text-sm font-bold w-fit">
                 {(
                   [
-                    ['cabinet', tr('tabProfile')],
+                    ['cabinet', isEditorUser ? tp('profileTab', lang) : tr('tabProfile')],
                     ['publish', tr('tabPublish')],
                     ['mine', `${tr('tabMine')}${pendingCount ? ` (${pendingCount})` : ''}`],
                   ] as [Tab, string][]
@@ -477,6 +479,16 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                       {user.organization && <div className="text-gray-600">{user.organization}</div>}
                       <div className="text-gray-600 mt-1">{user.phone}</div>
                     </div>
+                    {isEditorUser ? (
+                      // Сотрудник редакции: без тарифа и оплаты на экране (и без ложного «Оплачено»)
+                      <div className="p-4 rounded-2xl bg-[#effdfb] border border-[#20C7B5]/40">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#12327A] text-white">
+                          <span className="material-symbols-outlined text-[14px]">badge</span>
+                          {tp('editorBadge', lang)}
+                        </span>
+                        <p className="text-xs text-gray-700 mt-2">{tp('editorFree', lang)}</p>
+                      </div>
+                    ) : (
                     <div className="p-4 rounded-2xl bg-[#f8fafc] border border-gray-100">
                       <div className="text-xs text-gray-500">{tr('plan')}</div>
                       <div className="font-bold">
@@ -509,6 +521,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                         <div className="text-[11px] text-gray-500 mt-1">{tr('burnNote')}</div>
                       )}
                     </div>
+                    )}
                   </div>
 
                   {(normalizePlan(user.plan) === 'gov' || plan === 'gov' || (user.govStatus && user.govStatus !== 'none')) && (
@@ -522,7 +535,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                     />
                   )}
 
-                  {user.paymentStatus === 'pending' ? (
+                  {isEditorUser ? null : user.paymentStatus === 'pending' ? (
                     <div className="p-3 rounded-xl bg-amber-50 text-amber-900 text-xs font-semibold">{tr('paidThanks')}</div>
                   ) : usage?.active && !showRenew ? (
                     <button
@@ -612,8 +625,8 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                 ) : (
                   <>
                     <div className={`p-3 rounded-xl text-xs ${usage?.skipsModeration ? 'bg-amber-50 text-amber-900 font-semibold' : 'bg-[#eef2f9] text-gray-700'}`}>
-                      {usage?.skipsModeration ? tr('publishDirect') : tr('moderationHint')}
-                      {usage && <UsageLine lang={lang} usage={usage} />}
+                      {isEditorUser ? tp('editorFree', lang) : usage?.skipsModeration ? tr('publishDirect') : tr('moderationHint')}
+                      {usage && !isEditorUser && <UsageLine lang={lang} usage={usage} />}
                     </div>
                     <SimplePublishForm
                       lang={lang}
@@ -622,7 +635,8 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                       author={authorName}
                       storageKey={`dn:publish-draft:${user.email}`}
                       direct={Boolean(usage?.skipsModeration)}
-                      submitLabel={usage?.skipsModeration ? tr('publishNow') : tr('sendToModeration')}
+                      editor={isEditorUser}
+                      submitLabel={isEditorUser ? tp('publish', lang) : usage?.skipsModeration ? tr('publishNow') : tr('sendToModeration')}
                       onSubmit={async (item) => {
                         try {
                           await api.submitAnnouncement(item);
@@ -633,7 +647,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                         await loadMine();
                         setMineFilter('all');
                         setTab('mine');
-                        setNotice(tp(usage?.skipsModeration ? 'sentDirect' : 'sent', lang));
+                        setNotice(tp(isEditorUser ? 'sentEditor' : usage?.skipsModeration ? 'sentDirect' : 'sent', lang));
                       }}
                     />
                   </>
@@ -649,12 +663,13 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                     author={authorName}
                     initial={editing}
                     direct={Boolean(editing.publishedByGov)}
-                    submitLabel={editing.publishedByGov ? tr('publishNow') : tr('resubmit')}
+                    editor={isEditorUser}
+                    submitLabel={isEditorUser ? tp('publish', lang) : editing.publishedByGov ? tr('publishNow') : tr('resubmit')}
                     onCancel={() => setEditing(null)}
                     onSubmit={async (item) => {
                       await api.updateAnnouncement(editing.id, item);
                       await loadMine();
-                      setNotice(editing.publishedByGov ? tr('publishedDirect') : tr('resubmitted'));
+                      setNotice(isEditorUser ? tp('sentEditor', lang) : editing.publishedByGov ? tr('publishedDirect') : tr('resubmitted'));
                       setEditing(null);
                     }}
                   />
@@ -683,7 +698,8 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                       .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
                       .map((a) => {
                         const b = MODERATION_BADGE[a.moderationStatus || 'pending'];
-                        const canEdit = a.publishedByGov ? a.moderationStatus !== 'withdrawn' : a.moderationStatus !== 'approved' && a.moderationStatus !== 'withdrawn';
+                        // Сотрудник редакции и госорган правят своё и после публикации (правка сразу на сайте)
+                        const canEdit = a.publishedByGov || isEditorUser ? a.moderationStatus !== 'withdrawn' : a.moderationStatus !== 'approved' && a.moderationStatus !== 'withdrawn';
                         return (
                           <div key={a.id} className="p-3 rounded-2xl border border-gray-100">
                             <div className="flex gap-3">

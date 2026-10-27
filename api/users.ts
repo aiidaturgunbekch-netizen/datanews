@@ -10,13 +10,16 @@
  *       обычный пользователь (входит только в личный кабинет, без доступа к панели); оплата не подтверждается,
  *       статус госоргана не присваивается — это отдельные действия администратора
  *   PATCH { email, password }                   задать новый пароль (например, если сотрудник его забыл или ушёл)
+ *   PATCH { email, editor: 'grant' | 'revoke' } назначить / отозвать права сотрудника редакции
+ *       (бесплатная публикация без предварительной модерации; оплата, тариф и периоды не меняются)
+ *   POST  { …, editor: true }                   сразу создать учётную запись сотрудника редакции
  *
  * Тариф «Муниципалитет / госорган» можно активировать только после подтверждения статуса.
  */
 import type { PaymentStatus } from '../src/types';
 import { hgetJson, hsetJson, hvalsJson } from './_lib/kv';
 import { handler, hashPassword, HttpError, json, readBody, requireAdmin } from './_lib/http';
-import { checkPassword, newUser, StoredUser, toPublic, USERS_KEY } from './_lib/users';
+import { checkPassword, isEditor, newUser, StoredUser, toPublic, USERS_KEY } from './_lib/users';
 import { normalizePlan, PLANS } from '../src/config/site';
 import { addPeriod, getUsage, periodsOf, suspendPeriods } from './_lib/quota';
 
@@ -37,19 +40,29 @@ export default handler(async (req) => {
   if (req.method === 'POST') {
     const body = await readBody<Record<string, unknown>>(req, 5000);
     // только поля учётной записи: роль, оплата и статус госоргана из запроса не принимаются
-    const user = await newUser({ name: body.name, email: body.email, phone: body.phone, organization: body.organization, password: body.password, plan: body.plan });
+    const created = await newUser({ name: body.name, email: body.email, phone: body.phone, organization: body.organization, password: body.password, plan: body.plan });
+    // «Сотрудник редакции» — только здесь, в разделе администратора; оплата при этом не отмечается
+    const user: StoredUser = body.editor === true ? { ...created, editor: { since: new Date().toISOString() } } : created;
     await hsetJson(USERS_KEY, user.email, user);
     return json({ user: await view(user) }, 201);
   }
 
   if (req.method === 'PATCH') {
-    const body = await readBody<{ email?: string; paymentStatus?: PaymentStatus; plan?: string; gov?: string; note?: string; password?: string }>(req, 5000);
+    const body = await readBody<{ email?: string; paymentStatus?: PaymentStatus; plan?: string; gov?: string; note?: string; password?: string; editor?: string }>(req, 5000);
     const email = String(body.email || '').toLowerCase();
     const u = await hgetJson<StoredUser>(USERS_KEY, email);
     if (!u) throw new HttpError('not_found', 404);
     let next: StoredUser = u;
 
-    if (typeof body.password === 'string') {
+    if (body.editor !== undefined) {
+      if (body.editor !== 'grant' && body.editor !== 'revoke') throw new HttpError('bad_status', 400);
+      const now = new Date().toISOString();
+      // История назначения: дата назначения и (после отзыва) дата отзыва; повторное назначение — новая дата
+      next =
+        body.editor === 'grant'
+          ? { ...u, editor: isEditor(u) ? u.editor : { since: now } }
+          : { ...u, editor: u.editor ? { ...u.editor, revokedAt: u.editor.revokedAt || now } : undefined };
+    } else if (typeof body.password === 'string') {
       checkPassword(body.password);
       // новый пароль закрывает все прежние входы этой учётной записи (например, если сотрудник ушёл)
       next = { ...u, ...(await hashPassword(body.password)), sessionVersion: (u.sessionVersion || 0) + 1 };

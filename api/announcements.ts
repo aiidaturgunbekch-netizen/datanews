@@ -25,7 +25,7 @@ import { ANN_KEY, CHECKED_KEY, diffFields, HIDDEN_KEY, isPublicItem, publicView,
 import { TEST_MARK_RE } from '../src/config/mailSenders';
 import { MAIL_KEY } from './_lib/mail';
 import { CHECK_NOTE, isCheckOnlyCopy } from '../src/utils/mergeAnnouncements';
-import { StoredUser, USERS_KEY } from './_lib/users';
+import { isEditor, StoredUser, USERS_KEY } from './_lib/users';
 import { checkPublishCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
 import { normalizePlan } from '../src/config/site';
 import { kgNowLocal } from '../src/utils/time';
@@ -93,6 +93,16 @@ const keepEditorial = (item: Announcement, current: Announcement): Announcement 
   imageFit: current.imageFit,
   imagePosition: current.imagePosition,
 });
+
+/**
+ * «Подтверждено по первоисточнику» от сотрудника редакции — только его явная отметка (галочка в форме),
+ * никогда не ставится сама. Отмечено — ставим дату проверки; не прислано — остаётся как было.
+ */
+const withEditorCheck = (item: Announcement, raw: Record<string, unknown> | undefined, current: Announcement | null): Announcement => {
+  const v = raw?.isVerified;
+  if (typeof v !== 'boolean') return { ...item, isVerified: current?.isVerified ?? false, lastCheckedAt: current?.lastCheckedAt };
+  return { ...item, isVerified: v, lastCheckedAt: v ? item.updatedAt : current?.lastCheckedAt };
+};
 
 /** Кто размещает: организация из запроса, иначе из профиля (подтверждённый госорган — официальное название) */
 const organizerOf = (item: Announcement, user: StoredUser) =>
@@ -175,6 +185,23 @@ export default handler(async (req) => {
     const organizer = organizerOf(item, user);
     if (!organizer) throw new HttpError('profile_incomplete', 400, 'Укажите организацию или имя в профиле');
     item.eventDetails = { ...(item.eventDetails || {}), organizer };
+
+    if (isEditor(user)) {
+      // Сотрудник редакции: бесплатно, без лимитов тарифа и без предварительной модерации — сразу на сайте.
+      // Остаются: вход, частота (10 в час, выше), обязательные поля, разделы, проверка дублей по всему сайту.
+      checkPublishCategory(user, normalizePlan(user.plan), item.category);
+      const dup = findDuplicate(item, [...(await hvalsJson<Announcement>(ANN_KEY)), ...INITIAL_ANNOUNCEMENTS]);
+      if (dup) throw new HttpError('duplicate', 409, `Похожая публикация уже есть: «${dup.title.ru}» (${dup.startDate.slice(0, 10)})`);
+      item = withEditorCheck(item, body.item, null);
+      item.submittedBy = { userId: user.id, name: user.name, email: user.email, phone: user.phone, organization: user.organization };
+      item.sourceName = (isGovVerified(user) && user.gov?.orgName) || user.organization || user.name;
+      item.dataOrigin = 'manual'; // материал редакции: без метки «Платное размещение»
+      item.moderationStatus = 'approved';
+      item = withHistory(item, 'author', 'published', `Опубликовано сотрудником редакции без предварительной модерации: ${user.name} (${user.email})`);
+      await saveAnnouncement(item);
+      return json({ item, usage: await getUsage(user) }, 201);
+    }
+
     const { release, usage } = await reservePost(user, item.category);
 
     item.submittedBy = { userId: user.id, name: user.name, email: user.email, phone: user.phone, organization: user.organization };
@@ -274,15 +301,22 @@ export default handler(async (req) => {
     }
 
     if (!current || current.submittedBy?.email !== session.sub) throw new HttpError('forbidden', 403);
-    if (current.moderationStatus === 'withdrawn' && !current.publishedByGov) throw new HttpError('forbidden', 403);
-    await rateLimit(req, 'edit', 30, 3600, session.sub);
     const user = await hgetJson<StoredUser>(USERS_KEY, session.sub);
+    const editor = isEditor(user);
+    if (current.moderationStatus === 'withdrawn' && !current.publishedByGov && !editor) throw new HttpError('forbidden', 403);
+    await rateLimit(req, 'edit', 30, 3600, session.sub);
     let item = keepEditorial(await sanitize(authorFields(body.item), current), current);
     // Раздел по тарифу и роли; старая публикация может остаться в своём разделе
     if (user) checkPublishCategory(user, currentPeriod(user)?.plan || normalizePlan(user.plan), item.category, current.category);
     if (user) item.eventDetails = { ...(item.eventDetails || {}), organizer: organizerOf(item, user) || current.eventDetails?.organizer };
     item.submittedBy = current.submittedBy;
-    if (current.publishedByGov && user && isGovVerified(user)) {
+    if (editor && user) {
+      // Сотрудник редакции правит своё: правка сразу на сайте (снятое остаётся снятым), в истории — что изменилось
+      item = withEditorCheck(item, body.item, current);
+      item.moderationStatus = current.moderationStatus === 'withdrawn' ? 'withdrawn' : 'approved';
+      item.moderationNote = undefined;
+      item = withHistory(item, 'author', 'edited', `Правка сотрудника редакции: ${user.name}`, diffFields(current, item));
+    } else if (current.publishedByGov && user && isGovVerified(user)) {
       // Госорган правит свою публикацию сам; правка сразу на сайте и попадает в историю
       item.moderationStatus = current.moderationStatus === 'withdrawn' ? 'withdrawn' : 'approved';
       item.sourceKind = 'official';

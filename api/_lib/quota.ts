@@ -16,12 +16,12 @@
  * Правка уже отправленной публикации лимит не расходует.
  */
 import type { CategoryId, PlanId, PlanPeriod, PlanUsage } from '../../src/types';
-import { allowedCategories, OFFICIAL_CATS } from '../../src/config/publishTypes';
+import { allowedCategories, EDITORIAL_CATS, OFFICIAL_CATS } from '../../src/config/publishTypes';
 import { normalizePlan, PLANS } from '../../src/config/site';
 import { kgDateStr, addDaysStr } from '../../src/utils/time';
 import { cmd } from './kv';
 import { HttpError, randomId } from './http';
-import type { StoredUser } from './users';
+import { isEditor, StoredUser } from './users';
 
 const dayKey = (email: string, day = kgDateStr()) => `dn:quota:day:${email}:${day}`;
 const periodKey = (email: string, periodId: string) => `dn:quota:period:${email}:${periodId}`;
@@ -120,6 +120,10 @@ export async function getUsage(user: StoredUser): Promise<PlanUsage> {
     skipsModeration: Boolean(cur && plan === 'gov' && isGovVerified(user)),
   };
 
+  // Сотрудник редакции: бесплатно и без лимитов тарифа — публикация открыта без оплаченного периода.
+  // Статус оплаты и периоды при этом не меняются (это не оплата).
+  if (isEditor(user)) return { ...usage, active: true, editor: true, skipsModeration: true, postLimit: null, postsLeft: null, dailyLimit: null };
+
   if (!cur) usage.reason = periodsOf(user).length ? 'period_expired' : 'payment_required';
   else if (p.postLimit !== null && postsUsed >= p.postLimit) usage.reason = 'pack_exhausted';
   else if (p.dailyLimit !== null && postedToday) {
@@ -148,15 +152,19 @@ export const checkPlanCategory = (plan: PlanId, category?: string) => {
  * keepCategory — раздел уже сохранённой публикации: правка старой публикации в её разделе не запрещается.
  */
 export const checkPublishCategory = (user: StoredUser, plan: PlanId, category: string, keepCategory?: string) => {
-  checkPlanCategory(plan, category);
+  const editor = isEditor(user);
+  // Сотруднику редакции тариф разделы не ограничивает (остальные правила — ниже)
+  if (!editor) checkPlanCategory(plan, category);
   if (category === keepCategory) return;
-  if (!allowedCategories({ plan, govVerified: isGovVerified(user) }).includes(category as CategoryId)) {
+  if (!allowedCategories({ plan, govVerified: isGovVerified(user), editor }).includes(category as CategoryId)) {
     throw new HttpError(
       'category_not_allowed',
       403,
       OFFICIAL_CATS.includes(category as CategoryId)
         ? 'Этот раздел доступен только подтверждённым государственным органам'
-        : 'Этот раздел недоступен для вашего тарифа'
+        : EDITORIAL_CATS.includes(category as CategoryId)
+          ? 'Раздел «Новости» доступен только сотрудникам редакции'
+          : 'Этот раздел недоступен для вашего тарифа'
     );
   }
 };

@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { CategoryId, Language, ViewMode } from '../types';
 import { getTranslation } from '../locales/translations';
 import { CategoryChips } from './CategoryChips';
-import { Logo } from './Logo';
+import { BrandLogo } from './BrandLogo';
 
 interface SectionsDrawerProps {
   open: boolean;
@@ -75,7 +75,7 @@ export const SectionsDrawer: React.FC<SectionsDrawerProps> = ({
         }`}
       >
         <div className="h-16 shrink-0 px-4 flex items-center justify-between border-b border-gray-100">
-          <Logo className="h-9" lang={lang} />
+          <BrandLogo size={52} />
           <button
             ref={closeRef}
             onClick={onClose}

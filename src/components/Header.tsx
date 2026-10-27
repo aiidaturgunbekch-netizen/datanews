@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PLACE_IDS } from '../config/regions';
 import { Language, CityId, ViewMode, Announcement } from '../types';
 import { getTranslation } from '../locales/translations';
-import { Logo } from './Logo';
+import { BrandLogo } from './BrandLogo';
 import { WEEKDAYS, formatDayMonth } from '../utils/dates';
 import { RUBRICS } from '../config/rubrics';
 
@@ -99,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
       className="fixed top-0 inset-x-0 z-50 text-white shadow-[0_2px_12px_rgba(0,0,0,0.15)] transition-transform duration-200 motion-reduce:transition-none"
     >
       {/* Служебная строка: дата, для организаций, язык */}
-      <div className="h-9 bg-[#081a42] border-b border-white/10">
+      <div className="h-9 bg-[#031639] border-b border-white/10">
         <div className="h-full max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-4 text-xs">
           <span className="text-[#c8d2ee]">
             <span className="hidden sm:inline">{todayLabel} · </span>
@@ -135,8 +135,8 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Основная строка */}
-      <div className="bg-[#0d2459]">
-      <div className="h-14 max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
+      <div className="bg-brand-navy">
+      <div className="h-14 lg:h-16 max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Sections, Brand Logo */}
         <div className="flex items-center gap-3 lg:gap-6 min-w-0">
           <button
@@ -150,10 +150,12 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           <button
             onClick={() => onViewChange('home')}
-            className="flex items-center text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#20C7B5] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d2459]"
+            className="flex items-center text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#20C7B5]"
             aria-label="DataNews Home"
           >
-            <Logo isLightMode={true} className="h-8 sm:h-10" lang={currentLanguage} />
+            {/* Утверждённый логотип целиком: фон шапки — тот же фирменный тёмно-синий, поэтому квадрат логотипа сливается с ней */}
+            <BrandLogo size={56} className="lg:hidden" />
+            <BrandLogo size={64} className="hidden lg:block" />
           </button>
           {/* Девиз — рядом с логотипом на широких экранах */}
           <span className="hidden lg:block pl-5 ml-1 border-l border-white/20 text-sm font-semibold text-[#20C7B5] whitespace-nowrap">
@@ -260,24 +262,25 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Строка рубрик: главные страницы и рубрики, сгруппированные по смыслу (на телефоне — прокрутка вбок) */}
       <nav
         aria-label={currentLanguage === 'kg' ? 'Рубрикалар' : currentLanguage === 'en' ? 'Sections' : 'Рубрики'}
-        className="relative bg-white border-b border-gray-200 text-[#0f1b33] after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-10 after:bg-gradient-to-l after:from-white after:to-transparent after:pointer-events-none md:after:hidden"
+        className="relative bg-white border-b border-line text-ink after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-10 after:bg-gradient-to-l after:from-white after:to-transparent after:pointer-events-none"
       >
-        {/* Телефон — одна строка с прокруткой; ноутбук и шире — рубрики переносятся, ни одна не обрезается */}
-        <div className="max-w-[1280px] mx-auto px-1 sm:px-2 md:px-4 overflow-x-auto md:overflow-visible scrollbar-none">
-          <ul className="flex items-stretch min-w-max md:min-w-0 md:flex-wrap">
+        {/* Всегда одна строка постоянной высоты: на узких экранах — прокрутка вбок; полный список — в «Разделах» */}
+        <div className="max-w-[1280px] mx-auto px-1 sm:px-2 md:px-4 overflow-x-auto scrollbar-none">
+          <ul className="flex items-stretch min-w-max">
             {[
               { key: 'home', label: t('nav.home'), active: currentView === 'home' && !activeRubric, onClick: () => { onSelectRubric(null); onViewChange('home'); } },
+              // Календарь — сразу после главной: главное отличие DataNews — что и когда предстоит
+              { key: 'calendar', label: t('nav.calendar'), active: currentView === 'calendar', onClick: () => { onSelectRubric(null); onViewChange('calendar'); } },
               { key: 'alerts', label: t('nav.alerts'), active: currentView === 'alerts', onClick: () => { onSelectRubric(null); onViewChange('alerts'); } },
               ...RUBRICS.map((r) => ({ key: r.id, label: r.label[currentLanguage], active: currentView === 'home' && activeRubric === r.id, onClick: () => onSelectRubric(r.id) })),
-              { key: 'calendar', label: t('nav.calendar'), active: currentView === 'calendar', onClick: () => { onSelectRubric(null); onViewChange('calendar'); } },
             ].map((item) => (
               <li key={item.key} className="flex h-11">
                 <button
                   type="button"
                   onClick={item.onClick}
                   aria-current={item.active ? 'page' : undefined}
-                  className={`px-2.5 text-sm font-semibold whitespace-nowrap border-b-[3px] transition-colors ${
-                    item.active ? 'border-[#20C7B5] text-[#12327A]' : 'border-transparent text-[#0f1b33] hover:text-[#12327A] hover:border-[#12327A]/30'
+                  className={`px-2.5 text-[13.5px] font-semibold whitespace-nowrap border-b-[3px] transition-colors ${
+                    item.active ? 'border-brand-teal text-brand-blue' : 'border-transparent text-ink hover:text-brand-blue hover:border-brand-blue/30'
                   }`}
                 >
                   {item.label}

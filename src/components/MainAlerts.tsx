@@ -91,3 +91,21 @@ export const MainAlerts: React.FC<{
     </section>
   );
 };
+
+/** Предупреждений нет — одна строка-статус вместо пустого блока (со ссылкой на архив) */
+export const NoAlertsLine: React.FC<{ lang: Language; city: CityId; onOpenAll: () => void }> = ({ lang, city, onOpenAll }) => {
+  const { t } = getTranslation(lang);
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink-soft">
+      <span className="material-symbols-outlined text-[18px] text-brand-teal-ink" aria-hidden="true">
+        check_circle
+      </span>
+      <span>
+        {T.none[lang]} <span className="text-meta">({t(`cities.${city}`)})</span>
+      </span>
+      <button type="button" onClick={onOpenAll} className="font-bold text-brand-blue hover:underline">
+        {T.all[lang]}
+      </button>
+    </p>
+  );
+};

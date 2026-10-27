@@ -26,7 +26,11 @@ import { AlertsGrid } from './components/AlertsGrid';
 import { EventsFeed } from './components/EventsFeed';
 import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { SectionsDrawer } from './components/SectionsDrawer';
-import { MainAlerts } from './components/MainAlerts';
+import { MainAlerts, NoAlertsLine } from './components/MainAlerts';
+import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
+import { AdSlot } from './components/AdSlot';
+import { isPaid } from './components/PaidBadge';
+import { homeScore } from './utils/timeline';
 import { TopStories } from './components/TopStories';
 import { PopularNews } from './components/PopularNews';
 import { Footer } from './components/Footer';
@@ -36,7 +40,7 @@ import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel'
 import { EmergencyBox, HydrometLine, WeatherSafety } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
 import { freshOrder, isFresh } from './utils/statusUtils';
-import { diversePick, importanceOf, rubricOf } from './config/rubrics';
+import { diversePick, rubricOf } from './config/rubrics';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -265,34 +269,34 @@ export default function App() {
   );
   const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
   // «Главное»: одна главная история и четыре важных — из актуального (не предупреждения: у них свой блок рядом).
-  // Порядок: срочная строка, затем значимость раздела (решения государства — выше досуга), затем свежесть;
-  // не больше двух материалов одной рубрики, чтобы серьёзное шло вперемешку с интересным
-  const topStories = useMemo(
-    () =>
-      diversePick(
-        eventsList
-          .filter((a) => isFresh(a))
-          .sort(
-            (a, b) =>
-              Number(Boolean(b.isUrgentTicker)) - Number(Boolean(a.isUrgentTicker)) ||
-              importanceOf(a.category) - importanceOf(b.category) ||
-              freshOrder(a, b)
-          ),
-        5
-      ),
-    [eventsList]
-  );
-  // Главной историей ставим материал с настоящей фотографией (из первых трёх по значимости), остальные — следом
+  // Порядок — homeScore: срочность, близость даты (сегодня/завтра/скоро), свежесть, значимость и проверка;
+  // раздел сам по себе не ставит материал наверх. Не больше двух материалов одной рубрики.
+  const topStories = useMemo(() => {
+    const now = Date.now();
+    return diversePick(
+      eventsList.filter((a) => isFresh(a)).sort((a, b) => homeScore(b, now) - homeScore(a, now) || freshOrder(a, b)),
+      5
+    );
+  }, [eventsList]);
+  // Главная история — редакционная (не партнёрская), по возможности с настоящей фотографией из первых трёх
   const topOrdered = useMemo(() => {
     const hasPhoto = (a: Announcement) => Boolean(a.imageUrl) && !a.imageUrl!.startsWith('/illustrations/');
-    const i = topStories.slice(0, 3).findIndex(hasPhoto);
-    return i > 0 ? [topStories[i], ...topStories.filter((_, j) => j !== i)] : topStories;
+    const editorial = topStories.filter((a) => !isPaid(a));
+    const leadPool = editorial.slice(0, 3);
+    const lead = leadPool.find(hasPhoto) || leadPool[0];
+    return lead ? [lead, ...topStories.filter((a) => a.id !== lead.id)] : topStories;
   }, [topStories]);
   // Лента ниже не повторяет материалы из «Главного»
   const feedList = useMemo(() => {
     const top = new Set(topStories.map((a) => a.id));
     return eventsList.filter((a) => !top.has(a.id));
   }, [eventsList, topStories]);
+  // «Ближайшие даты» берут из ленты то, что предстоит; в самой ленте эти материалы не повторяются
+  const upcomingPool = useMemo(() => feedList.filter((a) => isFresh(a)), [feedList]);
+  const feedRest = useMemo(() => {
+    const shown = pickUpcoming(upcomingPool).shownIds;
+    return feedList.filter((a) => !shown.has(a.id));
+  }, [feedList, upcomingPool]);
   // «Самое читаемое»: реальные прочтения карточек за 7 дней; пока их нет — «Скоро» (ближайшие по дате)
   const [popularReads, setPopularReads] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -493,10 +497,10 @@ export default function App() {
             {!rubric && selectedCategory === 'all' && (
               <>
                 {/* Главное: одна главная история, важные рядом и действующие предупреждения */}
-                <section className="w-full bg-white pt-4 pb-10 sm:pt-5 sm:pb-12" aria-labelledby="top-stories-title">
-                  <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+                <section className="w-full bg-white pt-5 pb-10 sm:pt-6 sm:pb-12" aria-labelledby="top-stories-title">
+                  <div className="dn-container">
                     {/* Подпись над обеими колонками — верх главной фотографии и блока предупреждений на одной линии */}
-                    <h2 id="top-stories-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-3">
+                    <h2 id="top-stories-title" className="dn-kicker mb-3">
                       {currentLanguage === 'kg' ? 'Башкы жаңылыктар' : currentLanguage === 'en' ? 'Top stories' : 'Главное'}
                     </h2>
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
@@ -504,13 +508,18 @@ export default function App() {
                         <TopStories lang={currentLanguage} stories={topOrdered} onOpen={setActiveNoticeDetail} hideTitle />
                       </div>
                       <div className="lg:col-span-4 min-w-0 space-y-6">
-                        <MainAlerts
-                          lang={currentLanguage}
-                          alerts={alertsList}
-                          city={selectedCity}
-                          onOpen={setActiveNoticeDetail}
-                          onOpenAll={() => setCurrentView('alerts')}
-                        />
+                        {/* Заметный блок — только когда есть действующие предупреждения; иначе одна строка-статус */}
+                        {alertsList.length > 0 ? (
+                          <MainAlerts
+                            lang={currentLanguage}
+                            alerts={alertsList}
+                            city={selectedCity}
+                            onOpen={setActiveNoticeDetail}
+                            onOpenAll={() => setCurrentView('alerts')}
+                          />
+                        ) : (
+                          <NoAlertsLine lang={currentLanguage} city={selectedCity} onOpenAll={() => setCurrentView('alerts')} />
+                        )}
                         <InteractiveCalendar
                           currentLanguage={currentLanguage}
                           announcements={announcements}
@@ -523,6 +532,17 @@ export default function App() {
                   </div>
                 </section>
 
+                {/* Что предстоит: сегодня, завтра, ближайшие дни — без повторов из «Главного» */}
+                <UpcomingDays
+                  lang={currentLanguage}
+                  items={upcomingPool}
+                  onOpen={setActiveNoticeDetail}
+                  onOpenCalendar={() => setCurrentView('calendar')}
+                />
+
+                {/* Рекламное место A — появляется только при действующей кампании */}
+                <AdSlot slot="wide" lang={currentLanguage} className="dn-container pb-10" />
+
                 {/* Официальный прогноз Кыргызгидромета (предупреждения — в блоке выше) */}
                 <WeatherSafety
                   lang={currentLanguage}
@@ -533,26 +553,31 @@ export default function App() {
                 />
 
                 {/* Лента (без повторов из «Главного»), сбоку — календарь и экстренные службы */}
-                <section id="events-feed" className="w-full py-12 sm:py-16 bg-[#f6f8fd] border-t border-gray-200 scroll-mt-[calc(var(--header-h,136px)+1rem)]">
-                  <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+                <section id="events-feed" className="w-full dn-section bg-wash border-t border-line scroll-mt-[calc(var(--header-h,136px)+1rem)]">
+                  <div className="dn-container">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                       <div className="lg:col-span-8 min-w-0">
                         <EventsFeed
                           currentLanguage={currentLanguage}
-                          events={feedList}
+                          events={feedRest}
                           city={selectedCity}
                           onSelectAnnouncement={setActiveNoticeDetail}
                           onOpenFullCalendar={() => setCurrentView('calendar')}
                         />
                       </div>
                       <aside className="lg:col-span-4 min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
-                        <PopularNews
-                          lang={currentLanguage}
-                          items={sideNews.items}
-                          mode={sideNews.mode}
-                          reads={popularReads}
-                          onOpen={setActiveNoticeDetail}
-                        />
+                        {/* «Самое читаемое» — только по настоящим прочтениям; ближайшие даты уже есть выше */}
+                        {sideNews.mode === 'popular' && (
+                          <PopularNews
+                            lang={currentLanguage}
+                            items={sideNews.items}
+                            mode={sideNews.mode}
+                            reads={popularReads}
+                            onOpen={setActiveNoticeDetail}
+                          />
+                        )}
+                        {/* Рекламное место B (компактное, правая колонка; на телефоне — под лентой) */}
+                        <AdSlot slot="side" lang={currentLanguage} className="max-w-[360px]" />
                         <EmergencyBox lang={currentLanguage} />
                       </aside>
                     </div>

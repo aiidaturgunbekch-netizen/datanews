@@ -9,6 +9,7 @@ import { ticketLink } from '../utils/links';
 import { MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT, formatDate, formatWhen } from '../utils/dates';
 import { freshOrder, getAnnouncementDisplayStatus, getStatusBadgeConfig, isFresh } from '../utils/statusUtils';
 import { placeText } from '../utils/place';
+import { DateBadge, RelDay } from './cards';
 
 interface EventsFeedProps {
   currentLanguage: Language;
@@ -67,10 +68,8 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
       {/* Section Header Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-1">{t('sections.upcomingSubtitle')}</div>
-          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#0f1b33]">
-            {t('sections.upcomingTitle')}
-          </h2>
+          <p className="dn-kicker mb-1">{t('sections.upcomingSubtitle')}</p>
+          <h2 className="dn-section-title">{t('sections.upcomingTitle')}</h2>
         </div>
 
         {/* View Switcher Buttons */}
@@ -201,7 +200,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
         </div>
       ) : displayMode === 'list' ? (
         /* Список в стиле новостной ленты: строки без теней, маленькое фото справа, вся строка — ссылка на статью */
-        <ul className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-200 px-4 sm:px-5">
+        <ul className="bg-white rounded-2xl border border-line divide-y divide-line px-4 sm:px-5">
           {filteredEvents.slice(0, visibleCount).map((item) => {
             const isFav = favorites.includes(item.id);
             const displayStatus = getAnnouncementDisplayStatus(item);
@@ -214,17 +213,20 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
             const tickets = ticketLink(item);
 
             return (
-              <li key={item.id} className={`relative group flex gap-4 py-4 sm:py-5 ${displayStatus === 'completed' ? 'opacity-80' : ''}`}>
+              <li key={item.id} className={`relative group flex gap-3 sm:gap-4 py-4 sm:py-5 ${displayStatus === 'completed' ? 'opacity-80' : ''}`}>
+                {/* Дата события — «листок календаря» слева: главное в DataNews — когда */}
+                <DateBadge date={item.startDate} lang={currentLanguage} />
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5 text-[11px] font-bold">
-                    <span className="uppercase tracking-wider text-[#12327A]">{t(`categories.${item.category}`)}</span>
+                    <span className="dn-kicker">{t(`categories.${item.category}`)}</span>
+                    <RelDay item={item} lang={currentLanguage} />
                     <span className={`inline-flex items-center gap-1 ${statusCfg.text}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                       {statusCfg.label}
                     </span>
                     <PaidBadge item={item} lang={currentLanguage} />
                   </div>
-                  <h3 className="font-serif text-[17px] sm:text-xl font-semibold leading-snug text-[#0f1b33] line-clamp-3 [overflow-wrap:anywhere]">
+                  <h3 className="dn-card-title sm:text-[19px] line-clamp-3">
                     {/* Растянутая ссылка: нажатие в любом месте строки открывает статью, работает и с клавиатуры */}
                     <button
                       type="button"
@@ -234,8 +236,8 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                       {title}
                     </button>
                   </h3>
-                  <p className="mt-1.5 text-xs sm:text-[13px] text-gray-600 [overflow-wrap:anywhere]">
-                    <time dateTime={item.startDate}>{formatWhen(item.startDate, item.endDate, currentLanguage, false, item.timeTBA, item.allDay)}</time>
+                  <p className="dn-meta mt-1.5">
+                    <time dateTime={item.startDate} className="font-semibold text-ink-soft">{formatWhen(item.startDate, item.endDate, currentLanguage, false, item.timeTBA, item.allDay)}</time>
                     {location && <span> · {location}</span>}
                   </p>
                   {(price || (tickets.verified && tickets.url)) && (

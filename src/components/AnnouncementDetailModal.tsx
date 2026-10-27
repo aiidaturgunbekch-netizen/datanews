@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { EventImage } from './EventImage';
-import { Logo } from './Logo';
+import { BrandLogo } from './BrandLogo';
 import { SHARE_TITLE, ShareMenu } from './ShareMenu';
 import { rubricIdOf } from '../config/rubrics';
 import { getTranslation } from '../locales/translations';
@@ -304,7 +304,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             {L.back[lang]}
           </button>
           <button type="button" onClick={onClose} aria-label={L.close[lang]} className="hidden sm:block">
-            <Logo className="h-8" lang={lang} />
+            <BrandLogo size={44} />
           </button>
           <div className="relative">
             <button

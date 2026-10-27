@@ -40,6 +40,112 @@
   --color-tertiary-fixed: #ffedd5;
   --color-tertiary-fixed-dim: #f59e0b;
   --color-on-tertiary-fixed: #451a03;
+
+  /* ── Дизайн-система DataNews ── */
+  /* Фон утверждённого логотипа: шапка того же цвета, логотип с ней сливается */
+  --color-brand-navy: #041e52;
+  --color-brand-blue: #12327a;
+  --color-brand-teal: #20c7b5;
+  /* Бирюзовый для текста на белом (контраст ≥ 4.5:1) */
+  --color-brand-teal-ink: #0b7a70;
+  --color-ink: #0f1b33;
+  --color-ink-soft: #3b4252;
+  --color-meta: #5b6475;
+  --color-line: #e3e8f0;
+  --color-paper: #ffffff;
+  --color-wash: #f5f7fb;
+  /* Срочное — только для действительно срочных предупреждений */
+  --color-urgent: #c62828;
+  --color-urgent-wash: #fdecec;
+  /* Партнёрские материалы и реклама — отдельный, сдержанный тон */
+  --color-partner: #7a4b00;
+  --color-partner-wash: #fff6e5;
+}
+
+/*
+ * Типографическая шкала (Inter — интерфейс и текст, Source Serif 4 — заголовки).
+ * Оба шрифта проверены по файлам: есть кыргызские Ң ң Ө ө Ү ү (подмножество cyrillic-ext Google Fonts).
+ */
+@layer components {
+  .dn-container {
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 768px) {
+    .dn-container {
+      padding-inline: 1.5rem;
+    }
+  }
+  /* Ритм разделов главной */
+  .dn-section {
+    padding-block: clamp(2rem, 1.4rem + 2vw, 3.5rem);
+  }
+  /* Надпись раздела: «ГЛАВНОЕ», «БЛИЖАЙШИЕ ДАТЫ» */
+  .dn-kicker {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-brand-blue);
+  }
+  .dn-section-title {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: clamp(1.375rem, 1.15rem + 0.9vw, 1.875rem);
+    line-height: 1.2;
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+  /* Главная история */
+  .dn-lead-title {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+  }
+  /* Заголовок стандартной карточки */
+  .dn-card-title {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 1.125rem;
+    line-height: 1.3;
+    color: var(--color-ink);
+    text-wrap: pretty;
+    overflow-wrap: anywhere;
+  }
+  /* Заголовок компактной карточки в списке */
+  .dn-card-title-sm {
+    font-weight: 700;
+    font-size: 0.9375rem;
+    line-height: 1.35;
+    color: var(--color-ink);
+    overflow-wrap: anywhere;
+  }
+  .dn-body {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: var(--color-ink-soft);
+  }
+  /* Даты, источники, место */
+  .dn-meta {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--color-meta);
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Единый видимый фокус для клавиатуры */
+:where(a, button, [role='button'], input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--color-brand-teal-ink);
+  outline-offset: 2px;
 }
 
 body {

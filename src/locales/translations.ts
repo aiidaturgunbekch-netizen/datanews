@@ -122,8 +122,8 @@ export const translations = {
       kg: 'Муниципалитеттердин жана коммуналдык кызматтардын ыкчам тасмасы',
       en: 'Real-time feed from municipal utilities and local authorities',
     },
-    upcomingTitle: { ru: 'Ближайшие события и афиша', kg: 'Жакынкы окуялар жана афиша', en: 'Upcoming Events & Public Schedule' },
-    upcomingSubtitle: { ru: 'Городская афиша', kg: 'Шаардык афиша', en: 'City schedule & events' },
+    upcomingTitle: { ru: 'Афиша, новости и объявления', kg: 'Афиша, жаңылыктар жана жарыялар', en: 'Events, news & notices' },
+    upcomingSubtitle: { ru: 'Всё актуальное', kg: 'Бардык актуалдуу', en: 'Everything current' },
     citiesTitle: { ru: 'Обзор по городам Кыргызстана', kg: 'Кыргызстандын шаарлары боюнча сереп', en: 'Overview by Cities of Kyrgyzstan' },
     citiesSubtitle: {
       ru: 'Выберите ваш город, чтобы следовать исключительно за локальными коммунальными графиками и культурными мероприятиями.',

@@ -57,7 +57,7 @@ const GROUPS: { key: string; cats: CategoryId[]; label: Record<Language, string>
   { key: 'alerts', cats: ['hazard'], label: { ru: 'Предупреждения', kg: 'Эскертүүлөр', en: 'Warnings' } },
   { key: 'roads', cats: ['roads', 'repairs'], label: { ru: 'Дорожные ограничения и ремонт', kg: 'Жол чектөөлөрү жана оңдоо', en: 'Road restrictions & repairs' } },
   { key: 'utilities', cats: ['water', 'electricity'], label: { ru: 'Отключения воды и электричества', kg: 'Суу жана жарык өчүрүү', en: 'Water & power outages' } },
-  { key: 'news', cats: ['gov', 'state', 'laws', 'news'], label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' } },
+  { key: 'news', cats: ['gov', 'state', 'laws', 'news', 'business', 'tech'], label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' } },
   {
     key: 'events',
     cats: ['concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education', 'notices'],

@@ -46,6 +46,145 @@ export const translations = {
     cabinetBtn: { ru: 'Кабинет', kg: 'Кабинет', en: 'Account' },
     more: { ru: 'Подробнее', kg: 'Толугураак', en: 'Details' },
     viewMap: { ru: 'Смотреть схему объезда', kg: 'Айланып өтүү схемасын көрүү', en: 'View detour map' },
+    advertising: { ru: 'Реклама', kg: 'Жарнама', en: 'Advertising' },
+  },
+
+  // Подвал: короткая навигация (не повторяет строку рубрик)
+  footer: {
+    navTitle: { ru: 'Навигация', kg: 'Навигация', en: 'Navigate' },
+    main: { ru: 'Главное', kg: 'Башкы бет', en: 'Home' },
+    search: { ru: 'Поиск', kg: 'Издөө', en: 'Search' },
+    archive: { ru: 'Архив', kg: 'Архив', en: 'Archive' },
+    news: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' },
+    about: { ru: 'О проекте', kg: 'Долбоор жөнүндө', en: 'About' },
+    rules: { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' },
+    contacts: { ru: 'Контакты', kg: 'Байланыштар', en: 'Contacts' },
+  },
+
+  // Страница «Реклама» — для рекламодателей. Без обещаний охватов и продаж: только то, что сайт действительно умеет
+  advertising: {
+    kicker: { ru: 'Реклама на DataNews', kg: 'DataNewsтагы жарнама', en: 'Advertising on DataNews' },
+    title: {
+      ru: 'Реклама, которая встречается с аудиторией в нужный момент',
+      kg: 'Аудитория менен туура учурда жолуккан жарнама',
+      en: 'Advertising that meets your audience at the right moment',
+    },
+    subtitle: {
+      ru: 'Расскажите о своём событии, услуге или компании аудитории DataNews — информационной платформы о событиях, объявлениях и важных датах Кыргызстана.',
+      kg: 'Иш-чараңыз, кызматыңыз же компанияңыз тууралуу DataNews аудиториясына айтып бериңиз — бул Кыргызстандагы иш-чаралар, жарыялар жана маанилүү даталар тууралуу маалымат платформасы.',
+      en: 'Tell the DataNews audience about your event, service or company — an information platform about events, notices and key dates in Kyrgyzstan.',
+    },
+    heroCta: { ru: 'Обсудить размещение рекламы', kg: 'Жарнама жайгаштырууну талкуулоо', en: 'Discuss an ad placement' },
+    whyTitle: { ru: 'Почему DataNews', kg: 'Эмне үчүн DataNews', en: 'Why DataNews' },
+    why: {
+      dates: {
+        title: { ru: 'Привязка к датам', kg: 'Даталарга байланган', en: 'Built around dates' },
+        text: {
+          ru: 'Публикации стоят в календаре и в блоке «Ближайшие даты»: читатели смотрят, что происходит сегодня, завтра и в ближайшие дни.',
+          kg: 'Жарыялар календарда жана «Жакынкы даталар» блогунда турат: окурмандар бүгүн, эртең жана жакынкы күндөрү эмне болорун карашат.',
+          en: 'Posts sit in the calendar and the “Coming up” block: readers check what is happening today, tomorrow and in the next few days.',
+        },
+      },
+      geo: {
+        title: { ru: 'Города и регионы', kg: 'Шаарлар жана аймактар', en: 'Cities and regions' },
+        text: {
+          ru: 'Фильтры по городам, областям и районам и карта помогают найти то, что рядом.',
+          kg: 'Шаарлар, облустар жана райондор боюнча чыпкалар жана карта жакын жердеги маалыматты табууга жардам берет.',
+          en: 'City, region and district filters plus a map help readers find what is nearby.',
+        },
+      },
+      sections: {
+        title: { ru: 'Тематические разделы', kg: 'Тематикалык бөлүмдөр', en: 'Topic sections' },
+        text: {
+          ru: 'Культура и афиша, спорт, образование, выставки, бизнес и другие разделы — читатели приходят за конкретной темой.',
+          kg: 'Маданият жана афиша, спорт, билим берүү, көргөзмөлөр, бизнес жана башка бөлүмдөр — окурмандар белгилүү бир тема боюнча келишет.',
+          en: 'Culture and events, sport, education, expos, business and more — readers come for a specific topic.',
+        },
+      },
+      formats: {
+        title: { ru: 'Для событий и услуг', kg: 'Иш-чаралар жана кызматтар үчүн', en: 'For events and services' },
+        text: {
+          ru: 'Подходит для концертов, выставок, фестивалей, образовательных мероприятий, услуг и других предложений.',
+          kg: 'Концерттер, көргөзмөлөр, фестивалдар, билим берүү иш-чаралары, кызматтар жана башка сунуштар үчүн ылайыктуу.',
+          en: 'Works for concerts, exhibitions, festivals, educational events, services and other offers.',
+        },
+      },
+      languages: {
+        title: { ru: 'Три языка', kg: 'Үч тил', en: 'Three languages' },
+        text: {
+          ru: 'Сайт работает на русском, кыргызском и английском языках.',
+          kg: 'Сайт орус, кыргыз жана англис тилдеринде иштейт.',
+          en: 'The site works in Russian, Kyrgyz and English.',
+        },
+      },
+      labels: {
+        title: { ru: 'Понятная маркировка', kg: 'Түшүнүктүү белги', en: 'Clear labelling' },
+        text: {
+          ru: 'Партнёрские материалы выходят в информационном контексте с меткой «Реклама» или «Партнёрский материал».',
+          kg: 'Өнөктөштүк материалдар маалыматтык контекстте «Жарнама» же «Өнөктөштүк материал» деген белги менен чыгат.',
+          en: 'Partner content appears in an informational context, labelled “Advertisement” or “Partner content”.',
+        },
+      },
+    },
+    whoTitle: { ru: 'Кому подходит', kg: 'Кимдерге ылайыктуу', en: 'Who it is for' },
+    who: {
+      organizers: { ru: 'Организаторы мероприятий', kg: 'Иш-чаралардын уюштуруучулары', en: 'Event organisers' },
+      venues: { ru: 'Культурные и развлекательные площадки', kg: 'Маданий жана көңүл ачуучу жайлар', en: 'Cultural and entertainment venues' },
+      education: { ru: 'Образовательные центры', kg: 'Билим берүү борборлору', en: 'Education centres' },
+      companies: { ru: 'Компании и предприниматели', kg: 'Компаниялар жана ишкерлер', en: 'Companies and entrepreneurs' },
+      expos: { ru: 'Организаторы выставок, ярмарок и фестивалей', kg: 'Көргөзмө, жарманке жана фестивалдардын уюштуруучулары', en: 'Organisers of expos, fairs and festivals' },
+      services: { ru: 'Организации, продвигающие услуги в Кыргызстане', kg: 'Кыргызстанда кызматтарын сунуштаган уюмдар', en: 'Organisations promoting services in Kyrgyzstan' },
+    },
+    whatTitle: { ru: 'Что можно продвигать', kg: 'Эмнени жарнамалоого болот', en: 'What you can promote' },
+    what: {
+      events: { ru: 'Мероприятия и билеты', kg: 'Иш-чаралар жана билеттер', en: 'Events and tickets' },
+      services: { ru: 'Услуги и предложения компаний', kg: 'Компаниялардын кызматтары жана сунуштары', en: 'Company services and offers' },
+      offers: { ru: 'Специальные предложения', kg: 'Атайын сунуштар', en: 'Special offers' },
+      business: { ru: 'Открытия, презентации и деловые события', kg: 'Ачылыштар, презентациялар жана ишкердик иш-чаралар', en: 'Openings, presentations and business events' },
+      partner: { ru: 'Партнёрские публикации', kg: 'Өнөктөштүк жарыялар', en: 'Partner publications' },
+    },
+    typesTitle: { ru: 'Как различаются материалы', kg: 'Материалдар кантип айырмаланат', en: 'How content types differ' },
+    types: {
+      news: {
+        title: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' },
+        text: { ru: 'Пишет редакция по открытым и официальным источникам.', kg: 'Редакция ачык жана расмий булактар боюнча жазат.', en: 'Written by the editors from open and official sources.' },
+      },
+      notices: {
+        title: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' },
+        text: { ru: 'Размещают пользователи через личный кабинет.', kg: 'Колдонуучулар жеке кабинет аркылуу жайгаштырат.', en: 'Posted by users through their account.' },
+      },
+      ads: {
+        title: { ru: 'Реклама и партнёрские материалы', kg: 'Жарнама жана өнөктөштүк материалдар', en: 'Ads and partner content' },
+        text: {
+          ru: 'Оплаченные размещения — всегда с меткой «Реклама» или «Партнёрский материал».',
+          kg: 'Акы төлөнгөн жайгаштыруулар — дайыма «Жарнама» же «Өнөктөштүк материал» белгиси менен.',
+          en: 'Paid placements — always labelled “Advertisement” or “Partner content”.',
+        },
+      },
+    },
+    typesNote: {
+      ru: 'Оплата размещения не означает, что редакция подтверждает сведения рекламодателя.',
+      kg: 'Жайгаштыруу үчүн төлөм редакция жарнама берүүчүнүн маалыматын тастыктайт дегенди билдирбейт.',
+      en: 'Paying for a placement does not mean the editors vouch for the advertiser’s claims.',
+    },
+    ctaTitle: {
+      ru: 'Хотите рассказать о своём предложении аудитории DataNews? Обсудим подходящий формат размещения.',
+      kg: 'Сунушуңуз тууралуу DataNews аудиториясына айтып бергиңиз келеби? Ылайыктуу жайгаштыруу форматын талкуулайлы.',
+      en: 'Want to tell the DataNews audience about your offer? Let’s discuss the right placement format.',
+    },
+    ctaButton: { ru: 'Обсудить рекламу', kg: 'Жарнаманы талкуулоо', en: 'Discuss advertising' },
+    ctaHint: { ru: 'Откроется WhatsApp редакции DataNews', kg: 'DataNews редакциясынын WhatsAppы ачылат', en: 'Opens the DataNews editors’ WhatsApp' },
+    otherContacts: { ru: 'Другие способы связи', kg: 'Башка байланыш жолдору', en: 'Other ways to contact us' },
+    terms: {
+      ru: 'Стоимость и условия зависят от согласованного формата. Мы не обещаем конкретных охватов, переходов или продаж.',
+      kg: 'Баасы жана шарттары макулдашылган форматка жараша болот. Биз белгилүү бир камтууну, өтүүлөрдү же сатууларды убада кылбайбыз.',
+      en: 'Price and terms depend on the agreed format. We do not promise specific reach, clicks or sales.',
+    },
+    whatsappText: {
+      ru: 'Здравствуйте! Хочу обсудить размещение рекламы на DataNews.',
+      kg: 'Саламатсызбы! DataNewsта жарнама жайгаштырууну талкуулагым келет.',
+      en: 'Hello! I would like to discuss advertising on DataNews.',
+    },
   },
 
   // Urgent Banner
@@ -97,6 +236,8 @@ export const translations = {
     laws: { ru: 'Законы и правила', kg: 'Мыйзамдар жана эрежелер', en: 'Laws & Rules' },
     notices: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' },
     news: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' },
+    business: { ru: 'Бизнес-новости', kg: 'Бизнес жаңылыктары', en: 'Business News' },
+    tech: { ru: 'Новости ИИ и IT', kg: 'Жасалма интеллект жана IT жаңылыктары', en: 'AI & IT News' },
   },
 
   // Cities

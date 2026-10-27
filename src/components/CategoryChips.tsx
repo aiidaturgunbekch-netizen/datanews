@@ -40,6 +40,8 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
     { id: 'state', label: t('categories.state'), icon: 'account_balance' },
     { id: 'laws', label: t('categories.laws'), icon: 'gavel' },
     { id: 'news', label: t('categories.news'), icon: 'newspaper' },
+    { id: 'business', label: t('categories.business'), icon: 'business_center' },
+    { id: 'tech', label: t('categories.tech'), icon: 'memory' },
     { id: 'notices', label: t('categories.notices'), icon: 'campaign' },
   ];
 

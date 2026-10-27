@@ -21,6 +21,8 @@ const CATEGORY_STYLE: Record<string, { icon: string; bg: string }> = {
   // без отдельной иллюстрации: однотонная заставка с значком (тоже с подписью «фото нет»)
   notices: { icon: 'campaign', bg: 'from-[#134e4a] via-[#0f766e] to-[#20C7B5]' },
   news: { icon: 'newspaper', bg: 'from-[#0d2459] via-[#12327A] to-[#20C7B5]' },
+  business: { icon: 'business_center', bg: 'from-[#0d2459] via-[#1e3a8a] to-[#0ea5e9]' },
+  tech: { icon: 'memory', bg: 'from-[#0f172a] via-[#12327A] to-[#20C7B5]' },
 };
 
 /** Тематическая иллюстрация категории — запасной вариант, если фото не загрузилось */

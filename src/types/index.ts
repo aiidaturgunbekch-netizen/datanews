@@ -21,7 +21,11 @@ export type CategoryId =
   /** Объявления организаций и частных лиц (размещение из личного кабинета) */
   | 'notices'
   /** Редакционные новости — публикуют только сотрудники редакции и администратор */
-  | 'news';
+  | 'news'
+  /** Бизнес-новости: предпринимательство, компании, экономика — редакционный раздел, как «Новости» */
+  | 'business'
+  /** Новости ИИ и IT: нейросети, технологии, цифровые продукты — редакционный раздел, как «Новости» */
+  | 'tech';
 
 /**
  * Где действует публикация. Бишкек и Ош — города республиканского значения, отдельно от областей;
@@ -372,7 +376,7 @@ export interface SiteStats {
   cities: { key: string; count: number }[];
 }
 
-export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'admin' | 'about' | 'sources' | 'privacy' | 'rules' | 'contacts';
+export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'advertising' | 'admin' | 'about' | 'sources' | 'privacy' | 'rules' | 'contacts';
 
 /**
  * Письмо из редакционной почты (dn:mail). Это входящий материал, а не публикация:

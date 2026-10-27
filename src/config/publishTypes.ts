@@ -24,8 +24,8 @@ export const ALERT_CATS: CategoryId[] = ['water', 'electricity', 'roads', 'repai
 /** Официальные разделы — публиковать в них могут только подтверждённые госорганы */
 export const OFFICIAL_CATS: CategoryId[] = ['state', 'gov', 'laws', 'hazard'];
 const NEWS_CATS: CategoryId[] = ['state', 'gov', 'laws'];
-/** Редакционный раздел — только сотрудникам редакции и администратору */
-export const EDITORIAL_CATS: CategoryId[] = ['news'];
+/** Редакционные разделы — только сотрудникам редакции и администратору: «Новости», «Бизнес-новости», «Новости ИИ и IT» */
+export const EDITORIAL_CATS: CategoryId[] = ['news', 'business', 'tech'];
 
 export const ONLINE_VENUE = 'Онлайн';
 export const isOnline = (a: Pick<Announcement, 'eventDetails'>) => /^(онлайн|online)$/i.test((a.eventDetails?.venue || '').trim());

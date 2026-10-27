@@ -31,7 +31,7 @@ const toStringMap = (flat: unknown): Record<string, string> => {
 };
 export const IMG_KEY = 'dn:img'; // id → data:image/...;base64
 
-const CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs', 'concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education', 'gov', 'hazard', 'state', 'laws', 'notices', 'news'];
+const CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs', 'concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education', 'gov', 'hazard', 'state', 'laws', 'notices', 'news', 'business', 'tech'];
 const CITIES: CityId[] = ['all', 'bishkek', 'osh', 'chui', 'osh_region', 'issykkul', 'jalalabad', 'talas', 'naryn', 'batken'];
 const URGENCY: UrgencyType[] = ['emergency', 'planned', 'regular', 'event'];
 

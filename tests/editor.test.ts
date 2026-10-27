@@ -256,7 +256,8 @@ describe('остальные пользователи — как прежде', 
       const r = await call(announcements, 'announcements', 'POST', editor, { item: { ...news().item, category } });
       assert.equal(r.status, 403, category);
     }
-    assert.deepEqual(categoriesFor('news', { plan: 'start', govVerified: false, editor: true }), ['news']);
+    // редакционные разделы: «Новости», «Бизнес-новости», «Новости ИИ и IT»
+    assert.deepEqual(categoriesFor('news', { plan: 'start', govVerified: false, editor: true }), ['news', 'business', 'tech']);
     assert.ok(!categoriesFor('alert', { plan: 'start', govVerified: false, editor: true }).includes('hazard'));
     // подтверждённый госорган — как раньше: официальные разделы, но не «Новости» редакции
     await call(auth, 'auth', 'POST', undefined, { action: 'register', name: 'Мэрия', email: 'gov@example.com', phone: '+996555100006', organization: 'Мэрия', password: 'gov-pass-123', plan: 'gov' });

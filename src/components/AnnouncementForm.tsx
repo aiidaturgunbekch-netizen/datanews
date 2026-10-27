@@ -25,6 +25,8 @@ export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
   { id: 'laws', label: 'Законы и правила' },
   { id: 'notices', label: 'Объявления' },
   { id: 'news', label: 'Новости' },
+  { id: 'business', label: 'Бизнес-новости' },
+  { id: 'tech', label: 'Новости ИИ и IT' },
   { id: 'hazard', label: 'Погода и опасные явления' },
   { id: 'water', label: 'Отключение воды' },
   { id: 'electricity', label: 'Отключение электричества' },

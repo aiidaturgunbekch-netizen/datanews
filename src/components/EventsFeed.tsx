@@ -18,6 +18,8 @@ interface EventsFeedProps {
   city?: CityId;
   onSelectAnnouncement: (announcement: Announcement) => void;
   onOpenFullCalendar: () => void;
+  /** С какой вкладки открыть список: актуальное (по умолчанию) или архив */
+  initialStatus?: 'upcoming' | 'completed';
 }
 
 export const EventsFeed: React.FC<EventsFeedProps> = ({
@@ -26,10 +28,11 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
   city,
   onSelectAnnouncement,
   onOpenFullCalendar,
+  initialStatus = 'upcoming',
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [displayMode, setDisplayMode] = useState<'list' | 'grid'>('list');
-  const [statusTab, setStatusTab] = useState<'all' | 'upcoming' | 'completed'>('upcoming');
+  const [statusTab, setStatusTab] = useState<'all' | 'upcoming' | 'completed'>(initialStatus);
   const [favorites, setFavorites] = useState<string[]>(() => StorageService.getFavorites());
   const [visibleCount, setVisibleCount] = useState<number>(6);
 

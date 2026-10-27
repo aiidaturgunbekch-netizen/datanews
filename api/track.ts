@@ -11,7 +11,7 @@ import { dayKey, K, STATS_TTL } from './_lib/stats';
 
 export const config = { runtime: 'edge' };
 
-const PAGES = ['home', 'calendar', 'alerts', 'events', 'cities', 'organizations', 'pricing'];
+const PAGES = ['home', 'calendar', 'alerts', 'events', 'cities', 'organizations', 'pricing', 'advertising'];
 
 const BOT = /bot|crawl|spider|slurp|preview|headless|lighthouse|facebookexternalhit|telegrambot|whatsapp/i;
 

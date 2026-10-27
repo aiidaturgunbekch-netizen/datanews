@@ -273,9 +273,9 @@ export const CategoryResults: React.FC<{
   const [showArchive, setShowArchive] = useState(false);
   const archiveLabel = { ru: 'Архив', kg: 'Архив', en: 'Archive' };
   const empty = {
-    ru: 'Пока нет опубликованных событий в этой категории',
-    kg: 'Бул категорияда азырынча жарыяланган окуялар жок',
-    en: 'No published events in this category yet',
+    ru: 'Пока нет опубликованных материалов в этом разделе',
+    kg: 'Бул бөлүмдө азырынча жарыяланган материалдар жок',
+    en: 'Nothing has been published in this section yet',
   };
   const home = { ru: 'Главная', kg: 'Башкы бет', en: 'Home' };
   const goHome = () => {

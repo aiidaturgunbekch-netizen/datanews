@@ -26,12 +26,14 @@ export const RUBRICS: Rubric[] = [
   },
   { id: 'sport', label: { ru: 'Спорт', kg: 'Спорт', en: 'Sport' }, categories: ['sport'] },
   {
-    id: 'business',
+    id: 'expos',
     label: { ru: 'Выставки и ярмарки', kg: 'Көргөзмөлөр жана жарманкелер', en: 'Expos & fairs' },
     categories: ['exhibitions', 'fairs'],
   },
   { id: 'education', label: { ru: 'Образование', kg: 'Билим берүү', en: 'Education' }, categories: ['education'] },
   { id: 'news', label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' }, categories: ['news'] },
+  { id: 'business', label: { ru: 'Бизнес-новости', kg: 'Бизнес жаңылыктары', en: 'Business News' }, categories: ['business'] },
+  { id: 'tech', label: { ru: 'Новости ИИ и IT', kg: 'Жасалма интеллект жана IT жаңылыктары', en: 'AI & IT News' }, categories: ['tech'] },
   { id: 'notices', label: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' }, categories: ['notices'] },
 ];
 
@@ -47,6 +49,8 @@ const IMPORTANCE: Partial<Record<CategoryId, number>> = {
   laws: 0,
   hazard: 1,
   news: 1,
+  business: 2,
+  tech: 2,
   roads: 1,
   water: 1,
   electricity: 1,

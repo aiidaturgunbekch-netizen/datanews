@@ -50,6 +50,7 @@ import { hashFor, Screen, screenFromHash } from './utils/route';
 // Редко нужные части грузятся только при открытии — читателю главной не приходится скачивать панель администратора и формы
 const FullCalendarView = lazy(() => import('./components/FullCalendarView').then((m) => ({ default: m.FullCalendarView })));
 const CitiesPage = lazy(() => import('./components/CitiesPage').then((m) => ({ default: m.CitiesPage })));
+const AdvertisingPage = lazy(() => import('./components/AdvertisingPage').then((m) => ({ default: m.AdvertisingPage })));
 const OrganizationsPage = lazy(() => import('./components/OrganizationsPage').then((m) => ({ default: m.OrganizationsPage })));
 const AdminPortal = lazy(() => import('./components/AdminPortal').then((m) => ({ default: m.AdminPortal })));
 const AccountPortal = lazy(() => import('./components/AccountPortal').then((m) => ({ default: m.AccountPortal })));
@@ -84,6 +85,11 @@ export default function App() {
 
   // Navigation View Mode
   const [currentView, setCurrentView] = useState<ViewMode>('home');
+  // Вкладка афиши при открытии: «Архив» — по ссылке «Архив» в подвале; на других страницах сбрасывается
+  const [feedStart, setFeedStart] = useState<'upcoming' | 'completed'>('upcoming');
+  useEffect(() => {
+    if (currentView !== 'events') setFeedStart('upcoming');
+  }, [currentView]);
 
   // Filters
   // Панель «Разделы» скрыта по умолчанию, открывается кнопкой в шапке
@@ -655,6 +661,8 @@ export default function App() {
               <span>{currentLanguage === 'kg' ? 'Башкы бет' : currentLanguage === 'en' ? 'Home' : 'Главная'}</span>
             </button>
             <EventsFeed
+              key={feedStart}
+              initialStatus={feedStart}
               currentLanguage={currentLanguage}
               events={eventsList}
               city={selectedCity}
@@ -678,6 +686,9 @@ export default function App() {
           />
         )}
 
+        {/* VIEW: РЕКЛАМА — страница для рекламодателей */}
+        {currentView === 'advertising' && <AdvertisingPage lang={currentLanguage} onOpenContacts={() => setCurrentView('contacts')} />}
+
         {/* VIEW: ORGANIZATIONS & PRICING */}
         {(currentView === 'organizations' || currentView === 'pricing') && (
           <OrganizationsPage
@@ -696,7 +707,27 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} onOpenAccount={() => setAccountMode(role === 'user' ? 'cabinet' : 'login')} />
+      <Footer
+        currentLanguage={currentLanguage}
+        onNavigate={(v) => {
+          setCurrentView(v);
+          window.scrollTo({ top: 0 });
+        }}
+        onOpenAccount={() => setAccountMode(role === 'user' ? 'cabinet' : 'login')}
+        onOpenHome={() => {
+          setSelectedCategory('all');
+          selectRubric(null);
+        }}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenArchive={() => {
+          setActiveRubric(null);
+          setSelectedCategory('all');
+          setCurrentView('events');
+          setFeedStart('completed');
+          window.scrollTo({ top: 0 });
+        }}
+        onOpenNews={() => selectRubric('news')}
+      />
 
       {/* Ассистент DataNews AI — на всех страницах */}
       <ErrorBoundary

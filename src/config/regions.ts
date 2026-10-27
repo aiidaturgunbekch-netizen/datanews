@@ -19,6 +19,8 @@ export const CATEGORY_IDS: Exclude<CategoryId, 'all'>[] = [
   'state',
   'laws',
   'news',
+  'business',
+  'tech',
   'notices',
 ];
 

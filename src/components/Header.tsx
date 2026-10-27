@@ -275,6 +275,8 @@ export const Header: React.FC<HeaderProps> = ({
               // Календарь — сразу после главной: главное отличие DataNews — что и когда предстоит
               { key: 'calendar', label: t('nav.calendar'), active: currentView === 'calendar', onClick: () => { onSelectRubric(null); onViewChange('calendar'); } },
               { key: 'alerts', label: t('nav.alerts'), active: currentView === 'alerts', onClick: () => { onSelectRubric(null); onViewChange('alerts'); } },
+              // Города — публикации по городам и областям (страница с картой и вкладками мест)
+              { key: 'cities', label: t('nav.cities'), active: currentView === 'cities', onClick: () => { onSelectRubric(null); onViewChange('cities'); } },
               ...RUBRICS.map((r) => ({ key: r.id, label: r.label[currentLanguage], active: currentView === 'home' && activeRubric === r.id, onClick: () => onSelectRubric(r.id) })),
             ].map((item) => (
               <li key={item.key} className="flex h-11">

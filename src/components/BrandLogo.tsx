@@ -1,7 +1,7 @@
 import React from 'react';
 
 /** Пропорции горизонтального логотипа (ширина / высота) — по утверждённому файлу, без искажений */
-const RATIO = { light: 798 / 216, plate: 870 / 288 };
+const RATIO = { light: 1105 / 266, plate: 1177 / 338 };
 
 /**
  * Утверждённый горизонтальный логотип DataNews Кыргызстан (public/brand/datanews-logo-horizontal-original.png).

@@ -154,8 +154,11 @@ export const Header: React.FC<HeaderProps> = ({
             aria-label="DataNews Home"
           >
             {/* Утверждённый горизонтальный логотип, вариант без фона — на тёмно-синей шапке */}
-            <BrandLogo height={32} className="sm:hidden" />
-            <BrandLogo height={40} className="hidden sm:block" />
+            {/* Очень узкие экраны (до 360 px) — пропорционально меньше, чтобы не касаться поиска */}
+            <BrandLogo height={27} className="min-[360px]:hidden" />
+            <BrandLogo height={32} className="hidden min-[360px]:block sm:hidden" />
+            <BrandLogo height={38} className="hidden sm:block lg:hidden" />
+            <BrandLogo height={44} className="hidden lg:block" />
           </button>
           {/* Девиз — рядом с логотипом на широких экранах */}
           <span className="hidden lg:block pl-5 ml-1 border-l border-white/20 text-sm font-semibold text-[#20C7B5] whitespace-nowrap">
@@ -279,11 +282,20 @@ export const Header: React.FC<HeaderProps> = ({
                   type="button"
                   onClick={item.onClick}
                   aria-current={item.active ? 'page' : undefined}
-                  className={`px-2.5 text-[13.5px] font-semibold whitespace-nowrap border-b-[3px] transition-colors ${
-                    item.active ? 'border-brand-teal text-brand-blue' : 'border-transparent text-ink hover:text-brand-blue hover:border-brand-blue/30'
+                  className={`group h-full px-2.5 flex items-center text-[13.5px] font-semibold whitespace-nowrap transition-colors ${
+                    item.active ? 'text-brand-blue' : 'text-ink hover:text-brand-blue'
                   }`}
                 >
-                  {item.label}
+                  {/* Линия активного раздела — прямо под текстом, по ширине названия; кнопка остаётся во всю высоту строки */}
+                  <span className="relative pb-[5px]">
+                    {item.label}
+                    <span
+                      aria-hidden="true"
+                      className={`absolute inset-x-0 bottom-0 h-[3px] rounded-full transition-colors ${
+                        item.active ? 'bg-brand-teal' : 'bg-transparent group-hover:bg-brand-blue/30'
+                      }`}
+                    />
+                  </span>
                 </button>
               </li>
             ))}

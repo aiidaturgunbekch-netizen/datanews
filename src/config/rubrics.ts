@@ -10,6 +10,8 @@ export interface Rubric {
   categories: CategoryId[];
   /** false — рубрика не показывается в строке меню (материалы доступны в общей ленте, через «Разделы», поиск и подвал) */
   inNav?: boolean;
+  /** Сводная страница из разделов других рубрик (не «своя» рубрика материала — для разнообразия «Главного» не учитывается) */
+  aggregate?: boolean;
 }
 
 export const RUBRICS: Rubric[] = [
@@ -34,7 +36,15 @@ export const RUBRICS: Rubric[] = [
   },
   { id: 'education', label: { ru: 'Образование', kg: 'Билим берүү', en: 'Education' }, categories: ['education'] },
   // «Новости» и «Объявления» — часть общего потока главной; отдельными пунктами меню не показываются
-  { id: 'news', label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' }, categories: ['news'], inNav: false },
+  // «Новости» — все опубликованные информационные материалы (тип «Новость»): редакционные новости,
+  // решения государства и законы, бизнес и ИИ/IT. Открывается из подвала; каждый материал в списке один раз
+  {
+    id: 'news',
+    label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' },
+    categories: ['news', 'state', 'gov', 'laws', 'business', 'tech'],
+    inNav: false,
+    aggregate: true,
+  },
   { id: 'business', label: { ru: 'Бизнес-новости', kg: 'Бизнес жаңылыктары', en: 'Business News' }, categories: ['business'] },
   { id: 'tech', label: { ru: 'ИИ и IT-технологии', kg: 'Жасалма интеллект жана IT-технологиялар', en: 'AI & IT Technologies' }, categories: ['tech'] },
   { id: 'notices', label: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' }, categories: ['notices'], inNav: false },
@@ -73,7 +83,7 @@ const IMPORTANCE: Partial<Record<CategoryId, number>> = {
 export const importanceOf = (category: CategoryId) => IMPORTANCE[category] ?? 3;
 
 /** Рубрика раздела (для разнообразия блока «Главное») */
-export const rubricIdOf = (category: CategoryId) => RUBRICS.find((r) => r.categories.includes(category))?.id || category;
+export const rubricIdOf = (category: CategoryId) => RUBRICS.find((r) => !r.aggregate && r.categories.includes(category))?.id || category;
 
 /**
  * Разнообразная подборка: идём по уже упорядоченному списку и берём не больше `perRubric` материалов одной рубрики;

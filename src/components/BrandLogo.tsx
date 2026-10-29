@@ -31,3 +31,17 @@ export const BrandLogo: React.FC<{ height: number; variant?: 'light' | 'plate'; 
     />
   );
 };
+
+/**
+ * Логотип на фирменной тёмно-синей плашке с внутренними полями со всех сторон — для светлых мест
+ * (страница публикации, меню разделов, подвал). Внутри — тот же логотип без фона, пропорции сохраняются.
+ * Поля — примерно треть высоты логотипа по вертикали и половина по горизонтали.
+ */
+export const BrandBadge: React.FC<{ height: number; className?: string; alt?: string }> = ({ height, className = '', alt }) => (
+  <span
+    className={`inline-flex items-center justify-center rounded-xl bg-[#071B49] ${className}`}
+    style={{ paddingBlock: Math.round(height * 0.32), paddingInline: Math.round(height * 0.5) }}
+  >
+    <BrandLogo height={height} alt={alt} />
+  </span>
+);

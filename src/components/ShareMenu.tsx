@@ -29,7 +29,14 @@ const Icon = ({ net }: { net: Net }) => (
  * Кнопки «Поделиться»: WhatsApp, Telegram, Threads, Instagram, копирование ссылки и системное меню телефона.
  * row — строкой (под текстом статьи), menu — списком (во всплывающем меню).
  */
-export const ShareMenu: React.FC<{ url: string; title: string; lang: Language; variant?: 'row' | 'menu' }> = ({ url, title, lang, variant = 'row' }) => {
+export const ShareMenu: React.FC<{
+  url: string;
+  title: string;
+  lang: Language;
+  variant?: 'row' | 'menu';
+  /** Действие выполнено (во всплывающем меню — закрыть его); text — подтверждение, которое показать уже после закрытия */
+  onDone?: (text?: string) => void;
+}> = ({ url, title, lang, variant = 'row', onDone }) => {
   const [note, setNote] = useState<{ text: string; manual?: boolean } | null>(null);
   const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const text = `${title} ${url}`;
@@ -42,9 +49,13 @@ export const ShareMenu: React.FC<{ url: string; title: string; lang: Language; v
   const copy = async (okText: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      setNote({ text: okText });
-      window.setTimeout(() => setNote(null), 6000);
+      if (onDone) onDone(okText);
+      else {
+        setNote({ text: okText });
+        window.setTimeout(() => setNote(null), 6000);
+      }
     } catch {
+      // Не скопировалось — меню остаётся открытым: в нём адрес для ручного копирования
       setNote({ text: T.copyFail[lang], manual: true });
     }
   };
@@ -52,8 +63,9 @@ export const ShareMenu: React.FC<{ url: string; title: string; lang: Language; v
     try {
       await navigator.share({ title, url });
     } catch {
-      /* пользователь закрыл меню */
+      /* пользователь закрыл системное меню */
     }
+    onDone?.();
   };
   // Instagram: на телефоне — системное меню (там есть Instagram, если он установлен), на компьютере — копия ссылки с подсказкой
   const instagram = () => {
@@ -72,7 +84,8 @@ export const ShareMenu: React.FC<{ url: string; title: string; lang: Language; v
       <ul className={variant === 'row' ? 'flex flex-wrap gap-2' : 'space-y-0.5'}>
         {(['wa', 'tg', 'th'] as const).map((net) => (
           <li key={net}>
-            <a href={links[net]} target="_blank" rel="noopener noreferrer" className={item}>
+            {/* меню закрываем после перехода: если убрать ссылку со страницы во время нажатия, браузер не откроет её */}
+            <a href={links[net]} target="_blank" rel="noopener noreferrer" className={item} onClick={() => window.setTimeout(() => onDone?.(), 0)}>
               <Icon net={net} />
               {NAMES[net]}
             </a>

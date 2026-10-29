@@ -28,7 +28,7 @@ describe('основное меню', () => {
   });
 
   it('рубрики и материалы «Новостей» и «Объявлений» не удалены — доступны через подвал, «Разделы» и поиск', () => {
-    assert.deepEqual(rubricOf('news')?.categories, ['news']);
+    assert.ok(rubricOf('news')?.categories.includes('news'));
     assert.deepEqual(rubricOf('notices')?.categories, ['notices']);
     assert.equal(RUBRICS.length, NAV_RUBRICS.length + 2);
     const before = INITIAL_ANNOUNCEMENTS.length;

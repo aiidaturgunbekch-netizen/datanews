@@ -2,7 +2,7 @@ import { SocialLinks } from './ContactButtons';
 import React from 'react';
 import type { Language, ViewMode } from '../types';
 import { getTranslation } from '../locales/translations';
-import { BrandLogo } from './BrandLogo';
+import { BrandBadge } from './BrandLogo';
 
 interface FooterProps {
   currentLanguage: Language;
@@ -68,9 +68,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigat
           {/* Бренд */}
           <div className="col-span-2 sm:col-span-3 lg:col-span-4">
             {/* Логотип на его собственном фирменном фоне с просторными полями — не прижат к краям рамки */}
-            <div className="inline-flex rounded-2xl bg-[#071B49] px-6 py-5 sm:px-7 sm:py-6 mb-4">
-              <BrandLogo height={46} />
-            </div>
+            <BrandBadge height={46} className="mb-4 rounded-2xl" />
             <p className="text-[13px] font-semibold text-[#12327A] leading-snug max-w-xs">{t('motto')}</p>
             <p className="text-[13px] text-gray-600 leading-snug max-w-xs mt-1">{t('appSlogan')}</p>
           </div>

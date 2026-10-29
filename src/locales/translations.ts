@@ -228,7 +228,8 @@ export const translations = {
     culture: { ru: 'Театр и культура', kg: 'Театр жана маданият', en: 'Theatre & Culture' },
     sport: { ru: 'Спорт', kg: 'Спорт', en: 'Sport' },
     cinema: { ru: 'Кино и показы', kg: 'Кино жана көрсөтүүлөр', en: 'Cinema & Screenings' },
-    education: { ru: 'Лекции и IT', kg: 'Лекциялар жана IT', en: 'Lectures & Tech' },
+    // «Лекции и IT» больше не отдельный раздел: IT — в «ИИ и IT-технологии», здесь — образование
+    education: { ru: 'Образование', kg: 'Билим берүү', en: 'Education' },
     gov: { ru: 'Гос. оповещения', kg: 'Мамлекеттик билдирүүлөр', en: 'Gov Notices' },
     hazard: { ru: 'Погода и опасные явления', kg: 'Аба ырайы жана коркунучтуу кубулуштар', en: 'Weather & Hazards' },
     state: { ru: 'Государство и решения', kg: 'Мамлекет жана чечимдер', en: 'State & Decisions' },

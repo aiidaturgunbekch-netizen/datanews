@@ -3,6 +3,7 @@ import { PLACE_IDS } from '../config/regions';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { placeText } from '../utils/place';
+import { matchesSearch } from '../utils/search';
 
 interface SearchModalProps {
   currentLanguage: Language;
@@ -35,23 +36,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       if (selectedCat !== 'all' && item.category !== selectedCat) return false;
       if (selectedCity !== 'all' && item.city !== selectedCity) return false;
 
-      if (!query.trim()) return true;
-      const q = query.toLowerCase();
-      const titleRu = item.title.ru.toLowerCase();
-      const titleKg = (item.title.kg || '').toLowerCase();
-      const titleEn = (item.title.en || '').toLowerCase();
-      const locRu = item.location.ru.toLowerCase();
-      const sumRu = item.summary.ru.toLowerCase();
-      const proto = item.protocolCode.toLowerCase();
-
-      return (
-        titleRu.includes(q) ||
-        titleKg.includes(q) ||
-        titleEn.includes(q) ||
-        locRu.includes(q) ||
-        sumRu.includes(q) ||
-        proto.includes(q)
-      );
+      return matchesSearch(item, query);
     });
   }, [announcements, query, selectedCat, selectedCity]);
 

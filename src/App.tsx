@@ -31,6 +31,7 @@ import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { AdSlot } from './components/AdSlot';
 import { isPaid } from './components/PaidBadge';
 import { homeScore } from './utils/timeline';
+import { matchesSearch } from './utils/search';
 import { TopStories } from './components/TopStories';
 import { PopularNews } from './components/PopularNews';
 import { Footer } from './components/Footer';
@@ -246,13 +247,7 @@ export default function App() {
     }
     if (dateFilter === 'week' && !overlaps(today, addDaysStr(today, 7))) return false;
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const hay = [item.title.ru, item.title.kg, item.title.en, item.location.ru, item.district, item.locality, item.protocolCode, item.summary.ru, item.description.ru, item.sourceName]
-        .join(' ')
-        .toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
+    if (searchQuery.trim() && !matchesSearch(item, searchQuery)) return false;
     return true;
   };
 

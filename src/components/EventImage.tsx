@@ -56,10 +56,9 @@ const ReasonTag: React.FC<{ text: string }> = ({ text }) => (
  * берут картинку из одного поля `imageUrl`, поэтому фото не может быть «только в подробностях».
  *  - compact — маленькая миниатюра (без подписи причины).
  */
-export const EventImage: React.FC<{ item: Announcement; className?: string; showCredit?: boolean; lang?: Lang; compact?: boolean }> = ({
+export const EventImage: React.FC<{ item: Announcement; className?: string; lang?: Lang; compact?: boolean }> = ({
   item,
   className = '',
-  showCredit = false,
   lang = 'ru',
   compact = false,
 }) => {
@@ -106,18 +105,8 @@ export const EventImage: React.FC<{ item: Announcement; className?: string; show
           style={cover ? { objectPosition: item.imagePosition || 'center 25%' } : undefined}
           className={`absolute inset-0 w-full h-full ${cover ? 'object-cover' : 'object-contain'}`}
         />
-        {!compact && isIllustration && !showCredit && <ReasonTag text={REASON.illustration[lang]} />}
-        {showCredit && item.imageCredit && (
-          <span className="absolute bottom-1.5 right-2 max-w-[90%] truncate text-[10px] text-white/90 bg-black/50 px-1.5 py-0.5 rounded">
-            {item.imageSourceUrl ? (
-              <a href={item.imageSourceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline" onClick={(e) => e.stopPropagation()}>
-                {item.imageCredit}
-              </a>
-            ) : (
-              item.imageCredit
-            )}
-          </span>
-        )}
+        {/* Настоящее фото — чистое, без подписей поверх; автор и лицензия фото — в «Первоисточниках» статьи */}
+        {!compact && isIllustration && <ReasonTag text={REASON.illustration[lang]} />}
       </div>
     );
   }

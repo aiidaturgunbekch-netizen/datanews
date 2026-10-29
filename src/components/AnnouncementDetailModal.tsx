@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { EventImage } from './EventImage';
-import { BrandLogo } from './BrandLogo';
+import { BrandBadge } from './BrandLogo';
 import { SHARE_TITLE, ShareMenu } from './ShareMenu';
 import { rubricIdOf } from '../config/rubrics';
 import { getTranslation } from '../locales/translations';
@@ -68,6 +68,7 @@ const L = {
     en: 'Ticket link not yet confirmed',
   },
   links: { ru: 'Первоисточники', kg: 'Түпкү булактар', en: 'Primary sources' },
+  photo: { ru: 'Фото', kg: 'Сүрөт', en: 'Photo' },
   eventSource: { ru: 'Источник информации', kg: 'Маалымат булагы', en: 'Information source' },
   artist: { ru: 'Официальный сайт артиста', kg: 'Артисттин расмий сайты', en: 'Artist’s official site' },
   organizer: { ru: 'Организатор', kg: 'Уюштуруучу', en: 'Organiser' },
@@ -152,6 +153,24 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   const [shareOpen, setShareOpen] = useState(false);
   const shareOpenRef = useRef(false);
   shareOpenRef.current = shareOpen;
+  // Нажатие в любом месте вне меню и кнопки закрывает меню. Слушаем документ: прозрачный слой «fixed inset-0»
+  // не работал — у верхней строки есть размытие фона (backdrop-filter), и слой ограничивался её высотой
+  const shareBoxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!shareOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (shareBoxRef.current && !shareBoxRef.current.contains(e.target as Node)) setShareOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [shareOpen]);
+  // Подтверждение после действия («Ссылка скопирована») — уже после закрытия меню
+  const [shareNote, setShareNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!shareNote) return;
+    const id = window.setTimeout(() => setShareNote(null), 6000);
+    return () => window.clearTimeout(id);
+  }, [shareNote]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -304,12 +323,15 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             {L.back[lang]}
           </button>
           <button type="button" onClick={onClose} aria-label={L.close[lang]} className="hidden sm:block">
-            <BrandLogo height={32} variant="plate" />
+            <BrandBadge height={24} />
           </button>
-          <div className="relative">
+          <div className="relative" ref={shareBoxRef}>
             <button
               type="button"
-              onClick={() => setShareOpen((v) => !v)}
+              onClick={() => {
+                setShareNote(null);
+                setShareOpen((v) => !v);
+              }}
               aria-expanded={shareOpen}
               aria-haspopup="true"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold text-[#12327A] hover:bg-[#eef2f9]"
@@ -318,12 +340,23 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
               <span className="hidden min-[400px]:inline">{L.share[lang]}</span>
             </button>
             {shareOpen && (
-              <>
-                <div className="fixed inset-0" onClick={() => setShareOpen(false)} aria-hidden="true" />
-                <div className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl bg-white border border-gray-200 shadow-xl p-2 z-10">
-                  <ShareMenu url={shareUrl} title={title} lang={lang} variant="menu" />
-                </div>
-              </>
+              <div className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl bg-white border border-gray-200 shadow-xl p-2 z-10">
+                <ShareMenu
+                  url={shareUrl}
+                  title={title}
+                  lang={lang}
+                  variant="menu"
+                  onDone={(text) => {
+                    setShareOpen(false);
+                    if (text) setShareNote(text);
+                  }}
+                />
+              </div>
+            )}
+            {shareNote && (
+              <p role="status" className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl bg-[#0f1b33] text-white text-xs font-semibold p-3 shadow-xl z-10">
+                {shareNote}
+              </p>
             )}
           </div>
         </div>
@@ -385,7 +418,6 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         <EventImage
           item={a}
           lang={lang}
-          showCredit
           className={`mt-6 w-full rounded-xl ${a.imageFit === 'cover' ? 'aspect-[16/9]' : 'h-[52vh] max-h-[560px] min-h-[220px]'}`}
         />
 
@@ -618,6 +650,18 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
 
         {/* Происхождение сведений, исправления и жалоба — мелко, в конце статьи */}
         <div className="mt-8 space-y-3 text-xs text-gray-500">
+          {/* Автор фото по свободной лицензии — требование лицензии; здесь, а не на самой фотографии */}
+          {a.imageCredit && a.imageSourceUrl && (
+            <p className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[14px]">photo_camera</span>
+              <span>
+                {L.photo[lang]}:{' '}
+                <a href={a.imageSourceUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-[#12327A]">
+                  {a.imageCredit}
+                </a>
+              </span>
+            </p>
+          )}
           {(a.dataOrigin || a.lastCheckedAt) && (
             <p className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[14px]">fact_check</span>

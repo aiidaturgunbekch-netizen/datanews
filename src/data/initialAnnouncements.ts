@@ -25,13 +25,13 @@ const archivePhoto = (file: string, alt: string, credit: string) => ({
 
 /**
  * Фото артиста со свободной лицензией (Wikimedia Commons) — когда официальная афиша концерта недоступна.
- * Показывается целиком (contain), лицо не обрезается; подпись честно говорит, что это не афиша.
+ * Показывается целиком (contain), лицо не обрезается. Автор и лицензия — в «Первоисточниках» статьи (не поверх фото).
  */
 const artistPhoto = (file: string, alt: string, credit: string) => ({
   imageUrl: commons(file),
   imageSourceUrl: commonsPage(file),
   imageAlt: alt,
-  imageCredit: `Фото артиста: ${credit}, Wikimedia Commons — не афиша этого концерта`,
+  imageCredit: `${credit}, Wikimedia Commons`,
   imageFit: 'contain' as const,
 });
 
@@ -691,7 +691,6 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     // Фото артистки предоставлено владельцем сайта; хранится в public/posters. Это не официальная афиша концерта.
     imageUrl: '/posters/malika-dina.jpg',
     imageAlt: 'MALIKA DINA в образе из красных лепестков на тёмно-красном фоне',
-    imageCredit: 'Фото артистки MALIKA DINA — не афиша этого концерта',
     imageFit: 'contain' as const,
     ...checked('2026-10-14T12:00'),
     isDemo: false,

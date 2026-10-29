@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { CategoryId, Language, ViewMode } from '../types';
 import { getTranslation } from '../locales/translations';
 import { CategoryChips } from './CategoryChips';
-import { BrandLogo } from './BrandLogo';
+import { BrandBadge } from './BrandLogo';
 
 interface SectionsDrawerProps {
   open: boolean;
@@ -75,7 +75,7 @@ export const SectionsDrawer: React.FC<SectionsDrawerProps> = ({
         }`}
       >
         <div className="h-16 shrink-0 px-4 flex items-center justify-between border-b border-gray-100">
-          <BrandLogo height={40} variant="plate" />
+          <BrandBadge height={28} />
           <button
             ref={closeRef}
             onClick={onClose}

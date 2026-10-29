@@ -19,7 +19,7 @@ export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
   { id: 'culture', label: 'Театр и культура' },
   { id: 'sport', label: 'Спорт' },
   { id: 'cinema', label: 'Кино и показы' },
-  { id: 'education', label: 'Лекции и IT' },
+  { id: 'education', label: 'Образование' },
   { id: 'gov', label: 'Гос. оповещения' },
   { id: 'state', label: 'Государство и решения' },
   { id: 'laws', label: 'Законы и правила' },
@@ -660,7 +660,7 @@ export const FormPreview: React.FC<{ item: Announcement; lang: Language }> = ({ 
         <p className="text-xs text-gray-500">{tr('fPreviewEmpty')}</p>
       ) : (
         <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 max-w-md">
-          <EventImage item={item} className="w-full aspect-[16/9]" showCredit />
+          <EventImage item={item} className="w-full aspect-[16/9]" />
           <div className="p-4 space-y-2">
             <span className="inline-block px-2 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44] text-[11px] font-bold">{t(`categories.${item.category}`)}</span>
             <h3 className="font-extrabold text-[#0f1b33] leading-snug">{item.title[lang] || item.title.ru}</h3>

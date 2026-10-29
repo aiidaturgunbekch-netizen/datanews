@@ -40,7 +40,8 @@ describe('разделы «Бизнес-новости» и «ИИ и IT-тех�
 
   it('каждая категория — ровно в одной рубрике (материал не дублируется в двух разделах)', () => {
     const seen = new Map<string, string>();
-    for (const r of RUBRICS) for (const c of r.categories) {
+    // сводная страница «Новости» собирает разделы других рубрик — её не считаем
+    for (const r of RUBRICS.filter((x) => !x.aggregate)) for (const c of r.categories) {
       assert.ok(!seen.has(c), `${c} в ${seen.get(c)} и ${r.id}`);
       seen.set(c, r.id);
     }

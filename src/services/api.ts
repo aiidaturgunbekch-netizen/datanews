@@ -285,11 +285,40 @@ export const compressImage = (file: File, maxSide = 1400, quality = 0.82): Promi
 export const askBot = (input: { q?: string; intent?: BotIntent }, lang: string) => post<BotReply>('assistant', { ...input, lang });
 
 // ---------- push-уведомления ----------
+export interface PushLogEntry {
+  id: string;
+  at: string;
+  kind: 'alert' | 'custom';
+  annId?: string;
+  city: string;
+  topic: string;
+  title: { ru: string; kg: string; en: string };
+  body: { ru: string; kg: string; en: string };
+  url: string;
+  status: 'sending' | 'done';
+  total: number;
+  sent: number;
+  removed: number;
+  failed: number;
+  errors: Record<string, number>;
+}
 export interface PushStats {
   configured: boolean;
+  keys: { publicKey: boolean; privateKey: boolean; subject: boolean };
   total: number;
+  active: number;
+  invalid: number;
+  new7: number;
+  new30: number;
   byCity: Record<string, number>;
+  byLang: Record<string, number>;
+  byTopic: Record<string, number>;
+  sentTotal: number;
+  failedTotal: number;
   last: { id: string; at: string; title: { ru: string } } | null;
 }
 export const pushStats = () => request<PushStats>('push?stats=1');
+export const pushLog = () => request<{ entries: PushLogEntry[] }>('push?log=1').then((r) => r.entries);
+export const sendCustomPush = (custom: { title: Record<string, string>; body: Record<string, string>; url: string; city: string; topic: string }) =>
+  post<PushLogEntry>('push', { custom }, 'PATCH');
 export const sendPushFor = (annId: string) => post<{ sent: number; removed: number; failed: number; total: number }>('push', { annId }, 'PATCH');

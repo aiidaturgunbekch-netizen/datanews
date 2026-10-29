@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import type { CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
-import { currentSubscription, pushSupported, serverKey, subscribe, unsubscribe } from '../services/push';
+import { currentSubscription, pushSupported, serverKey, subscribe, unsubscribe, updateTopics } from '../services/push';
+import { DEFAULT_TOPICS, PUSH_TOPIC_LABEL, PUSH_TOPICS, PushTopic } from '../config/push';
 
 const TXT = {
   on: { ru: 'Уведомлять о срочном', kg: 'Шашылыш эскертүүлөрдү билдирүү', en: 'Notify me of urgent warnings' },
@@ -15,6 +16,7 @@ const TXT = {
   },
   fail: { ru: 'Не удалось включить уведомления. Попробуйте позже.', kg: 'Билдирмелерди күйгүзүү мүмкүн болгон жок. Кийинчерээк аракет кылыңыз.', en: 'Could not turn on notifications. Try again later.' },
   scope: { ru: 'Только срочные предупреждения', kg: 'Шашылыш эскертүүлөр гана', en: 'Urgent warnings only' },
+  topics: { ru: 'Темы', kg: 'Темалар', en: 'Topics' },
   ios: {
     ru: 'На iPhone: «Поделиться» → «На экран „Домой“», затем откройте сайт с иконки.',
     kg: 'iPhone\'до: «Бөлүшүү» → «Үй экранына», анан сайтты сөлөкөттөн ачыңыз.',
@@ -29,6 +31,8 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
   const [subCity, setSubCity] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [topics, setTopics] = useState<PushTopic[]>(DEFAULT_TOPICS);
+  const [showTopics, setShowTopics] = useState(false);
   // iPhone/iPad: push работает только у сайта, добавленного на экран «Домой»
   const iosBrowser = typeof navigator !== 'undefined' && /iP(hone|ad|od)/.test(navigator.userAgent) && !('PushManager' in window);
 
@@ -36,7 +40,10 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
     if (!pushSupported()) return;
     serverKey().then(setKey);
     currentSubscription()
-      .then((c) => setSubCity(c ? c.city || 'all' : null))
+      .then((c) => {
+        setSubCity(c ? c.city || 'all' : null);
+        if (c) setTopics(c.topics);
+      })
       .catch(() => {});
   }, []);
 
@@ -54,6 +61,18 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
       setMsg((e as Error).message === 'denied' ? TXT.denied[lang] : (e as Error).message === 'dismissed' ? '' : TXT.fail[lang]);
     } finally {
       setBusy(false);
+    }
+  };
+  // Темы подписки: «Срочные предупреждения» по умолчанию; хотя бы одна тема остаётся выбранной
+  const toggleTopic = async (tp: PushTopic) => {
+    const next = topics.includes(tp) ? topics.filter((x) => x !== tp) : [...topics, tp];
+    if (next.length === 0 || !subCity) return;
+    setTopics(next);
+    try {
+      await updateTopics(subCity as CityId, lang, next);
+    } catch {
+      setTopics(topics);
+      setMsg(TXT.fail[lang]);
     }
   };
   const turnOff = async () => {
@@ -74,11 +93,26 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
             <span className="material-symbols-outlined text-[16px]">notifications_active</span>
             {TXT.active[lang]} · {t(`cities.${subCity}`)}
           </span>
+          <button type="button" onClick={() => setShowTopics((v) => !v)} aria-expanded={showTopics} className="px-2 py-1.5 rounded-lg text-[#12327A] hover:bg-gray-100 font-bold">
+            {TXT.topics[lang]}
+          </button>
           <button type="button" onClick={turnOff} disabled={busy} className="px-2 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 font-bold disabled:opacity-60">
             {busy ? TXT.busy[lang] : TXT.off[lang]}
           </button>
         </div>
-      ) : (
+      ) : null}
+      {subCity && showTopics && (
+        <fieldset className="w-full max-w-xs rounded-xl border border-gray-200 bg-white p-2 text-xs">
+          <legend className="px-1 font-bold text-gray-600">{TXT.topics[lang]}</legend>
+          {PUSH_TOPICS.map((tp) => (
+            <label key={tp} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" checked={topics.includes(tp)} onChange={() => toggleTopic(tp)} disabled={topics.length === 1 && topics.includes(tp)} />
+              <span>{PUSH_TOPIC_LABEL[tp][lang]}</span>
+            </label>
+          ))}
+        </fieldset>
+      )}
+      {!subCity && (
         <button
           type="button"
           onClick={turnOn}

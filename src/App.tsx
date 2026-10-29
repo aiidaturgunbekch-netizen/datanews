@@ -97,7 +97,15 @@ export default function App() {
   const [sectionsOpen, setSectionsOpen] = useState(false);
   const closeSections = useCallback(() => setSectionsOpen(false), []);
   // Рубрика строки навигации (группа разделов); null — главная без фильтра
-  const [activeRubric, setActiveRubric] = useState<string | null>(null);
+  // Ссылка из push-уведомления на раздел — /?r=<рубрика>: раздел открывается сразу
+  const [activeRubric, setActiveRubric] = useState<string | null>(() => {
+    try {
+      const r = new URLSearchParams(window.location.search).get('r');
+      return r && rubricOf(r) ? r : null;
+    } catch {
+      return null;
+    }
+  });
   const [selectedCity, setSelectedCity] = useState<CityId>('bishkek');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');

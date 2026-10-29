@@ -10,6 +10,9 @@ import { MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT, formatDate, formatWhen 
 import { freshOrder, getAnnouncementDisplayStatus, getStatusBadgeConfig, isFresh } from '../utils/statusUtils';
 import { placeText } from '../utils/place';
 import { DateBadge, RelDay } from './cards';
+import { AdFeedCard } from './AdSlot';
+import { useLiveAds } from '../services/ads';
+import { byPriority, feedAdPositions } from '../config/ads';
 
 interface EventsFeedProps {
   currentLanguage: Language;
@@ -65,6 +68,15 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
     if (statusTab === 'completed') return events.filter((item) => !isFresh(item)).sort(byStartDesc);
     return [...events].sort(byStartDesc);
   }, [events, statusTab]);
+
+  // Рекламные карточки C — в общей ленте (вкладка «Свежие и актуальные»): каждая кампания один раз, после каждого 8-го материала
+  const liveAds = useLiveAds();
+  const adAt = useMemo(() => {
+    if (statusTab !== 'upcoming') return new Map<number, (typeof liveAds)[number]>();
+    const cards = liveAds.filter((a) => a.format === 'C').sort(byPriority);
+    const pos = feedAdPositions(Math.min(visibleCount, filteredEvents.length), cards.length);
+    return new Map(pos.map((p, i) => [p, cards[i]] as const));
+  }, [liveAds, statusTab, visibleCount, filteredEvents.length]);
 
   return (
     <div>
@@ -204,7 +216,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
       ) : displayMode === 'list' ? (
         /* Список в стиле новостной ленты: строки без теней, маленькое фото справа, вся строка — ссылка на статью */
         <ul className="bg-white rounded-2xl border border-line divide-y divide-line px-4 sm:px-5">
-          {filteredEvents.slice(0, visibleCount).map((item) => {
+          {filteredEvents.slice(0, visibleCount).map((item, idx) => {
             const isFav = favorites.includes(item.id);
             const displayStatus = getAnnouncementDisplayStatus(item);
             const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
@@ -216,6 +228,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
             const tickets = ticketLink(item);
 
             return (
+              <React.Fragment key={item.id}>
               <li key={item.id} className={`relative group flex gap-3 sm:gap-4 py-4 sm:py-5 ${displayStatus === 'completed' ? 'opacity-80' : ''}`}>
                 {/* Дата события — «листок календаря» слева: главное в DataNews — когда */}
                 <DateBadge date={item.startDate} lang={currentLanguage} />
@@ -273,13 +286,20 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                   </button>
                 </div>
               </li>
+              {/* рекламная карточка C — не чаще одной на 8 материалов, со своей меткой «Реклама» */}
+              {adAt.has(idx + 1) && (
+                <li className="py-4">
+                  <AdFeedCard ad={adAt.get(idx + 1)!} lang={currentLanguage} />
+                </li>
+              )}
+              </React.Fragment>
             );
           })}
         </ul>
       ) : (
         /* Grid Display Mode */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredEvents.slice(0, visibleCount).map((item) => {
+          {filteredEvents.slice(0, visibleCount).map((item, idx) => {
             const startDate = new Date(item.startDate);
             const isFav = favorites.includes(item.id);
             const dayNum = String(startDate.getDate()).padStart(2, '0');
@@ -296,6 +316,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               : null;
 
             return (
+              <React.Fragment key={item.id}>
               <div
                 key={item.id}
                 onClick={() => onSelectAnnouncement(item)}
@@ -352,6 +373,8 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
 
                 {price && <div className="pt-3 border-t border-gray-100 text-xs font-bold text-[#12327A]">{price}</div>}
               </div>
+              {adAt.has(idx + 1) && <AdFeedCard ad={adAt.get(idx + 1)!} lang={currentLanguage} className="md:col-span-2" />}
+              </React.Fragment>
             );
           })}
         </div>

@@ -1,11 +1,10 @@
 /**
  * Временная логика главной и рекламные места: «Сегодня/Завтра/Через N дней» по времени Бишкека,
- * группы ближайших дат, порядок важности (не по одной категории), пустые рекламные места не выводятся.
+ * группы ближайших дат, порядок важности (не по одной категории). Реклама — tests/ads.test.ts.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { bucketOf, homeScore, relativeDay } from '../src/utils/timeline';
-import { activeAd, ADS, type AdCreative } from '../src/config/ads';
 import type { Announcement } from '../src/types';
 
 // 27 октября 2026, 12:00 по Бишкеку (06:00 UTC)
@@ -60,23 +59,5 @@ describe('важность на главной — не по одной кате
     const freshNews = base({ category: 'news', startDate: '2026-10-27T09:00', publishedAt: '2026-10-27T09:00' });
     const farEvent = base({ category: 'sport', startDate: '2026-11-25T10:00', publishedAt: '2026-10-01T10:00' });
     assert.ok(homeScore(freshNews, NOW) > homeScore(farEvent, NOW));
-  });
-});
-
-describe('рекламные места', () => {
-  it('сейчас кампаний нет — места не показываются', () => {
-    assert.equal(ADS.length, 0, 'реклама не добавляется без реальных материалов');
-    assert.equal(activeAd('wide', '2026-10-27'), null);
-    assert.equal(activeAd('side', '2026-10-27'), null);
-  });
-
-  it('показывается только активная кампания своего места в своём периоде, по приоритету', () => {
-    const ad = (o: Partial<AdCreative>): AdCreative => ({
-      id: 'a', slot: 'side', advertiser: 'Пример', label: 'ad', imageUrl: '/x.png', alt: 'x', href: 'https://example.kg', start: '2026-10-01', end: '2026-10-31', status: 'active', priority: 1, ...o,
-    });
-    const list = [ad({ id: 'low' }), ad({ id: 'high', priority: 5 }), ad({ id: 'paused', priority: 9, status: 'paused' }), ad({ id: 'wide', slot: 'wide', priority: 99 })];
-    assert.equal(activeAd('side', '2026-10-27', list)?.id, 'high');
-    assert.equal(activeAd('side', '2026-11-01', list), null, 'после окончания кампании — не показывается');
-    assert.equal(activeAd('wide', '2026-10-27', list)?.id, 'wide');
   });
 });

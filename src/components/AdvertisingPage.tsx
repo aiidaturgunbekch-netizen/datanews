@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { CONTACTS } from '../config/contacts';
 import { SOCIAL_ICONS } from './ContactButtons';
+import { AdCatalog } from './ads/AdCatalog';
+import type { AdFormat, AdFormatId } from '../config/ads';
+import { fetchAdFormats } from '../services/ads';
 
 /** Кнопка «Обсудить рекламу» — WhatsApp редакции (тот же номер, что в подвале и на странице «Контакты») с готовым текстом */
 export const adWhatsappUrl = (text: string) => `${CONTACTS.whatsappUrl}?text=${encodeURIComponent(text)}`;
@@ -32,6 +35,11 @@ export const AdvertisingPage: React.FC<{ lang: Language; onOpenContacts: () => v
   const { t } = getTranslation(lang);
   const a = (k: string) => t(`advertising.${k}`);
   const wa = adWhatsappUrl(a('whatsappText'));
+  // Каталог форматов и цен — из панели администратора; если он не загрузился, цены не показываем (никаких устаревших чисел)
+  const [formats, setFormats] = useState<Record<AdFormatId, AdFormat> | null>(null);
+  useEffect(() => {
+    fetchAdFormats().then(setFormats);
+  }, []);
 
   const CtaButton: React.FC<{ label: string; className?: string }> = ({ label, className = '' }) => (
     <a
@@ -111,6 +119,22 @@ export const AdvertisingPage: React.FC<{ lang: Language; onOpenContacts: () => v
       </section>
 
       {/* Новости, объявления и реклама — разные вещи */}
+      {formats && (
+        <section className="dn-section bg-wash border-y border-line" aria-labelledby="ad-formats">
+          <div className="dn-container">
+            <h2 id="ad-formats" className="dn-section-title mb-2">
+              {a('formatsTitle')}
+            </h2>
+            <p className="dn-body text-ink-soft mb-6 max-w-3xl">{a('formatsIntro')}</p>
+            <AdCatalog
+              formats={formats}
+              lang={lang}
+              action={{ label: a('formatCta'), onClick: () => {}, href: (id) => adWhatsappUrl(`${a('whatsappText')} ${a('formatWord')} ${id}: ${formats[id].name[lang]}.`) }}
+            />
+          </div>
+        </section>
+      )}
+
       <section className="dn-section bg-white" aria-labelledby="ad-types">
         <div className="dn-container">
           <h2 id="ad-types" className="dn-section-title mb-6">

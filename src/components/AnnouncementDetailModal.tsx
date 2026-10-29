@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { EventImage } from './EventImage';
+import { AdSlot } from './AdSlot';
 import { BrandBadge } from './BrandLogo';
 import { SHARE_ARTICLE_TITLE, SHARE_TITLE, ShareMenu } from './ShareMenu';
 import { pickSideNews } from '../utils/timeline';
@@ -757,8 +758,11 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
       </article>
 
       {/* Актуальные новости: другие опубликованные материалы, разные рубрики, без текущей и без повторов «Читайте также» */}
+      <div className="mt-12 lg:mt-0 lg:sticky lg:top-20 space-y-8 min-w-0">
+      {/* Рекламное место B — только при идущей кампании; на телефоне — под материалом, между блоками */}
+      <AdSlot format="B" lang={lang} />
       {sideNews.length > 0 && onSelectOtherNotice && (
-        <aside aria-labelledby="side-news-title" className="mt-12 lg:mt-0 lg:sticky lg:top-20">
+        <aside aria-labelledby="side-news-title">
           <h2 id="side-news-title" className="font-serif text-xl font-bold text-[#0f1b33] pb-2 mb-1 border-b-2 border-[#0f1b33]">
             {L.sideNews[lang]}
           </h2>
@@ -780,6 +784,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           </ul>
         </aside>
       )}
+      </div>
       </div>
     </div>
   );

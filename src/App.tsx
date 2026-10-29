@@ -467,6 +467,7 @@ export default function App() {
                 lang={currentLanguage}
                 category={rubric.categories[0]}
                 title={rubric.label[currentLanguage]}
+                adRubric={rubric.id}
                 items={rubricItems}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => selectRubric(null)}
@@ -485,6 +486,7 @@ export default function App() {
               <CategoryResults
                 lang={currentLanguage}
                 category={selectedCategory}
+                adRubric={rubricIdOf(selectedCategory)}
                 items={filteredAnnouncements}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}
@@ -545,7 +547,7 @@ export default function App() {
                 />
 
                 {/* Рекламное место A — появляется только при действующей кампании */}
-                <AdSlot slot="wide" lang={currentLanguage} className="dn-container pb-10" />
+                <AdSlot format="A" lang={currentLanguage} className="dn-container pb-10" />
 
                 {/* Официальный прогноз Кыргызгидромета (предупреждения — в блоке выше) */}
                 <WeatherSafety
@@ -580,8 +582,8 @@ export default function App() {
                             onOpen={setActiveNoticeDetail}
                           />
                         )}
-                        {/* Рекламное место B (компактное, правая колонка; на телефоне — под лентой) */}
-                        <AdSlot slot="side" lang={currentLanguage} className="max-w-[360px]" />
+                        {/* Рекламное место B (правая колонка; на телефоне и планшете — под лентой, между блоками) */}
+                        <AdSlot format="B" lang={currentLanguage} className="lg:max-w-[360px]" />
                         <EmergencyBox lang={currentLanguage} />
                       </aside>
                     </div>
@@ -624,6 +626,7 @@ export default function App() {
               <CategoryResults
                 lang={currentLanguage}
                 category={selectedCategory}
+                adRubric={rubricIdOf(selectedCategory)}
                 items={filteredAnnouncements}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}

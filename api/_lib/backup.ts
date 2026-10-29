@@ -10,7 +10,7 @@ import { ANN_KEY, CHECKED_KEY, HIDDEN_KEY, IMG_KEY } from './announcements';
 import { USERS_KEY } from './users';
 
 // dn:mail — входящие письма редакционной почты (временные копии фото dn:mail:att:* не входят, они удаляются сами)
-const HASHES = [ANN_KEY, HIDDEN_KEY, CHECKED_KEY, 'dn:reports', 'dn:src:status', 'dn:mail'] as const;
+const HASHES = [ANN_KEY, HIDDEN_KEY, CHECKED_KEY, 'dn:reports', 'dn:src:status', 'dn:mail', 'dn:ads:formats', 'dn:ads:campaigns'] as const;
 const STRINGS = ['dn:weather:official'] as const;
 
 /** HGETALL отдаёт плоский список [поле, значение, поле, значение, …] */

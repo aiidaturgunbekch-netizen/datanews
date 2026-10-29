@@ -1,9 +1,17 @@
-/** /api/stats?days=30 — статистика посещений сайта; /api/stats?backup=1[&images=1] — резервная копия данных (только админ) */
+/**
+ * /api/stats?days=30 — статистика посещений сайта; /api/stats?backup=1[&images=1] — резервная копия данных (только админ)
+ * /api/stats?ads=1 — реклама (только админ):
+ *   GET                                   каталог форматов и все кампании со статистикой показов и кликов
+ *   POST { op: 'format', ...поля }        изменить формат каталога (цена, размеры, описание)
+ *   POST { op: 'create', ...поля }        создать кампанию (черновик или «ожидает оплаты»)
+ *   POST { op: 'action', id, action }     правка, подтверждение оплаты, активация, пауза, завершение, удаление
+ */
 import type { SiteStats } from '../src/types';
 import { pipeline, toCountMap } from './_lib/kv';
-import { handler, json, requireAdmin } from './_lib/http';
+import { handler, HttpError, json, readBody, requireAdmin } from './_lib/http';
 import { dayKey, K } from './_lib/stats';
 import { buildBackup } from './_lib/backup';
+import { campaignAction, campaignStats, createCampaign, getFormats, listCampaigns, updateFormat } from './_lib/ads';
 
 export const config = { runtime: 'edge' };
 
@@ -19,6 +27,18 @@ const top = (maps: Record<string, number>[], n = 10) => {
 export default handler(async (req) => {
   await requireAdmin(req);
   const params = new URL(req.url).searchParams;
+  if (params.get('ads')) {
+    if (req.method === 'POST') {
+      const body = await readBody<Record<string, unknown>>(req, 2_300_000);
+      if (body.op === 'format') return json({ format: await updateFormat(body) });
+      if (body.op === 'create') return json({ campaign: await createCampaign(body) }, 201);
+      if (body.op === 'action') return json({ campaign: await campaignAction(body) });
+      throw new HttpError('bad_request', 400);
+    }
+    const campaigns = await listCampaigns();
+    const stats = await Promise.all(campaigns.map((c) => campaignStats(c.id)));
+    return json({ formats: await getFormats(), campaigns: campaigns.map((c, i) => ({ ...c, stats: stats[i] })) });
+  }
   if (params.get('backup') === '1') {
     const backup = await buildBackup(params.get('images') === '1');
     const name = `datanews-backup-${backup.createdAt.slice(0, 10)}${backup.includesImages ? '-with-photos' : ''}.json`;

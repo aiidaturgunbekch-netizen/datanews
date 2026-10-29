@@ -322,3 +322,15 @@ export const pushLog = () => request<{ entries: PushLogEntry[] }>('push?log=1').
 export const sendCustomPush = (custom: { title: Record<string, string>; body: Record<string, string>; url: string; city: string; topic: string }) =>
   post<PushLogEntry>('push', { custom }, 'PATCH');
 export const sendPushFor = (annId: string) => post<{ sent: number; removed: number; failed: number; total: number }>('push', { annId }, 'PATCH');
+
+// ---------- реклама (панель администратора) ----------
+export interface AdStatsView {
+  views: number;
+  clicks: number;
+  ctr: number | null;
+  days: { day: string; views: number; clicks: number }[];
+}
+export type AdminCampaign = import('../config/ads').AdCampaign & { stats: AdStatsView };
+export const adsAdmin = () =>
+  request<{ formats: Record<import('../config/ads').AdFormatId, import('../config/ads').AdFormat>; campaigns: AdminCampaign[] }>('stats?ads=1');
+export const adsPost = <T = { campaign: AdminCampaign | null }>(body: Record<string, unknown>) => post<T>('stats?ads=1', body);

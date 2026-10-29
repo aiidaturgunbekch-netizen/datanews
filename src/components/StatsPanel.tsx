@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { AdSlot } from './AdSlot';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { CATEGORY_IDS, REGIONS } from '../config/regions';
@@ -265,7 +266,9 @@ export const CategoryResults: React.FC<{
   extra?: React.ReactNode;
   /** Заголовок рубрики, объединяющей несколько разделов (иначе — название раздела) */
   title?: string;
-}> = ({ lang, category, items, onOpen, onReset, extra, title }) => {
+  /** Раздел для тематической рекламы D (показывается, только если для этого раздела есть идущая кампания) */
+  adRubric?: string;
+}> = ({ lang, category, items, onOpen, onReset, extra, title, adRubric }) => {
   const { t } = getTranslation(lang);
   // Прошедшее — в архив (свёрнут), сверху только актуальное
   const sorted = items.filter((a) => isFresh(a)).sort((a, b) => freshOrder(a, b));
@@ -296,6 +299,7 @@ export const CategoryResults: React.FC<{
           {title || t(`categories.${category}`)} <span className="text-gray-500 font-bold">· {sorted.length}</span>
         </h2>
         {extra && <div className="mb-4">{extra}</div>}
+        {adRubric && <AdSlot format="D" rubric={adRubric} lang={lang} className="mb-5" />}
         {sorted.length === 0 ? (
           <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{empty[lang]}</div>
         ) : (

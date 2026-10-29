@@ -7,6 +7,7 @@ import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './An
 import { EventImage } from './EventImage';
 import { MailInbox } from './MailInbox';
 import { PushPanel } from './admin/PushPanel';
+import { AdsPanel } from './admin/AdsPanel';
 import { eventSource, ticketLink } from '../utils/links';
 import { placeText } from '../utils/place';
 import { historyLabel, MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
@@ -96,7 +97,7 @@ const ReportsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
   );
 };
 
-type Tab = 'moderation' | 'mail' | 'review' | 'posts' | 'push' | 'users' | 'reports' | 'weather' | 'stats';
+type Tab = 'moderation' | 'mail' | 'review' | 'posts' | 'push' | 'ads' | 'users' | 'reports' | 'weather' | 'stats';
 
 /** Дата и время по Бишкеку в одном формате для всей панели */
 const fmt = formatKgDateTime;
@@ -887,6 +888,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     ['review', 'Сверка с источниками', 'rule', { value: toReview.length, attention: toReview.length > 0, title: `Нужно сверить с источником: ${toReview.length}` }],
     ['posts', 'Публикации', 'article', { value: merged.length, attention: false, title: `Всего публикаций: ${merged.length}` }],
     ['push', 'Уведомления', 'notifications', pushTotal === null ? null : { value: pushTotal, attention: false, title: `Подписчиков на уведомления: ${pushTotal}` }],
+    ['ads', 'Реклама', 'campaign', null],
     [
       'users',
       'Пользователи',
@@ -1191,6 +1193,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                 </>
               ) : tab === 'push' ? (
                 <PushPanel items={merged} onTotal={setPushTotal} />
+              ) : tab === 'ads' ? (
+                <AdsPanel />
               ) : tab === 'posts' ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">

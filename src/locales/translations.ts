@@ -179,6 +179,14 @@ export const translations = {
       kg: 'Баасы жана шарттары макулдашылган форматка жараша болот. Биз белгилүү бир камтууну, өтүүлөрдү же сатууларды убада кылбайбыз.',
       en: 'Price and terms depend on the agreed format. We do not promise specific reach, clicks or sales.',
     },
+    formatsTitle: { ru: 'Форматы и цены', kg: 'Форматтар жана баалар', en: 'Formats and prices' },
+    formatsIntro: {
+      ru: 'Четыре рекламных места DataNews: где каждое находится на сайте, какой нужен размер изображения и сколько стоит размещение на 30 дней. Нажмите на макет, чтобы увидеть размещение на компьютере, планшете и телефоне.',
+      kg: 'DataNewsтун төрт жарнама орду: ар бири сайттын кайсы жеринде, сүрөттүн кандай өлчөмү керек жана 30 күнгө жайгаштыруу канча турат. Компьютерде, планшетте жана телефондо көрүү үчүн макетти басыңыз.',
+      en: 'Four DataNews ad spots: where each appears on the site, what image size is needed and what 30 days cost. Click a mock-up to see the placement on desktop, tablet and phone.',
+    },
+    formatCta: { ru: 'Обсудить размещение', kg: 'Жайгаштырууну талкуулоо', en: 'Discuss this format' },
+    formatWord: { ru: 'Формат', kg: 'Формат', en: 'Format' },
     whatsappText: {
       ru: 'Здравствуйте! Хочу обсудить размещение рекламы на DataNews.',
       kg: 'Саламатсызбы! DataNewsта жарнама жайгаштырууну талкуулагым келет.',

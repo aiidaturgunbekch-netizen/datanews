@@ -23,6 +23,8 @@ export const RUBRICS: Rubric[] = [
   },
   { id: 'roads', label: { ru: 'Дороги', kg: 'Жолдор', en: 'Roads' }, categories: ['roads'] },
   { id: 'state', label: { ru: 'Государство', kg: 'Мамлекет', en: 'Government' }, categories: ['gov', 'state', 'laws'] },
+  // «ИИ и IT-технологии» — заметно, в середине меню, сразу после «Государства»
+  { id: 'tech', label: { ru: 'ИИ и IT-технологии', kg: 'Жасалма интеллект жана IT-технологиялар', en: 'AI & IT Technologies' }, categories: ['tech'] },
   {
     id: 'culture',
     label: { ru: 'Культура и афиша', kg: 'Маданият жана афиша', en: 'Culture & events' },
@@ -46,7 +48,6 @@ export const RUBRICS: Rubric[] = [
     aggregate: true,
   },
   { id: 'business', label: { ru: 'Бизнес-новости', kg: 'Бизнес жаңылыктары', en: 'Business News' }, categories: ['business'] },
-  { id: 'tech', label: { ru: 'ИИ и IT-технологии', kg: 'Жасалма интеллект жана IT-технологиялар', en: 'AI & IT Technologies' }, categories: ['tech'] },
   { id: 'notices', label: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' }, categories: ['notices'], inNav: false },
 ];
 

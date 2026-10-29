@@ -67,16 +67,15 @@
  * Оба шрифта проверены по файлам: есть кыргызские Ң ң Ө ө Ү ү (подмножество cyrillic-ext Google Fonts).
  */
 @layer components {
+  /*
+   * Ширина сайта: почти весь экран, с аккуратными полями, которые растут вместе с экраном
+   * (16 px на телефоне … 40 px на широком мониторе). Предел — 1536 px, чтобы строки не растягивались на огромных экранах.
+   */
   .dn-container {
     width: 100%;
-    max-width: 1280px;
+    max-width: var(--dn-max, 1536px);
     margin-inline: auto;
-    padding-inline: 1rem;
-  }
-  @media (min-width: 768px) {
-    .dn-container {
-      padding-inline: 1.5rem;
-    }
+    padding-inline: clamp(1rem, 2.6vw, 2.5rem);
   }
   /* Ритм разделов главной */
   .dn-section {

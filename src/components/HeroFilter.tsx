@@ -65,7 +65,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
     return (
       <section className="w-full bg-white border-b border-gray-200">
         <h1 className="sr-only">{heading}</h1>
-        <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
+        <div className="dn-container py-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
           {/* Девиз на телефоне и планшете (на широких экранах он стоит в шапке рядом с логотипом) */}
           <p className="lg:hidden text-sm font-semibold text-[#12327A]">{t('motto')}</p>
           <form
@@ -128,7 +128,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
   return (
     <section className="w-full relative bg-[#eef2f9] py-8 sm:py-14 lg:py-16 border-b border-gray-200">
 
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 relative z-10">
+      <div className="dn-container relative z-10">
         <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 sm:gap-8 mb-8 sm:mb-10">
           <div className="max-w-3xl">
             {/* Main Headline */}

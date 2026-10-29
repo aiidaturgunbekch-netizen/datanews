@@ -63,7 +63,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigat
   return (
     <footer className="w-full bg-[#f1f4fa] border-t border-gray-200">
       {/* Снизу запас под плавающую кнопку чат-бота, чтобы она не закрывала текст */}
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 pt-10 pb-20">
+      <div className="dn-container pt-10 pb-20">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-12 gap-x-6 gap-y-8 lg:gap-8 mb-8">
           {/* Бренд */}
           <div className="col-span-2 sm:col-span-3 lg:col-span-4">

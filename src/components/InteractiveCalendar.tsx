@@ -246,7 +246,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       </div>
 
       {/* Calendar Color Legend */}
-      <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-500 pt-3 border-t border-gray-100">
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-red-600" />
           <span>{t('views.legendEmergency')}</span>

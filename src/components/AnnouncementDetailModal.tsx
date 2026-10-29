@@ -4,7 +4,8 @@ import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { EventImage } from './EventImage';
 import { BrandBadge } from './BrandLogo';
-import { SHARE_TITLE, ShareMenu } from './ShareMenu';
+import { SHARE_ARTICLE_TITLE, SHARE_TITLE, ShareMenu } from './ShareMenu';
+import { pickSideNews } from '../utils/timeline';
 import { rubricIdOf } from '../config/rubrics';
 import { getTranslation } from '../locales/translations';
 import { formatDate, formatDayMonthTime, formatWhen } from '../utils/dates';
@@ -50,6 +51,7 @@ const L = {
   verified: { ru: 'Проверено', kg: 'Текшерилген', en: 'Verified' },
   updated: { ru: 'Обновлено', kg: 'Жаңыртылды', en: 'Updated' },
   related: { ru: 'Читайте также', kg: 'Дагы окуңуз', en: 'Read also' },
+  sideNews: { ru: 'Актуальные новости', kg: 'Актуалдуу жаңылыктар', en: 'Latest news' },
   back: { ru: 'Назад', kg: 'Артка', en: 'Back' },
   brief: { ru: 'Коротко', kg: 'Кыскача', en: 'At a glance' },
   published: { ru: 'Опубликовано', kg: 'Жарыяланды', en: 'Published' },
@@ -253,6 +255,8 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     .filter((x) => x.id !== a.id && !isExpired(x) && (rubricIdOf(x.category) === rubric || x.city === a.city))
     .sort((x, y) => relScore(x) - relScore(y) || kgTs(x.startDate) - kgTs(y.startDate))
     .slice(0, 4);
+  // Сбоку — самые актуальные материалы разных рубрик, без текущего и без повторов «Читайте также»
+  const sideNews = pickSideNews(allAnnouncements, new Set([a.id, ...related.map((x) => x.id)]), (x) => rubricIdOf(x.category));
 
   // Страница статьи прокручивается сама; при переходе к другой новости — в начало, фокус на саму страницу
   const pageRef = useRef<HTMLDivElement>(null);
@@ -313,7 +317,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     <div ref={pageRef} tabIndex={-1} className="fixed inset-0 z-[100] bg-white overflow-y-auto overscroll-contain outline-none" role="dialog" aria-modal="true" aria-labelledby="article-title">
       {/* Верхняя строка страницы статьи: назад, логотип, поделиться */}
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200">
-        <div className="max-w-[1080px] mx-auto px-4 md:px-6 h-14 flex items-center justify-between gap-3">
+        <div className="max-w-[1240px] mx-auto px-4 md:px-6 h-14 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onClose}
@@ -362,7 +366,9 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         </div>
       </div>
 
-      <article className="max-w-[720px] mx-auto px-4 md:px-6 pt-6 sm:pt-10 pb-16">
+      {/* Компьютер: материал слева, «Актуальные новости» справа; телефон и планшет: блок — под материалом */}
+      <div className="mx-auto max-w-[1240px] px-4 md:px-6 pt-6 sm:pt-10 pb-16 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-12 xl:gap-16 lg:items-start">
+      <article className="min-w-0 max-w-[820px]">
         {/* Рубрика и город */}
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#12327A]">
           {t(`categories.${a.category}`)}
@@ -528,11 +534,6 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           <div className="mt-8 text-[18px] leading-[1.75] text-[#1f2937] whitespace-pre-line [overflow-wrap:anywhere]">{body}</div>
         )}
 
-        {/* Поделиться — сразу после текста, где читатель решает, отправить ли новость */}
-        <section aria-label={SHARE_TITLE[lang]} className="mt-8">
-          <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-3">{SHARE_TITLE[lang]}</h2>
-          <ShareMenu url={shareUrl} title={title} lang={lang} />
-        </section>
 
         {a.legal && (
           <section className="mt-10 pt-6 border-t border-gray-200">
@@ -723,6 +724,14 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           )}
         </div>
 
+        {/* Поделиться новостью — в конце материала: ссылка именно на эту публикацию (/n/<id>) и её заголовок */}
+        <section aria-labelledby="share-title" className="mt-10 pt-6 border-t border-gray-200">
+          <h2 id="share-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-3">
+            {SHARE_ARTICLE_TITLE[lang]}
+          </h2>
+          <ShareMenu url={shareUrl} title={title} lang={lang} />
+        </section>
+
         {/* Читайте также: та же рубрика и тот же город */}
         {related.length > 0 && onSelectOtherNotice && (
           <section aria-labelledby="related-title" className="mt-12 pt-6 border-t-2 border-[#0f1b33]">
@@ -746,6 +755,32 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           </section>
         )}
       </article>
+
+      {/* Актуальные новости: другие опубликованные материалы, разные рубрики, без текущей и без повторов «Читайте также» */}
+      {sideNews.length > 0 && onSelectOtherNotice && (
+        <aside aria-labelledby="side-news-title" className="mt-12 lg:mt-0 lg:sticky lg:top-20">
+          <h2 id="side-news-title" className="font-serif text-xl font-bold text-[#0f1b33] pb-2 mb-1 border-b-2 border-[#0f1b33]">
+            {L.sideNews[lang]}
+          </h2>
+          <ul className="divide-y divide-gray-200">
+            {sideNews.map((n) => (
+              <li key={n.id}>
+                <button type="button" onClick={() => onSelectOtherNotice(n)} className="group w-full text-left py-3.5 flex gap-3 items-start">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-[#12327A]">{t(`categories.${n.category}`)}</span>
+                    <span className="block mt-1 text-[15px] font-semibold leading-snug text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline underline-offset-2 line-clamp-3 [overflow-wrap:anywhere]">
+                      {n.title[lang] || n.title.ru}
+                    </span>
+                    <span className="block mt-1 text-xs text-gray-500">{formatWhen(n.startDate, n.endDate, lang, false, n.timeTBA, n.allDay)}</span>
+                  </span>
+                  {n.imageUrl && <EventImage item={n} lang={lang} compact className="w-24 h-[68px] rounded-lg shrink-0" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
+      </div>
     </div>
   );
 };

@@ -131,7 +131,7 @@ export const WeatherSafety: React.FC<{
 
   return (
     <section id="weather-safety" className="w-full border-b border-gray-100 py-10 bg-[#f6f8fd]">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+      <div className="dn-container">
         <div className="space-y-4 min-w-0">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[#12327A] text-[22px]">partly_cloudy_day</span>

@@ -111,7 +111,7 @@ export const CityMosaic: React.FC<CityMosaicProps> = ({
 
   return (
     <section className="w-full py-12 bg-white border-t border-gray-100">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+      <div className="dn-container">
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4 mb-8">
           <div>
             <div className="inline-flex items-center gap-1.5 text-[#00796b] text-xs font-bold uppercase tracking-wider mb-1">

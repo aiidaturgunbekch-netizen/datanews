@@ -100,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({
     >
       {/* Служебная строка: дата, для организаций, язык */}
       <div className="h-9 bg-[#031639] border-b border-white/10">
-        <div className="h-full max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-4 text-xs">
+        <div className="h-full dn-container max-sm:px-3 flex items-center justify-between gap-4 text-xs">
           <span className="text-[#c8d2ee]">
             <span className="hidden sm:inline">{todayLabel} · </span>
             <time dateTime={`${kg.toISOString().slice(0, 16)}+06:00`} className="font-semibold text-white tabular-nums">
@@ -136,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Основная строка */}
       <div className="bg-brand-navy">
-      <div className="h-14 lg:h-16 max-w-[1280px] mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
+      <div className="h-14 lg:h-16 dn-container max-sm:px-3 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Sections, Brand Logo */}
         <div className="flex items-center gap-3 lg:gap-6 min-w-0">
           <button
@@ -262,14 +262,14 @@ export const Header: React.FC<HeaderProps> = ({
 
       </div>
 
-      {/* Строка рубрик: главные страницы и рубрики, сгруппированные по смыслу (на телефоне — прокрутка вбок) */}
+      {/* Строка рубрик. Компьютер (от 1024 px): все разделы видны сразу — если не помещаются в строку, переносятся на вторую,
+          названия не обрезаются. Планшет и телефон: одна строка с прокруткой вбок (полный список — ещё и в «Разделах») */}
       <nav
         aria-label={currentLanguage === 'kg' ? 'Рубрикалар' : currentLanguage === 'en' ? 'Sections' : 'Рубрики'}
-        className="relative bg-white border-b border-line text-ink after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-10 after:bg-gradient-to-l after:from-white after:to-transparent after:pointer-events-none"
+        className="relative bg-white border-b border-line text-ink after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-10 after:bg-gradient-to-l after:from-white after:to-transparent after:pointer-events-none lg:after:hidden"
       >
-        {/* Всегда одна строка постоянной высоты: на узких экранах — прокрутка вбок; полный список — в «Разделах» */}
-        <div className="max-w-[1280px] mx-auto px-1 sm:px-2 md:px-4 overflow-x-auto scrollbar-none">
-          <ul className="flex items-stretch min-w-max">
+        <div className="dn-container max-sm:px-1 max-lg:overflow-x-auto scrollbar-none">
+          <ul className="flex items-stretch min-w-max lg:min-w-0 lg:flex-wrap lg:-mx-2.5">
             {[
               { key: 'home', label: t('nav.home'), active: currentView === 'home' && !activeRubric, onClick: () => { onSelectRubric(null); onViewChange('home'); } },
               // Календарь — сразу после главной: главное отличие DataNews — что и когда предстоит
@@ -279,7 +279,7 @@ export const Header: React.FC<HeaderProps> = ({
               { key: 'cities', label: t('nav.cities'), active: currentView === 'cities', onClick: () => { onSelectRubric(null); onViewChange('cities'); } },
               ...NAV_RUBRICS.map((r) => ({ key: r.id, label: r.label[currentLanguage], active: currentView === 'home' && activeRubric === r.id, onClick: () => onSelectRubric(r.id) })),
             ].map((item) => (
-              <li key={item.key} className="flex h-11">
+              <li key={item.key} className="flex h-11 lg:h-10">
                 <button
                   type="button"
                   onClick={item.onClick}

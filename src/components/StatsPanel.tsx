@@ -284,7 +284,7 @@ export const CategoryResults: React.FC<{
   };
   return (
     <section id="category-results" className="w-full py-10 bg-white border-b border-gray-100 scroll-mt-[calc(var(--header-h,136px)+1rem)]">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+      <div className="dn-container">
         <button
           onClick={goHome}
           className="inline-flex items-center gap-1 mb-3 px-3 py-1.5 rounded-xl bg-[#f0f4fc] text-[#12327A] text-sm font-bold hover:bg-[#12327A] hover:text-white transition-colors"

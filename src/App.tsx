@@ -30,7 +30,7 @@ import { MainAlerts, NoAlertsLine } from './components/MainAlerts';
 import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { AdSlot } from './components/AdSlot';
 import { isPaid } from './components/PaidBadge';
-import { homeScore } from './utils/timeline';
+import { pickTopStories } from './utils/timeline';
 import { matchesSearch } from './utils/search';
 import { TopStories } from './components/TopStories';
 import { PopularNews } from './components/PopularNews';
@@ -41,7 +41,7 @@ import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel'
 import { EmergencyBox, HydrometLine, WeatherSafety } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
 import { freshOrder, isFresh } from './utils/statusUtils';
-import { diversePick, rubricOf } from './config/rubrics';
+import { rubricIdOf, rubricOf } from './config/rubrics';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -269,22 +269,17 @@ export default function App() {
     [announcements, selectedCity]
   );
   const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
-  // «Главное»: одна главная история и четыре важных — из актуального (не предупреждения: у них свой блок рядом).
-  // Порядок — homeScore: срочность, близость даты (сегодня/завтра/скоро), свежесть, значимость и проверка;
-  // раздел сам по себе не ставит материал наверх. Не больше двух материалов одной рубрики.
-  const topStories = useMemo(() => {
-    const now = Date.now();
-    return diversePick(
-      eventsList.filter((a) => isFresh(a)).sort((a, b) => homeScore(b, now) - homeScore(a, now) || freshOrder(a, b)),
-      5
-    );
-  }, [eventsList]);
-  // Главная история — редакционная (не партнёрская), по возможности с настоящей фотографией из первых трёх
+  // «Главное»: три актуальных материала из разных рубрик (не предупреждения: у них свой блок рядом).
+  // Отбор — pickTopStories: сильные кандидаты по homeScore, по одному на рубрику; состав может смениться
+  // после обновления страницы (homeSeed — один на посещение), но не меняется, пока страница открыта.
+  const [homeSeed] = useState(() => Math.floor(Math.random() * 1e9));
+  const topStories = useMemo(
+    () => pickTopStories(eventsList.filter((a) => isFresh(a)).sort(freshOrder), homeSeed, (a) => rubricIdOf(a.category)),
+    [eventsList, homeSeed]
+  );
+  // Главная история — первая редакционная (не партнёрская) из отобранных
   const topOrdered = useMemo(() => {
-    const hasPhoto = (a: Announcement) => Boolean(a.imageUrl) && !a.imageUrl!.startsWith('/illustrations/');
-    const editorial = topStories.filter((a) => !isPaid(a));
-    const leadPool = editorial.slice(0, 3);
-    const lead = leadPool.find(hasPhoto) || leadPool[0];
+    const lead = topStories.find((a) => !isPaid(a));
     return lead ? [lead, ...topStories.filter((a) => a.id !== lead.id)] : topStories;
   }, [topStories]);
   // Лента ниже не повторяет материалы из «Главного»
@@ -603,7 +598,7 @@ export default function App() {
 
         {/* VIEW: ALERTS ONLY */}
         {currentView === 'alerts' && (
-          <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-8">
+          <div className="w-full dn-container py-8">
             <button
               onClick={() => setCurrentView('home')}
               className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4"
@@ -647,7 +642,7 @@ export default function App() {
 
         {/* VIEW: EVENTS ONLY (АФИША) */}
         {currentView === 'events' && (
-          <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-8">
+          <div className="w-full dn-container py-8">
             <button
               onClick={() => setCurrentView('home')}
               className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4"

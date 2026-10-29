@@ -80,7 +80,7 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
   return (
     <section className="w-full py-2.5 bg-white border-b border-gray-100">
       {/* Одна строка с горизонтальной прокруткой — не закрывает страницу */}
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 overflow-x-auto scrollbar-none">
+      <div className="dn-container overflow-x-auto scrollbar-none">
         <div className="flex items-center gap-2 whitespace-nowrap min-w-max py-0.5 pr-4">
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.id;

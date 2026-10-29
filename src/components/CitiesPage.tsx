@@ -174,7 +174,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
   const eventItems = cityItems.filter((a) => a.urgency === 'event' || a.urgency === 'regular');
 
   return (
-    <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-8">
+    <div className="w-full dn-container py-8">
       {/* Header */}
       <div className="mb-6">
         <button

@@ -63,7 +63,7 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
   }));
 
   return (
-    <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-8">
+    <div className="w-full dn-container py-8">
       {/* Back button */}
       <button
         onClick={onBackToHome}

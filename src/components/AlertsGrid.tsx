@@ -123,7 +123,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
 
   return (
     <section className="w-full py-8 md:py-12 bg-white" id="alerts-feed">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+      <div className="dn-container">
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>

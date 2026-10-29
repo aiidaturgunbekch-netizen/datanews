@@ -23,9 +23,9 @@ export const UrgentTicker: React.FC<UrgentTickerProps> = ({ currentLanguage, not
   return (
     <button
       onClick={onOpenNotice}
-      className="w-full text-left bg-[#12327A] text-white px-4 md:px-6 py-3 hover:bg-[#0d2459] border-b border-[#20C7B5]/60 transition-colors"
+      className="w-full text-left bg-[#12327A] text-white py-3 hover:bg-[#0d2459] border-b border-[#20C7B5]/60 transition-colors"
     >
-      <div className="max-w-[1280px] mx-auto flex items-center gap-3">
+      <div className="dn-container flex items-center gap-3">
         <span
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-black tracking-wider uppercase flex-shrink-0 ${
             live ? 'bg-red-600' : 'bg-white/20'

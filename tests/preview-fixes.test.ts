@@ -92,12 +92,14 @@ describe('фото и логотип', () => {
 });
 
 describe('страница «Связаться с DataNews»', () => {
-  it('кнопки WhatsApp/Telegram/Instagram на месте, номер не повторяется отдельной строкой', () => {
+  it('кнопки WhatsApp/Telegram/Instagram на месте, номера телефонов на странице не показываются', () => {
     const h = renderToStaticMarkup(React.createElement(InfoPage, { view: 'contacts', lang: 'ru', onNavigate: () => {} }));
     // видимый текст (без атрибутов: подпись для чтения с экрана не считается повтором)
     const visible = h.replace(/<[^>]+>/g, ' ');
-    assert.equal(visible.split('+996 990 000365').length - 1, 1, 'номер WhatsApp — только в кнопке');
-    assert.equal(visible.split('+996 700 230 994').length - 1, 1, 'номер Telegram — только в кнопке');
+    // номера не показываются вовсе — их видно после перехода по ссылке
+    assert.ok(!visible.includes('+996 990 000365') && !h.includes('+996 990 000365'), 'номер WhatsApp не показывается');
+    assert.ok(!visible.includes('+996 700 230 994') && !h.includes('+996 700 230 994'), 'номер Telegram не показывается');
+    assert.ok(visible.includes('@data.news.kg'), 'Instagram — как был');
     for (const href of ['https://wa.me/996990000365', 'https://t.me/+996700230994', 'https://www.instagram.com/data.news.kg/']) assert.ok(h.includes(href), href);
   });
 });

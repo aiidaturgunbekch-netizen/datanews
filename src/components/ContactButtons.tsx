@@ -10,10 +10,11 @@ const L = {
 
 /** Кнопки связи с редакцией: WhatsApp, Telegram, Instagram — в едином сдержанном стиле (ссылки открываются в новой вкладке / приложении) */
 export const ContactButtons: React.FC<{ lang: Language; compact?: boolean; className?: string }> = ({ lang, compact, className = '' }) => {
-  const items = [
-    { key: 'wa' as const, href: CONTACTS.whatsappUrl, label: L.wa[lang], sub: CONTACTS.whatsappPhone },
-    { key: 'tg' as const, href: telegramUrl(), label: L.tg[lang], sub: CONTACTS.telegramUsername ? `@${CONTACTS.telegramUsername}` : CONTACTS.telegramPhone },
-    { key: 'ig' as const, href: CONTACTS.instagramUrl, label: L.ig[lang], sub: CONTACTS.instagramHandle },
+  // Номера телефонов на кнопках не показываем — их видно после перехода в WhatsApp / Telegram
+  const items: { key: 'wa' | 'tg' | 'ig'; href: string; label: string; sub?: string }[] = [
+    { key: 'wa', href: CONTACTS.whatsappUrl, label: L.wa[lang] },
+    { key: 'tg', href: telegramUrl(), label: L.tg[lang], sub: CONTACTS.telegramUsername ? `@${CONTACTS.telegramUsername}` : undefined },
+    { key: 'ig', href: CONTACTS.instagramUrl, label: L.ig[lang], sub: CONTACTS.instagramHandle },
   ];
   return (
     <div className={`flex flex-wrap gap-2 ${className}`}>
@@ -23,7 +24,7 @@ export const ContactButtons: React.FC<{ lang: Language; compact?: boolean; class
           href={i.href}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`${i.label} (${i.sub})`}
+          aria-label={i.sub ? `${i.label} (${i.sub})` : i.label}
           className={`inline-flex items-center gap-2 rounded-xl font-bold transition border border-[#12327A]/20 bg-white text-[#12327A] hover:bg-[#12327A] hover:text-white ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm'}`}
         >
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
@@ -31,7 +32,7 @@ export const ContactButtons: React.FC<{ lang: Language; compact?: boolean; class
           </svg>
           <span className="flex flex-col leading-tight text-left">
             <span>{i.label}</span>
-            {!compact && <span className="text-[11px] font-semibold opacity-90">{i.sub}</span>}
+            {!compact && i.sub && <span className="text-[11px] font-semibold opacity-90">{i.sub}</span>}
           </span>
         </a>
       ))}

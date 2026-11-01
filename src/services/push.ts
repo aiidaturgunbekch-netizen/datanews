@@ -68,8 +68,8 @@ const save = async (sub: PushSubscription, city: CityId | 'all', lang: Language,
   }
 };
 
-/** Изменить темы уже включённой подписки */
-export const updateTopics = async (city: CityId | 'all', lang: Language, topics: PushTopic[]) => {
+/** Изменить город / область или темы уже включённой подписки (сама подписка браузера не меняется) */
+export const updateSubscription = async (city: CityId | 'all', lang: Language, topics: PushTopic[]) => {
   const cur = await currentSubscription();
   if (!cur) return;
   await save(cur.sub, city, lang, topics.length ? topics : DEFAULT_TOPICS);

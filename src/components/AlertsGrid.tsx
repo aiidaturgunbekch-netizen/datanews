@@ -8,6 +8,7 @@ import { alertLevel } from '../utils/urgency';
 import { EventImage } from './EventImage';
 import { PaidBadge } from './PaidBadge';
 import { PushToggle } from './PushToggle';
+import { PLACE_IDS } from '../config/regions';
 import { sourceLabel } from '../utils/links';
 import { placeText } from '../utils/place';
 
@@ -141,31 +142,24 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
           </div>
 
           <div className="flex flex-col items-start sm:items-end gap-2">
-          {/* Geo Scope Toggle */}
-          <div className="inline-flex bg-gray-100 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => onCityFilterChange('bishkek')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                selectedCity === 'bishkek'
-                  ? 'bg-white text-[#12327A] shadow-sm'
-                  : 'text-gray-600 hover:text-black'
-              }`}
+          {/* Город / область — весь список мест сайта (как в фильтре на главной) */}
+          <label className="inline-flex items-center gap-2 text-xs font-bold text-gray-600">
+            <span className="material-symbols-outlined text-[18px] text-[#12327A]" aria-hidden="true">
+              location_on
+            </span>
+            <span className="sr-only">{currentLanguage === 'kg' ? 'Шаар / облус' : currentLanguage === 'en' ? 'City / region' : 'Город / область'}</span>
+            <select
+              value={selectedCity === ('karakol' as CityId) ? 'issykkul' : selectedCity}
+              onChange={(e) => onCityFilterChange(e.target.value as CityId)}
+              className="px-3 py-1.5 rounded-xl bg-gray-100 border border-transparent text-xs font-bold text-[#12327A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#12327A]"
             >
-              {t('cities.bishkek')}
-            </button>
-            <button
-              type="button"
-              onClick={() => onCityFilterChange('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                selectedCity === 'all'
-                  ? 'bg-white text-[#12327A] shadow-sm'
-                  : 'text-gray-600 hover:text-black'
-              }`}
-            >
-              {t('cities.all')}
-            </button>
-          </div>
+              {PLACE_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {t(`cities.${id}`)}
+                </option>
+              ))}
+            </select>
+          </label>
           <PushToggle lang={currentLanguage} city={selectedCity} />
           </div>
         </div>

@@ -7,6 +7,8 @@
  *   DELETE { endpoint }         отписаться
  *   GET ?stats=1                сводка по подписчикам (админ)
  *   GET ?log=1                  журнал последних отправок (админ)
+ *   GET ?audience=1&city=&topic= сколько подписчиков получит уведомление (админ)
+ * Кто получает: подписчики «Весь Кыргызстан» — всё; подписчики Бишкека — ещё и Чуйскую область, Оша — Ошскую (pushCityMatches).
  *   PATCH { annId }             разослать действующее предупреждение подписчикам его города / области (админ)
  *   PATCH { custom: {…} }       своё уведомление на трёх языках: город, тема, ссылка на публикацию или раздел (админ)
  *
@@ -39,6 +41,7 @@ import {
   PUSH_LOG_LIMIT,
   PUSH_MIN_INTERVAL_MIN,
   PUSH_TITLE_MAX,
+  pushCityMatches,
   PushTopic,
 } from '../src/config/push';
 
@@ -137,14 +140,15 @@ const checkLink = async (raw: unknown): Promise<string> => {
   throw new HttpError('bad_link', 400, 'Ссылка — только на опубликованную новость или раздел сайта');
 };
 
+/** Подписчики, которым уйдёт уведомление места `city` и темы `topic` */
+export const recipients = (all: Sub[], city: CityId | 'all', topic: PushTopic) => all.filter((s) => topicsOf(s).includes(topic) && pushCityMatches(s.city, city));
+
 /** Рассылка: текст сохраняется под своим id, каждой подписке — ссылка на её уведомление, итог — в журнал */
 const deliver = async (entry: PushLogEntry, origin: string) => {
   const all = await hvalsJson<Sub>(SUBS_KEY);
-  const subs = all.filter(
-    (s) =>
-      topicsOf(s).includes(entry.topic) &&
-      (s.city === 'all' || entry.city === 'all' || s.city === entry.city || (s.city === 'issykkul' && (entry.city as string) === 'karakol'))
-  );
+  const subs = recipients(all, entry.city, entry.topic);
+  // Получателей нет — ничего не отправляем, в журнал не пишем и в ограничение частоты не засчитываем
+  if (subs.length === 0) throw new HttpError('no_recipients', 409, 'Для этого города / области и темы пока нет подписчиков — уведомление не отправлено');
   entry.total = subs.length;
   const ids = await Promise.all(subs.map((s) => subId(s.endpoint)));
   await hsetJson(LOG_KEY, entry.id, entry);
@@ -246,6 +250,15 @@ export default handler(async (req) => {
         failedTotal: log.reduce((n, e) => n + e.failed, 0),
         last: log[0] || (await cmd<string | null>('GET', LAST_KEY).then((s) => (s ? JSON.parse(s) : null))),
       });
+    }
+    // Сколько подписчиков получит уведомление — показывается администратору до отправки
+    if (url.searchParams.get('audience')) {
+      await requireAdmin(req);
+      const city = String(url.searchParams.get('city') || '');
+      const topic = String(url.searchParams.get('topic') || '');
+      if (!CITIES.includes(city as CityId) && city !== 'karakol') throw new HttpError('bad_city', 400);
+      if (!isPushTopic(topic)) throw new HttpError('bad_topic', 400);
+      return json({ count: recipients(await hvalsJson<Sub>(SUBS_KEY), city as CityId, topic).length });
     }
     if (url.searchParams.get('log')) {
       await requireAdmin(req);

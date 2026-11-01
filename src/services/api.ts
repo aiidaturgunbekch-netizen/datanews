@@ -318,6 +318,8 @@ export interface PushStats {
   last: { id: string; at: string; title: { ru: string } } | null;
 }
 export const pushStats = () => request<PushStats>('push?stats=1');
+export const pushAudience = (city: string, topic: string) =>
+  request<{ count: number }>(`push?audience=1&city=${encodeURIComponent(city)}&topic=${encodeURIComponent(topic)}`).then((r) => r.count);
 export const pushLog = () => request<{ entries: PushLogEntry[] }>('push?log=1').then((r) => r.entries);
 export const sendCustomPush = (custom: { title: Record<string, string>; body: Record<string, string>; url: string; city: string; topic: string }) =>
   post<PushLogEntry>('push', { custom }, 'PATCH');

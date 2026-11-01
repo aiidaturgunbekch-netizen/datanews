@@ -191,6 +191,35 @@ describe('с ключами', () => {
     assert.equal((await call('push', 'PATCH', admin, custom())).status, 429, 'не больше 20 рассылок в сутки');
   });
 
+  it('Бишкек получает и Чуйскую область, Ош — Ошскую, «Весь Кыргызстан» — все; число получателей видно до отправки', async () => {
+    const { pushCityMatches } = await import('../src/config/push');
+    assert.ok(pushCityMatches('bishkek', 'chui') && pushCityMatches('osh', 'osh_region'));
+    assert.ok(pushCityMatches('all', 'batken') && pushCityMatches('naryn', 'all'));
+    assert.ok(!pushCityMatches('chui', 'bishkek') && !pushCityMatches('bishkek', 'osh') && !pushCityMatches('osh_region', 'osh'));
+    assert.ok(pushCityMatches('issykkul', 'karakol'));
+    await subscribe('bsk', 'bishkek', { topics: ['urgent'] });
+    await subscribe('osh1', 'osh', { topics: ['urgent'] });
+    await subscribe('kg', 'all', { topics: ['urgent'] });
+    await subscribe('tal', 'talas', { topics: ['urgent'] });
+    const count = async (city: string) => (await call(`push?audience=1&city=${city}&topic=urgent`, 'GET', admin)).body.count;
+    assert.equal((await call('push?audience=1&city=chui&topic=urgent', 'GET')).status, 403, 'только администратору');
+    assert.deepEqual([await count('chui'), await count('osh_region'), await count('talas'), await count('bishkek'), await count('all')], [2, 2, 2, 2, 4]);
+    const r = await call('push', 'PATCH', admin, custom({ city: 'chui', topic: 'urgent', title: { ru: 'Чуйская область' } }));
+    assert.equal(r.body.total, 2);
+    assert.equal((await call(`push?inbox=${await subId(ep('bsk'))}`, 'GET')).body.message.title.ru, 'Чуйская область', 'Бишкек получил');
+    assert.equal((await call(`push?inbox=${await subId(ep('tal'))}`, 'GET')).body.message, null, 'Талас не получил');
+  });
+
+  it('нет получателей — ничего не отправляется, в журнал не пишется, ограничение частоты не тратится', async () => {
+    await subscribe('only-bsk', 'bishkek', { topics: ['urgent'] });
+    const before = (await cmd<string[]>('HKEYS', LOG_KEY)).length;
+    const r = await call('push', 'PATCH', admin, custom({ city: 'naryn', topic: 'urgent' }));
+    assert.equal(r.status, 409);
+    assert.equal(r.body.error, 'no_recipients');
+    assert.equal((await cmd<string[]>('HKEYS', LOG_KEY)).length, before);
+    assert.equal((await call('push', 'PATCH', admin, custom({ city: 'bishkek', topic: 'urgent' }))).status, 200, 'сразу после — можно отправить');
+  });
+
   it('журнал хранит не больше 200 записей', async () => {
     await subscribe('l1', 'all', { topics: ['news'] });
     for (let i = 0; i < 205; i++) await hsetJson(LOG_KEY, `x${String(i).padStart(3, '0')}`, { id: `x${String(i).padStart(3, '0')}`, at: `2025-0${1 + (i % 9)}-01T10:00`, sent: 0, failed: 0, errors: {} });

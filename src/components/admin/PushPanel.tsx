@@ -103,12 +103,30 @@ export const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) =
   const result = (r: api.PushLogEntry) =>
     `Отправлено: ${r.sent} из ${r.total}${r.removed ? `, удалено недействующих подписок: ${r.removed}` : ''}${r.failed ? `, ошибок: ${r.failed}` : ''}`;
 
+  /** Сколько подписчиков получит уведомление; 0 — не отправляем и объясняем почему */
+  const audience = async (c: string, tp: string, label: string) => {
+    const n = await api.pushAudience(c, tp);
+    if (n === 0) {
+      setErr(`Для «${label}» и темы «${topicLabel(tp)}» пока нет подписчиков — уведомление не отправлено. Подписчики города получают и уведомления своей области (Бишкек — Чуйской, Ош — Ошской), подписчики «Весь Кыргызстан» — все.`);
+      return null;
+    }
+    return n;
+  };
+
   const sendCustom = async () => {
     if (!canSend) return;
-    if (!window.confirm(`Отправить уведомление?\n\n«${title.ru}»\nПолучатели: ${cityLabel(city)}, тема «${topicLabel(topic)}»\nСсылка: ${linkText}`)) return;
-    setBusy('custom');
     setErr('');
     setMsg('');
+    let n: number | null;
+    try {
+      n = await audience(city, topic, cityLabel(city));
+    } catch (e) {
+      setErr((e as Error).message);
+      return;
+    }
+    if (n === null) return;
+    if (!window.confirm(`Отправить уведомление?\n\n«${title.ru}»\nПолучат: ${n} (${cityLabel(city)}, тема «${topicLabel(topic)}»)\nСсылка: ${linkText}`)) return;
+    setBusy('custom');
     try {
       const r = await api.sendCustomPush({ title, body, url, city, topic });
       setMsg(result(r));
@@ -122,10 +140,18 @@ export const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) =
     }
   };
   const sendAlert = async (a: Announcement) => {
-    if (!window.confirm(`Отправить push-уведомление подписчикам (${cityLabel(a.city)}):\n«${a.title.ru}»?`)) return;
-    setBusy(a.id);
     setErr('');
     setMsg('');
+    let n: number | null;
+    try {
+      n = await audience(a.city, 'urgent', cityLabel(a.city));
+    } catch (e) {
+      setErr((e as Error).message);
+      return;
+    }
+    if (n === null) return;
+    if (!window.confirm(`Отправить push-уведомление?\n«${a.title.ru}»\nПолучат: ${n} (${cityLabel(a.city)}, тема «Срочные предупреждения»)`)) return;
+    setBusy(a.id);
     try {
       setMsg(result((await api.sendPushFor(a.id)) as unknown as api.PushLogEntry));
       load();
@@ -204,7 +230,7 @@ export const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) =
         <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
           <div className="font-extrabold text-[#0f1b33] text-sm">Новое уведомление</div>
           <p className="text-xs text-gray-500">
-            Получат подписчики выбранной темы в выбранном городе и подписчики «Весь Кыргызстан». Каждый — на своём языке. Не чаще одной рассылки в {PUSH_MIN_INTERVAL_MIN.custom} мин, не больше {PUSH_DAILY_LIMIT} в сутки.
+            Получат подписчики выбранной темы в выбранном месте и подписчики «Весь Кыргызстан» (Чуйская область — ещё и Бишкек, Ошская — Ош). Каждый — на своём языке. Не чаще одной рассылки в {PUSH_MIN_INTERVAL_MIN.custom} мин, не больше {PUSH_DAILY_LIMIT} в сутки.
           </p>
           {field3('Заголовок', title, setTitle, PUSH_TITLE_MAX)}
           {field3('Текст', body, setBody, PUSH_BODY_MAX, true)}
@@ -285,7 +311,9 @@ export const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) =
       {stats?.configured && (
         <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
           <div className="font-extrabold text-[#0f1b33] text-sm">Отправить по действующему предупреждению</div>
-          <p className="text-xs text-gray-500">Получат подписчики темы «Срочные предупреждения» города / области предупреждения и «Весь Кыргызстан».</p>
+          <p className="text-xs text-gray-500">
+            Получат подписчики темы «Срочные предупреждения» этого места и «Весь Кыргызстан»; предупреждения Чуйской области — ещё и подписчики Бишкека, Ошской — подписчики Оша. Перед отправкой видно, сколько человек получит.
+          </p>
           {active.length === 0 ? (
             <p className="text-sm text-gray-500">Действующих предупреждений нет.</p>
           ) : (

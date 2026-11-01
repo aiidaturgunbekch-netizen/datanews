@@ -36,3 +36,17 @@ export const PUSH_LOG_LIMIT = 200;
 
 export type PushLang = Language;
 export type PushText = LocalizedString;
+
+/**
+ * Кому приходит уведомление, отправленное для места `target`:
+ *  - подписчикам «Весь Кыргызстан» — все уведомления;
+ *  - уведомление «Весь Кыргызстан» — всем подписчикам;
+ *  - подписчикам города — уведомления самого города и окружающей его области:
+ *    г. Бишкек — ещё и Чуйская область, г. Ош — ещё и Ошская область;
+ *  - старое значение 'karakol' относится к Иссык-Кульской области.
+ */
+const AROUND: Partial<Record<string, string>> = { bishkek: 'chui', osh: 'osh_region' };
+export const pushCityMatches = (subCity: string, target: string) => {
+  const t = target === 'karakol' ? 'issykkul' : target;
+  return subCity === 'all' || t === 'all' || subCity === t || AROUND[subCity] === t;
+};

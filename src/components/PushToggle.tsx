@@ -16,7 +16,6 @@ const TXT = {
     en: 'Notifications are blocked in the browser settings — allow them for this site.',
   },
   fail: { ru: 'Не удалось включить уведомления. Попробуйте позже.', kg: 'Билдирмелерди күйгүзүү мүмкүн болгон жок. Кийинчерээк аракет кылыңыз.', en: 'Could not turn on notifications. Try again later.' },
-  scope: { ru: 'Только срочные предупреждения', kg: 'Шашылыш эскертүүлөр гана', en: 'Urgent warnings only' },
   topics: { ru: 'Темы', kg: 'Темалар', en: 'Topics' },
   place: { ru: 'Город / область', kg: 'Шаар / облус', en: 'City / region' },
   // область получает и уведомления своего города: «Чуйская обл. (г. Бишкек)», «Ошская обл. (г. Ош)»
@@ -121,8 +120,10 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
   // Темы подписки: «Срочные предупреждения» по умолчанию; хотя бы одна тема остаётся выбранной
   const toggleTopic = async (tp: PushTopic) => {
     const next = topics.includes(tp) ? topics.filter((x) => x !== tp) : [...topics, tp];
-    if (next.length === 0 || !subCity) return;
+    if (next.length === 0) return;
     setTopics(next);
+    // до подписки — только запоминаем выбор: темы уйдут на сервер при нажатии «Уведомлять»
+    if (!subCity) return;
     try {
       await updateSubscription(subCity as CityId, lang, next);
     } catch {
@@ -159,7 +160,7 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
             type="button"
             onClick={turnOn}
             disabled={busy}
-            title={TXT.scope[lang]}
+            title={topics.map((tp) => PUSH_TOPIC_LABEL[tp][lang]).join(', ')}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#12327A] text-white font-bold hover:bg-[#0d2459] disabled:opacity-60"
           >
             <span className="material-symbols-outlined text-[16px]">notifications</span>
@@ -172,18 +173,17 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
             {panel === 'place' ? 'expand_less' : 'expand_more'}
           </span>
         </button>
+        {/* «Темы» видны всегда: до подписки выбирают темы будущей подписки, после — меняют темы включённой */}
+        <button type="button" onClick={() => toggle('topics')} aria-expanded={panel === 'topics'} aria-haspopup="true" className={`${smallBtn} text-[#12327A]`}>
+          {TXT.topics[lang]}
+          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+            {panel === 'topics' ? 'expand_less' : 'expand_more'}
+          </span>
+        </button>
         {subCity && (
-          <>
-            <button type="button" onClick={() => toggle('topics')} aria-expanded={panel === 'topics'} aria-haspopup="true" className={`${smallBtn} text-[#12327A]`}>
-              {TXT.topics[lang]}
-              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-                {panel === 'topics' ? 'expand_less' : 'expand_more'}
-              </span>
-            </button>
-            <button type="button" onClick={turnOff} disabled={busy} className={`${smallBtn} text-gray-600 disabled:opacity-60`}>
-              {busy ? TXT.busy[lang] : TXT.off[lang]}
-            </button>
-          </>
+          <button type="button" onClick={turnOff} disabled={busy} className={`${smallBtn} text-gray-600 disabled:opacity-60`}>
+            {busy ? TXT.busy[lang] : TXT.off[lang]}
+          </button>
         )}
       </div>
       {panel === 'place' && (
@@ -202,7 +202,7 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
           ))}
         </div>
       )}
-      {panel === 'topics' && subCity && (
+      {panel === 'topics' && (
         <fieldset className={popup}>
           <legend className="sr-only">{TXT.topics[lang]}</legend>
           {PUSH_TOPICS.map((tp) => (

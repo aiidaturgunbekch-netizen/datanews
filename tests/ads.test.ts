@@ -118,6 +118,27 @@ describe('кампании', () => {
     assert.deepEqual([w.body.campaign.status, w.body.campaign.payment.status], ['awaiting_payment', 'pending']);
   });
 
+  it('срок в днях или в месяцах: окончание и стоимость считаются от выбранного срока', async () => {
+    const { durationText, durationPrice } = await import('../src/config/ads');
+    const d = (await adm(base({ start: '2026-11-03T09:00', unit: 'days', amount: 10 }))).body.campaign;
+    assert.deepEqual([d.unit, d.amount, d.days, d.end, d.total], ['days', 10, 10, '2026-11-13T09:00', 3333], '10 дней = 10 000 ÷ 30 × 10');
+    const m = (await adm(base({ start: '2026-11-03T09:00', unit: 'months', amount: 2 }))).body.campaign;
+    assert.deepEqual([m.unit, m.amount, m.days, m.end, m.total], ['months', 2, 60, '2027-01-02T09:00', 20000]);
+    const tooLong = (await adm(base({ unit: 'days', amount: 999 }))).body.campaign;
+    assert.equal(tooLong.days, 365, 'не больше 365 дней');
+    assert.equal(durationPrice(5000, 'days', 15), 2500);
+    assert.deepEqual([durationText('days', 1), durationText('days', 3), durationText('days', 15), durationText('months', 1), durationText('months', 2)], [
+      '1 день',
+      '3 дня',
+      '15 дней',
+      '1 месяц (30 дней)',
+      '2 месяца (60 дней)',
+    ]);
+    // до подтверждения оплаты срок меняется; после — нет
+    const e = (await adm({ op: 'action', id: d.id, action: 'edit', unit: 'days', amount: 15 })).body.campaign;
+    assert.deepEqual([e.days, e.end, e.total], [15, '2026-11-18T09:00', 5000]);
+  });
+
   it('проверка изображений, ссылки и обязательных полей', async () => {
     assert.equal((await adm(base({ imageDesktopData: png(800, 800) }))).status, 400, 'пропорции');
     assert.equal((await adm(base({ imageDesktopData: png(400, 100) }))).status, 400, 'слишком маленькое');

@@ -167,6 +167,11 @@ export interface AdCampaign {
   /** Начало и окончание по Бишкеку, 'YYYY-MM-DDTHH:mm' */
   start: string;
   end: string;
+  /** Срок: в днях или в месяцах (1 месяц = 30 дней) и сколько; days — итого дней */
+  unit?: DurationUnit;
+  amount?: number;
+  days?: number;
+  /** Число месяцев (старые кампании — только месяцы); у кампаний «в днях» — округлённо вверх */
   periods: number;
   priority: number;
   /** Цена на момент создания (сом за период) и итог — не меняются при смене цены в каталоге */
@@ -203,6 +208,33 @@ export const addDaysLocal = (local: string, days: number) => {
   const ms = Date.parse(`${local.slice(0, 16)}:00Z`) + days * 86400 * 1000;
   return new Date(ms).toISOString().slice(0, 16);
 };
+export type DurationUnit = 'days' | 'months';
+/** Пределы срока: от 1 до 365 дней или от 1 до 12 месяцев */
+export const DURATION_LIMITS: Record<DurationUnit, { min: number; max: number }> = { days: { min: 1, max: 365 }, months: { min: 1, max: 12 } };
+export const clampAmount = (unit: DurationUnit, n: unknown) => {
+  const { min, max } = DURATION_LIMITS[unit];
+  const v = Math.floor(Number(n));
+  return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : min;
+};
+/** Итого дней: дни как есть, месяцы × 30 */
+export const durationDays = (unit: DurationUnit, amount: number, periodDays = 30) => (unit === 'days' ? amount : amount * periodDays);
+/**
+ * Стоимость срока: месяцы — цена за 30 дней × месяцы; дни — цена за 30 дней ÷ 30 × дни (до целого сома).
+ * Цена за 30 дней берётся из каталога на момент создания кампании.
+ */
+export const durationPrice = (pricePer30: number, unit: DurationUnit, amount: number, periodDays = 30) =>
+  unit === 'months' ? pricePer30 * amount : Math.round((pricePer30 * amount) / periodDays);
+const plural = (n: number, one: string, few: string, many: string) => {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
+};
+/** «10 дней», «1 месяц (30 дней)», «2 месяца (60 дней)» */
+export const durationText = (unit: DurationUnit, amount: number, periodDays = 30) =>
+  unit === 'days'
+    ? `${amount} ${plural(amount, 'день', 'дня', 'дней')}`
+    : `${amount} ${plural(amount, 'месяц', 'месяца', 'месяцев')} (${amount * periodDays} ${plural(amount * periodDays, 'день', 'дня', 'дней')})`;
+
 /** Окончание: начало + 30 дней × число периодов */
 export const campaignEnd = (start: string, periods: number, periodDays = 30) => addDaysLocal(start, periodDays * Math.max(1, Math.floor(periods)));
 

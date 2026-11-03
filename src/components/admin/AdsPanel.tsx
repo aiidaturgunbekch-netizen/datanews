@@ -2,13 +2,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as api from '../../services/api';
 import { inputCls } from '../AnnouncementForm';
 import {
+  clampAmount,
+  DURATION_LIMITS,
+  DurationUnit,
+  durationDays,
+  durationPrice,
+  durationText,
   AD_FORMAT_IDS,
   AD_PAYMENT_LABEL,
   AD_STATUS_LABEL,
   AdCampaignStatus,
   AdFormat,
   AdFormatId,
-  campaignEnd,
+  addDaysLocal,
   effectiveStatus,
   formatSom,
   ratioOk,
@@ -104,6 +110,35 @@ const PhotoPick: React.FC<{
         )}
       </span>
     </label>
+  </div>
+);
+
+/** Срок размещения: сначала «Дни» или «Месяцы», затем количество */
+const DurationPicker: React.FC<{ unit: DurationUnit; amount: string; onUnit: (u: DurationUnit) => void; onAmount: (v: string) => void }> = ({ unit, amount, onUnit, onAmount }) => (
+  <div className="block">
+    <span className="font-bold text-gray-600">Срок размещения</span>
+    <div className="mt-1 flex flex-wrap items-stretch gap-2">
+      <div role="radiogroup" aria-label="Единица срока" className="inline-flex rounded-xl bg-[#f3f6fc] p-1">
+        {(['days', 'months'] as DurationUnit[]).map((u) => (
+          <button
+            key={u}
+            type="button"
+            role="radio"
+            aria-checked={unit === u}
+            onClick={() => onUnit(u)}
+            className={`px-3 py-1.5 rounded-lg font-bold ${unit === u ? 'bg-[#12327A] text-white' : 'text-[#12327A] hover:bg-white'}`}
+          >
+            {u === 'days' ? 'Дни' : 'Месяцы'}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 min-w-[140px]">
+        <NumberInput value={amount} onChange={onAmount} max={DURATION_LIMITS[unit].max} placeholder={unit === 'days' ? 'например, 10' : '1'} />
+      </div>
+    </div>
+    <span className="text-gray-500">
+      {unit === 'days' ? `Количество дней: от 1 до ${DURATION_LIMITS.days.max}. Цена за день = цена за 30 дней ÷ 30.` : 'Количество месяцев: от 1 до 12 (1 месяц = 30 дней).'}
+    </span>
   </div>
 );
 
@@ -264,7 +299,7 @@ const CampaignList: React.FC<{
                   </a>
                 </div>
                 <div className="text-gray-600">
-                  {fmt(c.start)} — {fmt(c.end)} (Бишкек) · {formatSom(c.pricePerPeriod)} × {c.periods} = <b>{formatSom(c.total)}</b>
+                  {fmt(c.start)} — {fmt(c.end)} (Бишкек) · {durationText(c.unit || 'months', c.amount ?? c.periods)} = <b>{formatSom(c.total)}</b>
                   {paid && c.payment.ref && ` · платёж: ${c.payment.ref}${c.payment.confirmedAt ? `, подтверждён ${fmt(c.payment.confirmedAt)}` : ''}`}
                 </div>
                 <div className="text-xs">
@@ -337,7 +372,9 @@ const CampaignList: React.FC<{
 };
 
 const EditBox: React.FC<{ c: api.AdminCampaign; paid: boolean; onSave: (extra: Record<string, unknown>) => void }> = ({ c, paid, onSave }) => {
-  const [v, setV] = useState({ name: c.name, advertiser: c.advertiser, contact: c.contact, href: c.href, alt: c.alt, priority: String(c.priority), start: c.start, periods: String(c.periods) });
+  const [v, setV] = useState({ name: c.name, advertiser: c.advertiser, contact: c.contact, href: c.href, alt: c.alt, priority: String(c.priority), start: c.start });
+  const [unit, setUnit] = useState<DurationUnit>(c.unit || 'months');
+  const [amountStr, setAmountStr] = useState(String(c.amount ?? c.periods));
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value });
   return (
     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-gray-100 pt-3">
@@ -357,10 +394,15 @@ const EditBox: React.FC<{ c: api.AdminCampaign; paid: boolean; onSave: (extra: R
             <span className="font-bold text-gray-600">Начало (Бишкек)</span>
             <input type="datetime-local" className={inputCls} value={v.start} onChange={set('start')} />
           </label>
-          <label className="block">
-            <span className="font-bold text-gray-600">Срок — месяцев по 30 дней</span>
-            <NumberInput value={v.periods} onChange={(x) => setV({ ...v, periods: x })} max={12} placeholder="1" />
-          </label>
+          <DurationPicker
+            unit={unit}
+            amount={amountStr}
+            onUnit={(u) => {
+              setUnit(u);
+              setAmountStr(u === 'days' ? '30' : '1');
+            }}
+            onAmount={setAmountStr}
+          />
         </>
       ) : (
         <p className="text-gray-500 sm:col-span-2">Оплата подтверждена — период и цена не меняются.</p>
@@ -369,9 +411,9 @@ const EditBox: React.FC<{ c: api.AdminCampaign; paid: boolean; onSave: (extra: R
         <button
           type="button"
           onClick={() => {
-            const { start, periods, priority, ...rest } = v;
+            const { start, priority, ...rest } = v;
             const base = { ...rest, priority: toInt(priority, 0, 100, 0) };
-            onSave(paid ? base : { ...base, start, periods: toInt(periods, 1, 12, 1) });
+            onSave(paid ? base : { ...base, start, unit, amount: clampAmount(unit, amountStr || 1) });
           }}
           className="px-4 py-2 rounded-xl bg-[#12327A] text-white font-bold"
         >
@@ -488,7 +530,9 @@ const FormatForm: React.FC<{ f: AdFormat; onSaved: () => void; onError: (m: stri
 const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdFormatId; onCreated: () => void }> = ({ formats, initial, onCreated }) => {
   const [format, setFormat] = useState<AdFormatId>(initial);
   const f = formats[format];
-  const [v, setV] = useState({ name: '', advertiser: '', contact: '', href: 'https://', alt: '', title: '', text: '', cta: '', rubric: 'tech', label: 'ad', start: kgNowLocal().slice(0, 11) + '09:00', periods: '1', priority: '0' });
+  const [v, setV] = useState({ name: '', advertiser: '', contact: '', href: 'https://', alt: '', title: '', text: '', cta: '', rubric: 'tech', label: 'ad', start: kgNowLocal().slice(0, 11) + '09:00', priority: '0' });
+  const [unit, setUnit] = useState<DurationUnit>('days');
+  const [amountStr, setAmountStr] = useState('30');
   type Pic = { data: string; size: { w: number; h: number }; name: string };
   const [desk, setDesk] = useState<Pic | null>(null);
   const [mob, setMob] = useState<Pic | null>(null);
@@ -501,7 +545,8 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
     setMob(null);
   }, [format]);
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
-  const periods = toInt(v.periods, 1, 12, 1);
+  const amount = clampAmount(unit, amountStr || DURATION_LIMITS[unit].min);
+  const days = durationDays(unit, amount, f.periodDays);
   const priority = toInt(v.priority, 0, 100, 0);
   const pick = (which: 'desk' | 'mob') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -516,8 +561,8 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
       e.target.value = '';
     }
   };
-  const end = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start) ? campaignEnd(v.start, periods, f.periodDays) : '';
-  const total = f.price * periods;
+  const end = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start) ? addDaysLocal(v.start, days) : '';
+  const total = durationPrice(f.price, unit, amount, f.periodDays);
   const ready = v.name.trim() && v.advertiser.trim() && v.contact.trim() && /^https:\/\/.+\..+/.test(v.href) && v.alt.trim() && desk && end && (format !== 'C' || v.title.trim());
 
   const submit = async (status: 'draft' | 'awaiting_payment') => {
@@ -529,7 +574,8 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
         op: 'create',
         format,
         ...v,
-        periods,
+        unit,
+        amount,
         priority,
         status,
         imageDesktopData: desk!.data,
@@ -639,16 +685,20 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
           <span className="font-bold text-gray-600">Начало показа (дата и время по Бишкеку)</span>
           <input type="datetime-local" className={inputCls} value={v.start} onChange={set('start')} />
         </label>
-        <label className="block">
-          <span className="font-bold text-gray-600">Срок размещения — сколько месяцев (1 месяц = 30 дней)</span>
-          <NumberInput value={v.periods} onChange={(x) => setV({ ...v, periods: x })} max={12} placeholder="1" />
-          <span className="text-gray-500">1 — 30 дней, 2 — 60 дней, 3 — 90 дней (до 12)</span>
-        </label>
-        {/* Окончание считается само: начало + 30 дней × срок */}
+        <DurationPicker
+          unit={unit}
+          amount={amountStr}
+          onUnit={(u) => {
+            setUnit(u);
+            setAmountStr(u === 'days' ? '30' : '1');
+          }}
+          onAmount={setAmountStr}
+        />
+        {/* Окончание считается само: начало + срок */}
         <div className="sm:col-span-2 rounded-xl bg-[#eef2f9] p-3 text-sm" data-create-end>
           <span className="font-bold text-gray-600">Окончание показа (считается автоматически): </span>
           <b className="text-[#0f1b33]">{end ? `${formatKgDateTime(end)} (Бишкек)` : 'укажите дату начала'}</b>
-          {end && <span className="text-gray-600"> — через {periods * f.periodDays} дней после начала</span>}
+          {end && <span className="text-gray-600"> — срок {durationText(unit, amount, f.periodDays)}</span>}
         </div>
         <label className="block sm:col-span-2">
           <span className="font-bold text-gray-600">Приоритет показа (0–100) — обычно оставьте 0</span>
@@ -660,7 +710,7 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
       </div>
       {imgErr && <p className="text-red-700 font-semibold">{imgErr}</p>}
       <div className="rounded-xl bg-[#fff6e5] p-3 text-sm" data-create-total>
-        Итого к оплате: <b>{formatSom(total)}</b> ({formatSom(f.price)} × {periods} мес.) · показ до <b>{end ? formatKgDateTime(end) : '—'}</b>
+        Итого к оплате: <b>{formatSom(total)}</b> за {durationText(unit, amount, f.periodDays)} (цена за 30 дней — {formatSom(f.price)}) · показ до <b>{end ? formatKgDateTime(end) : '—'}</b>
         <div className="text-xs text-gray-600 mt-1">Кампания сохраняется как черновик или «Ожидает оплаты» и не показывается на сайте, пока вы не подтвердите оплату и не включите её.</div>
       </div>
       {err && <p className="text-red-700 font-semibold">{err}</p>}

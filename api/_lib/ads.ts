@@ -14,8 +14,13 @@ import {
   AdCampaignStatus,
   AdFormat,
   AdFormatId,
-  campaignEnd,
+  addDaysLocal,
+  clampAmount,
   DEFAULT_AD_FORMATS,
+  DurationUnit,
+  durationDays,
+  durationPrice,
+  durationText,
   effectiveStatus,
   isLive,
   LiveAd,
@@ -178,7 +183,10 @@ export const createCampaign = async (raw: Record<string, unknown>) => {
   if (format === 'D' && !RUBRICS.some((r) => r.id === rubric)) throw new HttpError('bad_rubric', 400, 'Выберите раздел для тематического баннера');
   const title = format === 'C' ? str(raw.title, 90) : undefined;
   if (format === 'C' && !title) throw new HttpError('missing_field', 400, 'Для рекламной карточки нужен заголовок');
-  const periods = Math.min(12, Math.max(1, Math.floor(Number(raw.periods) || 1)));
+  // Срок: в днях (1–365) или в месяцах (1–12); старые клиенты присылают periods — это месяцы
+  const unit: DurationUnit = raw.unit === 'days' ? 'days' : 'months';
+  const amount = clampAmount(unit, raw.amount ?? raw.periods ?? 1);
+  const days = durationDays(unit, amount, f.periodDays);
   const start = checkStart(raw.start);
   const status: AdCampaignStatus = raw.status === 'awaiting_payment' ? 'awaiting_payment' : 'draft';
   const href = checkHref(raw.href);
@@ -200,16 +208,19 @@ export const createCampaign = async (raw: Record<string, unknown>) => {
     href,
     ...(format === 'C' ? { title, text: str(raw.text, 200), cta: str(raw.cta, 30) } : {}),
     start,
-    end: campaignEnd(start, periods, f.periodDays),
-    periods,
+    end: addDaysLocal(start, days),
+    unit,
+    amount,
+    days,
+    periods: Math.ceil(days / f.periodDays),
     priority: Math.min(100, Math.max(0, Math.round(Number(raw.priority) || 0))),
     pricePerPeriod: f.price,
-    total: f.price * periods,
+    total: durationPrice(f.price, unit, amount, f.periodDays),
     payment: { status: status === 'awaiting_payment' ? 'pending' : 'unpaid' },
     status,
     createdAt: now,
     updatedAt: now,
-    history: [{ at: now, action: 'created', note: `${f.name.ru}, ${f.price} сом × ${periods}` }],
+    history: [{ at: now, action: 'created', note: `${f.name.ru}, ${durationText(unit, amount, f.periodDays)}, ${durationPrice(f.price, unit, amount, f.periodDays)} сом` }],
   };
   await hsetJson(CAMPAIGNS_KEY, c.id, c);
   return c;
@@ -262,11 +273,24 @@ export const campaignAction = async (raw: Record<string, unknown>) => {
         next = { ...next, imageMobile: img.url, imageMobileSize: img.size };
       }
       // Период и цена — только до подтверждения оплаты (цена — по текущему каталогу на момент правки)
-      if (!paid && (raw.start !== undefined || raw.periods !== undefined)) {
+      const changesTerm = raw.start !== undefined || raw.periods !== undefined || raw.unit !== undefined || raw.amount !== undefined;
+      if (!paid && changesTerm) {
         const start = raw.start !== undefined ? checkStart(raw.start) : c.start;
-        const periods = raw.periods !== undefined ? Math.min(12, Math.max(1, Math.floor(Number(raw.periods) || 1))) : c.periods;
-        next = { ...next, start, periods, end: campaignEnd(start, periods, f.periodDays), pricePerPeriod: f.price, total: f.price * periods };
-      } else if (paid && (raw.start !== undefined || raw.periods !== undefined)) {
+        const unit: DurationUnit = raw.unit === 'days' || raw.unit === 'months' ? raw.unit : c.unit || 'months';
+        const amount = clampAmount(unit, raw.amount ?? raw.periods ?? c.amount ?? c.periods);
+        const days = durationDays(unit, amount, f.periodDays);
+        next = {
+          ...next,
+          start,
+          unit,
+          amount,
+          days,
+          periods: Math.ceil(days / f.periodDays),
+          end: addDaysLocal(start, days),
+          pricePerPeriod: f.price,
+          total: durationPrice(f.price, unit, amount, f.periodDays),
+        };
+      } else if (paid && changesTerm) {
         throw new HttpError('locked', 409, 'Период оплаченной кампании не меняется');
       }
       next = withHistory(next, 'edited');

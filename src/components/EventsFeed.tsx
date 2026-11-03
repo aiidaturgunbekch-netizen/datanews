@@ -229,9 +229,12 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
 
             return (
               <React.Fragment key={item.id}>
-              <li key={item.id} className={`relative group flex gap-3 sm:gap-4 py-4 sm:py-5 ${displayStatus === 'completed' ? 'opacity-80' : ''}`}>
-                {/* Дата события — «листок календаря» слева: главное в DataNews — когда */}
-                <DateBadge date={item.startDate} lang={currentLanguage} />
+              <li key={item.id} className={`@container relative group flex gap-3 sm:gap-4 py-4 sm:py-5 ${displayStatus === 'completed' ? 'opacity-80' : ''}`}>
+                {/* Дата события — «листок календаря» слева: главное в DataNews — когда.
+                    На очень узкой строке (маленький экран или крупный шрифт) листок прячется — дата есть и в строке под заголовком */}
+                <span className="contents @max-[240px]:hidden">
+                  <DateBadge date={item.startDate} lang={currentLanguage} />
+                </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5 text-[11px] font-bold">
                     <span className="dn-kicker">{t(`categories.${item.category}`)}</span>
@@ -274,7 +277,8 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                   )}
                 </div>
                 <div className="relative shrink-0 flex flex-col items-end gap-2">
-                  <EventImage item={item} lang={currentLanguage} compact className="w-24 h-[72px] sm:w-40 sm:h-[104px] rounded-lg" />
+                  {/* Картинка — только когда тексту остаётся достаточно места (иначе заголовок сжимается в столбик) */}
+                  <EventImage item={item} lang={currentLanguage} compact className="w-24 h-[72px] sm:w-40 sm:h-[104px] rounded-lg @max-[300px]:hidden" />
                   <button
                     type="button"
                     onClick={(e) => toggleFav(e, item.id)}

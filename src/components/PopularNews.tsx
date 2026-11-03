@@ -34,7 +34,7 @@ export const PopularNews: React.FC<{
       <ol className="divide-y divide-gray-100">
         {items.map((a, i) => (
           <li key={a.id}>
-            <button type="button" onClick={() => onOpen(a)} className="group w-full text-left flex items-start gap-3 py-3">
+            <button type="button" onClick={() => onOpen(a)} className="@container group w-full text-left flex items-start gap-3 py-3">
               <span className="w-5 shrink-0 pt-0.5 text-lg font-extrabold leading-none text-[#12327A] tabular-nums">{i + 1}</span>
               <span className="flex-1 min-w-0">
                 <span className="block font-serif text-[15px] font-semibold leading-snug text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline underline-offset-2 line-clamp-3 [overflow-wrap:anywhere]">
@@ -45,7 +45,7 @@ export const PopularNews: React.FC<{
                   {mode === 'popular' && reads[a.id] ? ` · ${reads[a.id]} ${T.reads[lang]}` : ''}
                 </span>
               </span>
-              <EventImage item={a} lang={lang} compact className="w-16 h-12 rounded-md shrink-0" />
+              <EventImage item={a} lang={lang} compact className="w-16 h-12 rounded-md shrink-0 @max-[260px]:hidden" />
             </button>
           </li>
         ))}

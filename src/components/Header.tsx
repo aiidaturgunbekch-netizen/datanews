@@ -106,9 +106,9 @@ export const Header: React.FC<HeaderProps> = ({
             <time dateTime={`${kg.toISOString().slice(0, 16)}+06:00`} className="font-semibold text-white tabular-nums">
               {timeLabel}
             </time>{' '}
-            <span>({kgTimeName})</span>
+            <span className="max-[359px]:hidden">({kgTimeName})</span>
           </span>
-          <div className="flex items-center gap-4 sm:gap-6 ml-auto">
+          <div className="flex items-center gap-2 min-[360px]:gap-4 sm:gap-6 ml-auto">
             <button
               onClick={() => onViewChange('organizations')}
               className={`font-semibold transition-colors ${currentView === 'organizations' ? 'text-white' : 'text-[#c8d2ee] hover:text-white'}`}
@@ -253,7 +253,8 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="material-symbols-outlined text-[18px] text-[#20C7B5]" aria-hidden="true">
                 {role === 'user' ? 'account_circle' : 'login'}
               </span>
-              <span>{role === 'user' ? t('nav.cabinetBtn') : t('nav.loginBtn')}</span>
+              {/* На очень узком экране — только значок (название — в подсказке и для чтения с экрана) */}
+              <span className="max-[339px]:sr-only">{role === 'user' ? t('nav.cabinetBtn') : t('nav.loginBtn')}</span>
             </button>
           )}
 

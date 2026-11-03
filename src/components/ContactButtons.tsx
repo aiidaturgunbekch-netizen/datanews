@@ -67,7 +67,7 @@ export const SocialLinks: React.FC<{ lang: Language; className?: string }> = ({ 
     { key: 'ig', href: CONTACTS.instagramUrl, label: 'Instagram DataNews' },
   ];
   return (
-    <ul className={`flex items-center gap-2.5 ${className}`} aria-label={lang === 'kg' ? 'Социалдык тармактар' : lang === 'en' ? 'Social media' : 'Социальные сети'}>
+    <ul className={`flex flex-wrap items-center gap-2.5 ${className}`} aria-label={lang === 'kg' ? 'Социалдык тармактар' : lang === 'en' ? 'Social media' : 'Социальные сети'}>
       {items.map((i) => (
         <li key={i.key}>
           <a

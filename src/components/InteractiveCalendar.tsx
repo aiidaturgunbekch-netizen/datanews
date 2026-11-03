@@ -313,8 +313,9 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                     <span className={`absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full ring-2 ring-white ${dotColor}`} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <p className="font-semibold text-[#0f1b33] leading-snug group-hover:text-[#12327A] truncate">
+                    {/* Название — не меньше 8rem; если места мало, метка статуса уходит на следующую строку (а не съедает название) */}
+                    <div className="flex flex-wrap items-start justify-between gap-x-1 gap-y-0.5 mb-1">
+                      <p className="flex-1 basis-[8rem] min-w-0 font-semibold text-[#0f1b33] leading-snug group-hover:text-[#12327A] line-clamp-2 [overflow-wrap:anywhere]">
                         {item.title[currentLanguage] || item.title.ru}
                       </p>
                       <span
@@ -323,7 +324,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                         {statusCfg.label}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-gray-500 text-[11px]">
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 text-gray-500 text-[11px]">
                       <span>
                         {formatTime(item.startDate)}
                         {item.district ? ` • ${item.district}` : ''}

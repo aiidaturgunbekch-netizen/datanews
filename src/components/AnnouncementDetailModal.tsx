@@ -605,7 +605,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                 <ul className="space-y-1 text-sm">
                   {sec.items.map((l) => (
                     <li key={l.href}>
-                      <a href={l.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[#12327A] font-semibold hover:underline break-all">
+                      <a href={l.href} target="_blank" rel="noopener noreferrer" className="inline-flex flex-wrap items-center gap-x-1.5 text-[#12327A] font-semibold hover:underline [overflow-wrap:anywhere]">
                         <span className="material-symbols-outlined text-[16px]">{LINK_META[l.label].icon}</span>
                         <span>{LINK_META[l.label].text}</span>
                         <span className="text-gray-500 font-normal">— {hostOf(l.href)}</span>
@@ -622,7 +622,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                 <ul className="space-y-1 text-sm">
                   {tickets.url && tickets.verified && (
                     <li>
-                      <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[#12327A] font-semibold hover:underline break-all">
+                      <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="inline-flex flex-wrap items-center gap-x-1.5 text-[#12327A] font-semibold hover:underline [overflow-wrap:anywhere]">
                         <span className="material-symbols-outlined text-[16px]">confirmation_number</span>
                         <span>{govTicket ? L.govTicket[lang] : `${hostOf(tickets.url)} (${L.privateTicket[lang]})`}</span>
                         <span className="material-symbols-outlined text-[14px]">open_in_new</span>

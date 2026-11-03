@@ -108,6 +108,7 @@
     color: var(--color-ink);
     text-wrap: balance;
     overflow-wrap: anywhere;
+    hyphens: auto;
   }
   /* Заголовок стандартной карточки */
   .dn-card-title {
@@ -118,6 +119,7 @@
     color: var(--color-ink);
     text-wrap: pretty;
     overflow-wrap: anywhere;
+    hyphens: auto;
   }
   /* Заголовок компактной карточки в списке */
   .dn-card-title-sm {
@@ -126,6 +128,7 @@
     line-height: 1.35;
     color: var(--color-ink);
     overflow-wrap: anywhere;
+    hyphens: auto;
   }
   .dn-body {
     font-size: 1rem;

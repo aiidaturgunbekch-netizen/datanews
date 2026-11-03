@@ -905,12 +905,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   return (
     <div className="fixed inset-0 z-[120] bg-[#0d2459]/70 backdrop-blur-sm flex items-stretch sm:items-center justify-center sm:p-6" role="dialog" aria-modal="true" aria-label="Панель управления">
       <div className="relative w-full sm:max-w-6xl h-full sm:h-[92vh] bg-[#F5F7FB] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden">
-        <div className="bg-[#0d2459] text-white px-5 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#20C7B5]">admin_panel_settings</span>
-            <span className="font-extrabold">Панель управления DataNews</span>
+        <div className="bg-[#0d2459] text-white px-3 min-[360px]:px-5 py-3 flex items-center justify-between gap-2 min-[360px]:gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="material-symbols-outlined text-[#20C7B5] shrink-0">admin_panel_settings</span>
+            <span className="font-extrabold leading-tight min-w-0">Панель управления DataNews</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {isAdmin && (
               <button onClick={logout} className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold">
                 Выйти
@@ -946,9 +946,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
             </form>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col sm:flex-row min-h-0">
-            {/* На телефоне — сетка в две колонки, чтобы все пункты и счётчики были видны без прокрутки вбок */}
-            <nav className="sm:w-64 shrink-0 bg-white border-b sm:border-b-0 sm:border-r border-gray-100 p-2 grid grid-cols-2 sm:flex sm:flex-col gap-1 sm:overflow-y-auto">
+          // На телефоне прокручивается вся панель (меню + содержимое), чтобы меню не занимало экран постоянно
+          <div className="flex-1 flex flex-col sm:flex-row min-h-0 max-sm:overflow-y-auto">
+            {/* На телефоне — сетка (две колонки, на самых узких экранах одна), чтобы все пункты и счётчики были видны без прокрутки вбок
+                и название пункта не наезжало на счётчик */}
+            <nav className="sm:w-64 shrink-0 bg-white border-b sm:border-b-0 sm:border-r border-gray-100 p-2 grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] sm:flex sm:flex-col gap-1 sm:overflow-y-auto">
               {tabs.map(([id, label, icon, badge]) => (
                 <button
                   key={id}
@@ -963,7 +965,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                   }`}
                 >
                   <span className="material-symbols-outlined text-[18px] shrink-0">{icon}</span>
-                  <span className="flex-1 min-w-0 text-left leading-tight">{label}</span>
+                  <span className="flex-1 min-w-0 text-left leading-tight [overflow-wrap:anywhere]">{label}</span>
                   {badge && (
                     <span
                       aria-label={badge.title}
@@ -982,7 +984,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
               ))}
             </nav>
 
-            <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4">
+            <div className="flex-1 min-w-0 max-sm:flex-none sm:overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4">
               {msg && <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-semibold">{msg}</div>}
               {err && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">{err}</div>}
 

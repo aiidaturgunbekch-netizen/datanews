@@ -163,14 +163,25 @@ export const AdsPanel: React.FC = () => {
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [createFormat, setCreateFormat] = useState<AdFormatId>('A');
-  const load = () =>
-    api
+  const [loadedAt, setLoadedAt] = useState<Date | null>(null);
+  const [loading, setLoading] = useState(false);
+  const load = () => {
+    setLoading(true);
+    return api
       .adsAdmin()
-      .then(setData)
-      .catch((e: Error) => setErr(e.message));
+      .then((d) => {
+        setData(d);
+        setLoadedAt(new Date());
+      })
+      .catch((e: Error) => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+  // Список, статистика и архив — всегда свежие: загружаются заново при каждом открытии вкладки
+  const live = sub === 'campaigns' || sub === 'stats' || sub === 'archive';
   useEffect(() => {
-    load();
-  }, []);
+    if (live || !data) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sub]);
 
   const now = kgNowLocal();
   const current = useMemo(() => (data?.campaigns || []).filter((c) => effectiveStatus(c, now) !== 'completed'), [data, now]);
@@ -213,6 +224,29 @@ export const AdsPanel: React.FC = () => {
           </button>
         ))}
       </div>
+      {live && data && (
+        <div className="flex flex-wrap items-center gap-3" data-ads-refresh>
+          <button
+            type="button"
+            onClick={() => {
+              setErr('');
+              load();
+            }}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs font-bold text-[#12327A] disabled:opacity-60"
+          >
+            <span className={`material-symbols-outlined text-[16px] ${loading ? 'animate-spin' : ''}`} aria-hidden="true">
+              refresh
+            </span>
+            {loading ? 'Обновляется…' : 'Обновить'}
+          </button>
+          {loadedAt && (
+            <span className="text-xs text-gray-500" aria-live="polite">
+              Обновлено в {loadedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
+        </div>
+      )}
       {msg && <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-semibold">{msg}</div>}
       {err && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">{err}</div>}
       {!data ? (

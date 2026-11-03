@@ -16,7 +16,7 @@ const { default: track } = await import('../api/track');
 const { default: stats } = await import('../api/stats');
 const { CAMPAIGNS_KEY, imageSize } = await import('../api/_lib/ads');
 const { hgetJson, hsetJson } = await import('../api/_lib/kv');
-const { addDaysLocal, campaignEnd, DEFAULT_AD_FORMATS, feedAdPositions, pickAd } = await import('../src/config/ads');
+const { addDaysLocal, campaignEnd, DEFAULT_AD_FORMATS, feedAdPositions, formatSom, pickAd } = await import('../src/config/ads');
 const { kgNowLocal } = await import('../src/utils/time');
 
 /** Заголовок PNG нужного размера (сервер читает размер из заголовка; картинку не декодирует) */
@@ -258,5 +258,10 @@ describe('показы и клики', () => {
 describe('стартовые цены совпадают с заданием', () => {
   it('A 10 000, B 5 000, C 4 000, D 3 000 сомов', () => {
     assert.deepEqual(['A', 'B', 'C', 'D'].map((k) => (DEFAULT_AD_FORMATS as any)[k].price), [10000, 5000, 4000, 3000]);
+  });
+  it('цена не разрывается переносом строки: пробелы неразрывные', () => {
+    assert.equal(formatSom(10000), '10\u00a0000\u00a0сомов');
+    assert.equal(formatSom(1250000, 'kg'), '1\u00a0250\u00a0000\u00a0сом');
+    assert.ok(!/[ \u202f]/.test(formatSom(3333, 'en')));
   });
 });

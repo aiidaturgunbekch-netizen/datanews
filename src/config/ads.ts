@@ -282,4 +282,4 @@ export const ratioOk = (w: number, h: number, want: AdSize, tolerance = 0.08) =>
 
 /** Цена в сомах: «10 000 сомов» */
 export const formatSom = (n: number, lang: Language = 'ru') =>
-  `${n.toLocaleString('ru-RU').replace(/ /g, ' ')} ${lang === 'kg' ? 'сом' : lang === 'en' ? 'KGS' : 'сомов'}`;
+  `${n.toLocaleString('ru-RU').replace(/[\s\u202f]/g, '\u00a0')}\u00a0${lang === 'kg' ? 'сом' : lang === 'en' ? 'KGS' : 'сомов'}`;

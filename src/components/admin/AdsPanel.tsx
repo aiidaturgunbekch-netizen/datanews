@@ -57,6 +57,56 @@ const prepareImage = async (file: File, want: { w: number; h: number }) => {
   return { data, size: d };
 };
 
+/** Целое число из текста поля (пустое или неверное — запасное значение), в пределах min…max */
+const toInt = (s: string, min: number, max: number, fallback: number) => {
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+};
+/** Поле для числа: цифры набираются с клавиатуры, стирание работает (без стрелок «вверх / вниз») */
+const NumberInput: React.FC<{ value: string; onChange: (v: string) => void; max?: number; placeholder?: string }> = ({ value, onChange, max = 9_999_999, placeholder }) => (
+  <input
+    type="text"
+    inputMode="numeric"
+    autoComplete="off"
+    className={inputCls}
+    value={value}
+    placeholder={placeholder}
+    onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, String(max).length))}
+  />
+);
+
+/** Рамка выбора фото: видно, куда нажать; после выбора — миниатюра, имя файла и размер */
+const PhotoPick: React.FC<{
+  title: string;
+  hint: string;
+  file: { data: string; size: { w: number; h: number }; name: string } | null;
+  onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}> = ({ title, hint, file, onPick }) => (
+  <div className="block">
+    <span className="font-bold text-gray-600">{title}</span>
+    <label className="mt-1 flex items-center gap-3 rounded-xl border-2 border-dashed border-[#12327A]/30 bg-[#f7f9fd] p-3 cursor-pointer hover:border-[#12327A] hover:bg-[#eef2f9] focus-within:ring-2 focus-within:ring-[#12327A]">
+      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPick} className="sr-only" />
+      {file ? (
+        <img src={file.data} alt="" className="h-14 max-w-[45%] rounded-lg border border-gray-200 object-contain bg-white" />
+      ) : (
+        <span className="material-symbols-outlined text-[32px] text-[#12327A]" aria-hidden="true">
+          add_photo_alternate
+        </span>
+      )}
+      <span className="min-w-0">
+        <span className="block font-bold text-[#12327A]">{file ? 'Заменить фото' : 'Нажмите, чтобы выбрать фото'}</span>
+        {file ? (
+          <span className="block text-emerald-700 truncate">
+            ✓ {file.name} · {file.size.w}×{file.size.h}
+          </span>
+        ) : (
+          <span className="block text-gray-500">{hint}</span>
+        )}
+      </span>
+    </label>
+  </div>
+);
+
 const Badge: React.FC<{ status: AdCampaignStatus }> = ({ status }) => <span className={`px-2 py-0.5 rounded-lg text-[11px] font-bold ${STATUS_CLS[status]}`}>{AD_STATUS_LABEL[status]}</span>;
 
 const StatsLine: React.FC<{ c: api.AdminCampaign }> = ({ c }) =>
@@ -287,8 +337,8 @@ const CampaignList: React.FC<{
 };
 
 const EditBox: React.FC<{ c: api.AdminCampaign; paid: boolean; onSave: (extra: Record<string, unknown>) => void }> = ({ c, paid, onSave }) => {
-  const [v, setV] = useState({ name: c.name, advertiser: c.advertiser, contact: c.contact, href: c.href, alt: c.alt, priority: c.priority, start: c.start, periods: c.periods });
-  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: k === 'priority' || k === 'periods' ? Number(e.target.value) : e.target.value });
+  const [v, setV] = useState({ name: c.name, advertiser: c.advertiser, contact: c.contact, href: c.href, alt: c.alt, priority: String(c.priority), start: c.start, periods: String(c.periods) });
+  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value });
   return (
     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-gray-100 pt-3">
       {(['name', 'advertiser', 'contact', 'href', 'alt'] as const).map((k) => (
@@ -298,8 +348,8 @@ const EditBox: React.FC<{ c: api.AdminCampaign; paid: boolean; onSave: (extra: R
         </label>
       ))}
       <label className="block">
-        <span className="font-bold text-gray-600">Приоритет (0–100)</span>
-        <input type="number" min={0} max={100} className={inputCls} value={v.priority} onChange={set('priority')} />
+        <span className="font-bold text-gray-600">Приоритет показа (0–100, обычно 0)</span>
+        <NumberInput value={v.priority} onChange={(x) => setV({ ...v, priority: x })} max={100} placeholder="0" />
       </label>
       {!paid ? (
         <>
@@ -308,8 +358,8 @@ const EditBox: React.FC<{ c: api.AdminCampaign; paid: boolean; onSave: (extra: R
             <input type="datetime-local" className={inputCls} value={v.start} onChange={set('start')} />
           </label>
           <label className="block">
-            <span className="font-bold text-gray-600">Периодов по 30 дней</span>
-            <input type="number" min={1} max={12} className={inputCls} value={v.periods} onChange={set('periods')} />
+            <span className="font-bold text-gray-600">Срок — месяцев по 30 дней</span>
+            <NumberInput value={v.periods} onChange={(x) => setV({ ...v, periods: x })} max={12} placeholder="1" />
           </label>
         </>
       ) : (
@@ -319,8 +369,9 @@ const EditBox: React.FC<{ c: api.AdminCampaign; paid: boolean; onSave: (extra: R
         <button
           type="button"
           onClick={() => {
-            const { start, periods, ...rest } = v;
-            onSave(paid ? rest : { ...rest, start, periods });
+            const { start, periods, priority, ...rest } = v;
+            const base = { ...rest, priority: toInt(priority, 0, 100, 0) };
+            onSave(paid ? base : { ...base, start, periods: toInt(periods, 1, 12, 1) });
           }}
           className="px-4 py-2 rounded-xl bg-[#12327A] text-white font-bold"
         >
@@ -355,26 +406,26 @@ const CatalogEditor: React.FC<{ formats: Record<AdFormatId, AdFormat>; onCreate:
 
 const FormatForm: React.FC<{ f: AdFormat; onSaved: () => void; onError: (m: string) => void }> = ({ f, onSaved, onError }) => {
   const [v, setV] = useState({
-    price: f.price,
-    dw: f.desktop.w,
-    dh: f.desktop.h,
-    mw: f.mobile?.w || 0,
-    mh: f.mobile?.h || 0,
+    price: String(f.price),
+    dw: String(f.desktop.w),
+    dh: String(f.desktop.h),
+    mw: String(f.mobile?.w || ''),
+    mh: String(f.mobile?.h || ''),
     name: f.name.ru,
     caption: f.caption.ru,
     placement: f.placement.ru,
     benefits: f.benefits.ru,
   });
-  const num = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: Number(e.target.value) });
+  const num = (k: 'price' | 'dw' | 'dh' | 'mw' | 'mh') => (x: string) => setV({ ...v, [k]: x });
   const txt = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV({ ...v, [k]: e.target.value });
   const save = async () => {
     try {
       await api.adsPost({
         op: 'format',
         id: f.id,
-        price: v.price,
-        desktop: { w: v.dw, h: v.dh },
-        mobile: v.mw && v.mh ? { w: v.mw, h: v.mh } : null,
+        price: toInt(v.price, 0, 10_000_000, 0),
+        desktop: { w: toInt(v.dw, 0, 4000, 0), h: toInt(v.dh, 0, 4000, 0) },
+        mobile: v.mw && v.mh ? { w: toInt(v.mw, 0, 4000, 0), h: toInt(v.mh, 0, 4000, 0) } : null,
         // русский текст меняется здесь; кыргызский и английский остаются прежними, если их не меняли
         name: { ...f.name, ru: v.name },
         caption: { ...f.caption, ru: v.caption },
@@ -390,23 +441,23 @@ const FormatForm: React.FC<{ f: AdFormat; onSaved: () => void; onError: (m: stri
     <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
       <label className="block col-span-2">
         <span className="font-bold text-gray-600">Цена за 30 дней, сом</span>
-        <input type="number" min={1} className={inputCls} value={v.price} onChange={num('price')} />
+        <NumberInput value={v.price} onChange={num('price')} max={10000000} />
       </label>
       <label className="block">
         <span className="font-bold text-gray-600">Компьютер, ширина</span>
-        <input type="number" className={inputCls} value={v.dw} onChange={num('dw')} />
+        <NumberInput value={v.dw} onChange={num('dw')} max={4000} />
       </label>
       <label className="block">
         <span className="font-bold text-gray-600">высота</span>
-        <input type="number" className={inputCls} value={v.dh} onChange={num('dh')} />
+        <NumberInput value={v.dh} onChange={num('dh')} max={4000} />
       </label>
       <label className="block">
-        <span className="font-bold text-gray-600">Телефон, ширина (0 — то же)</span>
-        <input type="number" className={inputCls} value={v.mw} onChange={num('mw')} />
+        <span className="font-bold text-gray-600">Телефон, ширина (пусто — то же изображение)</span>
+        <NumberInput value={v.mw} onChange={num('mw')} max={4000} />
       </label>
       <label className="block">
         <span className="font-bold text-gray-600">высота</span>
-        <input type="number" className={inputCls} value={v.mh} onChange={num('mh')} />
+        <NumberInput value={v.mh} onChange={num('mh')} max={4000} />
       </label>
       <label className="block col-span-2 md:col-span-6">
         <span className="font-bold text-gray-600">Название</span>
@@ -437,9 +488,10 @@ const FormatForm: React.FC<{ f: AdFormat; onSaved: () => void; onError: (m: stri
 const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdFormatId; onCreated: () => void }> = ({ formats, initial, onCreated }) => {
   const [format, setFormat] = useState<AdFormatId>(initial);
   const f = formats[format];
-  const [v, setV] = useState({ name: '', advertiser: '', contact: '', href: 'https://', alt: '', title: '', text: '', cta: '', rubric: 'tech', label: 'ad', start: kgNowLocal().slice(0, 11) + '09:00', periods: 1, priority: 0 });
-  const [desk, setDesk] = useState<{ data: string; size: { w: number; h: number } } | null>(null);
-  const [mob, setMob] = useState<{ data: string; size: { w: number; h: number } } | null>(null);
+  const [v, setV] = useState({ name: '', advertiser: '', contact: '', href: 'https://', alt: '', title: '', text: '', cta: '', rubric: 'tech', label: 'ad', start: kgNowLocal().slice(0, 11) + '09:00', periods: '1', priority: '0' });
+  type Pic = { data: string; size: { w: number; h: number }; name: string };
+  const [desk, setDesk] = useState<Pic | null>(null);
+  const [mob, setMob] = useState<Pic | null>(null);
   const [imgErr, setImgErr] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -448,7 +500,9 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
     setDesk(null);
     setMob(null);
   }, [format]);
-  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: k === 'periods' || k === 'priority' ? Number(e.target.value) : e.target.value });
+  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
+  const periods = toInt(v.periods, 1, 12, 1);
+  const priority = toInt(v.priority, 0, 100, 0);
   const pick = (which: 'desk' | 'mob') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -456,14 +510,14 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
     try {
       const want = which === 'desk' ? f.desktop : f.mobile || f.desktop;
       const img = await prepareImage(file, want);
-      (which === 'desk' ? setDesk : setMob)(img);
+      (which === 'desk' ? setDesk : setMob)({ ...img, name: file.name });
     } catch (x) {
       setImgErr((x as Error).message);
       e.target.value = '';
     }
   };
-  const end = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start) ? campaignEnd(v.start, v.periods, f.periodDays) : '';
-  const total = f.price * Math.max(1, v.periods);
+  const end = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start) ? campaignEnd(v.start, periods, f.periodDays) : '';
+  const total = f.price * periods;
   const ready = v.name.trim() && v.advertiser.trim() && v.contact.trim() && /^https:\/\/.+\..+/.test(v.href) && v.alt.trim() && desk && end && (format !== 'C' || v.title.trim());
 
   const submit = async (status: 'draft' | 'awaiting_payment') => {
@@ -475,6 +529,8 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
         op: 'create',
         format,
         ...v,
+        periods,
+        priority,
         status,
         imageDesktopData: desk!.data,
         ...(mob ? { imageMobileData: mob.data } : {}),
@@ -570,54 +626,41 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
             </label>
           </>
         )}
-        <label className="block">
-          <span className="font-bold text-gray-600">
-            Изображение для компьютера ({f.desktop.w}×{f.desktop.h})
-          </span>
-          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={pick('desk')} className="block mt-1" />
-          {desk && (
-            <span className="text-emerald-700">
-              ✓ {desk.size.w}×{desk.size.h}
-            </span>
-          )}
-        </label>
+        <PhotoPick title={`Изображение для компьютера (${f.desktop.w}×${f.desktop.h})`} hint={`JPG, PNG или WEBP · ${f.desktop.w}×${f.desktop.h} px или та же пропорция`} file={desk} onPick={pick('desk')} />
         {f.mobile && (
-          <label className="block">
-            <span className="font-bold text-gray-600">
-              Изображение для телефона ({f.mobile.w}×{f.mobile.h}, необязательно)
-            </span>
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={pick('mob')} className="block mt-1" />
-            {mob ? (
-              <span className="text-emerald-700">
-                ✓ {mob.size.w}×{mob.size.h}
-              </span>
-            ) : (
-              <span className="text-gray-500">Без него на телефоне — основное изображение{format === 'B' ? ' (не шире 320 px)' : ''}.</span>
-            )}
-          </label>
+          <PhotoPick
+            title={`Изображение для телефона (${f.mobile.w}×${f.mobile.h}, необязательно)`}
+            hint={`Без него на телефоне — основное изображение${format === 'B' ? ' (не шире 320 px)' : ''}`}
+            file={mob}
+            onPick={pick('mob')}
+          />
         )}
         <label className="block">
-          <span className="font-bold text-gray-600">Желаемое начало (Бишкек)</span>
+          <span className="font-bold text-gray-600">Начало показа (дата и время по Бишкеку)</span>
           <input type="datetime-local" className={inputCls} value={v.start} onChange={set('start')} />
         </label>
         <label className="block">
-          <span className="font-bold text-gray-600">Периодов по 30 дней</span>
-          <input type="number" min={1} max={12} className={inputCls} value={v.periods} onChange={set('periods')} />
+          <span className="font-bold text-gray-600">Срок размещения — сколько месяцев (1 месяц = 30 дней)</span>
+          <NumberInput value={v.periods} onChange={(x) => setV({ ...v, periods: x })} max={12} placeholder="1" />
+          <span className="text-gray-500">1 — 30 дней, 2 — 60 дней, 3 — 90 дней (до 12)</span>
         </label>
-        <label className="block">
-          <span className="font-bold text-gray-600">Приоритет (0–100; при нескольких кампаниях на одном месте)</span>
-          <input type="number" min={0} max={100} className={inputCls} value={v.priority} onChange={set('priority')} />
+        {/* Окончание считается само: начало + 30 дней × срок */}
+        <div className="sm:col-span-2 rounded-xl bg-[#eef2f9] p-3 text-sm" data-create-end>
+          <span className="font-bold text-gray-600">Окончание показа (считается автоматически): </span>
+          <b className="text-[#0f1b33]">{end ? `${formatKgDateTime(end)} (Бишкек)` : 'укажите дату начала'}</b>
+          {end && <span className="text-gray-600"> — через {periods * f.periodDays} дней после начала</span>}
+        </div>
+        <label className="block sm:col-span-2">
+          <span className="font-bold text-gray-600">Приоритет показа (0–100) — обычно оставьте 0</span>
+          <NumberInput value={v.priority} onChange={(x) => setV({ ...v, priority: x })} max={100} placeholder="0" />
+          <span className="text-gray-500">
+            Нужен, только если на одно и то же место одновременно оплачено несколько кампаний: показывается та, у которой число больше. При равных числах — та, что началась раньше.
+          </span>
         </label>
       </div>
       {imgErr && <p className="text-red-700 font-semibold">{imgErr}</p>}
-      {(desk || mob) && (
-        <div className="flex flex-wrap gap-3 items-start">
-          {desk && <img src={desk.data} alt="" className="max-h-40 rounded-lg border border-gray-200" />}
-          {mob && <img src={mob.data} alt="" className="max-h-32 rounded-lg border border-gray-200" />}
-        </div>
-      )}
       <div className="rounded-xl bg-[#fff6e5] p-3 text-sm" data-create-total>
-        Окончание: <b>{end ? `${formatKgDateTime(end)} (Бишкек)` : '—'}</b> · Итого: <b>{formatSom(total)}</b> ({formatSom(f.price)} × {Math.max(1, v.periods)})
+        Итого к оплате: <b>{formatSom(total)}</b> ({formatSom(f.price)} × {periods} мес.) · показ до <b>{end ? formatKgDateTime(end) : '—'}</b>
         <div className="text-xs text-gray-600 mt-1">Кампания сохраняется как черновик или «Ожидает оплаты» и не показывается на сайте, пока вы не подтвердите оплату и не включите её.</div>
       </div>
       {err && <p className="text-red-700 font-semibold">{err}</p>}

@@ -351,7 +351,9 @@ describe('состояние секрета и сборки в панели', ()
     assert.equal(st.secretState, 'ok');
     assert.equal(st.secretConfigured, true);
     assert.ok(!r.text.includes(SECRET) && !r.text.includes(SECRET.slice(0, 8)) && !r.text.includes(SECRET.slice(-8)));
-    assert.ok(!r.text.includes(String(SECRET.length)), 'длина секрета не выводится');
+    // отметки времени (например, «…T12:32…») могут случайно содержать то же число — их не считаем
+    const withoutTimes = r.text.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z?/g, '');
+    assert.ok(!withoutTimes.includes(String(SECRET.length)), 'длина секрета не выводится');
   });
 
   it('«Секрет не задан в этой сборке»', async () => {

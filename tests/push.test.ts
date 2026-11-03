@@ -191,22 +191,22 @@ describe('с ключами', () => {
     assert.equal((await call('push', 'PATCH', admin, custom())).status, 429, 'не больше 20 рассылок в сутки');
   });
 
-  it('Бишкек получает и Чуйскую область, Ош — Ошскую, «Весь Кыргызстан» — все; число получателей видно до отправки', async () => {
+  it('Чуйская область получает и г. Бишкек, Ошская — г. Ош, «Весь Кыргызстан» — все; число получателей видно до отправки', async () => {
     const { pushCityMatches } = await import('../src/config/push');
-    assert.ok(pushCityMatches('bishkek', 'chui') && pushCityMatches('osh', 'osh_region'));
+    assert.ok(pushCityMatches('chui', 'bishkek') && pushCityMatches('osh_region', 'osh'));
     assert.ok(pushCityMatches('all', 'batken') && pushCityMatches('naryn', 'all'));
-    assert.ok(!pushCityMatches('chui', 'bishkek') && !pushCityMatches('bishkek', 'osh') && !pushCityMatches('osh_region', 'osh'));
+    assert.ok(!pushCityMatches('bishkek', 'chui') && !pushCityMatches('chui', 'osh') && !pushCityMatches('osh', 'osh_region'));
     assert.ok(pushCityMatches('issykkul', 'karakol'));
-    await subscribe('bsk', 'bishkek', { topics: ['urgent'] });
-    await subscribe('osh1', 'osh', { topics: ['urgent'] });
+    await subscribe('bsk', 'chui', { topics: ['urgent'] });
+    await subscribe('osh1', 'osh_region', { topics: ['urgent'] });
     await subscribe('kg', 'all', { topics: ['urgent'] });
     await subscribe('tal', 'talas', { topics: ['urgent'] });
     const count = async (city: string) => (await call(`push?audience=1&city=${city}&topic=urgent`, 'GET', admin)).body.count;
-    assert.equal((await call('push?audience=1&city=chui&topic=urgent', 'GET')).status, 403, 'только администратору');
-    assert.deepEqual([await count('chui'), await count('osh_region'), await count('talas'), await count('bishkek'), await count('all')], [2, 2, 2, 2, 4]);
-    const r = await call('push', 'PATCH', admin, custom({ city: 'chui', topic: 'urgent', title: { ru: 'Чуйская область' } }));
+    assert.equal((await call('push?audience=1&city=bishkek&topic=urgent', 'GET')).status, 403, 'только администратору');
+    assert.deepEqual([await count('bishkek'), await count('osh'), await count('talas'), await count('chui'), await count('all')], [2, 2, 2, 2, 4]);
+    const r = await call('push', 'PATCH', admin, custom({ city: 'bishkek', topic: 'urgent', title: { ru: 'г. Бишкек' } }));
     assert.equal(r.body.total, 2);
-    assert.equal((await call(`push?inbox=${await subId(ep('bsk'))}`, 'GET')).body.message.title.ru, 'Чуйская область', 'Бишкек получил');
+    assert.equal((await call(`push?inbox=${await subId(ep('bsk'))}`, 'GET')).body.message.title.ru, 'г. Бишкек', 'Чуйская область получила');
     assert.equal((await call(`push?inbox=${await subId(ep('tal'))}`, 'GET')).body.message, null, 'Талас не получил');
   });
 

@@ -107,7 +107,7 @@ export const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) =
   const audience = async (c: string, tp: string, label: string) => {
     const n = await api.pushAudience(c, tp);
     if (n === 0) {
-      setErr(`Для «${label}» и темы «${topicLabel(tp)}» пока нет подписчиков — уведомление не отправлено. Подписчики города получают и уведомления своей области (Бишкек — Чуйской, Ош — Ошской), подписчики «Весь Кыргызстан» — все.`);
+      setErr(`Для «${label}» и темы «${topicLabel(tp)}» пока нет подписчиков — уведомление не отправлено. Подписчики области получают и уведомления своего города (Чуйская область — г. Бишкек, Ошская — г. Ош), подписчики «Весь Кыргызстан» — все.`);
       return null;
     }
     return n;
@@ -230,7 +230,7 @@ export const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) =
         <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
           <div className="font-extrabold text-[#0f1b33] text-sm">Новое уведомление</div>
           <p className="text-xs text-gray-500">
-            Получат подписчики выбранной темы в выбранном месте и подписчики «Весь Кыргызстан» (Чуйская область — ещё и Бишкек, Ошская — Ош). Каждый — на своём языке. Не чаще одной рассылки в {PUSH_MIN_INTERVAL_MIN.custom} мин, не больше {PUSH_DAILY_LIMIT} в сутки.
+            Получат подписчики выбранной темы в выбранном месте и подписчики «Весь Кыргызстан» (г. Бишкек — ещё и Чуйская область, г. Ош — ещё и Ошская область). Каждый — на своём языке. Не чаще одной рассылки в {PUSH_MIN_INTERVAL_MIN.custom} мин, не больше {PUSH_DAILY_LIMIT} в сутки.
           </p>
           {field3('Заголовок', title, setTitle, PUSH_TITLE_MAX)}
           {field3('Текст', body, setBody, PUSH_BODY_MAX, true)}
@@ -312,7 +312,7 @@ export const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) =
         <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
           <div className="font-extrabold text-[#0f1b33] text-sm">Отправить по действующему предупреждению</div>
           <p className="text-xs text-gray-500">
-            Получат подписчики темы «Срочные предупреждения» этого места и «Весь Кыргызстан»; предупреждения Чуйской области — ещё и подписчики Бишкека, Ошской — подписчики Оша. Перед отправкой видно, сколько человек получит.
+            Получат подписчики темы «Срочные предупреждения» этого места и «Весь Кыргызстан»; предупреждения г. Бишкек — ещё и подписчики Чуйской области, г. Ош — подписчики Ошской области. Перед отправкой видно, сколько человек получит.
           </p>
           {active.length === 0 ? (
             <p className="text-sm text-gray-500">Действующих предупреждений нет.</p>

@@ -19,9 +19,10 @@ const TXT = {
   scope: { ru: 'Только срочные предупреждения', kg: 'Шашылыш эскертүүлөр гана', en: 'Urgent warnings only' },
   topics: { ru: 'Темы', kg: 'Темалар', en: 'Topics' },
   place: { ru: 'Город / область', kg: 'Шаар / облус', en: 'City / region' },
+  // область получает и уведомления своего города: «Чуйская обл. (г. Бишкек)», «Ошская обл. (г. Ош)»
   around: {
-    bishkek: { ru: 'и Чуйская область', kg: 'жана Чүй облусу', en: 'and Chui Region' },
-    osh: { ru: 'и Ошская область', kg: 'жана Ош облусу', en: 'and Osh Region' },
+    chui: { ru: 'г. Бишкек', kg: 'Бишкек ш.', en: 'Bishkek' },
+    osh_region: { ru: 'г. Ош', kg: 'Ош ш.', en: 'Osh City' },
     all: { ru: 'все предупреждения', kg: 'бардык эскертүүлөр', en: 'all warnings' },
   } as Record<string, Record<Language, string>>,
   ios: {
@@ -33,7 +34,7 @@ const TXT = {
 
 /**
  * Кнопка подписки на push: город или область (весь список мест, как в фильтрах сайта) и темы.
- * Подписчики Бишкека получают и предупреждения Чуйской области, Оша — Ошской, «Весь Кыргызстан» — все.
+ * Подписчики Чуйской области получают и предупреждения г. Бишкек, Ошской — г. Ош, «Весь Кыргызстан» — все.
  * Окошки «Город / область» и «Темы» закрываются нажатием в любом другом месте, клавишей Escape и при выборе места.
  */
 export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, city }) => {
@@ -83,7 +84,8 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
   if (iosBrowser) return <p className="text-[11px] text-gray-500 max-w-xs">{TXT.ios[lang]}</p>;
   if (!pushSupported() || !key) return null;
 
-  const placeName = (id: string) => `${t(`cities.${id}`)}${TXT.around[id] ? ` (${TXT.around[id][lang]})` : ''}`;
+  // В списке подписки — полное «область» и город области в скобках: «Чуйская область (г. Бишкек)»
+  const placeName = (id: string) => `${t(`cities.${id}`).replace(/ обл\.$/, ' область')}${TXT.around[id] ? ` (${TXT.around[id][lang]})` : ''}`;
 
   const turnOn = async () => {
     setBusy(true);

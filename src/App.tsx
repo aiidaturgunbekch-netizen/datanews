@@ -511,7 +511,14 @@ export default function App() {
                     </h2>
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
                       <div className="lg:col-span-8 min-w-0">
-                        <TopStories lang={currentLanguage} stories={topOrdered} onOpen={setActiveNoticeDetail} hideTitle />
+                        <TopStories
+                          lang={currentLanguage}
+                          stories={topOrdered}
+                          onOpen={setActiveNoticeDetail}
+                          hideTitle
+                          /* Рекламное место A — сразу под главной новостью, как в макете; только при действующей кампании */
+                          afterLead={<AdSlot format="A" lang={currentLanguage} className="mt-6" />}
+                        />
                       </div>
                       <div className="lg:col-span-4 min-w-0 space-y-6">
                         {/* Заметный блок — только когда есть действующие предупреждения; иначе одна строка-статус */}
@@ -545,9 +552,6 @@ export default function App() {
                   onOpen={setActiveNoticeDetail}
                   onOpenCalendar={() => setCurrentView('calendar')}
                 />
-
-                {/* Рекламное место A — появляется только при действующей кампании */}
-                <AdSlot format="A" lang={currentLanguage} className="dn-container pb-10" />
 
                 {/* Официальный прогноз Кыргызгидромета (предупреждения — в блоке выше) */}
                 <WeatherSafety

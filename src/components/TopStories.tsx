@@ -43,7 +43,9 @@ export const TopStories: React.FC<{
   onOpen: (a: Announcement) => void;
   /** Подпись «Главное» стоит над обеими колонками страницы — здесь её не повторяем */
   hideTitle?: boolean;
-}> = ({ lang, stories, onOpen, hideTitle = false }) => {
+  /** Что поставить сразу под главной историей (рекламное место A) */
+  afterLead?: React.ReactNode;
+}> = ({ lang, stories, onOpen, hideTitle = false, afterLead }) => {
   const { t } = getTranslation(lang);
   if (stories.length === 0) return null;
   const [lead, ...rest] = stories;
@@ -78,6 +80,8 @@ export const TopStories: React.FC<{
           <Meta a={lead} lang={lang} className="mt-3" withPlace />
         </button>
       </article>
+
+      {afterLead}
 
       {/* Важные — под главной, в две колонки, одинаковые по структуре */}
       {rest.length > 0 && (

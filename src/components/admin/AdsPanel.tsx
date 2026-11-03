@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../../services/api';
 import { inputCls } from '../AnnouncementForm';
 import {
@@ -82,6 +82,25 @@ const NumberInput: React.FC<{ value: string; onChange: (v: string) => void; max?
 );
 
 /** Рамка выбора фото: видно, куда нажать; после выбора — миниатюра, имя файла и размер */
+type Pic = { data: string; size: { w: number; h: number }; name: string };
+
+/**
+ * Черновики форм рекламы — в памяти страницы: переход между вкладками и разделами панели их не стирает
+ * (пропадают только при перезагрузке страницы или после сохранения).
+ */
+type CreateDraft = {
+  format: AdFormatId;
+  v: Record<'name' | 'advertiser' | 'contact' | 'href' | 'alt' | 'title' | 'text' | 'cta' | 'rubric' | 'label' | 'start' | 'priority', string>;
+  unit: DurationUnit;
+  amountStr: string;
+  desk: Pic | null;
+  mob: Pic | null;
+};
+let createDraft: CreateDraft | null = null;
+type EditDraft = { v: Record<'name' | 'advertiser' | 'contact' | 'href' | 'alt' | 'priority' | 'start', string>; unit: DurationUnit; amountStr: string; desk: Pic | null; mob: Pic | null };
+const editDrafts: Record<string, EditDraft> = {};
+let editingId: string | null = null;
+
 const PhotoPick: React.FC<{
   title: string;
   hint: string;
@@ -162,7 +181,7 @@ export const AdsPanel: React.FC = () => {
   const [data, setData] = useState<{ formats: Record<AdFormatId, AdFormat>; campaigns: api.AdminCampaign[] } | null>(null);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
-  const [createFormat, setCreateFormat] = useState<AdFormatId>('A');
+  const [createFormat, setCreateFormat] = useState<AdFormatId>(createDraft?.format || 'A');
   const [loadedAt, setLoadedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
   const load = () => {
@@ -294,7 +313,11 @@ const CampaignList: React.FC<{
   archived?: boolean;
 }> = ({ list, formats, onAct, onCreate, archived }) => {
   const [refs, setRefs] = useState<Record<string, string>>({});
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditingState] = useState<string | null>(editingId);
+  const setEditing = (id: string | null) => {
+    editingId = id;
+    setEditingState(id);
+  };
   const now = kgNowLocal();
   if (list.length === 0)
     return (
@@ -397,7 +420,18 @@ const CampaignList: React.FC<{
                 {!paid && <span className="text-gray-500">Без подтверждённой оплаты кампания не показывается.</span>}
               </div>
             )}
-            {editing === c.id && <EditBox c={c} paid={paid} onSave={(extra) => (onAct(c.id, 'edit', extra), setEditing(null))} />}
+            {editing === c.id && (
+              <EditBox
+                c={c}
+                f={f}
+                paid={paid}
+                onSave={(extra) => {
+                  delete editDrafts[c.id];
+                  onAct(c.id, 'edit', extra);
+                  setEditing(null);
+                }}
+              />
+            )}
           </li>
         );
       })}
@@ -405,11 +439,33 @@ const CampaignList: React.FC<{
   );
 };
 
-const EditBox: React.FC<{ c: api.AdminCampaign; paid: boolean; onSave: (extra: Record<string, unknown>) => void }> = ({ c, paid, onSave }) => {
-  const [v, setV] = useState({ name: c.name, advertiser: c.advertiser, contact: c.contact, href: c.href, alt: c.alt, priority: String(c.priority), start: c.start });
-  const [unit, setUnit] = useState<DurationUnit>(c.unit || 'months');
-  const [amountStr, setAmountStr] = useState(String(c.amount ?? c.periods));
+const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSave: (extra: Record<string, unknown>) => void }> = ({ c, f, paid, onSave }) => {
+  const d0 = editDrafts[c.id];
+  const [v, setV] = useState(d0?.v || { name: c.name, advertiser: c.advertiser, contact: c.contact, href: c.href, alt: c.alt, priority: String(c.priority), start: c.start });
+  const [unit, setUnit] = useState<DurationUnit>(d0?.unit || c.unit || 'months');
+  const [amountStr, setAmountStr] = useState(d0?.amountStr ?? String(c.amount ?? c.periods));
+  const [desk, setDesk] = useState<Pic | null>(d0?.desk || null);
+  const [mob, setMob] = useState<Pic | null>(d0?.mob || null);
+  const [imgErr, setImgErr] = useState('');
+  useEffect(() => {
+    editDrafts[c.id] = { v, unit, amountStr, desk, mob };
+  }, [c.id, v, unit, amountStr, desk, mob]);
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value });
+  const pick = (which: 'desk' | 'mob') => async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImgErr('');
+    try {
+      const img = await prepareImage(file, which === 'desk' ? f.desktop : f.mobile || f.desktop);
+      (which === 'desk' ? setDesk : setMob)({ ...img, name: file.name });
+    } catch (x) {
+      setImgErr((x as Error).message);
+      e.target.value = '';
+    }
+  };
+  // текущая картинка кампании — пока не выбрана новая
+  const current = (url: string | undefined, size: { w: number; h: number } | undefined, fallback: { w: number; h: number }): Pic | null =>
+    url ? { data: url, size: size || fallback, name: 'текущее изображение' } : null;
   return (
     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-gray-100 pt-3">
       {(['name', 'advertiser', 'contact', 'href', 'alt'] as const).map((k) => (
@@ -422,6 +478,24 @@ const EditBox: React.FC<{ c: api.AdminCampaign; paid: boolean; onSave: (extra: R
         <span className="font-bold text-gray-600">Приоритет показа (0–100, обычно 0)</span>
         <NumberInput value={v.priority} onChange={(x) => setV({ ...v, priority: x })} max={100} placeholder="0" />
       </label>
+      <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2" data-edit-images>
+        <PhotoPick
+          title={`Изображение для компьютера (${f.desktop.w} × ${f.desktop.h})`}
+          hint="JPG, PNG или WebP"
+          file={desk || current(c.imageDesktop, c.imageDesktopSize, f.desktop)}
+          onPick={pick('desk')}
+        />
+        {f.mobile && (
+          <PhotoPick
+            title={`Изображение для телефона (${f.mobile.w} × ${f.mobile.h})`}
+            hint="Необязательно: без него на телефоне — изображение для компьютера"
+            file={mob || current(c.imageMobile, c.imageMobileSize, f.mobile)}
+            onPick={pick('mob')}
+          />
+        )}
+        {(desk || mob) && <p className="sm:col-span-2 text-amber-700 font-semibold">Новое изображение сохранится после нажатия «Сохранить изменения».</p>}
+        {imgErr && <p className="sm:col-span-2 text-red-700 font-semibold">{imgErr}</p>}
+      </div>
       {!paid ? (
         <>
           <label className="block">
@@ -446,7 +520,12 @@ const EditBox: React.FC<{ c: api.AdminCampaign; paid: boolean; onSave: (extra: R
           type="button"
           onClick={() => {
             const { start, priority, ...rest } = v;
-            const base = { ...rest, priority: toInt(priority, 0, 100, 0) };
+            const base = {
+              ...rest,
+              priority: toInt(priority, 0, 100, 0),
+              ...(desk ? { imageDesktopData: desk.data } : {}),
+              ...(mob ? { imageMobileData: mob.data } : {}),
+            };
             onSave(paid ? base : { ...base, start, unit, amount: clampAmount(unit, amountStr || 1) });
           }}
           className="px-4 py-2 rounded-xl bg-[#12327A] text-white font-bold"
@@ -561,23 +640,42 @@ const FormatForm: React.FC<{ f: AdFormat; onSaved: () => void; onError: (m: stri
 };
 
 // ─────────── Создание кампании ───────────
+const emptyCreate = (): CreateDraft['v'] => ({ name: '', advertiser: '', contact: '', href: 'https://', alt: '', title: '', text: '', cta: '', rubric: 'tech', label: 'ad', start: kgNowLocal().slice(0, 11) + '09:00', priority: '0' });
 const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdFormatId; onCreated: () => void }> = ({ formats, initial, onCreated }) => {
+  // продолжение незаконченной формы; картинки сохраняются, только если формат тот же (у форматов разные размеры)
+  const d0 = createDraft;
+  const same = d0?.format === initial;
   const [format, setFormat] = useState<AdFormatId>(initial);
   const f = formats[format];
-  const [v, setV] = useState({ name: '', advertiser: '', contact: '', href: 'https://', alt: '', title: '', text: '', cta: '', rubric: 'tech', label: 'ad', start: kgNowLocal().slice(0, 11) + '09:00', priority: '0' });
-  const [unit, setUnit] = useState<DurationUnit>('days');
-  const [amountStr, setAmountStr] = useState('30');
-  type Pic = { data: string; size: { w: number; h: number }; name: string };
-  const [desk, setDesk] = useState<Pic | null>(null);
-  const [mob, setMob] = useState<Pic | null>(null);
+  const [v, setV] = useState<CreateDraft['v']>(d0?.v || emptyCreate());
+  const [unit, setUnit] = useState<DurationUnit>(d0?.unit || 'days');
+  const [amountStr, setAmountStr] = useState(d0?.amountStr ?? '30');
+  const [desk, setDesk] = useState<Pic | null>(same ? d0!.desk : null);
+  const [mob, setMob] = useState<Pic | null>(same ? d0!.mob : null);
   const [imgErr, setImgErr] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(false);
+  const firstFormat = useRef(format);
   useEffect(() => {
+    if (format === firstFormat.current) return;
+    firstFormat.current = format;
     setDesk(null);
     setMob(null);
   }, [format]);
+  useEffect(() => {
+    createDraft = { format, v, unit, amountStr, desk, mob };
+  }, [format, v, unit, amountStr, desk, mob]);
+  const dirty = JSON.stringify(v) !== JSON.stringify(emptyCreate()) || !!desk || !!mob;
+  const clear = () => {
+    if (!window.confirm('Очистить форму? Введённые данные и выбранные фото будут удалены.')) return;
+    createDraft = null;
+    setV(emptyCreate());
+    setUnit('days');
+    setAmountStr('30');
+    setDesk(null);
+    setMob(null);
+  };
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
   const amount = clampAmount(unit, amountStr || DURATION_LIMITS[unit].min);
   const days = durationDays(unit, amount, f.periodDays);
@@ -615,6 +713,7 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
         imageDesktopData: desk!.data,
         ...(mob ? { imageMobileData: mob.data } : {}),
       });
+      createDraft = null;
       onCreated();
     } catch (x) {
       setErr((x as Error).message);
@@ -634,7 +733,13 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
         <button type="button" onClick={() => setPreview(true)} className="px-3 py-1.5 rounded-xl border border-[#20c7b5] text-[#0b7a70] font-bold">
           Посмотреть размещение
         </button>
+        {dirty && (
+          <button type="button" onClick={clear} className="ml-auto px-3 py-1.5 rounded-xl border border-gray-200 text-gray-600 font-bold" data-create-clear>
+            Очистить форму
+          </button>
+        )}
       </div>
+      {dirty && <p className="text-gray-500">Незаконченная форма сохраняется, пока открыта страница: можно перейти в другую вкладку и вернуться.</p>}
       <div className="rounded-xl bg-[#f3f6fc] p-3 grid grid-cols-1 sm:grid-cols-4 gap-2" data-create-summary>
         <div>
           <div className="font-bold text-gray-500">Место</div>

@@ -68,6 +68,31 @@ const toInt = (s: string, min: number, max: number, fallback: number) => {
   const n = parseInt(s, 10);
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
 };
+/** Поле с ошибкой — красная рамка и фон */
+const inputErrCls = inputCls.replace('border-gray-200', 'border-red-500 bg-red-50');
+const FieldErr: React.FC<{ text: string }> = ({ text }) => (
+  <span className="mt-0.5 flex items-center gap-1 text-red-700 font-semibold" role="alert">
+    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+      error
+    </span>
+    {text}
+  </span>
+);
+/** Список того, что не заполнено, — над кнопками сохранения */
+const MissingBox: React.FC<{ items: string[] }> = ({ items }) => (
+  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert" data-missing>
+    <b>Не сохранено — заполните:</b>
+    <ul className="mt-1 list-disc pl-5">
+      {items.map((t) => (
+        <li key={t}>{t}</li>
+      ))}
+    </ul>
+  </div>
+);
+const HREF_OK = /^https:\/\/[^\s]+\.[^\s]+$/;
+const hrefProblem = (href: string) =>
+  !href.trim() || href.trim() === 'https://' ? 'Ссылка рекламодателя' : !HREF_OK.test(href.trim()) ? 'Ссылка рекламодателя — полный адрес, начинающийся с https:// (например, https://www.instagram.com/…)' : '';
+
 /** Поле для числа: цифры набираются с клавиатуры, стирание работает (без стрелок «вверх / вниз») */
 const NumberInput: React.FC<{ value: string; onChange: (v: string) => void; max?: number; placeholder?: string }> = ({ value, onChange, max = 9_999_999, placeholder }) => (
   <input
@@ -106,10 +131,11 @@ const PhotoPick: React.FC<{
   hint: string;
   file: { data: string; size: { w: number; h: number }; name: string } | null;
   onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
-}> = ({ title, hint, file, onPick }) => (
-  <div className="block">
+  error?: string;
+}> = ({ title, hint, file, onPick, error }) => (
+  <div className="block" data-invalid={error ? 'true' : undefined}>
     <span className="font-bold text-gray-600">{title}</span>
-    <label className="mt-1 flex items-center gap-3 rounded-xl border-2 border-dashed border-[#12327A]/30 bg-[#f7f9fd] p-3 cursor-pointer hover:border-[#12327A] hover:bg-[#eef2f9] focus-within:ring-2 focus-within:ring-[#12327A]">
+    <label className={`mt-1 flex items-center gap-3 rounded-xl border-2 border-dashed ${error ? 'border-red-500 bg-red-50' : 'border-[#12327A]/30 bg-[#f7f9fd]'} p-3 cursor-pointer hover:border-[#12327A] hover:bg-[#eef2f9] focus-within:ring-2 focus-within:ring-[#12327A]`}>
       <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPick} className="sr-only" />
       {file ? (
         <img src={file.data} alt="" className="h-14 max-w-[45%] rounded-lg border border-gray-200 object-contain bg-white" />
@@ -129,6 +155,7 @@ const PhotoPick: React.FC<{
         )}
       </span>
     </label>
+    {error && <FieldErr text={error} />}
   </div>
 );
 
@@ -183,6 +210,10 @@ export const AdsPanel: React.FC = () => {
   const [msg, setMsg] = useState('');
   const [createFormat, setCreateFormat] = useState<AdFormatId>(createDraft?.format || 'A');
   const [loadedAt, setLoadedAt] = useState<Date | null>(null);
+  const errRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (err) errRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [err]);
   const [loading, setLoading] = useState(false);
   const load = () => {
     setLoading(true);
@@ -267,7 +298,11 @@ export const AdsPanel: React.FC = () => {
         </div>
       )}
       {msg && <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-semibold">{msg}</div>}
-      {err && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">{err}</div>}
+      {err && (
+        <div ref={errRef} role="alert" className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">
+          Не выполнено: {err}
+        </div>
+      )}
       {!data ? (
         <p className="text-sm text-gray-500">Загрузка…</p>
       ) : sub === 'campaigns' ? (
@@ -313,6 +348,7 @@ const CampaignList: React.FC<{
   archived?: boolean;
 }> = ({ list, formats, onAct, onCreate, archived }) => {
   const [refs, setRefs] = useState<Record<string, string>>({});
+  const [refMissing, setRefMissing] = useState<string | null>(null);
   const [editing, setEditingState] = useState<string | null>(editingId);
   const setEditing = (id: string | null) => {
     editingId = id;
@@ -372,21 +408,33 @@ const CampaignList: React.FC<{
                   </button>
                 )}
                 {!paid && (
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex flex-wrap items-center gap-1">
                     <input
-                      className="px-2 py-1.5 rounded-lg border border-gray-200 text-xs w-44"
+                      className={`px-2 py-1.5 rounded-lg border text-xs w-44 ${refMissing === c.id ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                       placeholder="№ платежа / документа"
+                      aria-invalid={refMissing === c.id}
+                      data-ref-input={c.id}
                       value={refs[c.id] || ''}
-                      onChange={(e) => setRefs({ ...refs, [c.id]: e.target.value })}
+                      onChange={(e) => {
+                        setRefs({ ...refs, [c.id]: e.target.value });
+                        if (refMissing === c.id && e.target.value.trim()) setRefMissing(null);
+                      }}
                     />
                     <button
                       type="button"
-                      disabled={!refs[c.id]?.trim()}
-                      onClick={() => onAct(c.id, 'confirm', { ref: refs[c.id] }, `Подтвердить, что оплата ${formatSom(c.total)} за «${c.name}» действительно получена?`)}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold disabled:opacity-50"
+                      onClick={(e) => {
+                        if (!refs[c.id]?.trim()) {
+                          setRefMissing(c.id);
+                          (e.currentTarget.previousElementSibling as HTMLInputElement | null)?.focus();
+                          return;
+                        }
+                        onAct(c.id, 'confirm', { ref: refs[c.id] }, `Подтвердить, что оплата ${formatSom(c.total)} за «${c.name}» действительно получена?`);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold"
                     >
                       Подтвердить оплату
                     </button>
+                    {refMissing === c.id && <FieldErr text="Впишите № платежа или документа — без него оплату подтвердить нельзя" />}
                   </span>
                 )}
                 {paid && (st === 'draft' || st === 'awaiting_payment') && (
@@ -451,6 +499,15 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
     editDrafts[c.id] = { v, unit, amountStr, desk, mob };
   }, [c.id, v, unit, amountStr, desk, mob]);
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value });
+  const [tried, setTried] = useState(false);
+  const LABEL = { name: 'Название', advertiser: 'Рекламодатель', contact: 'Контакт', href: 'Ссылка (https://)', alt: 'Описание изображения' } as const;
+  const problems: Partial<Record<keyof typeof v, string>> = {};
+  (['name', 'advertiser', 'contact', 'alt'] as const).forEach((k) => {
+    if (!v[k].trim()) problems[k] = LABEL[k];
+  });
+  if (hrefProblem(v.href)) problems.href = hrefProblem(v.href);
+  if (!paid && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start)) problems.start = 'Начало (дата и время)';
+  const bad = (k: keyof typeof v) => (tried ? problems[k] : undefined);
   const pick = (which: 'desk' | 'mob') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -470,8 +527,9 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-gray-100 pt-3">
       {(['name', 'advertiser', 'contact', 'href', 'alt'] as const).map((k) => (
         <label key={k} className="block">
-          <span className="font-bold text-gray-600">{{ name: 'Название', advertiser: 'Рекламодатель', contact: 'Контакт', href: 'Ссылка (https://)', alt: 'Описание изображения' }[k]}</span>
-          <input className={inputCls} value={v[k]} onChange={set(k)} />
+          <span className="font-bold text-gray-600">{LABEL[k]}</span>
+          <input className={bad(k) ? inputErrCls : inputCls} aria-invalid={!!bad(k)} value={v[k]} onChange={set(k)} />
+          {bad(k) && <FieldErr text={k === 'href' && bad(k)!.includes('https://') ? 'Нужен полный адрес, начинающийся с https:// (например, https://www.instagram.com/…)' : 'Заполните это поле'} />}
         </label>
       ))}
       <label className="block">
@@ -500,7 +558,8 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
         <>
           <label className="block">
             <span className="font-bold text-gray-600">Начало (Бишкек)</span>
-            <input type="datetime-local" className={inputCls} value={v.start} onChange={set('start')} />
+            <input type="datetime-local" className={bad('start') ? inputErrCls : inputCls} value={v.start} onChange={set('start')} />
+            {bad('start') && <FieldErr text="Укажите дату и время начала" />}
           </label>
           <DurationPicker
             unit={unit}
@@ -515,10 +574,19 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
       ) : (
         <p className="text-gray-500 sm:col-span-2">Оплата подтверждена — период и цена не меняются.</p>
       )}
+      {tried && Object.keys(problems).length > 0 && (
+        <div className="sm:col-span-2">
+          <MissingBox items={Object.values(problems) as string[]} />
+        </div>
+      )}
       <div className="sm:col-span-2">
         <button
           type="button"
           onClick={() => {
+            if (Object.keys(problems).length) {
+              setTried(true);
+              return;
+            }
             const { start, priority, ...rest } = v;
             const base = {
               ...rest,
@@ -675,6 +743,7 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
     setAmountStr('30');
     setDesk(null);
     setMob(null);
+    setTried(false);
   };
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
   const amount = clampAmount(unit, amountStr || DURATION_LIMITS[unit].min);
@@ -695,10 +764,26 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
   };
   const end = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start) ? addDaysLocal(v.start, days) : '';
   const total = durationPrice(f.price, unit, amount, f.periodDays);
-  const ready = v.name.trim() && v.advertiser.trim() && v.contact.trim() && /^https:\/\/.+\..+/.test(v.href) && v.alt.trim() && desk && end && (format !== 'C' || v.title.trim());
+  // Что не заполнено — по порядку полей формы (ключ → понятное название)
+  const problems: [string, string][] = [];
+  if (!v.name.trim()) problems.push(['name', 'Название кампании']);
+  if (!v.advertiser.trim()) problems.push(['advertiser', 'Рекламодатель']);
+  if (!v.contact.trim()) problems.push(['contact', 'Контакт (телефон или e-mail)']);
+  if (hrefProblem(v.href)) problems.push(['href', hrefProblem(v.href)]);
+  if (!v.alt.trim()) problems.push(['alt', 'Описание изображения']);
+  if (format === 'C' && !v.title.trim()) problems.push(['title', 'Заголовок карточки']);
+  if (!desk) problems.push(['desk', `Изображение для компьютера (${f.desktop.w}×${f.desktop.h})`]);
+  if (!end) problems.push(['start', 'Начало показа (дата и время)']);
+  const [tried, setTried] = useState(false);
+  const bad = (k: string) => (tried ? problems.find(([key]) => key === k)?.[1] : undefined);
+  const missingRef = useRef<HTMLDivElement>(null);
 
   const submit = async (status: 'draft' | 'awaiting_payment') => {
-    if (!ready) return;
+    if (problems.length) {
+      setTried(true);
+      setTimeout(() => missingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
+      return;
+    }
     setBusy(true);
     setErr('');
     try {
@@ -773,7 +858,8 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
         ).map(([k, label]) => (
           <label key={k} className="block">
             <span className="font-bold text-gray-600">{label}</span>
-            <input className={inputCls} value={v[k]} onChange={set(k)} />
+            <input className={bad(k) ? inputErrCls : inputCls} aria-invalid={!!bad(k)} value={v[k]} onChange={set(k)} />
+            {bad(k) && <FieldErr text={k === 'href' && bad(k)!.includes('https://') ? 'Нужен полный адрес, начинающийся с https:// (например, https://www.instagram.com/…)' : 'Заполните это поле'} />}
           </label>
         ))}
         <label className="block">
@@ -799,7 +885,8 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
           <>
             <label className="block">
               <span className="font-bold text-gray-600">Заголовок карточки</span>
-              <input className={inputCls} maxLength={90} value={v.title} onChange={set('title')} />
+              <input className={bad('title') ? inputErrCls : inputCls} maxLength={90} value={v.title} onChange={set('title')} />
+              {bad('title') && <FieldErr text="Заполните это поле" />}
             </label>
             <label className="block">
               <span className="font-bold text-gray-600">Короткий текст</span>
@@ -811,7 +898,7 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
             </label>
           </>
         )}
-        <PhotoPick title={`Изображение для компьютера (${f.desktop.w}×${f.desktop.h})`} hint={`JPG, PNG или WEBP · ${f.desktop.w}×${f.desktop.h} px или та же пропорция`} file={desk} onPick={pick('desk')} />
+        <PhotoPick title={`Изображение для компьютера (${f.desktop.w}×${f.desktop.h})`} hint={`JPG, PNG или WEBP · ${f.desktop.w}×${f.desktop.h} px или та же пропорция`} file={desk} onPick={pick('desk')} error={bad('desk') ? 'Выберите изображение для компьютера' : undefined} />
         {f.mobile && (
           <PhotoPick
             title={`Изображение для телефона (${f.mobile.w}×${f.mobile.h}, необязательно)`}
@@ -822,7 +909,8 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
         )}
         <label className="block">
           <span className="font-bold text-gray-600">Начало показа (дата и время по Бишкеку)</span>
-          <input type="datetime-local" className={inputCls} value={v.start} onChange={set('start')} />
+          <input type="datetime-local" className={bad('start') ? inputErrCls : inputCls} value={v.start} onChange={set('start')} />
+          {bad('start') && <FieldErr text="Укажите дату и время начала" />}
         </label>
         <DurationPicker
           unit={unit}
@@ -852,12 +940,21 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
         Итого к оплате: <b>{formatSom(total)}</b> за {durationText(unit, amount, f.periodDays)} (цена за 30 дней — {formatSom(f.price)}) · показ до <b>{end ? formatKgDateTime(end) : '—'}</b>
         <div className="text-xs text-gray-600 mt-1">Кампания сохраняется как черновик или «Ожидает оплаты» и не показывается на сайте, пока вы не подтвердите оплату и не включите её.</div>
       </div>
-      {err && <p className="text-red-700 font-semibold">{err}</p>}
+      {tried && problems.length > 0 && (
+        <div ref={missingRef}>
+          <MissingBox items={problems.map(([, t]) => t)} />
+        </div>
+      )}
+      {err && (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-700 font-semibold" role="alert">
+          Не сохранено: {err}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={!ready || busy} onClick={() => submit('draft')} className="px-4 py-2 rounded-xl border border-gray-300 font-bold text-[#12327A] disabled:opacity-50">
+        <button type="button" disabled={busy} onClick={() => submit('draft')} className="px-4 py-2 rounded-xl border border-gray-300 font-bold text-[#12327A] disabled:opacity-50">
           Сохранить черновик
         </button>
-        <button type="button" disabled={!ready || busy} onClick={() => submit('awaiting_payment')} className="px-4 py-2 rounded-xl bg-[#12327A] text-white font-bold disabled:opacity-50">
+        <button type="button" disabled={busy} onClick={() => submit('awaiting_payment')} className="px-4 py-2 rounded-xl bg-[#12327A] text-white font-bold disabled:opacity-50">
           Сохранить — ожидает оплаты
         </button>
       </div>

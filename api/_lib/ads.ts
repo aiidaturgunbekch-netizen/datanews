@@ -5,8 +5,8 @@
  *   dn:ads:formats          формат (A–D) → изменённые администратором поля каталога (без записи — начальные значения из кода)
  *   dn:ads:campaigns        id кампании → кампания (AdCampaign)
  *   dn:ads:stats:<id>       'v:YYYY-MM-DD' / 'c:YYYY-MM-DD' → показы / клики за день
- *   dn:ads:seen:<id>:<h>    отметка «показ уже засчитан» (h — хэш устройства: адрес + браузер, кампании и дня; живёт 30 минут)
- *   dn:ads:click:<id>:<h>   отметка «клик уже засчитан» (то же устройство; живёт 30 минут)
+ *   dn:ads:seen:<id>:<h>    отметка «показ уже засчитан» (h — хэш устройства: адрес + браузер, кампании и дня; живёт 5 минут)
+ *   dn:ads:click:<id>:<h>   отметка «клик уже засчитан» (то же устройство; живёт 5 минут)
  * Картинки — в общем хранилище фото сайта (dn:img, /api/image).
  */
 import {
@@ -36,8 +36,8 @@ import { storeImage } from './announcements';
 export const FORMATS_KEY = 'dn:ads:formats';
 export const CAMPAIGNS_KEY = 'dn:ads:campaigns';
 export const statsKey = (id: string) => `dn:ads:stats:${id}`;
-const SEEN_TTL = 30 * 60;
-const CLICK_TTL = 30 * 60;
+const SEEN_TTL = 5 * 60;
+const CLICK_TTL = 5 * 60;
 
 const str = (v: unknown, max: number) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const dayOf = (local: string) => local.slice(0, 10);
@@ -371,7 +371,7 @@ const ipOf = (req: Request) => (req.headers.get('x-forwarded-for') || 'local').s
 /** Устройство = адрес + браузер: телефон и компьютер в одной сети Wi‑Fi считаются отдельно. Хранится только хэш. */
 const deviceOf = (req: Request) => `${ipOf(req)}|${(req.headers.get('user-agent') || '').slice(0, 300)}`;
 
-/** Отметить показ устройства (не чаще раза в 30 минут); true — показ новый и засчитан */
+/** Отметить показ устройства (не чаще раза в 5 минут); true — показ новый и засчитан */
 const markView = async (req: Request, id: string, day: string) => {
   const h = await hashKey(`${deviceOf(req)}|${id}|${day}`);
   const fresh = await cmd<string | null>('SET', `dn:ads:seen:${id}:${h}`, '1', 'NX', 'EX', SEEN_TTL);
@@ -381,8 +381,8 @@ const markView = async (req: Request, id: string, day: string) => {
 };
 
 /**
- * Показ: только активной кампании; повторный показ той же кампании с того же устройства в течение 30 минут не засчитывается.
- * Хранится только счётчик по дням; устройство — лишь в виде хэша в отметке, которая сама удаляется через 30 минут.
+ * Показ: только активной кампании; повторный показ той же кампании с того же устройства в течение 5 минут не засчитывается.
+ * Хранится только счётчик по дням; устройство — лишь в виде хэша в отметке, которая сама удаляется через 5 минут.
  */
 export const recordView = async (req: Request, id: string) => {
   const c = await hgetJson<AdCampaign>(CAMPAIGNS_KEY, id);
@@ -392,7 +392,7 @@ export const recordView = async (req: Request, id: string) => {
 };
 
 /**
- * Клик: не чаще раза в 30 минут с одного устройства (как показ). Нажать, не увидев баннер, нельзя, поэтому, если показ
+ * Клик: не чаще раза в 5 минут с одного устройства (как показ; одинаковый срок — поэтому кликов не бывает больше показов). Нажать, не увидев баннер, нельзя, поэтому, если показ
  * с этого устройства ещё не засчитан, клик засчитывает и его — переходов не бывает больше показов.
  * Возвращает адрес рекламодателя (или null — кампания не идёт).
  */

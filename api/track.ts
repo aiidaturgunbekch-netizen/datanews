@@ -66,7 +66,7 @@ export default handler(async (req) => {
   const [hits] = await pipeline([['INCR', rlKey], ['EXPIRE', rlKey, 120]]);
   if (Number(hits) > 120) return json({ ok: true, skipped: 'rate' });
 
-  // Показ рекламы — отдельный счётчик кампании (повторы за 30 минут не засчитываются)
+  // Показ рекламы — отдельный счётчик кампании (повторы с того же устройства за 5 минут не засчитываются)
   if (body.adView !== undefined) {
     const id = String(body.adView);
     if (!/^[\w-]{3,40}$/.test(id)) throw new HttpError('bad_id', 400);

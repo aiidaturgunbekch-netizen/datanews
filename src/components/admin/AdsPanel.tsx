@@ -734,7 +734,7 @@ const StatsTable: React.FC<{ list: api.AdminCampaign[]; formats: Record<AdFormat
   if (rows.length === 0) return <div className="bg-white rounded-2xl border border-gray-100 p-6 text-sm text-gray-600">{NO_STATS}.</div>;
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 overflow-x-auto">
-      <p className="text-xs text-gray-500 mb-2">Показ засчитывается, когда баннер виден на экране не меньше секунды (не чаще раза в 30 минут с одного адреса); клик — переход по рекламе.</p>
+      <p className="text-xs text-gray-500 mb-2">Показ засчитывается, когда баннер виден на экране не меньше секунды. Клик — нажатие на рекламу и переход к рекламодателю.</p>
       <table className="w-full text-xs">
         <thead className="text-left text-gray-500">
           <tr>

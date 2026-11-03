@@ -228,7 +228,7 @@ describe('одно место — одна кампания по приорит�
 });
 
 describe('показы и клики', () => {
-  it('показ засчитывается один раз за 30 минут с одного адреса; неидущая кампания не считается', async () => {
+  it('показ засчитывается один раз за 5 минут с одного устройства; неидущая кампания не считается', async () => {
     const c = await liveCampaign();
     const v = (who: string) => call(track, 'track', 'POST', undefined, { adView: c.id }, who);
     assert.equal((await v('1.1.1.1')).body.counted, true);
@@ -239,7 +239,7 @@ describe('показы и клики', () => {
     // клик: перенаправление на рекламодателя; клик с устройства, где показ уже засчитан, показ не добавляет
     const k1 = await call(track, `track?ad=${c.id}&go=1`, 'GET', undefined, undefined, '1.1.1.1');
     assert.deepEqual([k1.status, k1.location], [302, 'https://example.kg/promo']);
-    // повторное нажатие с того же устройства в течение 30 минут не считается
+    // повторное нажатие с того же устройства в течение 5 минут не считается
     await call(track, `track?ad=${c.id}&go=1`, 'GET', undefined, undefined, '1.1.1.1');
     const notLive = await call(track, `track?ad=${draft.id}&go=1`, 'GET');
     assert.deepEqual([notLive.status, notLive.location], [302, '/'], 'неидущая — на главную, без клика');

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { currentSubscription, pushSupported, serverKey, subscribe, unsubscribe, updateSubscription } from '../services/push';
-import { PLACE_IDS } from '../config/regions';
+import { ALERT_PLACE_IDS } from '../config/regions';
 import { DEFAULT_TOPICS, PUSH_TOPIC_LABEL, PUSH_TOPICS, PushTopic } from '../config/push';
 
 const TXT = {
@@ -188,7 +188,7 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
       </div>
       {panel === 'place' && (
         <div role="listbox" aria-label={TXT.place[lang]} className={popup}>
-          {PLACE_IDS.map((id) => (
+          {ALERT_PLACE_IDS.map((id) => (
             <button
               key={id}
               type="button"

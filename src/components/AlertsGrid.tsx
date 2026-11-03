@@ -8,7 +8,7 @@ import { alertLevel } from '../utils/urgency';
 import { EventImage } from './EventImage';
 import { PaidBadge } from './PaidBadge';
 import { PushToggle } from './PushToggle';
-import { PLACE_IDS } from '../config/regions';
+import { ALERT_PLACE_IDS } from '../config/regions';
 import { sourceLabel } from '../utils/links';
 import { placeText } from '../utils/place';
 
@@ -153,7 +153,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
               onChange={(e) => onCityFilterChange(e.target.value as CityId)}
               className="px-3 py-1.5 rounded-xl bg-gray-100 border border-transparent text-xs font-bold text-[#12327A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#12327A]"
             >
-              {PLACE_IDS.map((id) => (
+              {ALERT_PLACE_IDS.map((id) => (
                 <option key={id} value={id}>
                   {t(`cities.${id}`)}
                 </option>

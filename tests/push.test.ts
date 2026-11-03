@@ -210,6 +210,12 @@ describe('с ключами', () => {
     assert.equal((await call(`push?inbox=${await subId(ep('tal'))}`, 'GET')).body.message, null, 'Талас не получил');
   });
 
+  it('порядок мест в разделе «Предупреждения»: Весь Кыргызстан, Чуйская и Ошская области, г. Бишкек и г. Ош, остальные области', async () => {
+    const { ALERT_PLACE_IDS, PLACE_IDS } = await import('../src/config/regions');
+    assert.deepEqual(ALERT_PLACE_IDS.slice(0, 5), ['all', 'chui', 'osh_region', 'bishkek', 'osh']);
+    assert.deepEqual([...ALERT_PLACE_IDS].sort(), [...PLACE_IDS].sort(), 'те же места, без пропусков и повторов');
+  });
+
   it('нет получателей — ничего не отправляется, в журнал не пишется, ограничение частоты не тратится', async () => {
     await subscribe('only-bsk', 'bishkek', { topics: ['urgent'] });
     const before = (await cmd<string[]>('HKEYS', LOG_KEY)).length;

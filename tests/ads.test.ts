@@ -32,13 +32,13 @@ const png = (w: number, h: number) => {
 };
 
 let ip = 0;
-const call = async (handler: (r: Request) => Promise<Response>, path: string, method: string, token?: string, body?: unknown, who?: string) => {
+const call = async (handler: (r: Request) => Promise<Response>, path: string, method: string, token?: string, body?: unknown, who?: string, ua?: string) => {
   ip++;
   const r = await handler(
     new Request(`http://localhost/api/${path}`, {
       method,
       redirect: 'manual',
-      headers: { 'Content-Type': 'application/json', 'x-forwarded-for': who || `10.30.${Math.floor(ip / 200)}.${ip % 200}`, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: { 'Content-Type': 'application/json', 'x-forwarded-for': who || `10.30.${Math.floor(ip / 200)}.${ip % 200}`, ...(ua ? { 'user-agent': ua } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     })
   );
@@ -236,10 +236,11 @@ describe('показы и клики', () => {
     assert.equal((await v('2.2.2.2')).body.counted, true);
     const draft = (await adm(base())).body.campaign;
     assert.equal((await call(track, 'track', 'POST', undefined, { adView: draft.id })).body.counted, false);
-    // клик: перенаправление на рекламодателя, повтор за 30 секунд не считается
-    const k1 = await call(track, `track?ad=${c.id}&go=1`, 'GET', undefined, undefined, '3.3.3.3');
+    // клик: перенаправление на рекламодателя; клик с устройства, где показ уже засчитан, показ не добавляет
+    const k1 = await call(track, `track?ad=${c.id}&go=1`, 'GET', undefined, undefined, '1.1.1.1');
     assert.deepEqual([k1.status, k1.location], [302, 'https://example.kg/promo']);
-    await call(track, `track?ad=${c.id}&go=1`, 'GET', undefined, undefined, '3.3.3.3');
+    // повторное нажатие с того же устройства в течение 30 минут не считается
+    await call(track, `track?ad=${c.id}&go=1`, 'GET', undefined, undefined, '1.1.1.1');
     const notLive = await call(track, `track?ad=${draft.id}&go=1`, 'GET');
     assert.deepEqual([notLive.status, notLive.location], [302, '/'], 'неидущая — на главную, без клика');
     const s = (await call(stats, 'stats?ads=1', 'GET', admin)).body.campaigns.find((x: any) => x.id === c.id).stats;
@@ -247,6 +248,26 @@ describe('показы и клики', () => {
     assert.equal(s.days.length, 1);
     const empty = (await call(stats, 'stats?ads=1', 'GET', admin)).body.campaigns.find((x: any) => x.id === draft.id).stats;
     assert.deepEqual([empty.views, empty.clicks, empty.ctr], [0, 0, null], 'нет показов — нет CTR (не «0%»)');
+  });
+
+  it('телефон и компьютер в одной сети Wi‑Fi — два показа; клик без засчитанного показа добавляет показ; CTR не больше 100%', async () => {
+    const c = await liveCampaign();
+    const PHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1';
+    const PC = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36';
+    const view = (ua: string) => call(track, 'track', 'POST', undefined, { adView: c.id }, '5.5.5.5', ua);
+    const click = (ua: string) => call(track, `track?ad=${c.id}&go=1`, 'GET', undefined, undefined, '5.5.5.5', ua);
+    assert.equal((await view(PC)).body.counted, true, 'компьютер');
+    assert.equal((await view(PHONE)).body.counted, true, 'телефон в той же сети — отдельный показ');
+    assert.equal((await view(PHONE)).body.counted, false, 'повтор с телефона');
+    await click(PC);
+    await click(PC);
+    await click(PHONE);
+    // третье устройство нажимает, не успев засчитать показ — показ добавляется вместе с кликом
+    const TABLET = 'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1';
+    await click(TABLET);
+    assert.equal((await view(TABLET)).body.counted, false, 'показ уже засчитан при клике');
+    const s = (await call(stats, 'stats?ads=1', 'GET', admin)).body.campaigns.find((x: any) => x.id === c.id).stats;
+    assert.deepEqual([s.views, s.clicks, s.ctr], [3, 3, 100]);
   });
 
   it('статистика без личных данных', async () => {

@@ -61,4 +61,14 @@ describe('пакет новостей', () => {
     assert.equal(d.imageUrl, undefined);
     assert.equal(d.eventSourceUrl, undefined);
   });
+
+  it('исправление источника по заголовку', () => {
+    const r = parseBatch(JSON.stringify([
+      { kind: 'update', matchTitle: 'Премьера', sourceName: 'Драмтеатр', sourceUrl: 'https://www.instagram.com/kyrgyzdramteatr_official/', sourceKind: 'official' },
+      { kind: 'update', matchTitle: 'Пусто' },
+    ]));
+    assert.equal(r.items.length, 1);
+    assert.equal(r.items[0].kind, 'update');
+    assert.match(r.errors[0], /нечего исправлять/);
+  });
 });

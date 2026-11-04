@@ -58,6 +58,23 @@ export const BatchImport: React.FC<{
     }
     for (const b of items as BatchItem[]) {
       try {
+        if (b.kind === 'update') {
+          const norm = (x: string) => x.trim().toLowerCase().replace(/\s+/g, ' ');
+          const found = serverItems.filter((x) => norm(x.title.ru) === norm(b.matchTitle));
+          if (found.length !== 1) {
+            errs.push(`№${b.n}: «${b.matchTitle}» — ${found.length ? 'найдено несколько публикаций, исправьте вручную' : 'публикация не найдена'}`);
+            continue;
+          }
+          const cur = found[0];
+          await api.updateAnnouncement(cur.id, {
+            ...cur,
+            ...(b.sourceName ? { sourceName: b.sourceName } : {}),
+            ...(b.sourceUrl ? { eventSourceUrl: b.sourceUrl } : {}),
+            ...(b.sourceKind ? { sourceKind: b.sourceKind } : {}),
+          });
+          ok.push(`№${b.n}: источник исправлен — «${cur.title.ru}»`);
+          continue;
+        }
         if (b.kind === 'translate') {
           const cur = serverItems.find((x) => x.id === b.id);
           if (!cur) {
@@ -121,6 +138,7 @@ export const BatchImport: React.FC<{
       {preview && (
         <p className="text-xs text-gray-700" data-batch-preview>
           В пакете: новых новостей — {preview.items.filter((i) => i.kind === 'new').length}, переводов — {preview.items.filter((i) => i.kind === 'translate').length}
+          {preview.items.some((i) => i.kind === 'update') && <>, исправлений — {preview.items.filter((i) => i.kind === 'update').length}</>}
           {preview.errors.length > 0 && <span className="text-red-700 font-semibold"> · с ошибками — {preview.errors.length} (их пропущу)</span>}
         </p>
       )}

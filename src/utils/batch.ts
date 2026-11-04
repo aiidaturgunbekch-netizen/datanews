@@ -51,7 +51,16 @@ export interface BatchTranslate {
   title: L;
   text: L;
 }
-export type BatchItem = BatchNew | BatchTranslate;
+/** Исправление источника у уже созданной публикации — по точному русскому заголовку (id Claude не видит) */
+export interface BatchUpdate {
+  kind: 'update';
+  n: number;
+  matchTitle: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  sourceKind?: 'official' | 'media';
+}
+export type BatchItem = BatchNew | BatchTranslate | BatchUpdate;
 
 const STATUSES: AnnouncementStatus[] = ['scheduled', 'active', 'rescheduled', 'cancelled', 'completed', 'archived'];
 const URGENCIES: UrgencyType[] = ['emergency', 'planned', 'regular', 'event'];
@@ -91,6 +100,15 @@ export const parseBatch = (input: string): { items: BatchItem[]; errors: string[
     const title = lang(o.title, 200);
     const text = lang(o.text ?? o.description, 5000);
     const label = `№${n}${title.ru || title.kg ? ` «${(title.ru || title.kg || '').slice(0, 60)}»` : ''}`;
+    if (o.kind === 'update') {
+      const matchTitle = s(o.matchTitle, 200);
+      if (!matchTitle) return errors.push(`№${n}: нет заголовка публикации для исправления (matchTitle)`);
+      const sourceUrl = https(o.sourceUrl);
+      const sourceName = s(o.sourceName, 160) || undefined;
+      if (!sourceUrl && !sourceName) return errors.push(`№${n} «${matchTitle.slice(0, 60)}»: нечего исправлять`);
+      items.push({ kind: 'update', n, matchTitle, sourceName, sourceUrl, sourceKind: o.sourceKind === 'media' ? 'media' : o.sourceKind === 'official' ? 'official' : undefined });
+      return;
+    }
     if (o.kind === 'translate') {
       const id = s(o.id, 80);
       if (!/^[\w-]{3,80}$/.test(id)) return errors.push(`${label}: нет id публикации для перевода`);

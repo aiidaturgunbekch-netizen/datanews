@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { BatchImport, untranslatedForClaude } from './admin/BatchImport';
 import { missingLangs } from '../utils/lang';
 import { Announcement, HistoryEntry, Language, MailItem, PaymentStatus, PlanId, Report, SiteStats } from '../types';
 import * as api from '../services/api';
@@ -808,6 +809,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
 
   // Импорт из официального сообщения: текст + ссылка → черновик в форме, публикует редактор
   const [importOpen, setImportOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
+  const copyUntranslated = async () => {
+    const text = untranslatedForClaude(serverItems);
+    if (!text) return setMsg('Все публикации переведены — копировать нечего');
+    try {
+      await navigator.clipboard.writeText(text);
+      setMsg(`Скопировано новостей без перевода: ${serverItems.filter((a) => missingLangs(a).length && a.moderationStatus !== 'rejected').length}. Вставьте это в чат Claude — он пришлёт пакет переводов.`);
+    } catch {
+      window.prompt('Скопируйте текст и вставьте в чат Claude:', text);
+    }
+  };
   const [importText, setImportText] = useState('');
   const [importUrl, setImportUrl] = useState('');
   const [importSource, setImportSource] = useState('');
@@ -1109,7 +1121,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                 />
               ) : tab === 'moderation' ? (
                 <>
-                  <h2 className="text-xl font-extrabold text-[#0f1b33]">Ожидают модерации: {pending.length}</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-xl font-extrabold text-[#0f1b33]">Ожидают модерации: {pending.length}</h2>
+                    <button
+                      type="button"
+                      onClick={() => setBatchOpen((v) => !v)}
+                      className="ml-auto px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-extrabold inline-flex items-center gap-1"
+                      data-open-batch
+                    >
+                      <span className="material-symbols-outlined text-[18px]">playlist_add</span>Вставить пакет новостей
+                    </button>
+                  </div>
+                  {batchOpen && (
+                    <BatchImport
+                      serverItems={serverItems}
+                      loadMailItems={async () => {
+                        const items = await api.fetchMailList();
+                        setMailItems(items);
+                        return items;
+                      }}
+                      shrinkPhoto={shrinkMailPhoto}
+                      onDone={() => {
+                        load();
+                        loadMail();
+                      }}
+                    />
+                  )}
                   <p className="text-xs text-gray-600">
                     «Одобрить» — разрешить публикацию после модерации. Достоверность это не подтверждает: публикация попадёт в «Сверку с источниками»,
                     а отметку «Подтверждено по первоисточнику» ставит редактор в форме после сверки.
@@ -1242,8 +1279,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                       Без настоящего фото: {allPosts.filter((a) => !a.imageUrl || a.imageUrl.startsWith('/illustrations/')).length}
                     </span>
                     <button
-                      onClick={() => setImportOpen((v) => !v)}
+                      onClick={copyUntranslated}
+                      title="Скопировать список публикаций без перевода — для Claude"
                       className="ml-auto px-4 py-2 rounded-xl bg-white border border-gray-200 text-[#12327A] text-sm font-extrabold inline-flex items-center gap-1"
+                      data-copy-untranslated
+                    >
+                      <span className="material-symbols-outlined text-[18px]">translate</span>Скопировать для Claude: без перевода (
+                      {serverItems.filter((a) => missingLangs(a).length && a.moderationStatus !== 'rejected').length})
+                    </button>
+                    <button
+                      onClick={() => setImportOpen((v) => !v)}
+                      className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-[#12327A] text-sm font-extrabold inline-flex items-center gap-1"
                     >
                       <span className="material-symbols-outlined text-[18px]">content_paste</span>Импорт из сообщения
                     </button>

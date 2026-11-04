@@ -59,11 +59,18 @@ export const MailInbox: React.FC<{
   // Выбранные фото письма (ключи вложений); по умолчанию — все фото письма
   const [chosen, setChosen] = useState<Record<string, string[]>>({});
   const [itemMsg, setItemMsg] = useState<Record<string, string>>({});
-  const chosenPhotos = (m: MailItem) =>
-    m.attachments
-      .filter((a) => a.kind === 'image' && a.storedKey && (chosen[m.id] || []).includes(a.storedKey))
-      .map((a) => photos[a.storedKey!])
-      .filter((u): u is string => Boolean(u));
+  // Главное фото выбирается отдельно (кнопка «Сделать главным»); без выбора — первое отмеченное
+  const [mainOf, setMainOf] = useState<Record<string, string>>({});
+  const mainKey = (m: MailItem) => {
+    const sel = m.attachments.filter((a) => a.kind === 'image' && a.storedKey && (chosen[m.id] || []).includes(a.storedKey)).map((a) => a.storedKey!);
+    return sel.includes(mainOf[m.id]) ? mainOf[m.id] : sel[0];
+  };
+  /** Выбранные фото: главное первым, затем остальные по порядку в письме */
+  const chosenPhotos = (m: MailItem) => {
+    const main = mainKey(m);
+    const keys = m.attachments.filter((a) => a.kind === 'image' && a.storedKey && (chosen[m.id] || []).includes(a.storedKey)).map((a) => a.storedKey!);
+    return [main, ...keys.filter((k) => k !== main)].map((k) => (k ? photos[k] : undefined)).filter((u): u is string => Boolean(u));
+  };
 
   const counts = useMemo(() => {
     const c = { new: 0, prepared: 0, closed: 0, all: items?.length || 0 };
@@ -248,7 +255,7 @@ export const MailInbox: React.FC<{
               {photosOf.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-xs font-bold text-gray-700">
-                    Фото из письма: первое отмеченное — главное, остальные — галерея под ним. Лишнее снимите галочкой.
+                    Фото из письма: «★ Главное фото» — сверху новости, остальные отмеченные — галерея под ним. Главным можно сделать любое фото, лишнее снимите галочкой.
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {photosOf.map((a) => {
@@ -277,10 +284,23 @@ export const MailInbox: React.FC<{
                                 }))
                               }
                             />
-                            <span className="truncate">
-                              {url && photosOf.filter((x) => (chosen[m.id] || []).includes(x.storedKey!))[0]?.storedKey === key ? 'Главное фото' : 'В галерею'}
-                            </span>
+                            <span className="truncate">{(chosen[m.id] || []).includes(key) ? 'Взять в новость' : 'Не брать'}</span>
                           </label>
+                          {url && (chosen[m.id] || []).includes(key) &&
+                            (mainKey(m) === key ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#12327A] text-white font-bold" data-main-photo>
+                                ★ Главное фото
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setMainOf((x) => ({ ...x, [m.id]: key }))}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[#12327A] text-[#12327A] font-bold hover:bg-[#eef2f9]"
+                                data-make-main
+                              >
+                                ☆ Сделать главным
+                              </button>
+                            ))}
                         </div>
                       );
                     })}

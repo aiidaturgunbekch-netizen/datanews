@@ -11,8 +11,6 @@ import { rubricIdOf } from '../config/rubrics';
 import { getTranslation } from '../locales/translations';
 import { formatDate, formatDayMonthTime, formatWhen } from '../utils/dates';
 import { eventSource, groupedSources, hostOf, isGovTicket, SourceLink, sourceLabel, ticketLink } from '../utils/links';
-import * as api from '../services/api';
-import { Report } from '../types';
 
 /** Подписи для истории исправлений */
 const CORR: Record<string, Record<Language, string>> = {
@@ -79,11 +77,7 @@ const L = {
   join: { ru: 'Ссылка на участие', kg: 'Катышуу шилтемеси', en: 'Join link' },
   imageSource: { ru: 'Источник фото', kg: 'Сүрөттүн булагы', en: 'Photo source' },
   needsCheck: { ru: 'Требует проверки', kg: 'Текшерүүнү талап кылат', en: 'Needs verification' },
-  originManual: { ru: 'Внесено вручную редакцией', kg: 'Редакция кол менен киргизген', en: 'Added manually by the editors' },
-  originUser: { ru: 'Публикация организатора, прошла модерацию', kg: 'Уюштуруучунун жарыясы, модерациядан өткөн', en: 'Organiser’s post, moderated' },
-  originAuto: { ru: 'Собрано автоматически', kg: 'Автоматтык түрдө чогултулган', en: 'Collected automatically' },
   // Дата последней сверки редакцией — не подтверждение события (подтверждение — отдельная отметка «Проверено»)
-  checkedAt: { ru: 'дата сверки редакцией', kg: 'редакция салыштырган күн', en: 'last reviewed by editors' },
   official: { ru: 'Официальный источник', kg: 'Расмий булак', en: 'Official source' },
   authority: { ru: 'Официальный сайт ведомства', kg: 'Мекеменин расмий сайты', en: 'Official website of the agency' },
   dangerLevel: { ru: 'Уровень опасности (по данным ведомства)', kg: 'Коркунучтун деңгээли (мекеменин маалыматы боюнча)', en: 'Danger level (per the agency)' },
@@ -126,22 +120,7 @@ const L = {
     kg: 'Уюмдун расмий жарыясы. Маалыматтын тактыгы үчүн уюм өзү жооп берет.',
     en: 'Official post by the organisation, which is responsible for the accuracy of the information.',
   },
-  report: { ru: 'Пожаловаться', kg: 'Даттануу', en: 'Report' },
-  reportTitle: { ru: 'Сообщить о проблеме с публикацией', kg: 'Жарыядагы көйгөй тууралуу билдирүү', en: 'Report a problem with this post' },
-  reportComment: { ru: 'Что не так? (необязательно)', kg: 'Эмне туура эмес? (милдеттүү эмес)', en: 'What is wrong? (optional)' },
-  reportContact: { ru: 'Ваш контакт для ответа (необязательно)', kg: 'Жооп үчүн байланышыңыз (милдеттүү эмес)', en: 'Your contact for a reply (optional)' },
-  reportSend: { ru: 'Отправить жалобу', kg: 'Даттанууну жөнөтүү', en: 'Send report' },
-  reportThanks: { ru: 'Спасибо! Администратор проверит публикацию.', kg: 'Рахмат! Администратор жарыяны текшерет.', en: 'Thank you! The administrator will review the post.' },
-  reportFail: { ru: 'Не удалось отправить жалобу. Попробуйте позже.', kg: 'Даттанууну жөнөтүү мүмкүн болгон жок. Кийинчерээк аракет кылыңыз.', en: 'Could not send the report. Please try later.' },
 };
-
-const REASONS: { id: Report['reason']; ru: string; kg: string; en: string }[] = [
-  { id: 'false', ru: 'Недостоверная информация', kg: 'Туура эмес маалымат', en: 'False information' },
-  { id: 'outdated', ru: 'Устаревшие сведения', kg: 'Эскирген маалымат', en: 'Outdated information' },
-  { id: 'offensive', ru: 'Оскорбительное содержание', kg: 'Кордогон мазмун', en: 'Offensive content' },
-  { id: 'spam', ru: 'Спам / реклама', kg: 'Спам / жарнама', en: 'Spam / advertising' },
-  { id: 'other', ru: 'Другое', kg: 'Башка', en: 'Other' },
-];
 
 const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
 
@@ -224,31 +203,14 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
       items: groups.official,
     },
     { title: L.organizer[lang], items: groups.organizer },
-    { title: L.additional[lang], items: groups.additional },
+    // ссылка «Источник фото» в списке источников не нужна: подпись автора фото — одной серой строкой под фотографией
+    { title: L.additional[lang], items: groups.additional.filter((l) => l.label !== 'image') },
   ].filter((x) => x.items.length > 0);
-  const [reportOpen, setReportOpen] = useState(false);
   const corrections = (a.history || []).filter((h) => h.action === 'edited' && h.changes?.length).slice(-5);
-  const [reason, setReason] = useState<Report['reason']>('false');
-  const [comment, setComment] = useState('');
-  const [contact, setContact] = useState('');
-  const [reportState, setReportState] = useState<'' | 'sending' | 'ok' | 'fail'>('');
   useEffect(() => {
-    // при переходе к другому событию форма жалобы начинается заново
-    setReportOpen(false);
+    // при переходе к другому событию меню «Поделиться» закрывается
     setShareOpen(false);
-    setReportState('');
-    setComment('');
   }, [a.id]);
-  const sendReport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setReportState('sending');
-    try {
-      await api.submitReport(a.id, reason, comment.trim() || undefined, contact.trim() || undefined);
-      setReportState('ok');
-    } catch {
-      setReportState('fail');
-    }
-  };
   // «Читайте также»: только ещё не завершившиеся; сначала та же рубрика в том же городе, затем та же рубрика, затем тот же город
   const rubric = rubricIdOf(a.category);
   const relScore = (x: Announcement) => (rubricIdOf(x.category) === rubric ? 0 : 2) + (x.city === a.city ? 0 : 1);
@@ -427,6 +389,12 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           lang={lang}
           className={`mt-6 w-full rounded-xl ${a.imageFit === 'cover' ? 'aspect-[16/9]' : 'h-[52vh] max-h-[560px] min-h-[220px]'}`}
         />
+        {/* Подпись автора фото — только когда её требует лицензия (например, Wikimedia Commons); фото от первоисточника — без подписи */}
+        {a.imageCredit && (
+          <p className="mt-1.5 text-[11px] text-gray-400" data-photo-credit>
+            {L.photo[lang]}: {a.imageCredit}
+          </p>
+        )}
 
         {/* Коротко: главное о событии одним взглядом */}
         <section aria-labelledby="brief-title" className="mt-8 rounded-2xl bg-[#f3f6fc] p-5 sm:p-6">
@@ -650,30 +618,8 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           </section>
         )}
 
-        {/* Происхождение сведений, исправления и жалоба — мелко, в конце статьи */}
+        {/* Публичная история исправлений — мелко, в конце статьи */}
         <div className="mt-8 space-y-3 text-xs text-gray-500">
-          {/* Автор фото по свободной лицензии — требование лицензии; здесь, а не на самой фотографии */}
-          {a.imageCredit && a.imageSourceUrl && (
-            <p className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[14px]">photo_camera</span>
-              <span>
-                {L.photo[lang]}:{' '}
-                <a href={a.imageSourceUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-[#12327A]">
-                  {a.imageCredit}
-                </a>
-              </span>
-            </p>
-          )}
-          {(a.dataOrigin || a.lastCheckedAt) && (
-            <p className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[14px]">fact_check</span>
-              <span>
-                {a.dataOrigin === 'auto' ? L.originAuto[lang] : a.dataOrigin === 'user' ? L.originUser[lang] : L.originManual[lang]}
-                {a.lastCheckedAt && ` • ${L.checkedAt[lang]} ${formatDayMonthTime(a.lastCheckedAt, lang)}`}
-              </span>
-            </p>
-          )}
-
           {/* Публичная история существенных исправлений (без внутренних заметок) */}
           {corrections.length > 0 && (
             <div className="rounded-xl border border-gray-100 bg-[#f8fafc] p-3 text-gray-700">
@@ -693,36 +639,6 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             </div>
           )}
 
-          {!reportOpen ? (
-            <button type="button" onClick={() => setReportOpen(true)} className="font-bold text-gray-500 hover:text-red-700 inline-flex items-center gap-1">
-              <span className="material-symbols-outlined text-[16px]">flag</span>
-              {L.report[lang]}
-            </button>
-          ) : reportState === 'ok' ? (
-            <p className="font-bold text-emerald-700">{L.reportThanks[lang]}</p>
-          ) : (
-            <form onSubmit={sendReport} className="p-3 rounded-xl border border-gray-200 space-y-2 text-sm text-[#0f1b33]">
-              <div className="font-bold">{L.reportTitle[lang]}</div>
-              <select value={reason} onChange={(e) => setReason(e.target.value as Report['reason'])} className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm">
-                {REASONS.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r[lang]}
-                  </option>
-                ))}
-              </select>
-              <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={1000} rows={2} placeholder={L.reportComment[lang]} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" />
-              <input value={contact} onChange={(e) => setContact(e.target.value)} maxLength={120} placeholder={L.reportContact[lang]} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" />
-              {reportState === 'fail' && <p className="text-xs font-bold text-red-700">{L.reportFail[lang]}</p>}
-              <div className="flex gap-2">
-                <button disabled={reportState === 'sending'} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold disabled:opacity-60">
-                  {L.reportSend[lang]}
-                </button>
-                <button type="button" onClick={() => setReportOpen(false)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-bold">
-                  {L.close[lang]}
-                </button>
-              </div>
-            </form>
-          )}
         </div>
 
         {/* Поделиться новостью — в конце материала: ссылка именно на эту публикацию (/n/<id>) и её заголовок */}

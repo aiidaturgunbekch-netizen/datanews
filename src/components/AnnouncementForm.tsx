@@ -48,6 +48,14 @@ export const CITY_OPTIONS: { id: CityId; label: string }[] = [
 ];
 
 const ALERT_CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs'];
+/** Тип публикации по разделу: отключения и дороги — предупреждение, остальное — событие / афиша */
+const autoUrgency = (c: CategoryId): UrgencyType => (ALERT_CATEGORIES.includes(c) ? 'planned' : 'event');
+const URGENCY_LABEL: Record<UrgencyType, string> = {
+  event: 'Событие / афиша',
+  planned: 'Плановое предупреждение',
+  emergency: 'Аварийное / срочное',
+  regular: 'Информация',
+};
 const HINT_KEY = { event: 'fHintEvent', territory: 'fHintTerritory' } as const;
 
 /** Файл как есть (data:URL) — без перекодирования, чтобы сохранить оригинал */
@@ -133,7 +141,12 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [allDay, setAllDay] = useState(Boolean(initial?.allDay));
   const [geo, setGeo] = useState<NonNullable<Announcement['geo']> | null>(initial?.geo || null);
   // служебные поля администратора
-  const [urgency, setUrgency] = useState<UrgencyType>(initial?.urgency || 'event');
+  // Тип выбирается сам по разделу; вручную — только если нужно иначе (например, «Аварийное / срочное»).
+  // У существующей публикации, где тип уже отличается от раздела, он сохраняется как есть.
+  const [urgencyManual, setUrgencyManual] = useState<UrgencyType | null>(
+    initial?.urgency && initial.urgency !== autoUrgency(initial.category) ? initial.urgency : null
+  );
+  const urgency: UrgencyType = urgencyManual || autoUrgency(category);
   const [status, setStatus] = useState<AnnouncementStatus>(initial?.status || 'scheduled');
   const [isTicker, setIsTicker] = useState(Boolean(initial?.isUrgentTicker));
   const [locality, setLocality] = useState(initial?.locality || '');
@@ -521,12 +534,22 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         <div className="p-4 rounded-2xl bg-[#eef2f9] grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>Тип</label>
-            <select className={inputCls} value={urgency} onChange={(e) => setUrgency(e.target.value as UrgencyType)}>
-              <option value="event">Событие / афиша</option>
-              <option value="planned">Плановое предупреждение</option>
-              <option value="emergency">Аварийное / срочное</option>
-              <option value="regular">Информация</option>
+            <select
+              className={inputCls}
+              value={urgencyManual || 'auto'}
+              onChange={(e) => setUrgencyManual(e.target.value === 'auto' ? null : (e.target.value as UrgencyType))}
+              data-urgency-select
+            >
+              <option value="auto">По разделу: {URGENCY_LABEL[autoUrgency(category)]}</option>
+              {(['emergency', 'planned', 'event', 'regular'] as UrgencyType[])
+                .filter((u) => u !== autoUrgency(category))
+                .map((u) => (
+                  <option key={u} value={u}>
+                    Вручную: {URGENCY_LABEL[u]}
+                  </option>
+                ))}
             </select>
+            <p className="mt-1 text-[11px] text-gray-500">Выбирается сам по разделу. Меняйте, только если нужно иначе — например, «Аварийное / срочное».</p>
           </div>
           <div>
             <label className={labelCls}>Статус</label>

@@ -39,7 +39,7 @@ const ABOUT: Record<Language, React.ReactNode> = {
           'Официальные источники (мэрии, министерства, Кыргызгидромет, МЧС) — в приоритете; сведения СМИ помечаются как СМИ.',
           'Мы не публикуем выдуманные события и не выдаём заявления или обещания за принятые решения.',
           'Устаревшие предупреждения автоматически уходят из списка действующих, но остаются в архиве.',
-          'Нашли ошибку? Нажмите «Пожаловаться» в карточке или напишите редакции.',
+          'Нашли ошибку? Напишите редакции — контакты на странице «Контакты».',
         ]}
       />
     </>
@@ -60,7 +60,7 @@ const ABOUT: Record<Language, React.ReactNode> = {
           'Расмий булактар (мэриялар, министрликтер, Кыргызгидромет, ӨКМ) — биринчи кезекте; ЖМКнын маалыматы ЖМК катары белгиленет.',
           'Ойдон чыгарылган окуяларды жарыяланбайбыз жана билдирүүлөрдү же убадаларды кабыл алынган чечим катары көрсөтпөйбүз.',
           'Мөөнөтү бүткөн эскертүүлөр күчүндөгүлөрдүн тизмесинен автоматтык түрдө чыгат, бирок архивде калат.',
-          'Ката таптыңызбы? Карточкадагы «Даттануу» баскычын басыңыз же редакцияга жазыңыз.',
+          'Ката таптыңызбы? Редакцияга жазыңыз — байланыштар «Байланыш» баракчасында.',
         ]}
       />
     </>
@@ -81,7 +81,7 @@ const ABOUT: Record<Language, React.ReactNode> = {
           'Official sources (city halls, ministries, Kyrgyzhydromet, Emergency Ministry) come first; media reports are labelled as media.',
           'We do not publish invented events, and we never present statements or promises as decisions taken.',
           'Expired warnings leave the active list automatically but stay in the archive.',
-          'Found a mistake? Press “Report” on the card or message the editors.',
+          'Found a mistake? Message the editors — see the Contacts page.',
         ]}
       />
     </>

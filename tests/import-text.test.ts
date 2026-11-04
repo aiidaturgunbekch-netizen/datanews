@@ -18,6 +18,8 @@ describe('помощник импорта: даты', () => {
     assert.equal(r.draft.allDay, true, 'времени в тексте нет — весь день');
     assert.equal(r.draft.endDate, undefined);
     assert.equal(r.draft.category, 'roads');
+    assert.ok(!r.draft.description?.ru.includes('18:34'), 'штамп убран из текста');
+    assert.ok(!r.draft.summary?.ru.includes('03.11.2026'), 'и из краткого описания');
   });
 
   it('русские даты по-прежнему: «17–18 октября с 09:00 до 17:00»', () => {

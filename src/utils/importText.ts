@@ -56,7 +56,12 @@ const findTimes = (s: string): string[] =>
   [...s.matchAll(/(?<![\d.])([01]?\d|2[0-3])[:.]([0-5]\d)(?!\d|\.\d)/g)].map((m) => `${pad(m[1])}:${m[2]}`);
 
 export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today = kgDateStr()): ImportResult => {
-  const raw = text.replace(/\r/g, '').trim();
+  // Строка-штамп публикации источника («03.11.2026 18:34» отдельной строкой) — не часть новости: убираем из текста
+  const raw = text
+    .replace(/\r/g, '')
+    .replace(/^\s*\d{1,2}\.\d{1,2}\.20\d\d,?\s+\d{1,2}:\d{2}\s*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
   // Строка-штамп публикации источника («03.11.2026 18:34» отдельной строкой) — это не дата события: в разбор дат не берём
   const s = raw
     .toLowerCase()

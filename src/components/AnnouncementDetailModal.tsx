@@ -76,7 +76,6 @@ const L = {
   venue: { ru: 'Площадка', kg: 'Аянтча', en: 'Venue' },
   join: { ru: 'Ссылка на участие', kg: 'Катышуу шилтемеси', en: 'Join link' },
   imageSource: { ru: 'Источник фото', kg: 'Сүрөттүн булагы', en: 'Photo source' },
-  needsCheck: { ru: 'Требует проверки', kg: 'Текшерүүнү талап кылат', en: 'Needs verification' },
   // Дата последней сверки редакцией — не подтверждение события (подтверждение — отдельная отметка «Проверено»)
   official: { ru: 'Официальный источник', kg: 'Расмий булак', en: 'Official source' },
   authority: { ru: 'Официальный сайт ведомства', kg: 'Мекеменин расмий сайты', en: 'Official website of the agency' },
@@ -194,6 +193,9 @@ const Gallery: React.FC<{ photos: string[]; alt: string; lang: Language }> = ({ 
     </section>
   );
 };
+
+/** Разделы, где бывают билеты: у остальных (новости, решения, предупреждения) блок «Купить билет» не показывается */
+const TICKETED = ['concerts', 'festivals', 'culture', 'cinema', 'sport', 'fairs', 'exhibitions'];
 
 const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
 
@@ -417,15 +419,11 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
             {badge.label}
           </span>
-          {a.isVerified ? (
+          {/* Читателю — только положительная отметка; «Требует проверки» — служебная, видна редакции в панели */}
+          {a.isVerified && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#eef2f9] text-[#12327A] text-[11px] font-bold">
               <span className="material-symbols-outlined text-[14px]">verified</span>
               {L.verified[lang]}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-[#5c3d00] text-[11px] font-bold">
-              <span className="material-symbols-outlined text-[14px]">help</span>
-              {L.needsCheck[lang]}
             </span>
           )}
         </div>
@@ -659,7 +657,8 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                 </ul>
               </div>
             ))}
-            {(tickets.url || (isEvent && !freeEntry)) && (
+            {/* «Купить билет» — только у событий с билетами (концерты, спорт, кино…); у новостей, решений и предупреждений блока нет */}
+            {(tickets.url || (isEvent && TICKETED.includes(a.category) && !freeEntry)) && (
               <div>
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">{L.ticketsTitle[lang]}</h3>
                 <ul className="space-y-1 text-sm">

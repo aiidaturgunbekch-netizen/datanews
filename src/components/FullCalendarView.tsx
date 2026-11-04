@@ -131,14 +131,14 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
 
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
           <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
             {t('search.whereLabel')}
           </span>
           <select
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value as CityId)}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#20C7B5]"
+            className="min-w-0 max-w-full px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#20C7B5]"
           >
             {PLACE_IDS.map((id) => (
               <option key={id} value={id}>
@@ -148,14 +148,14 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
           </select>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
           <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
             {t('search.whatLabel')}
           </span>
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value as CategoryId)}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#20C7B5]"
+            className="min-w-0 max-w-full px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#20C7B5]"
           >
             <option value="all">{t('categories.all')}</option>
             <option value="roads">{t('categories.roads')}</option>

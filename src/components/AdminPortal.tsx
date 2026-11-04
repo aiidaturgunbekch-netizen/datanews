@@ -1242,9 +1242,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     {allPosts.map((a) => {
                       const b = MODERATION_BADGE[a.moderationStatus || 'approved'];
                       return (
-                        <div key={a.id} className="bg-white rounded-2xl border border-gray-100 p-3 flex gap-3 items-center">
+                        <div key={a.id} className="bg-white rounded-2xl border border-gray-100 p-3 flex flex-wrap gap-3 items-center">
                           <EventImage item={a} className="w-20 h-14 rounded-xl flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
+                          {/* Текст — не уже 12rem: на узком экране кнопки действий переносятся на строку ниже, а не сжимают текст */}
+                          <div className="flex-1 min-w-[min(12rem,100%)]">
                             <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
                               <span className={`px-2 py-0.5 rounded-full ${b.cls}`}>{b.label}</span>
                               {a.publishedByGov && <span className="px-2 py-0.5 rounded-full bg-[#e6ecf8] text-[#12327A]">Госорган, без премодерации</span>}

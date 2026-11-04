@@ -116,7 +116,7 @@ export const AdCatalog: React.FC<{
         {AD_FORMAT_IDS.map((id) => {
           const f = formats[id];
           return (
-            <li key={id} className="flex flex-col rounded-2xl border border-[#e3e8f0] bg-white p-4 sm:p-5" data-ad-format-card={id}>
+            <li key={id} className="@container flex flex-col rounded-2xl border border-[#e3e8f0] bg-white p-4 sm:p-5" data-ad-format-card={id}>
               <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-[#0b7a70]">
@@ -124,7 +124,7 @@ export const AdCatalog: React.FC<{
                   </p>
                   <h3 className="text-lg font-bold text-[#0f1b33]">{f.name[lang]}</h3>
                 </div>
-                <p className="sm:text-right shrink-0">
+                <p className="@min-[26rem]:text-right shrink-0">
                   <span className="block text-xl sm:text-2xl font-extrabold text-[#12327A] tabular-nums whitespace-nowrap" data-ad-price>
                     {formatSom(f.price, lang)}
                   </span>

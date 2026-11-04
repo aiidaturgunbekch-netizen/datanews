@@ -148,8 +148,8 @@ export const PushToggle: React.FC<{ lang: Language; city: CityId }> = ({ lang, c
   const popup = 'absolute z-30 top-full mt-1 left-0 sm:left-auto sm:right-0 w-64 max-w-[calc(100vw-2rem)] max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 text-xs shadow-xl';
 
   return (
-    <div ref={boxRef} className="relative flex flex-col items-start sm:items-end gap-1">
-      <div className="inline-flex flex-wrap items-center gap-1 text-xs">
+    <div ref={boxRef} className="relative flex flex-col items-start sm:items-end gap-1 min-w-0 max-w-full">
+      <div className="inline-flex flex-wrap items-center gap-1 text-xs max-w-full">
         {subCity ? (
           <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 font-bold">
             <span className="material-symbols-outlined text-[16px]">notifications_active</span>

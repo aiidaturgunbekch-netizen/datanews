@@ -18,8 +18,8 @@ export const SectionHeader: React.FC<{
   action?: { label: string; onClick: () => void };
   className?: string;
 }> = ({ id, kicker, title, action, className = '' }) => (
-  <div className={`flex items-end justify-between gap-4 mb-5 sm:mb-6 ${className}`}>
-    <div className="min-w-0">
+  <div className={`flex flex-wrap items-end justify-between gap-x-4 gap-y-2 mb-5 sm:mb-6 ${className}`}>
+    <div className="min-w-0 flex-1 basis-[min(12rem,100%)]">
       {kicker && <p className="dn-kicker mb-1">{kicker}</p>}
       <h2 id={id} className="dn-section-title">
         {title}

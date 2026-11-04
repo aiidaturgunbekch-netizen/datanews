@@ -127,12 +127,12 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
       <div className="dn-container">
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div>
+          <div className="min-w-0 max-w-full">
             <div className="flex items-center gap-2 mb-1">
               <span className="material-symbols-outlined text-[#dc2626] text-[24px]">
                 notification_important
               </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-[#0f1b33]">
+              <h2 className="min-w-0 text-xl sm:text-2xl font-bold text-[#0f1b33] [overflow-wrap:anywhere] hyphens-auto">
                 {t('sections.urgentAlertsTitle')}
               </h2>
             </div>
@@ -141,9 +141,9 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-col items-start sm:items-end gap-2">
+          <div className="flex flex-col items-start sm:items-end gap-2 min-w-0 max-w-full">
           {/* Город / область — весь список мест сайта (как в фильтре на главной) */}
-          <label className="inline-flex items-center gap-2 text-xs font-bold text-gray-600">
+          <label className="inline-flex items-center gap-2 text-xs font-bold text-gray-600 max-w-full">
             <span className="material-symbols-outlined text-[18px] text-[#12327A]" aria-hidden="true">
               location_on
             </span>
@@ -151,7 +151,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
             <select
               value={selectedCity === ('karakol' as CityId) ? 'issykkul' : selectedCity}
               onChange={(e) => onCityFilterChange(e.target.value as CityId)}
-              className="px-3 py-1.5 rounded-xl bg-gray-100 border border-transparent text-xs font-bold text-[#12327A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#12327A]"
+              className="min-w-0 max-w-full px-3 py-1.5 rounded-xl bg-gray-100 border border-transparent text-xs font-bold text-[#12327A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#12327A]"
             >
               {ALERT_PLACE_IDS.map((id) => (
                 <option key={id} value={id}>

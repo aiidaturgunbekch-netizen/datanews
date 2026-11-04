@@ -88,7 +88,7 @@ export const TopStories: React.FC<{
         <ul className="mt-8 pt-6 border-t border-line grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
           {rest.map((a) => (
             <li key={a.id}>
-              <button type="button" onClick={() => onOpen(a)} className="group w-full text-left flex gap-4">
+              <button type="button" onClick={() => onOpen(a)} className="@container group w-full text-left flex gap-4">
                 <span className="flex-1 min-w-0">
                   <span className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
                     {label(a)}
@@ -100,7 +100,7 @@ export const TopStories: React.FC<{
                   <Meta a={a} lang={lang} className="mt-1.5" />
                   <PaidBadge item={a} lang={lang} className="mt-1.5" />
                 </span>
-                <EventImage item={a} lang={lang} compact className="w-24 h-20 sm:w-28 sm:h-[84px] rounded-lg shrink-0" />
+                <EventImage item={a} lang={lang} compact className="w-24 h-20 sm:w-28 sm:h-[84px] rounded-lg shrink-0 @max-[17rem]:hidden" />
               </button>
             </li>
           ))}

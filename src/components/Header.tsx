@@ -111,11 +111,11 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 min-[22.5em]:gap-4 sm:gap-6 ml-auto">
             <button
               onClick={() => onViewChange('organizations')}
-              className={`font-semibold transition-colors ${currentView === 'organizations' ? 'text-white' : 'text-[#c8d2ee] hover:text-white'}`}
+              className={`max-[20em]:hidden font-semibold transition-colors ${currentView === 'organizations' ? 'text-white' : 'text-[#c8d2ee] hover:text-white'}`}
             >
               {t('nav.forOrg')}
             </button>
-            <span className="w-px h-4 bg-white/15" aria-hidden="true" />
+            <span className="max-[20em]:hidden w-px h-4 bg-white/15" aria-hidden="true" />
             <div className="flex items-center gap-1" role="group" aria-label={currentLanguage === 'kg' ? 'Тил' : currentLanguage === 'en' ? 'Language' : 'Язык'}>
               {(['ru', 'kg', 'en'] as Language[]).map((lang) => (
                 <button

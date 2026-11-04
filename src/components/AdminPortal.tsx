@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { missingLangs } from '../utils/lang';
 import { Announcement, HistoryEntry, Language, MailItem, PaymentStatus, PlanId, Report, SiteStats } from '../types';
 import * as api from '../services/api';
 import { mergeAnnouncements } from '../utils/mergeAnnouncements';
@@ -1055,6 +1056,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     key={editing === 'new' ? `new-${fromMail ? `mail-${fromMail.id}` : imported ? 'import' : 'blank'}` : editing.id}
                     initial={editing === 'new' ? importDraft : editing}
                     initialImageData={editing === 'new' && fromMail ? mailImage || undefined : undefined}
+                    // Черновик из письма можно сохранить на одном языке; публикация и правка — с русским и кыргызским текстом
+                    requireBothLangs={!(editing === 'new' && fromMail)}
                     submitLabel={editing === 'new' ? (fromMail ? 'Сохранить черновик в «Модерацию»' : 'Опубликовать') : 'Сохранить'}
                     onCancel={closeEditor}
                     onSubmit={async (item) => {
@@ -1122,6 +1125,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             <span className="px-2 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44]">{catLabel(a.category)}</span>
                             <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{cityLabel(a.city)}</span>
                             {a.testMaterial && <span className="px-2 py-0.5 rounded-full bg-red-600 text-white">ТЕСТ — публикация запрещена</span>}
+                            {missingLangs(a).length > 0 && (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" title="Пока нет текста на этом языке, в этой версии сайта новость не показывается. «Исправить» → добавьте текст.">
+                                Нет перевода: {missingLangs(a).join(', ')}
+                              </span>
+                            )}
                           </div>
                           <h3 className="font-extrabold text-[#0f1b33]">{a.title.ru}</h3>
                           <p className="text-sm text-gray-700">{a.summary.ru}</p>
@@ -1284,6 +1292,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                               {!isExpired(a) && (!a.lastCheckedAt || Date.now() - kgTs(a.lastCheckedAt) > STALE_MS) && (
                                 <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800" title="Действующая публикация давно не проверялась: сверьте с первоисточником и обновите дату проверки (кнопка «Редактировать» → «Сохранить»)">
                                   Перепроверить{a.lastCheckedAt ? ` (проверено ${fmt(a.lastCheckedAt)})` : ''}
+                                </span>
+                              )}
+                              {missingLangs(a).length > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" title="Пока нет текста на этом языке, в этой версии сайта новость не показывается">
+                                  Нет перевода: {missingLangs(a).join(', ')}
                                 </span>
                               )}
                               {(!a.imageUrl || a.imageUrl.startsWith('/illustrations/')) && (

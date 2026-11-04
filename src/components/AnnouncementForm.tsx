@@ -10,6 +10,7 @@ import { getTranslation } from '../locales/translations';
 import { DISTRICTS } from '../config/districts';
 import { GeoPicker } from './GeoPicker';
 import { EVENT_CATEGORIES, placeHint, placeText, TERRITORY_CATEGORIES } from '../utils/place';
+import { hasLangText, looksKyrgyz } from '../utils/lang';
 
 export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
   { id: 'concerts', label: 'Концерты и шоу' },
@@ -82,6 +83,11 @@ interface Props {
   defaultOrganizer?: string;
   /** Фото, выбранное редактором заранее (например, из письма редакционной почты), — как загруженное */
   initialImageData?: string;
+  /**
+   * Панель: обязательны ли тексты и на русском, и на кыргызском (по умолчанию — да).
+   * Черновик из письма можно сохранить на одном языке: перевод добавляется до публикации.
+   */
+  requireBothLangs?: boolean;
 }
 
 /**
@@ -99,18 +105,64 @@ export const loadPhoto = async (file: File): Promise<{ data: string; resized: bo
   return { data, resized: true };
 };
 
+type LangBox = { title: string; text: string; setTitle: (v: string) => void; setText: (v: string) => void };
+/**
+ * Тексты новости по языкам (панель): у каждого языка свой заголовок и текст. Русская версия сайта показывает только
+ * русский, кыргызская — только кыргызский; английский необязателен (без него на английском — русский текст).
+ */
+const LangTexts: React.FC<{ ru: LangBox; kg: LangBox; en: LangBox; required: boolean; tried: boolean }> = ({ ru, kg, en, required, tried }) => {
+  const box = (code: 'RU' | 'KG' | 'EN', name: string, b: LangBox, req: boolean, hint?: string) => {
+    const empty = !b.title.trim() || !b.text.trim();
+    const bad = tried && req && empty;
+    const cls = (v: string) => (bad && !v.trim() ? inputCls.replace('border-gray-200', 'border-red-500 bg-red-50') : inputCls);
+    return (
+      <div className={`rounded-2xl border p-4 space-y-2 ${bad ? 'border-red-300 bg-red-50/40' : 'border-gray-200 bg-white'}`} data-lang-box={code}>
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 rounded-md bg-[#12327A] text-white text-[11px] font-extrabold">{code}</span>
+          <span className="text-sm font-bold text-[#0f1b33]">
+            {name}
+            {req ? ' *' : ' (необязательно)'}
+          </span>
+        </div>
+        <input className={cls(b.title)} value={b.title} onChange={(e) => b.setTitle(e.target.value)} maxLength={200} placeholder="Заголовок" aria-label={`Заголовок — ${name}`} />
+        <textarea className={cls(b.text)} rows={5} value={b.text} onChange={(e) => b.setText(e.target.value)} maxLength={5000} placeholder="Текст новости" aria-label={`Текст — ${name}`} />
+        {bad && <p className="text-xs font-semibold text-red-700">Заполните заголовок и текст на этом языке</p>}
+        {hint && <p className="text-[11px] text-gray-500">{hint}</p>}
+      </div>
+    );
+  };
+  return (
+    <div className="space-y-3">
+      {box('RU', 'На русском', ru, required)}
+      {box('KG', 'На кыргызском', kg, required)}
+      {box('EN', 'На английском', en, false, 'Без английского текста английская версия сайта покажет русский.')}
+      {!required && (
+        <p className="text-[11px] text-gray-500">
+          Черновик можно сохранить на одном языке. Пока нет текста на русском или кыргызском, в этой версии сайта новость не показывается.
+        </p>
+      )}
+    </div>
+  );
+};
+
 export const inputCls =
   'w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-[#0f1b33] focus:outline-none focus:ring-2 focus:ring-[#12327A]/30 focus:border-[#12327A]';
 const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1';
 
-export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, submitLabel, onSubmit, onCancel, allowedCategories, defaultOrganizer, initialImageData }) => {
+export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, submitLabel, onSubmit, onCancel, allowedCategories, defaultOrganizer, initialImageData, requireBothLangs = true }) => {
   const tr = (k: AccountKey) => ta(k, lang);
   const { t } = getTranslation(lang);
-  const [titleRu, setTitleRu] = useState(initial?.title.ru || '');
-  const [titleKg, setTitleKg] = useState(initial && initial.title.kg !== initial.title.ru ? initial.title.kg : '');
-  const [titleEn, setTitleEn] = useState(initial && initial.title.en !== initial.title.ru ? initial.title.en : '');
-  const [summary, setSummary] = useState(initial?.summary.ru || '');
-  const [description, setDescription] = useState(initial?.description.ru || '');
+  // Тексты по языкам — только «свои»: копия другого языка (или кыргызский текст в русском поле) в поле не попадает
+  const hasRu = initial ? hasLangText(initial, 'ru') : false;
+  const hasKg = initial ? hasLangText(initial, 'kg') : false;
+  const hasEn = initial ? hasLangText(initial, 'en') : false;
+  const [titleRu, setTitleRu] = useState(initial && (hasRu || mode !== 'admin') ? initial.title.ru : '');
+  const [titleKg, setTitleKg] = useState(initial && hasKg ? initial.title.kg : '');
+  const [titleEn, setTitleEn] = useState(initial && hasEn ? initial.title.en : '');
+  const [summary, setSummary] = useState(initial && (hasRu || mode !== 'admin') ? initial.summary.ru : '');
+  const [description, setDescription] = useState(initial && (hasRu || mode !== 'admin') ? initial.description.ru : '');
+  const [descriptionKg, setDescriptionKg] = useState(initial && hasKg ? initial.description.kg : '');
+  const [descriptionEn, setDescriptionEn] = useState(initial && hasEn ? initial.description.en : '');
   const [category, setCategory] = useState<CategoryId>(initial?.category || allowedCategories?.[0] || 'concerts');
   // Область не известна — «Весь Кыргызстан» (без привязки), а не выдуманный город
   const [city, setCity] = useState<CityId>(initial?.city || 'all');
@@ -178,6 +230,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [err, setErr] = useState('');
 
   const [imageNote, setImageNote] = useState('');
+  const [langTried, setLangTried] = useState(false);
   // Галерея — дополнительные фото под главным (только редакция); фото загружаются на сервер сразу, в форме — ссылки
   const [gallery, setGallery] = useState<string[]>(initial?.gallery || []);
   const [galleryBusy, setGalleryBusy] = useState(false);
@@ -227,8 +280,8 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
     id: initial?.id || 'preview',
     protocolCode: initial?.protocolCode || '#KG-PREVIEW',
     title: { ru: titleRu.trim(), kg: titleKg.trim() || titleRu.trim(), en: titleEn.trim() || titleRu.trim() },
-    summary: { ru: summaryText(), kg: summaryText(), en: summaryText() },
-    description: { ru: description.trim(), kg: description.trim(), en: description.trim() },
+    summary: { ru: summaryText(), kg: descriptionKg.trim() ? autoSummary(descriptionKg) : summaryText(), en: descriptionEn.trim() ? autoSummary(descriptionEn) : summaryText() },
+    description: { ru: description.trim(), kg: descriptionKg.trim() || description.trim(), en: descriptionEn.trim() || description.trim() },
     category,
     city,
     location: { ru: location.trim(), kg: location.trim(), en: location.trim() },
@@ -260,20 +313,39 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
     isDemo: false,
   });
 
-  /** Краткое описание: если не заполнено — первые предложения основного описания */
-  const summaryText = () => {
-    if (summary.trim()) return summary.trim();
-    const d = description.trim();
+  /** Краткое описание: первые предложения текста (для русского — поле «Краткое описание», если заполнено) */
+  const autoSummary = (text: string) => {
+    const d = text.trim();
     if (d.length <= 300) return d;
     const cut = d.slice(0, 300);
     return `${cut.slice(0, Math.max(cut.lastIndexOf('. ') + 1, cut.lastIndexOf(' ')))}…`;
   };
+  const summaryText = () => (summary.trim() ? summary.trim() : autoSummary(description));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
     // Адрес не обязателен ни для одного типа публикаций — вместо запрета подсказка у поля
-    if (!titleRu.trim() || !description.trim() || !startDate) {
+    if (mode === 'admin') {
+      // Панель: русский и кыргызский тексты отдельно; черновик из письма — достаточно одного языка
+      const ruOk = Boolean(titleRu.trim() && description.trim());
+      const kgOk = Boolean(titleKg.trim() && descriptionKg.trim());
+      const missing = [!ruOk && 'на русском (заголовок и текст)', !kgOk && 'на кыргызском (заголовок и текст)'].filter(Boolean);
+      if (!startDate || (requireBothLangs ? missing.length : !ruOk && !kgOk)) {
+        setLangTried(true);
+        setErr(
+          !startDate
+            ? tr('fRequired')
+            : `Не сохранено — заполните ${requireBothLangs ? missing.join(' и ') : 'текст хотя бы на одном языке'}. Русская и кыргызская версии сайта показывают только свой язык.`
+        );
+        return;
+      }
+      if (ruOk && looksKyrgyz(`${titleRu}\n${description}`)) {
+        setLangTried(true);
+        setErr('В поле «на русском» текст на кыргызском. Перенесите его в поля «на кыргызском», а в русские поля вставьте русский текст.');
+        return;
+      }
+    } else if (!titleRu.trim() || !description.trim() || !startDate) {
       setErr(tr('fRequired'));
       return;
     }
@@ -284,9 +356,14 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
     const item: Record<string, unknown> = {
       id: initial?.id,
       protocolCode: initial?.protocolCode,
-      title: { ru: titleRu.trim(), kg: titleKg.trim(), en: titleEn.trim() },
-      summary: { ru: summaryText() },
-      description: { ru: description.trim() },
+      // Языки отдельно: пустой язык сервер дополнит копией, но сайт копию за перевод не считает
+      title: { ru: titleRu.trim() || titleKg.trim(), kg: titleKg.trim(), en: titleEn.trim() },
+      summary: {
+        ru: description.trim() ? summaryText() : autoSummary(descriptionKg),
+        kg: descriptionKg.trim() ? autoSummary(descriptionKg) : '',
+        en: descriptionEn.trim() ? autoSummary(descriptionEn) : '',
+      },
+      description: { ru: description.trim() || descriptionKg.trim(), kg: descriptionKg.trim(), en: descriptionEn.trim() },
       category,
       city,
       location: { ru: location.trim() },
@@ -368,10 +445,12 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const extras = (
     <>
       {field(tr('fSummaryOpt'), <textarea className={inputCls} rows={2} value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={400} />)}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {field(tr('fTitleKg'), <input className={inputCls} value={titleKg} onChange={(e) => setTitleKg(e.target.value)} maxLength={200} />)}
-        {field(tr('fTitleEn'), <input className={inputCls} value={titleEn} onChange={(e) => setTitleEn(e.target.value)} maxLength={200} />)}
-      </div>
+      {!isAdmin && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {field(tr('fTitleKg'), <input className={inputCls} value={titleKg} onChange={(e) => setTitleKg(e.target.value)} maxLength={200} />)}
+          {field(tr('fTitleEn'), <input className={inputCls} value={titleEn} onChange={(e) => setTitleEn(e.target.value)} maxLength={200} />)}
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {field(tr('fPrice'), <input className={inputCls} value={price} onChange={(e) => setPrice(e.target.value)} placeholder={tr('fPricePh')} />)}
         {field(tr('fTime'), <input className={inputCls} value={timeRange} onChange={(e) => setTimeRange(e.target.value)} placeholder="19:00 • 12+" />)}
@@ -418,7 +497,17 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
           </select>
         )}
       </div>
-      {field(tr('fTitleRu'), <input className={inputCls} value={titleRu} onChange={(e) => setTitleRu(e.target.value)} maxLength={200} required />)}
+      {isAdmin ? (
+        <LangTexts
+          ru={{ title: titleRu, text: description, setTitle: setTitleRu, setText: setDescription }}
+          kg={{ title: titleKg, text: descriptionKg, setTitle: setTitleKg, setText: setDescriptionKg }}
+          en={{ title: titleEn, text: descriptionEn, setTitle: setTitleEn, setText: setDescriptionEn }}
+          required={requireBothLangs}
+          tried={langTried}
+        />
+      ) : (
+        field(tr('fTitleRu'), <input className={inputCls} value={titleRu} onChange={(e) => setTitleRu(e.target.value)} maxLength={200} required />)
+      )}
       {field(
         tr('fOrganizer'),
         <input className={inputCls} value={organizer} onChange={(e) => setOrganizer(e.target.value)} placeholder={tr('fOrganizerPh')} maxLength={160} required={!isAdmin} />
@@ -551,7 +640,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
           labelCls={labelCls}
         />
       )}
-      {field(tr('fDescriptionReq'), <textarea className={inputCls} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} required />)}
+      {!isAdmin && field(tr('fDescriptionReq'), <textarea className={inputCls} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} required />)}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {field(tr('fPhone'), <input className={inputCls} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+996 ..." />)}
         {field(tr('fSource'), <input className={inputCls} value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://" />)}

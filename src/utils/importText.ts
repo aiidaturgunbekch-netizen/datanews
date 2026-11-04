@@ -4,6 +4,7 @@ import type { Announcement, CategoryId, CityId, UrgencyType } from '../types';
 import { parsePlaces } from '../lib/botEngine';
 import { DISTRICTS, inDistrict } from '../config/districts';
 import { kgDateStr } from './time';
+import { detectLang } from './lang';
 
 const MONTH_STEMS = ['январ', 'феврал', 'март', 'апрел', 'ма[йяе]', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр'];
 const MONTH_RE = MONTH_STEMS.join('|');
@@ -96,15 +97,19 @@ export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today
   // Адрес — первая строка с улицей, микрорайоном или селом
   const locLine = lines.find((l) => /(ул\.|улиц|пр\.|проспект|мкр|микрорайон|ж\/м|по адресу|\bс\.\s|\bсело\b)/i.test(l));
 
+  // Текст кладётся только в поле своего языка (кыргызский — в KG, русский — в RU): перевод добавляет редакция
+  const textLang = detectLang(raw);
+  const inLang = (v: string) => ({ ru: textLang === 'ru' ? v : '', kg: textLang === 'kg' ? v : '', en: '' });
   const draft: Partial<Announcement> = {
-    title: { ru: title, kg: title, en: title },
-    summary: { ru: summary, kg: summary, en: summary },
-    description: { ru: raw, kg: raw, en: raw },
+    title: inLang(title),
+    summary: inLang(summary),
+    description: inLang(raw),
     eventSourceUrl: sourceUrl.trim() || undefined,
     sourceName: sourceName.trim() || undefined,
     eventDetails: sourceName.trim() ? { organizer: sourceName.trim() } : undefined,
   };
-  if (title) found.push('заголовок');
+  if (title) found.push(`заголовок и текст (${textLang === 'kg' ? 'на кыргызском' : 'на русском'})`);
+  missing.push(textLang === 'kg' ? 'перевод на русский' : 'перевод на кыргызский');
 
   if (dates.length) {
     const startT = times[0] || '00:00';

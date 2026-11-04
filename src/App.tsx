@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
+import { visibleIn } from './utils/lang';
 import {
   Announcement,
   CategoryId,
@@ -113,7 +114,9 @@ export default function App() {
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => kgDateStr());
 
   // Data Store: встроенные события показываются сразу, публикации с сервера догружаются
-  const [announcements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
+  const [allAnnouncements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
+  // Сайт показывает только публикации со своим текстом на выбранном языке — русский и кыргызский не смешиваются
+  const announcements = useMemo(() => allAnnouncements.filter((a) => visibleIn(a, currentLanguage)), [allAnnouncements, currentLanguage]);
 
   // Роль: гость / зарегистрированный пользователь / администратор
   const [role, setRole] = useState<api.Role>(() => api.getSession()?.role || 'guest');
@@ -178,8 +181,15 @@ export default function App() {
     const openFromUrl = (e?: Event) => {
       const id = articleIdFromUrl();
       if (id) {
-        const found = announcements.find((a) => a.id === id);
-        if (found) setActiveNoticeDetail(found);
+        const found = allAnnouncements.find((a) => a.id === id);
+        if (found) {
+          // Ссылка на публикацию, у которой пока нет текста на языке сайта: открываем на языке, где текст есть
+          if (!visibleIn(found, currentLanguage)) {
+            const other = (['ru', 'kg', 'en'] as Language[]).find((l) => visibleIn(found, l));
+            if (other) setCurrentLanguage(other);
+          }
+          setActiveNoticeDetail(found);
+        }
       } else if (e) {
         articlePushed.current = false;
         setActiveNoticeDetail(null);
@@ -192,7 +202,13 @@ export default function App() {
       window.removeEventListener('popstate', openFromUrl);
       window.removeEventListener('hashchange', openFromUrl);
     };
-  }, [announcements]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allAnnouncements]);
+  // Сменили язык, а у открытой публикации нет текста на новом языке — закрываем её (не показываем чужой язык)
+  useEffect(() => {
+    if (activeNoticeDetail && !visibleIn(activeNoticeDetail, currentLanguage)) setActiveNoticeDetail(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLanguage]);
   useEffect(() => {
     const onArticleUrl = Boolean(articleIdFromUrl());
     if (activeNoticeDetail) {

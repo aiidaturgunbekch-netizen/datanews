@@ -39,9 +39,13 @@ const str = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 
 const loc = (v: unknown, max: number, required = false): LocalizedString => {
   const o = (v && typeof v === 'object' ? v : { ru: v }) as Record<string, unknown>;
-  const ru = str(o.ru, max);
-  if (required && !ru) throw new HttpError('missing_field', 400, 'Заполните обязательные поля');
-  return { ru, kg: str(o.kg, max) || ru, en: str(o.en, max) || ru };
+  // Пустой язык дополняется копией другого (так старый код всегда находит текст), но сайт копию за перевод не считает:
+  // русская и кыргызская версии показывают только свой язык (src/utils/lang.ts). Публикация может быть только на кыргызском.
+  const ownRu = str(o.ru, max);
+  const ownKg = str(o.kg, max);
+  if (required && !ownRu && !ownKg) throw new HttpError('missing_field', 400, 'Заполните обязательные поля');
+  const ru = ownRu || ownKg;
+  return { ru, kg: ownKg || ru, en: str(o.en, max) || ru };
 };
 
 const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) ? String(v) : undefined);

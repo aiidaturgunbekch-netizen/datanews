@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Announcement, MailFlag, MailItem } from '../types';
 import * as api from '../services/api';
 import { formatKgDateTime } from '../utils/time';
@@ -87,10 +87,30 @@ export const MailInbox: React.FC<{
     try {
       const url = await api.fetchMailAttachment(key);
       setPhotos((p) => ({ ...p, [key]: url }));
+      return url;
     } catch {
       setPhotos((p) => ({ ...p, [key]: null }));
+      return null;
     }
   };
+
+  // Фото писем, которые ещё ждут черновика, показываются сразу, и первое фото письма уже выбрано для черновика
+  // (фото от первоисточника — для нашего сайта). Снять или выбрать другое можно галочкой.
+  const requested = useRef(new Set<string>());
+  useEffect(() => {
+    for (const m of shown) {
+      if (m.status !== 'new' && m.status !== 'prepared') continue;
+      const keys = m.attachments.filter((a) => a.kind === 'image' && a.storedKey).map((a) => a.storedKey!);
+      keys.forEach((key, i) => {
+        if (requested.current.has(key)) return;
+        requested.current.add(key);
+        loadPhoto(key).then((url) => {
+          if (url && i === 0) setChosen((c) => (m.id in c ? c : { ...c, [m.id]: key }));
+        });
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown.map((m) => m.id).join(',')]);
 
   const draftState = (m: MailItem) => {
     const a = m.annId ? announcements.find((x) => x.id === m.annId) : undefined;

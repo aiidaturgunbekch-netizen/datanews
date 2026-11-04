@@ -13,9 +13,12 @@ const CATEGORY_RULES: [RegExp, CategoryId][] = [
   [/постановлени|указ(?![а-я]*тел)|распоряжени|кабинет[а-я]* министров|жогорку кенеш/, 'state'],
   [/водоснабж|водопровод|подач[а-я]* (холодной |горячей )?вод|без воды|отключени[а-я]* (холодной |горячей )?вод/, 'water'],
   [/электроэнерги|электроснабж|отключени[а-я]* (электричества|света)|без света/, 'electricity'],
-  [/перевал|автодорог|трасс|дорожн|движени[а-я]* (транспорта|автомобил)|перекрыти/, 'roads'],
+  [/перевал|автодорог|трасс|дорожн|движени[а-я]* (транспорта|автомобил)|перекрыти|общественн[а-я]* транспорт|автобусн[а-я]* маршрут|маршрут[а-я]* №|троллейбус/, 'roads'],
   [/заморозк|снегопад|сел[ья]|лавин|сильн[а-я]* ветер|гроз|ливн|метел|гололед|паводк|землетрясени|аномальн[а-я]* жар/, 'hazard'],
   [/ремонт/, 'repairs'],
+  // Отопление (в т. ч. по-кыргызски «жылуулук», «жылытуу») — коммунальные работы
+  [/отоплени|теплоснабж|жылуулук|жылытуу/, 'repairs'],
+  [/спартакиад|соревновани|турнир|чемпионат|первенств|мелдеш|спорт/, 'sport'],
 ];
 
 const PLANNED: CategoryId[] = ['water', 'electricity', 'roads', 'repairs'];
@@ -30,10 +33,13 @@ export interface ImportResult {
   missing: string[];
 }
 
-/** Все даты из текста: «17 октября», «17–18 октября», «с 17 по 18 октября», «17.10.2026» */
+/**
+ * Все даты из текста: «17 октября», «17–18 октября», «с 17 по 18 октября», «17.10.2026»,
+ * по-кыргызски — «29-октябрында», «29-октябрь», «2026-жылдын 29-октябрында» (число и месяц через дефис)
+ */
 const findDates = (s: string, year: number): string[] => {
   const out: string[] = [];
-  const re = new RegExp(`(\\d{1,2})(?:\\s*(?:[-–—]|по|до)\\s*(\\d{1,2}))?\\s+(${MONTH_RE})`, 'g');
+  const re = new RegExp(`(\\d{1,2})(?:\\s*(?:[-–—]|по|до)\\s*(\\d{1,2}))?(?:\\s+|-)(${MONTH_RE})`, 'g');
   for (const m of s.matchAll(re)) {
     const mi = MONTH_STEMS.findIndex((x) => new RegExp(`^${x}`).test(m[3]));
     if (mi < 0) continue;
@@ -51,7 +57,11 @@ const findTimes = (s: string): string[] =>
 
 export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today = kgDateStr()): ImportResult => {
   const raw = text.replace(/\r/g, '').trim();
-  const s = raw.toLowerCase().replace(/ё/g, 'е');
+  // Строка-штамп публикации источника («03.11.2026 18:34» отдельной строкой) — это не дата события: в разбор дат не берём
+  const s = raw
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/^\s*\d{1,2}\.\d{1,2}\.20\d\d,?\s+\d{1,2}:\d{2}\s*$/gm, '');
   const found: string[] = [];
   const missing: string[] = [];
   const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -62,7 +72,8 @@ export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today
   const body = first.length <= 160 ? lines.slice(1).join('\n') : raw;
   const summary = (body.split(/(?<=[.!?])\s/)[0] || '').slice(0, 300);
 
-  const yearInText = s.match(/\b(20\d\d)\s*(?:г|год)/);
+  // «2026 г.», «2026 года», по-кыргызски «2026-жылдын», «2026-ж.»
+  const yearInText = s.match(/\b(20\d\d)\s*(?:г|год|-?\s*ж)/);
   const year = yearInText ? Number(yearInText[1]) : Number(today.slice(0, 4));
   const dates = findDates(s, year);
   const times = findTimes(s);

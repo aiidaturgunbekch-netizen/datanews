@@ -760,11 +760,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   };
   const prepareFromMail = async (m: MailItem, photo?: string) => {
     const image = photo ? await shrinkMailPhoto(photo) : '';
+    // Разбор текста заново — текущими правилами помощника (письма, пришедшие раньше, тоже получают кыргызские даты и т. п.);
+    // если по новым правилам найдено меньше, остаётся сохранённое предложение
+    const pdfText = m.attachments.map((x) => x.text || '').filter(Boolean).join('\n');
+    const day = (m.receivedAt || '').slice(0, 10) || undefined;
+    const again = parseNotice(`${m.subject}\n${m.text}`, '', m.sender.orgName || '', day);
+    const withPdf = !again.draft.startDate && pdfText ? parseNotice(`${m.subject}\n${m.text}\n${pdfText}`, '', m.sender.orgName || '', day) : again;
+    const fresh = withPdf.draft.startDate ? withPdf : again;
+    const best = fresh.found.length >= m.suggestion.found.length ? fresh : m.suggestion;
     setImported({
       // Только то, что найдено в письме; источник — известная организация, если адрес есть в списке отправителей
-      draft: { ...m.suggestion.draft, sourceName: m.sender.orgName || undefined },
-      found: m.suggestion.found,
-      missing: m.suggestion.missing,
+      draft: { ...best.draft, sourceName: m.sender.orgName || undefined },
+      found: best.found,
+      missing: best.missing,
     });
     setFromMail(m);
     setMailImage(image);

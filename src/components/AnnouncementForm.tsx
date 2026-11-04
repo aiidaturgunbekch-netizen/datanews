@@ -399,8 +399,77 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         <input className={inputCls} value={organizer} onChange={(e) => setOrganizer(e.target.value)} placeholder={tr('fOrganizerPh')} maxLength={160} required={!isAdmin} />
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {field(tr('fStart'), <input type="datetime-local" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} required />)}
-        {field(tr('fEndOpt'), <input type="datetime-local" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />, tr('fEndHint'))}
+        {/* Дата и время — отдельными полями: дата обязательна, время нет (без времени — «весь день») */}
+        {field(
+          tr('fStart'),
+          <div className="flex gap-2">
+            <input
+              type="date"
+              className={inputCls}
+              value={startDate.slice(0, 10)}
+              required
+              data-start-date
+              onChange={(e) => {
+                const d = e.target.value;
+                if (!d) return setStartDate('');
+                const t = startDate.slice(11, 16);
+                setStartDate(`${d}T${t || '00:00'}`);
+                if (!t && !timeTBA) setAllDay(true);
+              }}
+            />
+            <input
+              type="time"
+              className={`${inputCls} max-w-[9rem]`}
+              value={allDay || timeTBA ? '' : startDate.slice(11, 16)}
+              disabled={!startDate}
+              data-start-time
+              aria-label={lang === 'kg' ? 'Убактысы' : lang === 'en' ? 'Time' : 'Время'}
+              onChange={(e) => {
+                const t = e.target.value;
+                const d = startDate.slice(0, 10);
+                if (!d) return;
+                if (t) {
+                  setStartDate(`${d}T${t}`);
+                  setAllDay(false);
+                  setTimeTBA(false);
+                } else {
+                  setStartDate(`${d}T00:00`);
+                  if (!timeTBA) setAllDay(true);
+                }
+              }}
+            />
+          </div>,
+          startDate && (allDay || timeTBA)
+            ? lang === 'kg'
+              ? 'Убакыт көрсөтүлгөн жок — сайтта «күнү бою» же «убакыт такталат»'
+              : lang === 'en'
+              ? 'No time — shown as “all day” or “time TBA”'
+              : 'Время не указано — на сайте «весь день» или «время уточняется»'
+            : undefined
+        )}
+        {field(
+          tr('fEndOpt'),
+          <div className="flex gap-2">
+            <input
+              type="date"
+              className={inputCls}
+              value={endDate.slice(0, 10)}
+              onChange={(e) => {
+                const d = e.target.value;
+                setEndDate(d ? `${d}T${endDate.slice(11, 16) || '23:59'}` : '');
+              }}
+            />
+            <input
+              type="time"
+              className={`${inputCls} max-w-[9rem]`}
+              value={endDate && endDate.slice(11, 16) !== '23:59' ? endDate.slice(11, 16) : ''}
+              disabled={!endDate}
+              aria-label={lang === 'kg' ? 'Аяктоо убактысы' : lang === 'en' ? 'End time' : 'Время окончания'}
+              onChange={(e) => setEndDate(`${endDate.slice(0, 10)}T${e.target.value || '23:59'}`)}
+            />
+          </div>,
+          tr('fEndHint')
+        )}
         <div className="sm:col-span-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-700">
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={timeTBA} onChange={(e) => setTimeTBA(e.target.checked)} />

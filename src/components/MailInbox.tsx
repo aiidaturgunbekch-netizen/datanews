@@ -44,9 +44,10 @@ export const MailInbox: React.FC<{
   /** Публикации сайта — чтобы показать, что стало с черновиком (на модерации / опубликован) */
   announcements: Announcement[];
   onReload: () => void;
-  onPrepare: (item: MailItem, imageDataUrl?: string) => Promise<void>;
+  /** photos — выбранные фото письма по порядку: первое — главное, остальные — галерея */
+  onPrepare: (item: MailItem, photos: string[]) => Promise<void>;
   /** Поставить фото из письма в уже созданный черновик (черновик остаётся в «Модерации») */
-  onSetDraftPhoto?: (item: MailItem, imageDataUrl: string) => Promise<void>;
+  onSetDraftPhoto?: (item: MailItem, photos: string[]) => Promise<void>;
   onOpenModeration: () => void;
 }> = ({ items, error, announcements, onReload, onPrepare, onSetDraftPhoto, onOpenModeration }) => {
   const [filter, setFilter] = useState<Filter>('new');
@@ -55,7 +56,14 @@ export const MailInbox: React.FC<{
   const [err, setErr] = useState('');
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [photos, setPhotos] = useState<Record<string, string | null>>({});
-  const [chosen, setChosen] = useState<Record<string, string>>({});
+  // Выбранные фото письма (ключи вложений); по умолчанию — все фото письма
+  const [chosen, setChosen] = useState<Record<string, string[]>>({});
+  const [itemMsg, setItemMsg] = useState<Record<string, string>>({});
+  const chosenPhotos = (m: MailItem) =>
+    m.attachments
+      .filter((a) => a.kind === 'image' && a.storedKey && (chosen[m.id] || []).includes(a.storedKey))
+      .map((a) => photos[a.storedKey!])
+      .filter((u): u is string => Boolean(u));
 
   const counts = useMemo(() => {
     const c = { new: 0, prepared: 0, closed: 0, all: items?.length || 0 };
@@ -70,13 +78,17 @@ export const MailInbox: React.FC<{
     filter === 'all' ? true : filter === 'new' ? m.status === 'new' : filter === 'prepared' ? m.status === 'prepared' || m.status === 'published' : m.status === 'rejected' || m.status === 'duplicate'
   );
 
-  const act = async (id: string, fn: () => Promise<unknown>, ok: string) => {
+  const act = async (id: string, fn: () => Promise<unknown>, ok: string | ((r: unknown) => string)) => {
     setBusy(id);
     setErr('');
     setMsg('');
+    setItemMsg((x) => ({ ...x, [id]: '' }));
     try {
-      await fn();
-      setMsg(ok);
+      const r = await fn();
+      const text = typeof ok === 'function' ? ok(r) : ok;
+      setMsg(text);
+      // сообщение и рядом с самим письмом — его видно, даже если список прокручен вниз
+      if (text) setItemMsg((x) => ({ ...x, [id]: text }));
       onReload();
     } catch (e) {
       setErr((e as Error).message);
@@ -96,18 +108,18 @@ export const MailInbox: React.FC<{
     }
   };
 
-  // Фото писем, которые ещё ждут черновика, показываются сразу, и первое фото письма уже выбрано для черновика
-  // (фото от первоисточника — для нашего сайта). Снять или выбрать другое можно галочкой.
+  // Фото писем, которые ещё ждут черновика, показываются сразу и все уже выбраны для черновика
+  // (фото от первоисточника — для нашего сайта): первое — главное, остальные — галерея. Лишнее можно снять галочкой.
   const requested = useRef(new Set<string>());
   useEffect(() => {
     for (const m of shown) {
       if (m.status !== 'new' && m.status !== 'prepared') continue;
       const keys = m.attachments.filter((a) => a.kind === 'image' && a.storedKey).map((a) => a.storedKey!);
-      keys.forEach((key, i) => {
+      keys.forEach((key) => {
         if (requested.current.has(key)) return;
         requested.current.add(key);
         loadPhoto(key).then((url) => {
-          if (url && i === 0) setChosen((c) => (m.id in c ? c : { ...c, [m.id]: key }));
+          if (url) setChosen((c) => ((c[m.id] || []).includes(key) ? c : { ...c, [m.id]: [...(c[m.id] || []), key] }));
         });
       });
     }
@@ -236,7 +248,7 @@ export const MailInbox: React.FC<{
               {photosOf.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-xs font-bold text-gray-700">
-                    Фото из письма — у публикации одно главное фото, выберите, какое поставить:
+                    Фото из письма: первое отмеченное — главное, остальные — галерея под ним. Лишнее снимите галочкой.
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {photosOf.map((a) => {
@@ -257,10 +269,17 @@ export const MailInbox: React.FC<{
                             <input
                               type="checkbox"
                               disabled={!url}
-                              checked={chosen[m.id] === key}
-                              onChange={(e) => setChosen((c) => ({ ...c, [m.id]: e.target.checked ? key : '' }))}
+                              checked={(chosen[m.id] || []).includes(key)}
+                              onChange={(e) =>
+                                setChosen((c) => ({
+                                  ...c,
+                                  [m.id]: e.target.checked ? [...(c[m.id] || []), key] : (c[m.id] || []).filter((k) => k !== key),
+                                }))
+                              }
                             />
-                            <span className="truncate">Взять в черновик: {a.name}</span>
+                            <span className="truncate">
+                              {url && photosOf.filter((x) => (chosen[m.id] || []).includes(x.storedKey!))[0]?.storedKey === key ? 'Главное фото' : 'В галерею'}
+                            </span>
                           </label>
                         </div>
                       );
@@ -300,23 +319,34 @@ export const MailInbox: React.FC<{
                 )}
               </div>
 
+              {itemMsg[m.id] && (
+                <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-semibold" role="status">
+                  {itemMsg[m.id]}
+                </div>
+              )}
               <div className="flex flex-wrap gap-2 pt-1">
-                {onSetDraftPhoto && m.annId && announcements.some((x) => x.id === m.annId && x.moderationStatus === 'pending') && chosen[m.id] && photos[chosen[m.id]] && (
+                {onSetDraftPhoto && m.annId && announcements.some((x) => x.id === m.annId && x.moderationStatus === 'pending') && chosenPhotos(m).length > 0 && (
                   <button
                     type="button"
                     disabled={busy === m.id}
-                    onClick={() => act(m.id, () => onSetDraftPhoto(m, photos[chosen[m.id]]!), 'Фото поставлено в черновик — он по-прежнему ждёт решения в «Модерации»')}
+                    onClick={() =>
+                      act(
+                        m.id,
+                        () => onSetDraftPhoto(m, chosenPhotos(m)),
+                        `Фото поставлены в черновик: главное${chosenPhotos(m).length > 1 ? ` и ${chosenPhotos(m).length - 1} в галерею` : ''}. Черновик по-прежнему ждёт решения в «Модерации»`
+                      )
+                    }
                     className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-bold disabled:opacity-60"
                     data-set-draft-photo
                   >
-                    Поставить выбранное фото в черновик
+                    Поставить выбранные фото в черновик
                   </button>
                 )}
                 {(m.status === 'new' || (m.status === 'prepared' && !state)) && (
                   <button
                     type="button"
                     disabled={busy === m.id}
-                    onClick={() => act(m.id, () => onPrepare(m, chosen[m.id] ? photos[chosen[m.id]] || undefined : undefined), '')}
+                    onClick={() => act(m.id, () => onPrepare(m, chosenPhotos(m)), '')}
                     className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-bold disabled:opacity-60"
                   >
                     Подготовить черновик
@@ -355,7 +385,19 @@ export const MailInbox: React.FC<{
                 <button
                   type="button"
                   disabled={busy === m.id}
-                  onClick={() => act(m.id, () => api.mailItemAction(m.id, 'reparse'), 'Письмо разобрано заново')}
+                  title="Ещё раз найти в тексте письма дату, место, раздел и город — по текущим правилам помощника (письмо и черновик не меняются)"
+                  onClick={() =>
+                    act(
+                      m.id,
+                      () => api.mailItemAction(m.id, 'reparse'),
+                      (r) => {
+                        const x = r as MailItem;
+                        const f = x?.suggestion?.found || [];
+                        const miss = x?.suggestion?.missing || [];
+                        return `Разобрано заново. Найдено: ${f.length ? f.join(', ') : 'ничего нового'}${miss.length ? `. Заполнить вручную: ${miss.join(', ')}` : ''}`;
+                      }
+                    )
+                  }
                   className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-bold disabled:opacity-60"
                 >
                   Разобрать заново

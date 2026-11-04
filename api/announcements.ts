@@ -75,6 +75,7 @@ const authorFields = (item: Record<string, unknown>) => ({
   additionalSourceUrl: undefined,
   authorityUrl: undefined,
   geo: undefined, // точку на карте ставит только редактор
+  gallery: undefined, // галерею добавляет только редакция (при правке автором прежняя сохраняется)
 });
 
 /** Редакционные поля, выставленные редакцией, при правке автором сохраняются (автор их не видит и не меняет) */

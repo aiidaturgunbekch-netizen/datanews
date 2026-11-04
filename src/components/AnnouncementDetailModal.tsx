@@ -122,6 +122,79 @@ const L = {
   },
 };
 
+/** Галерея: сетка миниатюр и просмотр крупно (стрелки ← →, Esc, свайп не нужен — кнопки «назад / вперёд») */
+const Gallery: React.FC<{ photos: string[]; alt: string; lang: Language }> = ({ photos, alt, lang }) => {
+  const [open, setOpen] = useState<number | null>(null);
+  const T = {
+    title: { ru: 'Фото', kg: 'Сүрөттөр', en: 'Photos' },
+    close: { ru: 'Закрыть', kg: 'Жабуу', en: 'Close' },
+    prev: { ru: 'Предыдущее фото', kg: 'Мурунку сүрөт', en: 'Previous photo' },
+    next: { ru: 'Следующее фото', kg: 'Кийинки сүрөт', en: 'Next photo' },
+  };
+  useEffect(() => {
+    if (open === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setOpen(null);
+      } else if (e.key === 'ArrowRight') setOpen((i) => (i === null ? i : (i + 1) % photos.length));
+      else if (e.key === 'ArrowLeft') setOpen((i) => (i === null ? i : (i - 1 + photos.length) % photos.length));
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [open, photos.length]);
+  return (
+    <section className="mt-4" aria-label={T.title[lang]} data-gallery>
+      <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        {photos.map((u, i) => (
+          <li key={u}>
+            <button type="button" onClick={() => setOpen(i)} className="block w-full overflow-hidden rounded-lg focus-visible:ring-2 focus-visible:ring-[#12327A]">
+              <img src={u} alt={`${alt} — ${i + 2}`} loading="lazy" className="w-full aspect-[4/3] object-cover bg-gray-100 hover:opacity-90 transition-opacity" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {open !== null && (
+        <div role="dialog" aria-modal="true" aria-label={T.title[lang]} className="fixed inset-0 z-[200] bg-black/85 flex items-center justify-center p-4" onClick={() => setOpen(null)}>
+          <img src={photos[open]} alt={`${alt} — ${open + 2}`} className="max-w-full max-h-[85vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+          <button type="button" onClick={() => setOpen(null)} aria-label={T.close[lang]} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-white text-2xl leading-none">
+            ×
+          </button>
+          {photos.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label={T.prev[lang]}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen((open - 1 + photos.length) % photos.length);
+                }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 text-white text-2xl"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label={T.next[lang]}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen((open + 1) % photos.length);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 text-white text-2xl"
+              >
+                ›
+              </button>
+              <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm tabular-nums">
+                {open + 1} / {photos.length}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
+
 const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
 
 export const AnnouncementDetailModal: React.FC<Props> = ({
@@ -395,6 +468,8 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             {L.photo[lang]}: {a.imageCredit}
           </p>
         )}
+        {/* Галерея — дополнительные фото под главным; нажатие открывает фото крупно */}
+        {(a.gallery?.length || 0) > 0 && <Gallery photos={a.gallery!} alt={a.imageAlt || a.title[lang] || a.title.ru} lang={lang} />}
 
         {/* Коротко: главное о событии одним взглядом */}
         <section aria-labelledby="brief-title" className="mt-8 rounded-2xl bg-[#f3f6fc] p-5 sm:p-6">

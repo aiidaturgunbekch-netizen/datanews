@@ -758,8 +758,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     }
     return '';
   };
-  const prepareFromMail = async (m: MailItem, photo?: string) => {
-    const image = photo ? await shrinkMailPhoto(photo) : '';
+  /** Дополнительные фото письма — уменьшить и загрузить по одному (так запрос не превышает лимит), ответ — ссылки галереи */
+  const uploadMailGallery = async (list: string[]) => {
+    const urls: string[] = [];
+    for (const p of list.slice(0, 8)) {
+      const small = await shrinkMailPhoto(p);
+      if (small) urls.push(await api.uploadImage(small));
+    }
+    return urls;
+  };
+  const prepareFromMail = async (m: MailItem, photos: string[]) => {
+    const image = photos[0] ? await shrinkMailPhoto(photos[0]) : '';
+    const gallery = photos.length > 1 ? await uploadMailGallery(photos.slice(1)) : [];
     // Разбор текста заново — текущими правилами помощника (письма, пришедшие раньше, тоже получают кыргызские даты и т. п.);
     // если по новым правилам найдено меньше, остаётся сохранённое предложение
     const pdfText = m.attachments.map((x) => x.text || '').filter(Boolean).join('\n');
@@ -770,7 +780,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     const best = fresh.found.length >= m.suggestion.found.length ? fresh : m.suggestion;
     setImported({
       // Только то, что найдено в письме; источник — известная организация, если адрес есть в списке отправителей
-      draft: { ...best.draft, sourceName: m.sender.orgName || undefined },
+      draft: { ...best.draft, sourceName: m.sender.orgName || undefined, gallery },
       found: best.found,
       missing: best.missing,
     });
@@ -779,12 +789,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     setEditing('new');
   };
   // Фото из письма — в уже созданный черновик: отправляется весь черновик с новым фото (остальное не меняется, статус «на модерации» сохраняется)
-  const setDraftPhotoFromMail = async (m: MailItem, photo: string) => {
+  const setDraftPhotoFromMail = async (m: MailItem, photos: string[]) => {
     const draft = serverItems.find((x) => x.id === m.annId);
     if (!draft) throw new Error('Черновик не найден — обновите список');
-    const image = await shrinkMailPhoto(photo);
+    const image = await shrinkMailPhoto(photos[0]);
     if (!image) throw new Error('Фото слишком большое — загрузите его в черновике вручную');
-    await api.updateAnnouncement(draft.id, { ...draft, imageUrl: '', imageData: image, imageCredit: undefined, imageSourceUrl: undefined });
+    const gallery = await uploadMailGallery(photos.slice(1));
+    await api.updateAnnouncement(draft.id, { ...draft, imageUrl: '', imageData: image, imageCredit: undefined, imageSourceUrl: undefined, gallery });
     load();
   };
   const closeEditor = () => {

@@ -89,6 +89,9 @@ const httpUrl = (v: unknown) => {
   return /^https?:\/\//i.test(s) || s.startsWith('/api/image?') || /^\/illustrations\/[a-z0-9-]+\.svg$/.test(s) ? s : '';
 };
 
+/** Сколько дополнительных фото может быть у публикации */
+export const GALLERY_MAX = 8;
+
 /** Сохраняет загруженное фото отдельно и возвращает ссылку /api/image?id=… */
 export const storeImage = async (dataUrl: string) => {
   if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(dataUrl)) {
@@ -159,6 +162,13 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     },
     imageUrl,
     imageCredit: str(raw.imageCredit, 200) || undefined,
+    // Галерея: если поле не прислано (например, форма автора без галереи) — остаётся прежняя
+    gallery:
+      raw.gallery === undefined
+        ? base?.gallery
+        : Array.isArray(raw.gallery)
+        ? [...new Set((raw.gallery as unknown[]).map(httpUrl).filter(Boolean))].slice(0, GALLERY_MAX)
+        : undefined,
     imageSourceUrl: httpUrl(raw.imageSourceUrl) || undefined,
     imageAlt: str(raw.imageAlt, 300) || undefined,
     imageFit: raw.imageFit === 'cover' ? 'cover' : 'contain',

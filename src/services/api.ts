@@ -137,6 +137,9 @@ export const submitAnnouncement = (item: Record<string, unknown>, force = false)
 export const submitDraft = (item: Record<string, unknown>, mailId?: string, force = false) =>
   post<{ item: Announcement }>('announcements', { item, force, asDraft: true, mailId }).then((r) => r.item);
 
+/** Загрузить одно фото (администратор) — для галереи; возвращает ссылку /api/image?id=… */
+export const uploadImage = (data: string) => post<{ url: string }>('image', { data }).then((r) => r.url);
+
 export const updateAnnouncement = (id: string, item: Record<string, unknown>) =>
   post<{ item: Announcement }>('announcements', { id, item }, 'PATCH').then((r) => r.item);
 

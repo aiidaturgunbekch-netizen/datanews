@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Announcement, AnnouncementStatus, CategoryId, CityId, Language, SourceKind, UrgencyType } from '../types';
-import { compressImage } from '../services/api';
+import { compressImage, uploadImage } from '../services/api';
 import { ORIGINAL_MAX_BYTES } from '../config/site';
 import { EventImage } from './EventImage';
 import { formatWhen } from '../utils/dates';
@@ -178,6 +178,29 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
   const [err, setErr] = useState('');
 
   const [imageNote, setImageNote] = useState('');
+  // Галерея — дополнительные фото под главным (только редакция); фото загружаются на сервер сразу, в форме — ссылки
+  const [gallery, setGallery] = useState<string[]>(initial?.gallery || []);
+  const [galleryBusy, setGalleryBusy] = useState(false);
+  const addGallery = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = [...(e.target.files || [])].slice(0, Math.max(0, 8 - gallery.length));
+    e.target.value = '';
+    if (!files.length) return;
+    setGalleryBusy(true);
+    setErr('');
+    try {
+      const urls: string[] = [];
+      for (const f of files) {
+        let data = await compressImage(f, 1600, 0.85);
+        if (data.length > 900_000) data = await compressImage(f, 1280, 0.78);
+        urls.push(await uploadImage(data));
+      }
+      setGallery((g) => [...g, ...urls].slice(0, 8));
+    } catch (ex) {
+      setErr((ex as Error).message || tr('fPhotoBad'));
+    } finally {
+      setGalleryBusy(false);
+    }
+  };
   const [showPreview, setShowPreview] = useState(false);
 
   /**
@@ -227,6 +250,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
     imageUrl: imageData || imageUrl.trim() || undefined,
     imageAlt: imageAlt.trim() || titleRu.trim(),
     imageCredit: imageCredit.trim() || undefined,
+    gallery: mode === 'admin' ? gallery : initial?.gallery,
     imageFit: mode === 'admin' ? imageFit : 'contain',
     eventDetails: {
       priceText: price.trim() ? { ru: price.trim(), kg: price.trim(), en: price.trim() } : undefined,
@@ -310,6 +334,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       imageUrl: imageData ? '' : imageUrl.trim(),
       imageData: imageData || undefined,
       imageCredit: imageCredit.trim(),
+      ...(mode === 'admin' ? { gallery } : {}),
       eventDetails: {
         priceText: price.trim() ? { ru: price.trim() } : undefined,
         venue: venue.trim(),
@@ -588,6 +613,36 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
             )}
           </div>
         </div>
+        {/* Дополнительные фото — галерея под главным фото на странице новости (только редакция) */}
+        {isAdmin && (
+          <div className="mt-4 pt-4 border-t border-gray-200 space-y-2" data-gallery-editor>
+            <label className={labelCls}>Дополнительные фото (галерея под главным) · {gallery.length} из 8</label>
+            {gallery.length > 0 && (
+              <ul className="flex flex-wrap gap-2">
+                {gallery.map((u, i) => (
+                  <li key={u} className="relative">
+                    <img src={u} alt="" className="w-28 h-20 object-cover rounded-lg border border-gray-200 bg-white" />
+                    <button
+                      type="button"
+                      onClick={() => setGallery((g) => g.filter((x) => x !== u))}
+                      aria-label={`Убрать фото ${i + 1}`}
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-gray-300 text-red-600 text-xs font-bold shadow"
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {gallery.length < 8 && (
+              <label className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#12327A] text-[#12327A] text-xs font-bold cursor-pointer hover:bg-[#eef2f9] ${galleryBusy ? 'opacity-60 pointer-events-none' : ''}`}>
+                <span className="material-symbols-outlined text-[16px]">add_photo_alternate</span>
+                {galleryBusy ? 'Загрузка…' : 'Добавить фото'}
+                <input type="file" multiple accept="image/jpeg,image/png,image/webp" className="hidden" onChange={addGallery} />
+              </label>
+            )}
+          </div>
+        )}
       </div>
 
       {isAdmin ? (

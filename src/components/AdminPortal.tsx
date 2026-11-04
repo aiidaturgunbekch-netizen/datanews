@@ -1171,6 +1171,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                           <h3 className="font-extrabold text-[#0f1b33]">{a.title.ru}</h3>
                           <p className="text-sm text-gray-700">{a.summary.ru}</p>
                           {a.description.ru !== a.summary.ru && <p className="text-xs text-gray-600 whitespace-pre-line">{a.description.ru}</p>}
+                          {/* Ссылки на источник и билеты — проверить одним нажатием (в новой вкладке) */}
+                          {(() => {
+                            const links = [
+                              ['Источник', a.eventSourceUrl],
+                              ['Сайт ведомства', a.authorityUrl],
+                              ['Доп. источник', a.additionalSourceUrl],
+                              ['Организатор', a.organizerUrl],
+                              ['Билеты', a.ticketUrl || a.eventDetails?.ticketUrl],
+                            ].filter((x): x is [string, string] => typeof x[1] === 'string' && /^https?:\/\//.test(x[1]));
+                            return links.length ? (
+                              <div className="flex flex-wrap gap-2 text-xs" data-mod-links>
+                                {links.map(([label, href]) => (
+                                  <a
+                                    key={label + href}
+                                    href={href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#12327A]/30 text-[#12327A] font-bold hover:bg-[#eef2f9]"
+                                  >
+                                    {label}: {(() => { try { return new URL(href).hostname.replace(/^www\./, ''); } catch { return href; } })()}
+                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span>
+                                  </a>
+                                ))}
+                              </div>
+                            ) : null;
+                          })()}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-gray-700">
                             <div>📅 {fmt(a.startDate)}{a.endDate ? ` — ${fmt(a.endDate)}` : ''}</div>
                             {placeText(a) && <div>📍 {placeText(a)}</div>}

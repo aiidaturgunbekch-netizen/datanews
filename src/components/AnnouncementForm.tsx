@@ -145,6 +145,31 @@ const LangTexts: React.FC<{ ru: LangBox; kg: LangBox; en: LangBox; required: boo
   );
 };
 
+/** Поле ссылки: рядом — «Открыть», чтобы проверить источник одним нажатием (в новой вкладке) */
+const UrlInput: React.FC<{ value: string; onChange: (v: string) => void; placeholder?: string }> = ({ value, onChange, placeholder }) => {
+  const ok = /^https?:\/\/[^\s]+\.[^\s]+$/.test(value.trim());
+  return (
+    <div className="flex gap-2">
+      <input className={inputCls} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+      {ok && (
+        <a
+          href={value.trim()}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Открыть ссылку в новой вкладке"
+          className="shrink-0 inline-flex items-center gap-1 px-3 rounded-xl border border-[#12327A]/30 text-[#12327A] text-xs font-bold hover:bg-[#eef2f9]"
+          data-open-url
+        >
+          Открыть
+          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+            open_in_new
+          </span>
+        </a>
+      )}
+    </div>
+  );
+};
+
 export const inputCls =
   'w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-[#0f1b33] focus:outline-none focus:ring-2 focus:ring-[#12327A]/30 focus:border-[#12327A]';
 const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1';
@@ -457,10 +482,10 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         {field(tr('fVenue'), <input className={inputCls} value={venue} onChange={(e) => setVenue(e.target.value)} />)}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {field(tr('fTickets'), <input className={inputCls} value={ticketUrl} onChange={(e) => setTicketUrl(e.target.value)} placeholder="https://" />, tr('fTicketsHint'))}
-        {field(tr('fOrganizerUrl'), <input className={inputCls} value={organizerUrl} onChange={(e) => setOrganizerUrl(e.target.value)} placeholder="https://" />)}
-        {field(tr('fArtistUrl'), <input className={inputCls} value={artistUrl} onChange={(e) => setArtistUrl(e.target.value)} placeholder="https://" />)}
-        {field(tr('fVenueUrl'), <input className={inputCls} value={venueUrl} onChange={(e) => setVenueUrl(e.target.value)} placeholder="https://" />)}
+        {field(tr('fTickets'), <UrlInput value={ticketUrl} onChange={setTicketUrl} placeholder="https://" />, tr('fTicketsHint'))}
+        {field(tr('fOrganizerUrl'), <UrlInput value={organizerUrl} onChange={setOrganizerUrl} placeholder="https://" />)}
+        {field(tr('fArtistUrl'), <UrlInput value={artistUrl} onChange={setArtistUrl} placeholder="https://" />)}
+        {field(tr('fVenueUrl'), <UrlInput value={venueUrl} onChange={setVenueUrl} placeholder="https://" />)}
       </div>
     </>
   );
@@ -643,7 +668,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
       {!isAdmin && field(tr('fDescriptionReq'), <textarea className={inputCls} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} required />)}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {field(tr('fPhone'), <input className={inputCls} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+996 ..." />)}
-        {field(tr('fSource'), <input className={inputCls} value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://" />)}
+        {field(tr('fSource'), <UrlInput value={sourceUrl} onChange={setSourceUrl} placeholder="https://" />)}
       </div>
 
       {/* Оригинальное фото / афиша автора */}
@@ -678,7 +703,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
             )}
             <input className={inputCls} value={imageCredit} onChange={(e) => setImageCredit(e.target.value)} placeholder={tr('fImageCredit')} />
             {isAdmin && (
-              <input className={inputCls} value={imageSourceUrl} onChange={(e) => setImageSourceUrl(e.target.value)} placeholder={tr('fImageSource')} />
+              <UrlInput value={imageSourceUrl} onChange={setImageSourceUrl} placeholder={tr('fImageSource')} />
             )}
             <input className={inputCls} value={imageAlt} onChange={(e) => setImageAlt(e.target.value)} placeholder={tr('fImageAlt')} />
             {isAdmin && (
@@ -791,11 +816,11 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
           </div>
           <div>
             <label className={labelCls}>Дополнительный источник (СМИ)</label>
-            <input className={inputCls} value={additionalSourceUrl} onChange={(e) => setAdditionalSourceUrl(e.target.value)} placeholder="https://" />
+            <UrlInput value={additionalSourceUrl} onChange={setAdditionalSourceUrl} placeholder="https://" />
           </div>
           <div>
             <label className={labelCls}>Официальный сайт ведомства</label>
-            <input className={inputCls} value={authorityUrl} onChange={(e) => setAuthorityUrl(e.target.value)} placeholder="https://bishkek.gov.kg" />
+            <UrlInput value={authorityUrl} onChange={setAuthorityUrl} placeholder="https://bishkek.gov.kg" />
           </div>
           <div>
             <label className={labelCls}>Официальный уровень опасности</label>

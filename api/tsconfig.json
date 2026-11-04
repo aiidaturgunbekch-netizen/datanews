@@ -1,0 +1,7 @@
+{
+  // Серверные функции (Vercel): та же настройка, но без описаний браузерной части Vite («vite/client»)
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": []
+  }
+}

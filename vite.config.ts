@@ -1,6 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import {defineConfig, type Plugin} from 'vite';
 
 /**
@@ -54,7 +55,20 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss(), localApi()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.'),
+      },
+    },
+    build: {
+      // React — отдельным файлом: главный файл сайта меньше, а React кэшируется браузером между обновлениями сайта.
+      // Карта (Leaflet) по-прежнему грузится только на страницах с картой
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            ],
+          },
+        },
       },
     },
     server: {

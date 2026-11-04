@@ -778,6 +778,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     setMailImage(image);
     setEditing('new');
   };
+  // Фото из письма — в уже созданный черновик: отправляется весь черновик с новым фото (остальное не меняется, статус «на модерации» сохраняется)
+  const setDraftPhotoFromMail = async (m: MailItem, photo: string) => {
+    const draft = serverItems.find((x) => x.id === m.annId);
+    if (!draft) throw new Error('Черновик не найден — обновите список');
+    const image = await shrinkMailPhoto(photo);
+    if (!image) throw new Error('Фото слишком большое — загрузите его в черновике вручную');
+    await api.updateAnnouncement(draft.id, { ...draft, imageUrl: '', imageData: image, imageCredit: undefined, imageSourceUrl: undefined });
+    load();
+  };
   const closeEditor = () => {
     setEditing(null);
     setImported(null);
@@ -1081,6 +1090,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                   announcements={serverItems}
                   onReload={loadMail}
                   onPrepare={prepareFromMail}
+                  onSetDraftPhoto={setDraftPhotoFromMail}
                   onOpenModeration={() => setTab('moderation')}
                 />
               ) : tab === 'moderation' ? (

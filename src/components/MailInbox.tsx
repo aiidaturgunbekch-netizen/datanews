@@ -45,8 +45,10 @@ export const MailInbox: React.FC<{
   announcements: Announcement[];
   onReload: () => void;
   onPrepare: (item: MailItem, imageDataUrl?: string) => Promise<void>;
+  /** Поставить фото из письма в уже созданный черновик (черновик остаётся в «Модерации») */
+  onSetDraftPhoto?: (item: MailItem, imageDataUrl: string) => Promise<void>;
   onOpenModeration: () => void;
-}> = ({ items, error, announcements, onReload, onPrepare, onOpenModeration }) => {
+}> = ({ items, error, announcements, onReload, onPrepare, onSetDraftPhoto, onOpenModeration }) => {
   const [filter, setFilter] = useState<Filter>('new');
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
@@ -233,7 +235,9 @@ export const MailInbox: React.FC<{
 
               {photosOf.length > 0 && (
                 <div className="space-y-2">
-                  <div className="text-xs font-bold text-gray-700">Фото из письма — выберите, если оно относится к этой новости:</div>
+                  <div className="text-xs font-bold text-gray-700">
+                    Фото из письма — у публикации одно главное фото, выберите, какое поставить:
+                  </div>
                   <div className="flex flex-wrap gap-3">
                     {photosOf.map((a) => {
                       const key = a.storedKey!;
@@ -297,6 +301,17 @@ export const MailInbox: React.FC<{
               </div>
 
               <div className="flex flex-wrap gap-2 pt-1">
+                {onSetDraftPhoto && m.annId && announcements.some((x) => x.id === m.annId && x.moderationStatus === 'pending') && chosen[m.id] && photos[chosen[m.id]] && (
+                  <button
+                    type="button"
+                    disabled={busy === m.id}
+                    onClick={() => act(m.id, () => onSetDraftPhoto(m, photos[chosen[m.id]]!), 'Фото поставлено в черновик — он по-прежнему ждёт решения в «Модерации»')}
+                    className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-bold disabled:opacity-60"
+                    data-set-draft-photo
+                  >
+                    Поставить выбранное фото в черновик
+                  </button>
+                )}
                 {(m.status === 'new' || (m.status === 'prepared' && !state)) && (
                   <button
                     type="button"

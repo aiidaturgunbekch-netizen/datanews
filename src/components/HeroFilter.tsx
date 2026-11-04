@@ -74,9 +74,9 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
               e.preventDefault();
               onSearchSubmit();
             }}
-            className="flex-1 grid grid-cols-1 min-[300px]:grid-cols-2 sm:grid-cols-12 gap-2"
+            className="flex-1 grid grid-cols-1 min-[18.75em]:grid-cols-2 sm:grid-cols-12 gap-2"
           >
-            <label className="min-[300px]:col-span-2 sm:col-span-6 relative">
+            <label className="min-[18.75em]:col-span-2 sm:col-span-6 relative">
               <span className="sr-only">{t('search.whatLabel')}</span>
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[20px]" aria-hidden="true">
                 search

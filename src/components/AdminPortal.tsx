@@ -905,7 +905,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   return (
     <div className="fixed inset-0 z-[120] bg-[#0d2459]/70 backdrop-blur-sm flex items-stretch sm:items-center justify-center sm:p-6" role="dialog" aria-modal="true" aria-label="Панель управления">
       <div className="relative w-full sm:max-w-6xl h-full sm:h-[92vh] bg-[#F5F7FB] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden">
-        <div className="bg-[#0d2459] text-white px-3 min-[360px]:px-5 py-3 flex items-center justify-between gap-2 min-[360px]:gap-3">
+        <div className="bg-[#0d2459] text-white px-3 min-[22.5em]:px-5 py-3 flex items-center justify-between gap-2 min-[22.5em]:gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="material-symbols-outlined text-[#20C7B5] shrink-0">admin_panel_settings</span>
             <span className="font-extrabold leading-tight min-w-0">Панель управления DataNews</span>
@@ -950,7 +950,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
           <div className="flex-1 flex flex-col sm:flex-row min-h-0 max-sm:overflow-y-auto">
             {/* На телефоне — сетка (две колонки, на самых узких экранах одна), чтобы все пункты и счётчики были видны без прокрутки вбок
                 и название пункта не наезжало на счётчик */}
-            <nav className="sm:w-64 shrink-0 bg-white border-b sm:border-b-0 sm:border-r border-gray-100 p-2 grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] sm:flex sm:flex-col gap-1 sm:overflow-y-auto">
+            <nav className="sm:w-64 shrink-0 bg-white border-b sm:border-b-0 sm:border-r border-gray-100 p-2 grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] sm:flex sm:flex-col gap-1 sm:overflow-y-auto">
               {tabs.map(([id, label, icon, badge]) => (
                 <button
                   key={id}

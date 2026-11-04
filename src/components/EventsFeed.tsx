@@ -232,7 +232,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               <li key={item.id} className={`@container relative group flex gap-3 sm:gap-4 py-4 sm:py-5 ${displayStatus === 'completed' ? 'opacity-80' : ''}`}>
                 {/* Дата события — «листок календаря» слева: главное в DataNews — когда.
                     На очень узкой строке (маленький экран или крупный шрифт) листок прячется — дата есть и в строке под заголовком */}
-                <span className="contents @max-[240px]:hidden">
+                <span className="contents @max-[15rem]:hidden">
                   <DateBadge date={item.startDate} lang={currentLanguage} />
                 </span>
                 <div className="flex-1 min-w-0">
@@ -278,7 +278,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                 </div>
                 <div className="relative shrink-0 flex flex-col items-end gap-2">
                   {/* Картинка — только когда тексту остаётся достаточно места (иначе заголовок сжимается в столбик) */}
-                  <EventImage item={item} lang={currentLanguage} compact className="w-24 h-[72px] sm:w-40 sm:h-[104px] rounded-lg @max-[300px]:hidden" />
+                  <EventImage item={item} lang={currentLanguage} compact className="w-24 h-[72px] sm:w-40 sm:h-[104px] rounded-lg @max-[19rem]:hidden" />
                   <button
                     type="button"
                     onClick={(e) => toggleFav(e, item.id)}

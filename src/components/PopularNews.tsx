@@ -45,7 +45,7 @@ export const PopularNews: React.FC<{
                   {mode === 'popular' && reads[a.id] ? ` · ${reads[a.id]} ${T.reads[lang]}` : ''}
                 </span>
               </span>
-              <EventImage item={a} lang={lang} compact className="w-16 h-12 rounded-md shrink-0 @max-[260px]:hidden" />
+              <EventImage item={a} lang={lang} compact className="w-16 h-12 rounded-md shrink-0 @max-[16.5rem]:hidden" />
             </button>
           </li>
         ))}

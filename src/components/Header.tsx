@@ -106,9 +106,9 @@ export const Header: React.FC<HeaderProps> = ({
             <time dateTime={`${kg.toISOString().slice(0, 16)}+06:00`} className="font-semibold text-white tabular-nums">
               {timeLabel}
             </time>{' '}
-            <span className="max-[359px]:hidden">({kgTimeName})</span>
+            <span className="max-[22.5em]:hidden">({kgTimeName})</span>
           </span>
-          <div className="flex items-center gap-2 min-[360px]:gap-4 sm:gap-6 ml-auto">
+          <div className="flex items-center gap-2 min-[22.5em]:gap-4 sm:gap-6 ml-auto">
             <button
               onClick={() => onViewChange('organizations')}
               className={`font-semibold transition-colors ${currentView === 'organizations' ? 'text-white' : 'text-[#c8d2ee] hover:text-white'}`}
@@ -155,8 +155,8 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {/* Утверждённый горизонтальный логотип, вариант без фона — на тёмно-синей шапке */}
             {/* Очень узкие экраны (до 360 px) — пропорционально меньше, чтобы не касаться поиска */}
-            <BrandLogo height={27} className="min-[360px]:hidden" />
-            <BrandLogo height={32} className="hidden min-[360px]:block sm:hidden" />
+            <BrandLogo height={27} className="min-[22.5em]:hidden" />
+            <BrandLogo height={32} className="hidden min-[22.5em]:block sm:hidden" />
             <BrandLogo height={38} className="hidden sm:block lg:hidden" />
             <BrandLogo height={44} className="hidden lg:block" />
           </button>
@@ -254,7 +254,7 @@ export const Header: React.FC<HeaderProps> = ({
                 {role === 'user' ? 'account_circle' : 'login'}
               </span>
               {/* На очень узком экране — только значок (название — в подсказке и для чтения с экрана) */}
-              <span className="max-[339px]:sr-only">{role === 'user' ? t('nav.cabinetBtn') : t('nav.loginBtn')}</span>
+              <span className="max-[21.25em]:sr-only">{role === 'user' ? t('nav.cabinetBtn') : t('nav.loginBtn')}</span>
             </button>
           )}
 

@@ -173,10 +173,10 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
       {/* Main Calendar Matrix Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: 8 cols monthly grid */}
-        <div className="lg:col-span-8 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm">
+        <div className="lg:col-span-8 bg-white p-3 sm:p-5 rounded-3xl border border-gray-200 shadow-sm">
           {/* Weekday Header */}
           <div
-            className="grid grid-cols-7 gap-2 text-center font-extrabold text-gray-500 mb-3 text-xs uppercase tracking-wider"
+            className="grid grid-cols-7 gap-1 sm:gap-2 text-center font-extrabold text-gray-500 mb-3 text-xs uppercase tracking-wider"
           >
             {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
               <span
@@ -190,10 +190,11 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
           </div>
 
           {/* Month Days */}
-          <div className="grid grid-cols-7 gap-2">
+          {/* На телефоне ячейка — число и точки событий (без счётчика и названий: им не хватает места) */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {/* Blank offset tiles for previous month */}
             {Array.from({ length: startOffset }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[88px] rounded-xl bg-gray-50/50 p-2 border border-dashed border-gray-100" />
+              <div key={`empty-${i}`} className="min-h-[3.25rem] sm:min-h-[88px] rounded-xl bg-gray-50/50 p-2 border border-dashed border-gray-100" />
             ))}
 
             {/* Current Month Days */}
@@ -209,13 +210,14 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                 <div
                   key={dateStr}
                   onClick={() => setSelectedDateStr(dateStr)}
-                  className={`min-h-[88px] rounded-xl p-2 border transition-all cursor-pointer flex flex-col justify-between ${
+                  aria-label={`${dayNum}${items.length ? ` — ${items.length}` : ''}`}
+                  className={`min-w-0 min-h-[3.25rem] sm:min-h-[88px] rounded-xl p-1 sm:p-2 border transition-all cursor-pointer flex flex-col max-sm:items-center justify-start sm:justify-between gap-1 ${
                     isSelected
                       ? 'border-[#12327A] bg-[#12327A]/5 shadow-sm ring-2 ring-[#12327A]/20'
                       : 'border-gray-100 bg-white hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-center sm:justify-between sm:mb-1">
                     <span
                       className={`text-xs font-extrabold rounded-md w-6 h-6 flex items-center justify-center ${
                         isSelected
@@ -226,15 +228,15 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                       {dayNum}
                     </span>
                     {items.length > 0 && (
-                      <span className="text-[10px] font-bold text-gray-500">
+                      <span className="hidden sm:inline text-[10px] font-bold text-gray-500">
                         {items.length}
                       </span>
                     )}
                   </div>
 
                   {/* Micro list of item titles */}
-                  <div className="space-y-1 overflow-hidden">
-                    {items.slice(0, 2).map((item) => {
+                  <div className="max-sm:flex max-sm:flex-wrap max-sm:justify-center max-sm:gap-0.5 sm:space-y-1 overflow-hidden">
+                    {items.slice(0, 3).map((item, idx) => {
                       const displayStatus = getAnnouncementDisplayStatus(item);
                       const bgDot =
                         displayStatus === 'completed'
@@ -252,10 +254,10 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                       return (
                         <div
                           key={item.id}
-                          className="flex items-center gap-1 text-[10px] text-gray-600 truncate"
+                          className={`flex items-center gap-1 text-[10px] text-gray-600 truncate ${idx === 2 ? 'sm:hidden' : ''}`}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${bgDot} flex-shrink-0`} />
-                          <span className="truncate">
+                          <span className="truncate max-sm:hidden">
                             {item.title[currentLanguage] || item.title.ru}
                           </span>
                         </div>

@@ -30,6 +30,9 @@ import { SectionsDrawer } from './components/SectionsDrawer';
 import { MainAlerts, NoAlertsLine } from './components/MainAlerts';
 import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { AdSlot } from './components/AdSlot';
+import { AdTicker } from './components/AdTicker';
+import { useLiveAds } from './services/ads';
+import { byPriority } from './config/ads';
 import { isPaid } from './components/PaidBadge';
 import { pickTopStories } from './utils/timeline';
 import { isWeatherQuery, matchesSearch } from './utils/search';
@@ -302,10 +305,20 @@ export default function App() {
     [eventsList, homeSeed]
   );
   // Главная история — первая редакционная (не партнёрская) из отобранных
+  // Закреплённая платная новость (формат P) — на последнем месте рядом с главной (не вместо главной)
+  const liveAds = useLiveAds();
+  const pinned = useMemo(() => {
+    const ad = liveAds.filter((x) => x.format === 'P' && x.annId).sort(byPriority).find((x) => announcements.some((a) => a.id === x.annId));
+    const ann = ad ? announcements.find((a) => a.id === ad.annId) : undefined;
+    return ad && ann ? { adId: ad.id, ann } : null;
+  }, [liveAds, announcements]);
   const topOrdered = useMemo(() => {
-    const lead = topStories.find((a) => !isPaid(a));
-    return lead ? [lead, ...topStories.filter((a) => a.id !== lead.id)] : topStories;
-  }, [topStories]);
+    const lead = topStories.find((a) => !isPaid(a) && a.id !== pinned?.ann.id);
+    const rest = topStories.filter((a) => a.id !== lead?.id && a.id !== pinned?.ann.id);
+    const list = lead ? [lead, ...rest] : rest;
+    if (!pinned) return list;
+    return [...list.slice(0, 2), pinned.ann];
+  }, [topStories, pinned]);
   // Лента ниже не повторяет материалы из «Главного»
   const feedList = useMemo(() => {
     const top = new Set(topStories.map((a) => a.id));
@@ -440,6 +453,8 @@ export default function App() {
         onOpenSections={() => setSectionsOpen(true)}
         activeRubric={activeRubric}
         onSelectRubric={selectRubric}
+        /* Рекламная бегущая строка (формат T) — под меню на всех страницах, только при идущих кампаниях */
+        ticker={<AdTicker lang={currentLanguage} />}
       />
 
       <SectionsDrawer
@@ -570,6 +585,7 @@ export default function App() {
                         <TopStories
                           lang={currentLanguage}
                           stories={topOrdered}
+                          pinned={pinned}
                           onOpen={setActiveNoticeDetail}
                           hideTitle
                           /* Рекламное место A — сразу под главной новостью, как в макете; только при действующей кампании */

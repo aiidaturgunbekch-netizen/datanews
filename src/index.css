@@ -224,3 +224,21 @@ body {
 .leaflet-container {
   background: #e8eef7;
 }
+
+/* Рекламная бегущая строка: непрерывное движение справа налево, пауза при наведении и фокусе */
+@keyframes dn-ticker-move {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.dn-ticker-track {
+  animation: dn-ticker-move linear infinite;
+  will-change: transform;
+}
+.dn-ticker:hover .dn-ticker-track,
+.dn-ticker:focus-within .dn-ticker-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dn-ticker { overflow-x: auto; }
+  .dn-ticker-track { animation: none; }
+}

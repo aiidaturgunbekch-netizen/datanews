@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import type { Language } from '../../types';
-import { AD_FORMAT_IDS, AdFormat, AdFormatId, formatSom } from '../../config/ads';
+import { AD_FORMAT_IDS, AdFormat, AdFormatId, formatSom, pricePerDay } from '../../config/ads';
 import { AdMockup, MockDevice } from './AdMockup';
 
 const T = {
   per: { ru: '30 дней', kg: '30 күн', en: '30 days' },
+  perDay: { ru: 'день', kg: 'күн', en: 'day' },
+  what: { ru: 'Что нужно', kg: 'Эмне керек', en: 'What you provide' },
+  tickerNeed: { ru: 'Текст до 120 знаков и ссылка — без картинки', kg: '120 белгиге чейинки текст жана шилтеме — сүрөтсүз', en: 'Text up to 120 characters and a link — no image' },
+  pinNeed: { ru: 'Ваша новость на сайте — её фото и заголовок', kg: 'Сайттагы жаңылыгыңыз — анын сүрөтү жана аталышы', en: 'Your story on the site — its photo and headline' },
+  month: { ru: '30 дней', kg: '30 күн', en: '30 days' },
   desktop: { ru: 'Компьютер', kg: 'Компьютер', en: 'Desktop' },
   phoneSize: { ru: 'Телефон', kg: 'Телефон', en: 'Phone' },
   sameImage: { ru: 'то же изображение', kg: 'ошол эле сүрөт', en: 'same image' },
@@ -124,11 +129,14 @@ export const AdCatalog: React.FC<{
                   </p>
                   <h3 className="text-lg font-bold text-[#0f1b33]">{f.name[lang]}</h3>
                 </div>
-                <p className="@min-[26rem]:text-right shrink-0">
-                  <span className="block text-xl sm:text-2xl font-extrabold text-[#12327A] tabular-nums whitespace-nowrap" data-ad-price>
-                    {formatSom(f.price, lang)}
+                <p className="@min-[26rem]:text-right shrink min-w-0">
+                  <span className="block text-xl sm:text-2xl font-extrabold text-[#12327A] tabular-nums [overflow-wrap:anywhere]" data-ad-price>
+                    {formatSom(f.perDay ? pricePerDay(f) : f.price, lang)}
                   </span>
-                  <span className="block text-xs text-[#5b6475]">/ {T.per[lang]}</span>
+                  <span className="block text-xs text-[#5b6475]">
+                    / {f.perDay ? T.perDay[lang] : T.per[lang]}
+                    {f.perDay && <> · {formatSom(f.price, lang)} / {T.month[lang]}</>}
+                  </span>
                 </p>
               </div>
               <p className="mt-1 text-sm text-[#3b4558]">{f.caption[lang]}</p>
@@ -136,6 +144,11 @@ export const AdCatalog: React.FC<{
               <button type="button" onClick={() => setPreview(id)} className="mt-3 block w-full rounded-xl bg-[#f5f7fb] p-3 hover:ring-2 hover:ring-[#20c7b5]" aria-label={`${T.preview[lang]}: ${f.name[lang]}`}>
                 <AdMockup format={f} device="desktop" lang={lang} />
               </button>
+              {f.perDay ? (
+                <p className="mt-3 rounded-lg bg-[#f3f6fc] p-2 text-xs">
+                  <b className="text-[#5b6475]">{T.what[lang]}:</b> <span className="font-bold text-[#0f1b33]">{id === 'T' ? T.tickerNeed[lang] : T.pinNeed[lang]}</span>
+                </p>
+              ) : (
               <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-lg bg-[#f3f6fc] p-2">
                   <dt className="font-bold text-[#5b6475]">{T.desktop[lang]}</dt>
@@ -150,6 +163,7 @@ export const AdCatalog: React.FC<{
                   </dd>
                 </div>
               </dl>
+              )}
               <p className="mt-3 text-xs text-[#3b4558]">
                 <b className="text-[#0f1b33]">{T.where[lang]}:</b> {f.placement[lang]}
               </p>

@@ -25,6 +25,8 @@ interface HeaderProps {
   /** Выбранная рубрика строки навигации (null — главная без фильтра) */
   activeRubric: string | null;
   onSelectRubric: (id: string | null) => void;
+  /** Рекламная бегущая строка — нижней полосой шапки (высота шапки учитывает её) */
+  ticker?: React.ReactNode;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -44,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSections,
   activeRubric,
   onSelectRubric,
+  ticker,
 }) => {
   const { t } = getTranslation(currentLanguage);
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
@@ -305,6 +308,7 @@ export const Header: React.FC<HeaderProps> = ({
           </ul>
         </div>
       </nav>
+      {ticker}
     </header>
   );
 };

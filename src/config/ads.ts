@@ -8,13 +8,18 @@ import type { Language, LocalizedString } from '../types';
  *   B — «Боковой баннер»: правая колонка главной и страницы новости (на узких экранах — между блоками);
  *   C — «Рекламная карточка»: в общей ленте между карточками, с изображением, заголовком, текстом и кнопкой;
  *   D — «Тематический баннер»: только в выбранном разделе.
+ *   T — «Бегущая строка»: короткий текст в движущейся строке под шапкой (как на ТВ), несколько рекламодателей подряд.
+ *   P — «Закреплённая новость»: платная публикация закреплена в блоке «Главное» на главной на выбранные дни.
  *
  * Кампания показывается на сайте, только если одновременно: статус «Активна», оплата подтверждена администратором
  * и сейчас (по Бишкеку) внутри оплаченного периода. Оплата не принимается сайтом — только ручное подтверждение.
  * Цена кампании фиксируется при создании: изменение цены в каталоге не меняет созданные и оплаченные заказы.
  */
-export type AdFormatId = 'A' | 'B' | 'C' | 'D';
-export const AD_FORMAT_IDS: AdFormatId[] = ['A', 'B', 'C', 'D'];
+export type AdFormatId = 'A' | 'B' | 'C' | 'D' | 'T' | 'P';
+export const AD_FORMAT_IDS: AdFormatId[] = ['A', 'B', 'C', 'D', 'T', 'P'];
+/** Форматы без изображения: бегущая строка (текст) и закреплённая новость (фото самой новости) */
+export const NO_IMAGE_FORMATS: AdFormatId[] = ['T', 'P'];
+export const TICKER_MAX = 120;
 
 export interface AdSize {
   w: number;
@@ -34,8 +39,10 @@ export interface AdFormat {
   desktop: AdSize;
   /** Рекомендуемый размер для телефона (null — то же изображение) */
   mobile: AdSize | null;
-  /** Цена за период, сом */
+  /** Цена за период, сом (за 30 дней) */
   price: number;
+  /** Показывать в каталоге цену за день (короткие размещения: бегущая строка, закрепление) */
+  perDay?: boolean;
   periodDays: number;
   updatedAt?: string;
 }
@@ -125,6 +132,54 @@ export const DEFAULT_AD_FORMATS: Record<AdFormatId, AdFormat> = {
     price: 3000,
     periodDays: 30,
   },
+  T: {
+    id: 'T',
+    name: L('Бегущая строка', 'Жүгүрмө сап', 'News ticker'),
+    caption: L(
+      'Короткое объявление в движущейся строке под шапкой сайта — как на телевидении',
+      'Сайттын башындагы жылып турган саптагы кыска жарыя — телевидениедегидей',
+      'A short message in the moving line under the site header — like on TV'
+    ),
+    placement: L(
+      'Узкая движущаяся строка сразу под шапкой — на всех страницах сайта. В строке идут подряд несколько рекламодателей; при наведении строка останавливается.',
+      'Шапканын астындагы ичке жылып турган сап — сайттын бардык беттеринде. Бир нече жарнама берүүчү катары менен өтөт; курсор менен токтойт.',
+      'A narrow moving line right under the header — on every page. Several advertisers run one after another; it pauses on hover.'
+    ),
+    benefits: L(
+      'Виден на каждой странице сайта\nТекст до 120 знаков и ссылка\nМетка «Реклама»',
+      'Сайттын ар бир бетинде көрүнөт\n120 белгиге чейинки текст жана шилтеме\n«Жарнама» белгиси',
+      'Visible on every page\nUp to 120 characters and a link\n“Advertisement” label'
+    ),
+    desktop: { w: 0, h: 0 },
+    mobile: null,
+    price: 9000,
+    perDay: true,
+    periodDays: 30,
+  },
+  P: {
+    id: 'P',
+    name: L('Закреплённая новость', 'Бекитилген жаңылык', 'Pinned story'),
+    caption: L(
+      'Ваша новость закреплена в блоке «Главное» на главной странице на выбранные дни',
+      'Сиздин жаңылык башкы беттеги «Башкы жаңылыктар» блогунда тандалган күндөргө бекитилет',
+      'Your story is pinned in “Top stories” on the home page for the days you choose'
+    ),
+    placement: L(
+      'Главная страница, блок «Главное» — одно из двух мест рядом с главной новостью. С пометкой «Партнёрский материал».',
+      'Башкы бет, «Башкы жаңылыктар» блогу — башкы жаңылыктын жанындагы эки орундун бири. «Өнөктөштүк материал» белгиси менен.',
+      'Home page, “Top stories” — one of the two spots next to the lead story. Marked “Partner content”.'
+    ),
+    benefits: L(
+      'Самое видное место сайта\nФото и заголовок вашей новости\nМетка «Партнёрский материал»',
+      'Сайттын эң көрүнүктүү орду\nЖаңылыгыңыздын сүрөтү жана аталышы\n«Өнөктөштүк материал» белгиси',
+      'The most visible spot on the site\nYour story’s photo and headline\n“Partner content” label'
+    ),
+    desktop: { w: 0, h: 0 },
+    mobile: null,
+    price: 30000,
+    perDay: true,
+    periodDays: 30,
+  },
 };
 
 export type AdCampaignStatus = 'draft' | 'awaiting_payment' | 'active' | 'paused' | 'completed';
@@ -160,10 +215,12 @@ export interface AdCampaign {
   imageMobileSize?: AdSize;
   alt: string;
   href: string;
-  /** Для карточки C */
+  /** Для карточки C; text — также текст бегущей строки T */
   title?: string;
   text?: string;
   cta?: string;
+  /** Закреплённая новость P: id публикации */
+  annId?: string;
   /** Начало и окончание по Бишкеку, 'YYYY-MM-DDTHH:mm' */
   start: string;
   end: string;
@@ -199,9 +256,14 @@ export interface LiveAd {
   title?: string;
   text?: string;
   cta?: string;
+  /** Закреплённая новость P */
+  annId?: string;
   priority: number;
   start: string;
 }
+
+/** Цена за день для форматов с перDay (округление до сома) */
+export const pricePerDay = (f: Pick<AdFormat, 'price' | 'periodDays'>) => Math.round(f.price / (f.periodDays || 30));
 
 /** 'YYYY-MM-DDTHH:mm' (Бишкек) + дни */
 export const addDaysLocal = (local: string, days: number) => {

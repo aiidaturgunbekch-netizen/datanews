@@ -102,7 +102,23 @@ export const AdMockup: React.FC<{ format: AdFormat; device: MockDevice; lang: La
       ) : (
         <>
           <span className="block text-[6.5px] font-bold uppercase tracking-wider text-[#12327A] mb-1">{T.top[lang]}</span>
-          <span className="block rounded bg-[#d5dded] mb-1" style={{ aspectRatio: two ? '16 / 7' : '16 / 9' }} />
+          {id === 'P' ? (
+            // P — «Главное»: большая новость и две рядом, одна из них — закреплённая платная
+            <span className={`grid gap-1 mb-1 ${two ? 'grid-cols-[2fr_1fr] grid-rows-2' : 'grid-cols-1'}`} style={two ? { aspectRatio: '16 / 8.5' } : undefined}>
+              <span className={`block rounded bg-[#d5dded] ${two ? 'row-span-2' : ''}`} style={two ? undefined : { aspectRatio: '4 / 3' }} />
+              <span className="block rounded bg-[#e6ebf5]" style={two ? undefined : { aspectRatio: '16 / 9' }} />
+              <span
+                className="relative block rounded border-2 border-dashed border-[#20c7b5] bg-gradient-to-br from-[#e6faf7] to-[#fff6e5]"
+                style={two ? undefined : { aspectRatio: '16 / 9' }}
+                data-mock-slot="P"
+              >
+                <span className="absolute top-0.5 left-0.5 px-0.5 rounded bg-white text-[5.5px] font-bold uppercase text-[#7a4b00]">📌 {lang === 'kg' ? 'Өнөктөштүк' : lang === 'en' ? 'Partner' : 'Партнёрский'}</span>
+                <span className="absolute bottom-0.5 left-0.5 right-0.5 text-[6px] font-bold text-[#0b7a70] leading-tight">{lang === 'kg' ? 'Сиздин жаңылык' : lang === 'en' ? 'Your story' : 'Ваша новость'}</span>
+              </span>
+            </span>
+          ) : (
+            <span className="block rounded bg-[#d5dded] mb-1" style={{ aspectRatio: two ? '16 / 7' : '16 / 9' }} />
+          )}
           <Lines n={3} />
           {id === 'A' && <Slot f={f} lang={lang} mobile={!two} className="my-2" />}
           <span className="block text-[6.5px] font-bold uppercase tracking-wider text-[#12327A] mt-2 mb-0.5">{T.feed[lang]}</span>
@@ -122,6 +138,16 @@ export const AdMockup: React.FC<{ format: AdFormat; device: MockDevice; lang: La
     <figure className="m-0 flex flex-col items-center" data-mock-device={device} data-mock-format={id}>
       <span className={`block overflow-hidden bg-[#f5f7fb] shadow-sm ${frame}`}>
         <Header lang={lang} phone={phone} />
+        {/* T — бегущая строка под шапкой */}
+        {id === 'T' && (
+          <span className="flex items-center bg-[#0d2459] overflow-hidden whitespace-nowrap" data-mock-slot="T">
+            <span className="shrink-0 px-1 py-[2px] bg-[#20c7b5] text-[#0d2459] text-[6px] font-extrabold uppercase">{T.ad[lang]}</span>
+            <span className="px-1.5 text-[7px] font-semibold text-white">
+              ◆ {lang === 'kg' ? 'Кышкы шиналарга 30% чейин арзандатуу' : lang === 'en' ? 'Up to 30% off winter tyres' : 'Скидки до 30% на зимние шины'} <span className="text-white/60">· …</span> ◆{' '}
+              {lang === 'kg' ? 'Жаңы кафе ачылды' : lang === 'en' ? 'New café now open' : 'Открылось новое кафе'} →
+            </span>
+          </span>
+        )}
         <span className={`flex gap-2 p-2 bg-white ${phone ? 'min-h-[300px]' : ''}`}>
           {mainCol}
           {two && (
@@ -136,7 +162,7 @@ export const AdMockup: React.FC<{ format: AdFormat; device: MockDevice; lang: La
         </span>
       </span>
       <figcaption className="mt-2 text-center text-xs text-[#5b6475]">
-        <b className="text-[#0f1b33]">{f.name[lang]}</b> · {formatSom(f.price, lang)} / {T.per[lang]}
+        <b className="text-[#0f1b33]">{f.name[lang]}</b> · {f.perDay ? `${formatSom(Math.round(f.price / (f.periodDays || 30)), lang)} / ${lang === 'kg' ? 'күн' : lang === 'en' ? 'day' : 'день'}` : `${formatSom(f.price, lang)} / ${T.per[lang]}`}
       </figcaption>
     </figure>
   );

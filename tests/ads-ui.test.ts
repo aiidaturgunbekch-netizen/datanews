@@ -28,16 +28,18 @@ const live = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('каталог форматов', () => {
-  it('четыре карточки: название, цена за 30 дней, размеры для компьютера и телефона, кнопки', () => {
+  it('шесть карточек: название, цена, размеры для компьютера и телефона, кнопки', () => {
     const h = html(React.createElement(AdCatalog, { formats: DEFAULT_AD_FORMATS, lang: 'ru', action: { label: 'Создать кампанию', onClick: () => {} } }));
     const t = text(h);
-    for (const id of ['A', 'B', 'C', 'D']) assert.ok(h.includes(`data-ad-format-card="${id}"`), id);
+    for (const id of ['A', 'B', 'C', 'D', 'T', 'P']) assert.ok(h.includes(`data-ad-format-card="${id}"`), id);
     for (const s of ['Главный баннер', 'Боковой баннер', 'Рекламная карточка', 'Тематический баннер']) assert.ok(t.includes(s), s);
     for (const p of ['10 000 сомов', '5 000 сомов', '4 000 сомов', '3 000 сомов']) assert.ok(t.includes(p), p);
     assert.equal((t.match(/\/ 30 дней/g) || []).length >= 4, true);
     for (const s of ['1200 × 300 px', '750 × 300 px', '600 × 800 px', '1200 × 675 px', 'то же изображение']) assert.ok(t.includes(s), s);
-    assert.equal((t.match(/Посмотреть размещение/g) || []).length, 4);
-    assert.equal((t.match(/Создать кампанию/g) || []).length, 4);
+    assert.equal((t.match(/Посмотреть размещение/g) || []).length, 6);
+    assert.equal((t.match(/Создать кампанию/g) || []).length, 6);
+    // бегущая строка и закрепление — цена за день и за 30 дней, без размеров картинки
+    for (const s of ['Бегущая строка', 'Закреплённая новость', '300 сомов', '/ день', '1 000 сомов', 'Текст до 120 знаков']) assert.ok(t.includes(s), s);
     assert.ok(t.includes('Размещение начинается после подтверждения оплаты администратором'));
     assert.ok(t.includes('не гарантируется'));
     // без выдуманных показателей

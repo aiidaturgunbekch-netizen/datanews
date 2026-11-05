@@ -17,9 +17,15 @@ import {
   addDaysLocal,
   effectiveStatus,
   formatSom,
+  NO_IMAGE_FORMATS,
+  pricePerDay,
   ratioOk,
+  TICKER_MAX,
 } from '../../config/ads';
 import { RUBRICS } from '../../config/rubrics';
+import { mergeAnnouncements } from '../../utils/mergeAnnouncements';
+import { isExpired } from '../../utils/urgency';
+import type { Announcement } from '../../types';
 import { formatKgDateTime, kgNowLocal } from '../../utils/time';
 import { AdCatalog, AdPreviewModal } from '../ads/AdCatalog';
 
@@ -115,7 +121,7 @@ type Pic = { data: string; size: { w: number; h: number }; name: string };
  */
 type CreateDraft = {
   format: AdFormatId;
-  v: Record<'name' | 'advertiser' | 'contact' | 'href' | 'alt' | 'title' | 'text' | 'cta' | 'rubric' | 'label' | 'start' | 'priority', string>;
+  v: Record<'name' | 'advertiser' | 'contact' | 'href' | 'alt' | 'title' | 'text' | 'cta' | 'rubric' | 'label' | 'start' | 'priority' | 'annId', string>;
   unit: DurationUnit;
   amountStr: string;
   desk: Pic | null;
@@ -375,7 +381,17 @@ const CampaignList: React.FC<{
         return (
           <li key={c.id} className="bg-white rounded-2xl border border-gray-100 p-4" data-campaign={c.id}>
             <div className="flex flex-col sm:flex-row gap-3">
-              <img src={c.imageDesktop} alt={c.alt} className="w-full sm:w-48 rounded-lg object-contain bg-[#f5f7fb] self-start" style={{ aspectRatio: `${(c.imageDesktopSize || f.desktop).w} / ${(c.imageDesktopSize || f.desktop).h}` }} />
+              {c.imageDesktop ? (
+                <img src={c.imageDesktop} alt={c.alt} className="w-full sm:w-48 rounded-lg object-contain bg-[#f5f7fb] self-start" style={{ aspectRatio: `${(c.imageDesktopSize || f.desktop).w} / ${(c.imageDesktopSize || f.desktop).h}` }} />
+              ) : (
+                // бегущая строка — текст; закреплённая новость — значок
+                <div className="w-full sm:w-48 rounded-lg bg-[#0d2459] text-white text-xs font-semibold p-3 self-start flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px] text-[#20C7B5]" aria-hidden="true">
+                    {c.format === 'T' ? 'text_rotation_none' : 'push_pin'}
+                  </span>
+                  <span className="line-clamp-3">{c.format === 'T' ? c.text : 'Закреплённая новость'}</span>
+                </div>
+              )}
               <div className="flex-1 min-w-0 text-sm space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <b className="text-[#0f1b33]">{c.name}</b>
@@ -503,9 +519,9 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
   const LABEL = { name: 'Название', advertiser: 'Рекламодатель', contact: 'Контакт', href: 'Ссылка (https://)', alt: 'Описание изображения' } as const;
   const problems: Partial<Record<keyof typeof v, string>> = {};
   (['name', 'advertiser', 'contact', 'alt'] as const).forEach((k) => {
-    if (!v[k].trim()) problems[k] = LABEL[k];
+    if (!v[k].trim() && !(k === 'alt' && NO_IMAGE_FORMATS.includes(c.format))) problems[k] = LABEL[k];
   });
-  if (hrefProblem(v.href)) problems.href = hrefProblem(v.href);
+  if (c.format !== 'P' && hrefProblem(v.href)) problems.href = hrefProblem(v.href);
   if (!paid && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start)) problems.start = 'Начало (дата и время)';
   const bad = (k: keyof typeof v) => (tried ? problems[k] : undefined);
   const pick = (which: 'desk' | 'mob') => async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -525,7 +541,9 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
     url ? { data: url, size: size || fallback, name: 'текущее изображение' } : null;
   return (
     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-gray-100 pt-3">
-      {(['name', 'advertiser', 'contact', 'href', 'alt'] as const).map((k) => (
+      {(['name', 'advertiser', 'contact', 'href', 'alt'] as const)
+        .filter((k) => !(NO_IMAGE_FORMATS.includes(c.format) && k === 'alt') && !(c.format === 'P' && k === 'href'))
+        .map((k) => (
         <label key={k} className="block">
           <span className="font-bold text-gray-600">{LABEL[k]}</span>
           <input className={bad(k) ? inputErrCls : inputCls} aria-invalid={!!bad(k)} value={v[k]} onChange={set(k)} />
@@ -536,7 +554,7 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
         <span className="font-bold text-gray-600">Приоритет показа (0–100, обычно 0)</span>
         <NumberInput value={v.priority} onChange={(x) => setV({ ...v, priority: x })} max={100} placeholder="0" />
       </label>
-      <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2" data-edit-images>
+      {!NO_IMAGE_FORMATS.includes(c.format) && <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2" data-edit-images>
         <PhotoPick
           title={`Изображение для компьютера (${f.desktop.w} × ${f.desktop.h})`}
           hint="JPG, PNG или WebP"
@@ -553,7 +571,7 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
         )}
         {(desk || mob) && <p className="sm:col-span-2 text-amber-700 font-semibold">Новое изображение сохранится после нажатия «Сохранить изменения».</p>}
         {imgErr && <p className="sm:col-span-2 text-red-700 font-semibold">{imgErr}</p>}
-      </div>
+      </div>}
       {!paid ? (
         <>
           <label className="block">
@@ -708,7 +726,7 @@ const FormatForm: React.FC<{ f: AdFormat; onSaved: () => void; onError: (m: stri
 };
 
 // ─────────── Создание кампании ───────────
-const emptyCreate = (): CreateDraft['v'] => ({ name: '', advertiser: '', contact: '', href: 'https://', alt: '', title: '', text: '', cta: '', rubric: 'tech', label: 'ad', start: kgNowLocal().slice(0, 11) + '09:00', priority: '0' });
+const emptyCreate = (): CreateDraft['v'] => ({ name: '', advertiser: '', contact: '', href: 'https://', alt: '', title: '', text: '', cta: '', rubric: 'tech', label: 'ad', start: kgNowLocal().slice(0, 11) + '09:00', priority: '0', annId: '' });
 const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdFormatId; onCreated: () => void }> = ({ formats, initial, onCreated }) => {
   // продолжение незаконченной формы; картинки сохраняются, только если формат тот же (у форматов разные размеры)
   const d0 = createDraft;
@@ -724,6 +742,16 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(false);
+  const noImage = NO_IMAGE_FORMATS.includes(format);
+  // Закреплённая новость: выбор из опубликованных и ещё не прошедших публикаций сайта
+  const [pubs, setPubs] = useState<Announcement[]>([]);
+  useEffect(() => {
+    if (format !== 'P' || pubs.length) return;
+    api
+      .fetchPublicAnnouncements()
+      .then((r) => setPubs(mergeAnnouncements(Array.isArray(r.items) ? r.items : [], r.hidden || [], r.checked || {}).filter((a) => !isExpired(a))))
+      .catch(() => {});
+  }, [format, pubs.length]);
   const firstFormat = useRef(format);
   useEffect(() => {
     if (format === firstFormat.current) return;
@@ -769,10 +797,12 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
   if (!v.name.trim()) problems.push(['name', 'Название кампании']);
   if (!v.advertiser.trim()) problems.push(['advertiser', 'Рекламодатель']);
   if (!v.contact.trim()) problems.push(['contact', 'Контакт (телефон или e-mail)']);
-  if (hrefProblem(v.href)) problems.push(['href', hrefProblem(v.href)]);
-  if (!v.alt.trim()) problems.push(['alt', 'Описание изображения']);
+  if (format !== 'P' && hrefProblem(v.href)) problems.push(['href', hrefProblem(v.href)]);
+  if (!noImage && !v.alt.trim()) problems.push(['alt', 'Описание изображения']);
   if (format === 'C' && !v.title.trim()) problems.push(['title', 'Заголовок карточки']);
-  if (!desk) problems.push(['desk', `Изображение для компьютера (${f.desktop.w}×${f.desktop.h})`]);
+  if (format === 'T' && !v.text.trim()) problems.push(['text', 'Текст бегущей строки']);
+  if (format === 'P' && !v.annId) problems.push(['annId', 'Новость, которую нужно закрепить']);
+  if (!noImage && !desk) problems.push(['desk', `Изображение для компьютера (${f.desktop.w}×${f.desktop.h})`]);
   if (!end) problems.push(['start', 'Начало показа (дата и время)']);
   const [tried, setTried] = useState(false);
   const bad = (k: string) => (tried ? problems.find(([key]) => key === k)?.[1] : undefined);
@@ -795,8 +825,8 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
         amount,
         priority,
         status,
-        imageDesktopData: desk!.data,
-        ...(mob ? { imageMobileData: mob.data } : {}),
+        ...(noImage ? {} : { imageDesktopData: desk!.data }),
+        ...(mob && !noImage ? { imageMobileData: mob.data } : {}),
       });
       createDraft = null;
       onCreated();
@@ -830,19 +860,28 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
           <div className="font-bold text-gray-500">Место</div>
           <div className="font-bold text-[#0f1b33]">{f.name.ru}</div>
         </div>
-        <div>
-          <div className="font-bold text-gray-500">Компьютер</div>
-          <div className="font-bold text-[#0f1b33]">
-            {f.desktop.w} × {f.desktop.h} px
+        {noImage ? (
+          <div className="sm:col-span-2">
+            <div className="font-bold text-gray-500">Что нужно</div>
+            <div className="font-bold text-[#0f1b33]">{format === 'T' ? `Текст до ${TICKER_MAX} знаков и ссылка — без картинки` : 'Выбрать опубликованную новость — её фото и заголовок встанут в «Главное»'}</div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div>
+              <div className="font-bold text-gray-500">Компьютер</div>
+              <div className="font-bold text-[#0f1b33]">
+                {f.desktop.w} × {f.desktop.h} px
+              </div>
+            </div>
+            <div>
+              <div className="font-bold text-gray-500">Телефон</div>
+              <div className="font-bold text-[#0f1b33]">{f.mobile ? `${f.mobile.w} × ${f.mobile.h} px` : 'то же изображение'}</div>
+            </div>
+          </>
+        )}
         <div>
-          <div className="font-bold text-gray-500">Телефон</div>
-          <div className="font-bold text-[#0f1b33]">{f.mobile ? `${f.mobile.w} × ${f.mobile.h} px` : 'то же изображение'}</div>
-        </div>
-        <div>
-          <div className="font-bold text-gray-500">Цена за 30 дней</div>
-          <div className="font-bold text-[#0f1b33]">{formatSom(f.price)}</div>
+          <div className="font-bold text-gray-500">{f.perDay ? 'Цена за день' : 'Цена за 30 дней'}</div>
+          <div className="font-bold text-[#0f1b33]">{formatSom(f.perDay ? pricePerDay(f) : f.price)}</div>
         </div>
       </div>
 
@@ -852,16 +891,41 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
             ['name', 'Название кампании'],
             ['advertiser', 'Рекламодатель'],
             ['contact', 'Контакт (телефон или e-mail)'],
-            ['href', 'Ссылка (https://…)'],
+            ['href', format === 'T' ? 'Куда ведёт строка (https://…)' : 'Ссылка (https://…)'],
             ['alt', 'Описание изображения (для незрячих)'],
           ] as const
-        ).map(([k, label]) => (
+        )
+          .filter(([k]) => !(k === 'alt' && noImage) && !(k === 'href' && format === 'P'))
+          .map(([k, label]) => (
           <label key={k} className="block">
             <span className="font-bold text-gray-600">{label}</span>
             <input className={bad(k) ? inputErrCls : inputCls} aria-invalid={!!bad(k)} value={v[k]} onChange={set(k)} />
             {bad(k) && <FieldErr text={k === 'href' && bad(k)!.includes('https://') ? 'Нужен полный адрес, начинающийся с https:// (например, https://www.instagram.com/…)' : 'Заполните это поле'} />}
           </label>
         ))}
+        {format === 'T' && (
+          <label className="block sm:col-span-2">
+            <span className="font-bold text-gray-600">Текст бегущей строки ({v.text.length}/{TICKER_MAX})</span>
+            <input className={bad('text') ? inputErrCls : inputCls} maxLength={TICKER_MAX} value={v.text} onChange={set('text')} placeholder="Например: Скидки до 30% на зимние шины — до 30 ноября" />
+            {bad('text') && <FieldErr text="Напишите короткий текст" />}
+          </label>
+        )}
+        {format === 'P' && (
+          <label className="block sm:col-span-2">
+            <span className="font-bold text-gray-600">Какую новость закрепить (опубликованные, ещё не прошедшие)</span>
+            <select className={bad('annId') ? inputErrCls : inputCls} value={v.annId} onChange={set('annId')}>
+              <option value="">— выберите новость —</option>
+              {pubs.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.startDate.slice(0, 10).split('-').reverse().join('.')} · {a.title.ru || a.title.kg}
+                </option>
+              ))}
+            </select>
+            {bad('annId') && <FieldErr text="Выберите новость" />}
+            <span className="text-gray-500">Новость встанет в «Главное» рядом с главной новостью с пометкой «Партнёрский материал». Сначала опубликуйте её («Одобрить»), потом закрепляйте.</span>
+          </label>
+        )}
+        {format !== 'P' && (
         <label className="block">
           <span className="font-bold text-gray-600">Маркировка</span>
           <select className={inputCls} value={v.label} onChange={set('label')}>
@@ -869,6 +933,7 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
             <option value="partner">«Партнёрский материал»</option>
           </select>
         </label>
+        )}
         {format === 'D' && (
           <label className="block">
             <span className="font-bold text-gray-600">Раздел (только он)</span>
@@ -898,8 +963,8 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
             </label>
           </>
         )}
-        <PhotoPick title={`Изображение для компьютера (${f.desktop.w}×${f.desktop.h})`} hint={`JPG, PNG или WEBP · ${f.desktop.w}×${f.desktop.h} px или та же пропорция`} file={desk} onPick={pick('desk')} error={bad('desk') ? 'Выберите изображение для компьютера' : undefined} />
-        {f.mobile && (
+        {!noImage && <PhotoPick title={`Изображение для компьютера (${f.desktop.w}×${f.desktop.h})`} hint={`JPG, PNG или WEBP · ${f.desktop.w}×${f.desktop.h} px или та же пропорция`} file={desk} onPick={pick('desk')} error={bad('desk') ? 'Выберите изображение для компьютера' : undefined} />}
+        {f.mobile && !noImage && (
           <PhotoPick
             title={`Изображение для телефона (${f.mobile.w}×${f.mobile.h}, необязательно)`}
             hint={`Без него на телефоне — основное изображение${format === 'B' ? ' (не шире 320 px)' : ''}`}
@@ -937,7 +1002,7 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
       </div>
       {imgErr && <p className="text-red-700 font-semibold">{imgErr}</p>}
       <div className="rounded-xl bg-[#fff6e5] p-3 text-sm" data-create-total>
-        Итого к оплате: <b>{formatSom(total)}</b> за {durationText(unit, amount, f.periodDays)} (цена за 30 дней — {formatSom(f.price)}) · показ до <b>{end ? formatKgDateTime(end) : '—'}</b>
+        Итого к оплате: <b>{formatSom(total)}</b> за {durationText(unit, amount, f.periodDays)} ({f.perDay ? `${formatSom(pricePerDay(f))} в день` : `цена за 30 дней — ${formatSom(f.price)}`}) · показ до <b>{end ? formatKgDateTime(end) : '—'}</b>
         <div className="text-xs text-gray-600 mt-1">Кампания сохраняется как черновик или «Ожидает оплаты» и не показывается на сайте, пока вы не подтвердите оплату и не включите её.</div>
       </div>
       {tried && problems.length > 0 && (

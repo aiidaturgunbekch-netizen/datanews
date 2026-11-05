@@ -25,13 +25,15 @@ import {
   effectiveStatus,
   isLive,
   LiveAd,
+  NO_IMAGE_FORMATS,
   ratioOk,
+  TICKER_MAX,
 } from '../../src/config/ads';
 import { RUBRICS } from '../../src/config/rubrics';
 import { kgNowLocal } from '../../src/utils/time';
 import { cmd, hgetJson, hsetJson, hvalsJson, pipeline, toCountMap } from './kv';
 import { HttpError } from './http';
-import { storeImage } from './announcements';
+import { ANN_KEY, storeImage } from './announcements';
 
 export const FORMATS_KEY = 'dn:ads:formats';
 export const CAMPAIGNS_KEY = 'dn:ads:campaigns';
@@ -132,6 +134,15 @@ const takeImage = async (data: unknown, want: { w: number; h: number }, what: st
 
 // ---------- кампании ----------
 const randomId = () => `ad${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+/** Закреплённая новость: существующая опубликованная публикация сайта */
+const checkAnn = async (v: unknown) => {
+  const id = str(v, 80);
+  if (!/^[\w-]{3,80}$/.test(id)) throw new HttpError('missing_field', 400, 'Выберите новость, которую нужно закрепить');
+  const a = await hgetJson<{ moderationStatus?: string }>(ANN_KEY, id);
+  if (a && a.moderationStatus && a.moderationStatus !== 'approved') throw new HttpError('bad_ann', 400, 'Закрепить можно только опубликованную новость (после «Одобрить»)');
+  return id;
+};
+
 const checkHref = (v: unknown) => {
   const s = str(v, 500);
   try {
@@ -178,7 +189,12 @@ export const createCampaign = async (raw: Record<string, unknown>) => {
   const name = str(raw.name, 120);
   const advertiser = str(raw.advertiser, 120);
   const contact = str(raw.contact, 160);
-  const alt = str(raw.alt, 200);
+  const noImage = NO_IMAGE_FORMATS.includes(format);
+  // Бегущая строка: текст до 120 знаков; закреплённая новость: опубликованная публикация сайта
+  const tickerText = format === 'T' ? str(raw.text, TICKER_MAX) : undefined;
+  if (format === 'T' && !tickerText) throw new HttpError('missing_field', 400, 'Напишите текст бегущей строки (до 120 знаков)');
+  const annId = format === 'P' ? await checkAnn(raw.annId) : undefined;
+  const alt = noImage ? str(raw.alt, 200) || tickerText || advertiser : str(raw.alt, 200);
   if (!name || !advertiser || !contact || !alt) throw new HttpError('missing_field', 400, 'Заполните название, рекламодателя, контакт и описание изображения');
   const rubric = format === 'D' ? str(raw.rubric, 40) : undefined;
   if (format === 'D' && !RUBRICS.some((r) => r.id === rubric)) throw new HttpError('bad_rubric', 400, 'Выберите раздел для тематического баннера');
@@ -190,9 +206,10 @@ export const createCampaign = async (raw: Record<string, unknown>) => {
   const days = durationDays(unit, amount, f.periodDays);
   const start = checkStart(raw.start);
   const status: AdCampaignStatus = raw.status === 'awaiting_payment' ? 'awaiting_payment' : 'draft';
-  const href = checkHref(raw.href);
-  const imageDesktop = await takeImage(raw.imageDesktopData, f.desktop, 'Изображение для компьютера');
-  const imageMobile = raw.imageMobileData ? await takeImage(raw.imageMobileData, f.mobile || f.desktop, 'Изображение для телефона') : undefined;
+  // У закреплённой новости ссылка — сама публикация на сайте
+  const href = format === 'P' ? '' : checkHref(raw.href);
+  const imageDesktop = noImage ? { url: '', size: undefined } : await takeImage(raw.imageDesktopData, f.desktop, 'Изображение для компьютера');
+  const imageMobile = !noImage && raw.imageMobileData ? await takeImage(raw.imageMobileData, f.mobile || f.desktop, 'Изображение для телефона') : undefined;
   const now = kgNowLocal();
   const c: AdCampaign = {
     id: randomId(),
@@ -203,11 +220,13 @@ export const createCampaign = async (raw: Record<string, unknown>) => {
     ...(rubric ? { rubric } : {}),
     label: raw.label === 'partner' ? 'partner' : 'ad',
     imageDesktop: imageDesktop.url,
-    imageDesktopSize: imageDesktop.size,
+    ...(imageDesktop.size ? { imageDesktopSize: imageDesktop.size } : {}),
     ...(imageMobile ? { imageMobile: imageMobile.url, imageMobileSize: imageMobile.size } : {}),
     alt,
     href,
     ...(format === 'C' ? { title, text: str(raw.text, 200), cta: str(raw.cta, 30) } : {}),
+    ...(format === 'T' ? { text: tickerText } : {}),
+    ...(format === 'P' ? { annId, label: 'partner' as const } : {}),
     start,
     end: addDaysLocal(start, days),
     unit,
@@ -260,16 +279,18 @@ export const campaignAction = async (raw: Record<string, unknown>) => {
         advertiser: str(raw.advertiser ?? c.advertiser, 120) || c.advertiser,
         contact: str(raw.contact ?? c.contact, 160) || c.contact,
         alt: str(raw.alt ?? c.alt, 200) || c.alt,
-        href: raw.href !== undefined ? checkHref(raw.href) : c.href,
+        href: c.format === 'P' ? '' : raw.href !== undefined ? checkHref(raw.href) : c.href,
         label: raw.label === 'partner' ? 'partner' : raw.label === 'ad' ? 'ad' : c.label,
         priority: raw.priority !== undefined ? Math.min(100, Math.max(0, Math.round(Number(raw.priority) || 0))) : c.priority,
         ...(c.format === 'C' ? { title: str(raw.title ?? c.title, 90) || c.title, text: str(raw.text ?? c.text, 200), cta: str(raw.cta ?? c.cta, 30) } : {}),
+        ...(c.format === 'T' ? { text: str(raw.text ?? c.text, TICKER_MAX) || c.text } : {}),
+        ...(c.format === 'P' ? { annId: raw.annId !== undefined ? await checkAnn(raw.annId) : c.annId, label: 'partner' as const } : {}),
       };
-      if (raw.imageDesktopData) {
+      if (raw.imageDesktopData && !NO_IMAGE_FORMATS.includes(c.format)) {
         const img = await takeImage(raw.imageDesktopData, f.desktop, 'Изображение для компьютера');
         next = { ...next, imageDesktop: img.url, imageDesktopSize: img.size };
       }
-      if (raw.imageMobileData) {
+      if (raw.imageMobileData && !NO_IMAGE_FORMATS.includes(c.format)) {
         const img = await takeImage(raw.imageMobileData, f.mobile || f.desktop, 'Изображение для телефона');
         next = { ...next, imageMobile: img.url, imageMobileSize: img.size };
       }
@@ -352,6 +373,8 @@ export const toLive = (c: AdCampaign): LiveAd => ({
   ...(c.imageMobile ? { imageMobile: c.imageMobile, ...(c.imageMobileSize ? { imageMobileSize: c.imageMobileSize } : {}) } : {}),
   alt: c.alt,
   ...(c.format === 'C' ? { title: c.title, text: c.text, cta: c.cta } : {}),
+  ...(c.format === 'T' ? { text: c.text } : {}),
+  ...(c.format === 'P' ? { annId: c.annId } : {}),
   priority: c.priority,
   start: c.start,
 });
@@ -407,7 +430,8 @@ export const recordClick = async (req: Request, id: string): Promise<string | nu
     await markView(req, id, day);
     await cmd('HINCRBY', statsKey(id), `c:${day}`, 1);
   }
-  return c.href;
+  // Закреплённая новость ведёт на саму публикацию сайта
+  return c.format === 'P' && c.annId ? `/n/${c.annId}` : c.href;
 };
 
 export interface AdStats {

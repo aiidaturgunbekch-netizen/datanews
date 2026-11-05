@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { formatWhen } from '../utils/dates';
 import { EventImage } from './EventImage';
 import { isPaid, PaidBadge } from './PaidBadge';
+import { AD_LABEL } from '../config/ads';
+import { adClickUrl, observeAdView } from '../services/ads';
 
 const T = {
   title: { ru: 'Главное', kg: 'Башкы жаңылыктар', en: 'Top stories' },
@@ -23,16 +25,30 @@ export const TopStories: React.FC<{
   hideTitle?: boolean;
   /** Что поставить сразу под мозаикой (рекламное место A, погода) */
   afterLead?: React.ReactNode;
-}> = ({ lang, stories, onOpen, hideTitle = false, afterLead }) => {
+  /** Закреплённая платная новость (реклама формата P): метка «Партнёрский материал», учёт показов и переходов */
+  pinned?: { adId: string; ann: Announcement } | null;
+}> = ({ lang, stories, onOpen, hideTitle = false, afterLead, pinned }) => {
   const { t } = getTranslation(lang);
+  useEffect(() => {
+    if (!pinned) return;
+    const el = document.querySelector(`[data-pinned="${pinned.adId}"]`);
+    return el ? observeAdView(el, pinned.adId) : undefined;
+  }, [pinned?.adId]);
   if (stories.length === 0) return null;
+  const isPin = (a: Announcement) => pinned?.ann.id === a.id;
+  const open = (a: Announcement) => {
+    // переход по закреплённой новости засчитывается в статистику кампании
+    if (isPin(a)) fetch(adClickUrl(pinned!.adId), { redirect: 'manual', keepalive: true }).catch(() => {});
+    onOpen(a);
+  };
   const [lead, ...others] = stories;
   const side = others.slice(0, 2);
 
   const Tile: React.FC<{ a: Announcement; big?: boolean; className?: string }> = ({ a, big = false, className = '' }) => (
     <button
       type="button"
-      onClick={() => onOpen(a)}
+      onClick={() => open(a)}
+      data-pinned={isPin(a) ? pinned!.adId : undefined}
       // Рамка держит пропорции, но если длинный заголовок (крупный шрифт, узкий экран) не помещается — становится выше, а не обрезает текст
       className={`group relative flex w-full flex-col justify-end rounded-xl bg-[#0d2459] text-left focus-visible:outline-offset-2 ${className}`}
       data-top-tile={big ? 'lead' : 'side'}
@@ -43,10 +59,19 @@ export const TopStories: React.FC<{
         </span>
         <span className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
       </span>
-      {isPaid(a) && (
-        <span className="absolute top-3 left-3">
-          <PaidBadge item={a} lang={lang} />
+      {isPin(a) ? (
+        <span className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/95 text-partner text-[10.5px] font-bold uppercase tracking-wide shadow-sm">
+          <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
+            push_pin
+          </span>
+          {AD_LABEL.partner[lang]}
         </span>
+      ) : (
+        isPaid(a) && (
+          <span className="absolute top-3 left-3">
+            <PaidBadge item={a} lang={lang} />
+          </span>
+        )
       )}
       <span className={`relative block ${big ? 'p-4 sm:p-6' : 'p-3 sm:p-4'}`}>
         <span className="block text-[11px] font-bold uppercase tracking-wider text-white/85">{t(`categories.${a.category}`)}</span>

@@ -145,7 +145,12 @@ describe('кампании', () => {
     assert.equal((await adm(base({ imageDesktopData: 'data:image/gif;base64,R0lGODlh' }))).status, 400, 'тип файла');
     assert.equal((await adm(base({ imageMobileData: png(1200, 300) }))).status, 400, 'телефон — 750×300');
     assert.equal((await adm(base({ imageMobileData: png(750, 300) }))).status, 201);
-    assert.equal((await adm(base({ href: 'http://example.kg' }))).status, 400, 'только https');
+    // частые ошибки в ссылке исправляются сами: http → https, вставка поверх «https://», пробелы
+    const fixed = await adm(base({ href: 'https://https//www.instagram.com/ai.kyz7/ ' }));
+    assert.equal(fixed.status, 201);
+    assert.equal((fixed.body as { campaign: { href: string } }).campaign.href, 'https://www.instagram.com/ai.kyz7/');
+    assert.equal(((await adm(base({ href: 'http://example.kg' }))).body as { campaign: { href: string } }).campaign.href, 'https://example.kg/');
+    assert.equal((await adm(base({ href: 'нет-ссылки' }))).status, 400, 'не адрес сайта');
     assert.equal((await adm(base({ href: 'javascript:alert(1)' }))).status, 400);
     assert.equal((await adm(base({ advertiser: '' }))).status, 400);
     assert.equal((await adm(base({ format: 'D' }))).status, 400, 'для D нужен раздел');

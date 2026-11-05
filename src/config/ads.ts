@@ -345,3 +345,20 @@ export const ratioOk = (w: number, h: number, want: AdSize, tolerance = 0.08) =>
 /** Цена в сомах: «10 000 сомов» */
 export const formatSom = (n: number, lang: Language = 'ru') =>
   `${n.toLocaleString('ru-RU').replace(/[\s\u202f]/g, '\u00a0')}\u00a0${lang === 'kg' ? 'сом' : lang === 'en' ? 'KGS' : 'сомов'}`;
+
+/**
+ * Исправить частые ошибки в ссылке, которые человек не замечает: лишние пробелы, вставка поверх готового «https://»
+ * («https://https//www…», «https://https://…»), «http://», адрес без «https://» («instagram.com/…»).
+ * Сам адрес (домен, путь) не меняется.
+ */
+export const normalizeHref = (raw: string) => {
+  let s = String(raw || '').trim().replace(/\s+/g, '');
+  if (!s) return '';
+  // снимаем все повторы «https://», «https//», «https:/», «http:» в начале
+  let prev = '';
+  while (prev !== s) {
+    prev = s;
+    s = s.replace(/^(?:https?)?:?\/+/i, '').replace(/^https?:(?=[^/])/i, '');
+  }
+  return s ? `https://${s}` : '';
+};

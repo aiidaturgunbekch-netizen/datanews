@@ -18,6 +18,7 @@ import {
   effectiveStatus,
   formatSom,
   NO_IMAGE_FORMATS,
+  normalizeHref,
   pricePerDay,
   ratioOk,
   TICKER_MAX,
@@ -96,8 +97,10 @@ const MissingBox: React.FC<{ items: string[] }> = ({ items }) => (
   </div>
 );
 const HREF_OK = /^https:\/\/[^\s]+\.[^\s]+$/;
-const hrefProblem = (href: string) =>
-  !href.trim() || href.trim() === 'https://' ? 'Ссылка рекламодателя' : !HREF_OK.test(href.trim()) ? 'Ссылка рекламодателя — полный адрес, начинающийся с https:// (например, https://www.instagram.com/…)' : '';
+const hrefProblem = (href: string) => {
+  const h = normalizeHref(href);
+  return !h ? 'Ссылка рекламодателя' : !HREF_OK.test(h) ? 'Ссылка рекламодателя — полный адрес сайта (например, https://www.instagram.com/…)' : '';
+};
 
 /** Поле для числа: цифры набираются с клавиатуры, стирание работает (без стрелок «вверх / вниз») */
 const NumberInput: React.FC<{ value: string; onChange: (v: string) => void; max?: number; placeholder?: string }> = ({ value, onChange, max = 9_999_999, placeholder }) => (
@@ -243,16 +246,21 @@ export const AdsPanel: React.FC = () => {
   const current = useMemo(() => (data?.campaigns || []).filter((c) => effectiveStatus(c, now) !== 'completed'), [data, now]);
   const archive = useMemo(() => (data?.campaigns || []).filter((c) => effectiveStatus(c, now) === 'completed'), [data, now]);
 
-  const act = async (id: string, action: string, extra: Record<string, unknown> = {}, confirmText?: string) => {
-    if (confirmText && !window.confirm(confirmText)) return;
+  // Результат действия — под той кампанией, с которой работали (а не вверху страницы)
+  const [result, setResult] = useState<{ id: string; ok?: string; err?: string } | null>(null);
+  const act = async (id: string, action: string, extra: Record<string, unknown> = {}, confirmText?: string): Promise<boolean> => {
+    if (confirmText && !window.confirm(confirmText)) return false;
     setErr('');
     setMsg('');
+    setResult(null);
     try {
       await api.adsPost({ op: 'action', id, action, ...extra });
-      setMsg('Сохранено');
+      setResult({ id, ok: 'Сохранено' });
       load();
+      return true;
     } catch (e) {
-      setErr((e as Error).message);
+      setResult({ id, err: (e as Error).message });
+      return false;
     }
   };
 
@@ -312,7 +320,7 @@ export const AdsPanel: React.FC = () => {
       {!data ? (
         <p className="text-sm text-gray-500">Загрузка…</p>
       ) : sub === 'campaigns' ? (
-        <CampaignList list={current} formats={data.formats} onAct={act} onCreate={() => setSub('catalog')} />
+        <CampaignList list={current} formats={data.formats} onAct={act} onCreate={() => setSub('catalog')} result={result} />
       ) : sub === 'catalog' ? (
         <CatalogEditor
           formats={data.formats}
@@ -339,7 +347,7 @@ export const AdsPanel: React.FC = () => {
       ) : sub === 'stats' ? (
         <StatsTable list={data.campaigns} formats={data.formats} />
       ) : (
-        <CampaignList list={archive} formats={data.formats} onAct={act} archived />
+        <CampaignList list={archive} formats={data.formats} onAct={act} archived result={result} />
       )}
     </div>
   );
@@ -349,10 +357,12 @@ export const AdsPanel: React.FC = () => {
 const CampaignList: React.FC<{
   list: api.AdminCampaign[];
   formats: Record<AdFormatId, AdFormat>;
-  onAct: (id: string, action: string, extra?: Record<string, unknown>, confirmText?: string) => void;
+  onAct: (id: string, action: string, extra?: Record<string, unknown>, confirmText?: string) => Promise<boolean>;
   onCreate?: () => void;
   archived?: boolean;
-}> = ({ list, formats, onAct, onCreate, archived }) => {
+  /** Итог последнего действия — показывается под той кампанией */
+  result?: { id: string; ok?: string; err?: string } | null;
+}> = ({ list, formats, onAct, onCreate, archived, result }) => {
   const [refs, setRefs] = useState<Record<string, string>>({});
   const [refMissing, setRefMissing] = useState<string | null>(null);
   const [editing, setEditingState] = useState<string | null>(editingId);
@@ -489,13 +499,20 @@ const CampaignList: React.FC<{
                 c={c}
                 f={f}
                 paid={paid}
-                onSave={(extra) => {
-                  delete editDrafts[c.id];
-                  onAct(c.id, 'edit', extra);
-                  setEditing(null);
+                onSave={async (extra) => {
+                  // при ошибке (например, ссылка не открывается) форма остаётся открытой — можно сразу исправить
+                  if (await onAct(c.id, 'edit', extra)) {
+                    delete editDrafts[c.id];
+                    setEditing(null);
+                  }
                 }}
               />
             )}
+            {result?.id === c.id && (result.err ? (
+              <p role="alert" className="mt-2 text-sm text-red-600">Не выполнено: {result.err}</p>
+            ) : (
+              <p className="mt-2 text-sm text-emerald-700">{result.ok}</p>
+            ))}
           </li>
         );
       })}
@@ -560,7 +577,15 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
         .map((k) => (
         <label key={k} className="block">
           <span className="font-bold text-gray-600">{LABEL[k]}</span>
-          <input className={bad(k) ? inputErrCls : inputCls} aria-invalid={!!bad(k)} value={v[k]} onChange={set(k)} />
+          <input
+            className={bad(k) ? inputErrCls : inputCls}
+            aria-invalid={!!bad(k)}
+            value={v[k]}
+            onChange={set(k)}
+            // ссылка: при выходе из поля лишнее («https://https//…», пробелы) убирается — видно, что сохранится
+            onBlur={k === 'href' ? () => setV((x) => ({ ...x, href: normalizeHref(x.href) || x.href })) : undefined}
+            placeholder={k === 'href' ? 'https://…' : undefined}
+          />
           {bad(k) && <FieldErr text={k === 'href' && bad(k)!.includes('https://') ? 'Нужен полный адрес, начинающийся с https:// (например, https://www.instagram.com/…)' : 'Заполните это поле'} />}
         </label>
       ))}
@@ -657,6 +682,7 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
             const { start, priority, ...rest } = v;
             const base = {
               ...rest,
+              href: normalizeHref(rest.href),
               ...(c.format === 'T' ? { text: ex.text } : c.format === 'C' ? { title: ex.title, text: ex.text, cta: ex.cta } : c.format === 'P' ? { annId: ex.annId } : {}),
               priority: toInt(priority, 0, 100, 0),
               ...(desk ? { imageDesktopData: desk.data } : {}),
@@ -776,7 +802,7 @@ const FormatForm: React.FC<{ f: AdFormat; onSaved: () => void; onError: (m: stri
 };
 
 // ─────────── Создание кампании ───────────
-const emptyCreate = (): CreateDraft['v'] => ({ name: '', advertiser: '', contact: '', href: 'https://', alt: '', title: '', text: '', cta: '', rubric: 'tech', label: 'ad', start: kgNowLocal().slice(0, 11) + '09:00', priority: '0', annId: '' });
+const emptyCreate = (): CreateDraft['v'] => ({ name: '', advertiser: '', contact: '', href: '', alt: '', title: '', text: '', cta: '', rubric: 'tech', label: 'ad', start: kgNowLocal().slice(0, 11) + '09:00', priority: '0', annId: '' });
 const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdFormatId; onCreated: () => void }> = ({ formats, initial, onCreated }) => {
   // продолжение незаконченной формы; картинки сохраняются, только если формат тот же (у форматов разные размеры)
   const d0 = createDraft;
@@ -871,6 +897,7 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
         op: 'create',
         format,
         ...v,
+        href: normalizeHref(v.href),
         unit,
         amount,
         priority,
@@ -949,7 +976,15 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
           .map(([k, label]) => (
           <label key={k} className="block">
             <span className="font-bold text-gray-600">{label}</span>
-            <input className={bad(k) ? inputErrCls : inputCls} aria-invalid={!!bad(k)} value={v[k]} onChange={set(k)} />
+            <input
+              className={bad(k) ? inputErrCls : inputCls}
+              aria-invalid={!!bad(k)}
+              value={v[k]}
+              onChange={set(k)}
+              // ссылка: при выходе из поля лишнее («https://https//…», пробелы) убирается — видно, что сохранится
+              onBlur={k === 'href' ? () => setV((x) => ({ ...x, href: normalizeHref(x.href) || x.href })) : undefined}
+              placeholder={k === 'href' ? 'https://…' : undefined}
+            />
             {bad(k) && <FieldErr text={k === 'href' && bad(k)!.includes('https://') ? 'Нужен полный адрес, начинающийся с https:// (например, https://www.instagram.com/…)' : 'Заполните это поле'} />}
           </label>
         ))}

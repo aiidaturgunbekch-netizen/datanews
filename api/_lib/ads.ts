@@ -26,6 +26,7 @@ import {
   isLive,
   LiveAd,
   NO_IMAGE_FORMATS,
+  normalizeHref,
   ratioOk,
   TICKER_MAX,
 } from '../../src/config/ads';
@@ -167,10 +168,11 @@ const checkAnn = async (v: unknown) => {
 };
 
 const checkHref = (v: unknown) => {
-  const s = str(v, 500);
+  // частые ошибки (вставка поверх «https://», пробелы, http://) исправляются сами
+  const s = normalizeHref(str(v, 500));
   try {
     const u = new URL(s);
-    if (u.protocol !== 'https:') throw new Error();
+    if (u.protocol !== 'https:' || !u.hostname.includes('.')) throw new Error();
     return u.toString();
   } catch {
     throw new HttpError('bad_href', 400, 'Ссылка рекламодателя — полный адрес, начинающийся с https://');
@@ -454,7 +456,8 @@ export const recordClick = async (req: Request, id: string): Promise<string | nu
     await cmd('HINCRBY', statsKey(id), `c:${day}`, 1);
   }
   // Закреплённая новость ведёт на саму публикацию сайта
-  return c.format === 'P' && c.annId ? `/n/${c.annId}` : c.href;
+  // старые кампании с ошибкой в ссылке («https://https//…») тоже ведут на правильный адрес
+  return c.format === 'P' && c.annId ? `/n/${c.annId}` : normalizeHref(c.href) || c.href;
 };
 
 export interface AdStats {

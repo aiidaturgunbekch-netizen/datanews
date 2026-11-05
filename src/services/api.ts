@@ -147,6 +147,8 @@ export const moderateAnnouncement = (id: string, action: 'approve' | 'reject' | 
   post<{ item: Announcement }>('announcements', { id, action, note }, 'PATCH').then((r) => r.item);
 
 /** Отметить, что публикация сверена с первоисточником сегодня (администратор) */
+/** Сверено с первоисточником: подтверждение, дата проверки и ссылка на билеты — одной кнопкой */
+export const markVerified = (id: string) => post<{ item: Announcement }>('announcements', { id, action: 'verified' }, 'PATCH').then((r) => r.item);
 export const markChecked = (id: string) => post<{ item: Announcement }>('announcements', { id, action: 'checked' }, 'PATCH').then((r) => r.item);
 
 /** Снять свою публикацию с сайта (автор) */

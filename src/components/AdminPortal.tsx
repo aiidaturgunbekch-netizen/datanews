@@ -810,6 +810,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   // Импорт из официального сообщения: текст + ссылка → черновик в форме, публикует редактор
   const [importOpen, setImportOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [verifiedNow, setVerifiedNow] = useState<Record<string, 'busy' | 'done'>>({});
   const copyUntranslated = async () => {
     const text = untranslatedForClaude(serverItems);
     if (!text) return setMsg('Все публикации переведены — копировать нечего');
@@ -1245,7 +1246,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
               ) : tab === 'review' ? (
                 <>
                   <p className="text-xs text-gray-500">
-                    Действующие публикации, которые давно не сверялись с первоисточником или где не хватает данных. Сначала — самые давно проверенные. «Проверено сегодня» обновляет только дату проверки; недостающие поля заполняются через «Редактировать».
+                    Действующие публикации, которые давно не сверялись с первоисточником или где не хватает данных. Сначала — самые давно проверенные. «Сверено с первоисточником» — вы сверили дату, место и билеты: публикация получает отметку «Подтверждено» и уходит из списка. Недостающие поля (ссылка, документ) заполняются через «Редактировать».
                   </p>
                   {toReview.length === 0 ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center text-sm text-gray-500">Всё проверено — список пуст.</div>
@@ -1280,12 +1281,38 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                               <button onClick={() => setEditing(a)} className="p-2 rounded-lg hover:bg-gray-100 text-[#12327A]" title="Редактировать">
                                 <span className="material-symbols-outlined text-[20px]">edit</span>
                               </button>
-                              <button
-                                onClick={() => act(() => api.markChecked(a.id), `Отмечено как проверенное: «${a.title.ru}»`)}
-                                className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-extrabold inline-flex items-center gap-1 hover:bg-emerald-100"
-                              >
-                                <span className="material-symbols-outlined text-[18px]">task_alt</span>Проверено сегодня
-                              </button>
+                              {verifiedNow[a.id] ? (
+                                <span className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-extrabold inline-flex items-center gap-1" role="status" data-verified-done>
+                                  <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                                  {verifiedNow[a.id] === 'busy' ? 'Сохраняю…' : 'Сверено — убрано из списка'}
+                                </span>
+                              ) : (
+                                <button
+                                  title="Я сверила дату, место и билеты с первоисточником: ставит «Подтверждено по первоисточнику» и дату проверки, публикация уходит из этого списка"
+                                  onClick={async () => {
+                                    setVerifiedNow((v) => ({ ...v, [a.id]: 'busy' }));
+                                    try {
+                                      await api.markVerified(a.id);
+                                      setVerifiedNow((v) => ({ ...v, [a.id]: 'done' }));
+                                      setTimeout(() => {
+                                        load();
+                                        onRefreshData();
+                                      }, 1200);
+                                    } catch (e) {
+                                      setVerifiedNow((v) => {
+                                        const n = { ...v };
+                                        delete n[a.id];
+                                        return n;
+                                      });
+                                      setErr(`Не сохранено: ${(e as Error).message}`);
+                                    }
+                                  }}
+                                  className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-extrabold inline-flex items-center gap-1 hover:bg-emerald-100"
+                                  data-verify-btn
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">task_alt</span>Сверено с первоисточником
+                                </button>
+                              )}
                             </div>
                           </div>
                         );

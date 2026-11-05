@@ -258,6 +258,32 @@ export default handler(async (req) => {
       return json({ item: next });
     }
 
+    // Модератор сверил всё с первоисточником: «Подтверждено по первоисточнику», дата проверки и ссылка на билеты (если есть)
+    if (body.action === 'verified') {
+      await requireAdmin(req);
+      const now = kgNowLocal();
+      if (current && !isCheckOnlyCopy(current)) {
+        const hasTicket = Boolean(current.ticketUrl || current.eventDetails?.ticketUrl);
+        const next = withHistory(
+          {
+            ...current,
+            isVerified: true,
+            lastCheckedAt: now,
+            ...(hasTicket ? { ticketUrlVerified: true } : {}),
+          },
+          'admin',
+          'edited',
+          'Сверено с первоисточником'
+        );
+        await saveAnnouncement(next);
+        return json({ item: next });
+      }
+      const builtin = INITIAL_ANNOUNCEMENTS.find((a) => a.id === id);
+      if (!builtin) throw new HttpError('not_found', 404);
+      await cmd('HSET', CHECKED_KEY, id, now);
+      return json({ item: { ...builtin, lastCheckedAt: now } });
+    }
+
     // Модератор сверил публикацию с первоисточником: обновляем только дату проверки
     if (body.action === 'checked') {
       await requireAdmin(req);

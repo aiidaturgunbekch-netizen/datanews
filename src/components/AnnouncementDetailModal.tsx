@@ -458,6 +458,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         <EventImage
           item={a}
           lang={lang}
+          natural
           className={`mt-6 w-full rounded-xl ${a.imageFit === 'cover' ? 'aspect-[16/9]' : 'h-[52vh] max-h-[560px] min-h-[220px]'}`}
         />
         {/* Подпись автора фото — только когда её требует лицензия (например, Wikimedia Commons); фото от первоисточника — без подписи */}

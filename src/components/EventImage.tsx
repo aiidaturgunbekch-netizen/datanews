@@ -56,12 +56,14 @@ const ReasonTag: React.FC<{ text: string }> = ({ text }) => (
  * берут картинку из одного поля `imageUrl`, поэтому фото не может быть «только в подробностях».
  *  - compact — маленькая миниатюра (без подписи причины).
  */
-export const EventImage: React.FC<{ item: Announcement; className?: string; lang?: Lang; compact?: boolean }> = ({
-  item,
-  className = '',
-  lang = 'ru',
-  compact = false,
-}) => {
+export const EventImage: React.FC<{
+  item: Announcement;
+  className?: string;
+  lang?: Lang;
+  compact?: boolean;
+  /** Страница новости: фото в своём оригинальном размере и пропорциях — без рамки, фона и обрезки */
+  natural?: boolean;
+}> = ({ item, className = '', lang = 'ru', compact = false, natural = false }) => {
   const [failed, setFailed] = useState(false);
   // другое изображение (например, переход к соседнему событию в том же окне) — пробуем загрузить заново
   useEffect(() => {
@@ -81,21 +83,26 @@ export const EventImage: React.FC<{ item: Announcement; className?: string; lang
     );
   }
 
+  if (item.imageUrl && !failed && natural && !isIllustration) {
+    return (
+      <img
+        src={item.imageUrl}
+        alt={item.imageAlt || item.title[lang] || item.title.ru}
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        // размеры рамки из className не применяются: фото показывается в своих пропорциях
+        className={`block max-w-full h-auto max-h-[80vh] mx-auto rounded-xl ${className.includes('mt-6') ? 'mt-6' : ''}`}
+        data-natural-photo
+      />
+    );
+  }
+
   if (item.imageUrl && !failed) {
     const cover = item.imageFit === 'cover';
     const alt = item.imageAlt || item.title[lang] || item.title.ru;
+    // В карточках фото вписывается целиком; поля по краям — нейтральные, без размытого фона
     return (
-      <div className={`relative overflow-hidden bg-[#0d2459] ${className}`}>
-        {!cover && (
-          <img
-            src={item.imageUrl}
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-60"
-          />
-        )}
+      <div className={`relative overflow-hidden ${cover || isIllustration ? 'bg-[#0d2459]' : 'bg-[#f3f6fc]'} ${className}`}>
         <img
           src={item.imageUrl}
           alt={alt}

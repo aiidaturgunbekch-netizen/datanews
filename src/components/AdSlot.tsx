@@ -4,11 +4,8 @@ import { AD_LABEL, AdFormatId, DEFAULT_AD_FORMATS, LiveAd, pickAd } from '../con
 import { adClickUrl, observeAdView, useLiveAds } from '../services/ads';
 
 /** Подпись над рекламой: «Реклама · рекламодатель» */
-const AdCaption: React.FC<{ ad: LiveAd; lang: Language }> = ({ ad, lang }) => (
-  <p className="text-[10.5px] font-semibold uppercase tracking-wider text-meta mb-1.5">
-    {AD_LABEL[ad.label][lang]} · <span className="normal-case tracking-normal">{ad.advertiser}</span>
-  </p>
-);
+/** Подпись над рекламой не показывается (решение редакции): только для программ чтения с экрана */
+const AdCaption: React.FC<{ ad: LiveAd; lang: Language }> = ({ ad, lang }) => <span className="sr-only">{AD_LABEL[ad.label][lang]}</span>;
 
 /** Засчитать показ, когда баннер действительно появился на экране (один раз за открытие страницы) */
 const useViewTracking = (id: string) => {

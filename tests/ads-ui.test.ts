@@ -90,9 +90,10 @@ describe('рекламные места на сайте', () => {
     for (const format of ['A', 'B', 'D'] as const) assert.equal(html(React.createElement(AdSlot, { format, lang: 'ru', rubric: 'tech' })), '');
   });
 
-  it('баннер: метка «Реклама · рекламодатель», ссылка через сайт с rel="sponsored noopener noreferrer"', () => {
+  it('баннер: видимой подписи нет (решение редакции), «Реклама» — только для программ чтения с экрана; ссылка через сайт', () => {
     const h = html(React.createElement(AdBanner, { ad: live(), lang: 'ru' }));
-    assert.ok(text(h).includes('Реклама · Пример ОсОО'));
+    assert.ok(!text(h).includes('Пример ОсОО'), 'имя рекламодателя не показывается');
+    assert.ok(h.includes('class="sr-only">Реклама<'));
     assert.ok(h.includes('href="/api/track?ad=ad1&amp;go=1"'));
     assert.ok(h.includes('rel="sponsored noopener noreferrer"') && h.includes('target="_blank"'));
     assert.ok(h.includes('alt="Пример рекламного баннера"'));
@@ -109,10 +110,10 @@ describe('рекламные места на сайте', () => {
     assert.match(sideOnly, /aspect-ratio:600 \/ 800/);
   });
 
-  it('карточка в ленте: своя рамка, метка, заголовок, текст и кнопка', () => {
+  it('карточка в ленте: своя рамка, заголовок, текст и кнопка', () => {
     const h = html(React.createElement(AdFeedCard, { ad: live({ format: 'C', title: 'Открытие салона', text: 'Скидки в первую неделю', cta: 'Узнать' }), lang: 'ru' }));
     const t = text(h);
-    assert.ok(t.includes('Реклама · Пример ОсОО') && t.includes('Открытие салона') && t.includes('Скидки в первую неделю') && t.includes('Узнать'));
+    assert.ok(!t.includes('Пример ОсОО') && t.includes('Открытие салона') && t.includes('Скидки в первую неделю') && t.includes('Узнать'));
     assert.ok(h.includes('border-partner') && h.includes('rel="sponsored noopener noreferrer"'));
   });
 });

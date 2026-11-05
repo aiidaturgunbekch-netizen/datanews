@@ -511,6 +511,16 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
   const [desk, setDesk] = useState<Pic | null>(d0?.desk || null);
   const [mob, setMob] = useState<Pic | null>(d0?.mob || null);
   const [imgErr, setImgErr] = useState('');
+  // Поля своего формата: текст строки (T), заголовок/текст/кнопка карточки (C), закреплённая новость (P)
+  const [ex, setEx] = useState({ text: c.text || '', title: c.title || '', cta: c.cta || '', annId: c.annId || '' });
+  const [pubs, setPubs] = useState<Announcement[]>([]);
+  useEffect(() => {
+    if (c.format !== 'P') return;
+    api
+      .fetchPublicAnnouncements()
+      .then((r) => setPubs(mergeAnnouncements(Array.isArray(r.items) ? r.items : [], r.hidden || [], r.checked || {}).filter((a) => !isExpired(a) || a.id === c.annId)))
+      .catch(() => {});
+  }, [c.format, c.annId]);
   useEffect(() => {
     editDrafts[c.id] = { v, unit, amountStr, desk, mob };
   }, [c.id, v, unit, amountStr, desk, mob]);
@@ -522,6 +532,10 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
     if (!v[k].trim() && !(k === 'alt' && NO_IMAGE_FORMATS.includes(c.format))) problems[k] = LABEL[k];
   });
   if (c.format !== 'P' && hrefProblem(v.href)) problems.href = hrefProblem(v.href);
+  const exProblems: string[] = [];
+  if (c.format === 'T' && !ex.text.trim()) exProblems.push('Текст бегущей строки');
+  if (c.format === 'C' && !ex.title.trim()) exProblems.push('Заголовок карточки');
+  if (c.format === 'P' && !ex.annId) exProblems.push('Закреплённая новость');
   if (!paid && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start)) problems.start = 'Начало (дата и время)';
   const bad = (k: keyof typeof v) => (tried ? problems[k] : undefined);
   const pick = (which: 'desk' | 'mob') => async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -550,6 +564,41 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
           {bad(k) && <FieldErr text={k === 'href' && bad(k)!.includes('https://') ? 'Нужен полный адрес, начинающийся с https:// (например, https://www.instagram.com/…)' : 'Заполните это поле'} />}
         </label>
       ))}
+      {c.format === 'T' && (
+        <label className="block sm:col-span-2">
+          <span className="font-bold text-gray-600">Текст бегущей строки ({ex.text.length}/{TICKER_MAX})</span>
+          <input className={tried && !ex.text.trim() ? inputErrCls : inputCls} maxLength={TICKER_MAX} value={ex.text} onChange={(e) => setEx({ ...ex, text: e.target.value })} />
+        </label>
+      )}
+      {c.format === 'C' && (
+        <>
+          <label className="block">
+            <span className="font-bold text-gray-600">Заголовок карточки</span>
+            <input className={tried && !ex.title.trim() ? inputErrCls : inputCls} maxLength={90} value={ex.title} onChange={(e) => setEx({ ...ex, title: e.target.value })} />
+          </label>
+          <label className="block">
+            <span className="font-bold text-gray-600">Короткий текст</span>
+            <input className={inputCls} maxLength={200} value={ex.text} onChange={(e) => setEx({ ...ex, text: e.target.value })} />
+          </label>
+          <label className="block">
+            <span className="font-bold text-gray-600">Текст кнопки</span>
+            <input className={inputCls} maxLength={30} value={ex.cta} onChange={(e) => setEx({ ...ex, cta: e.target.value })} placeholder="Подробнее" />
+          </label>
+        </>
+      )}
+      {c.format === 'P' && (
+        <label className="block sm:col-span-2">
+          <span className="font-bold text-gray-600">Закреплённая новость</span>
+          <select className={tried && !ex.annId ? inputErrCls : inputCls} value={ex.annId} onChange={(e) => setEx({ ...ex, annId: e.target.value })}>
+            <option value="">— выберите новость —</option>
+            {pubs.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.startDate.slice(0, 10).split('-').reverse().join('.')} · {a.title.ru || a.title.kg}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="block">
         <span className="font-bold text-gray-600">Приоритет показа (0–100, обычно 0)</span>
         <NumberInput value={v.priority} onChange={(x) => setV({ ...v, priority: x })} max={100} placeholder="0" />
@@ -592,22 +641,23 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
       ) : (
         <p className="text-gray-500 sm:col-span-2">Оплата подтверждена — период и цена не меняются.</p>
       )}
-      {tried && Object.keys(problems).length > 0 && (
+      {tried && Object.keys(problems).length + exProblems.length > 0 && (
         <div className="sm:col-span-2">
-          <MissingBox items={Object.values(problems) as string[]} />
+          <MissingBox items={[...(Object.values(problems) as string[]), ...exProblems]} />
         </div>
       )}
       <div className="sm:col-span-2">
         <button
           type="button"
           onClick={() => {
-            if (Object.keys(problems).length) {
+            if (Object.keys(problems).length || exProblems.length) {
               setTried(true);
               return;
             }
             const { start, priority, ...rest } = v;
             const base = {
               ...rest,
+              ...(c.format === 'T' ? { text: ex.text } : c.format === 'C' ? { title: ex.title, text: ex.text, cta: ex.cta } : c.format === 'P' ? { annId: ex.annId } : {}),
               priority: toInt(priority, 0, 100, 0),
               ...(desk ? { imageDesktopData: desk.data } : {}),
               ...(mob ? { imageMobileData: mob.data } : {}),

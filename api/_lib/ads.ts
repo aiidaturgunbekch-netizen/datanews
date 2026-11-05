@@ -31,7 +31,7 @@ import {
 } from '../../src/config/ads';
 import { RUBRICS } from '../../src/config/rubrics';
 import { kgNowLocal } from '../../src/utils/time';
-import { cmd, hgetJson, hsetJson, hvalsJson, pipeline, toCountMap } from './kv';
+import { cmd, hgetJson, hsetJson, hvalsJson, isMemoryMode, pipeline, toCountMap } from './kv';
 import { HttpError } from './http';
 import { ANN_KEY, storeImage } from './announcements';
 
@@ -134,6 +134,29 @@ const takeImage = async (data: unknown, want: { w: number; h: number }, what: st
 
 // ---------- кампании ----------
 const randomId = () => `ad${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+/**
+ * Ссылка рекламодателя должна открываться: опечатка в адресе («instagramm.com», лишняя буква) — не сохраняем.
+ * Не сохраняем, если сайта нет (адрес не находится), он не отвечает за 6 секунд или отвечает «страница не найдена» (404/410).
+ * Другие ответы (например, 403 — сайт не пускает роботов, как Instagram) считаются рабочими.
+ * В локальной проверке (база в памяти) сеть не используется.
+ */
+const verifyHref = async (href: string) => {
+  if (isMemoryMode()) return href;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 6000);
+  try {
+    let r = await fetch(href, { method: 'HEAD', redirect: 'follow', signal: ctl.signal });
+    if (r.status === 405 || r.status === 501) r = await fetch(href, { method: 'GET', redirect: 'follow', signal: ctl.signal });
+    if (r.status === 404 || r.status === 410) throw new HttpError('bad_href', 400, `Ссылка не открывается: страница не найдена (${r.status}). Проверьте адрес — нет ли лишней или пропущенной буквы.`);
+    return href;
+  } catch (e) {
+    if (e instanceof HttpError) throw e;
+    throw new HttpError('bad_href', 400, 'Ссылка не открывается: такой сайт не найден или не отвечает. Проверьте адрес — нет ли лишней или пропущенной буквы.');
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 /** Закреплённая новость: существующая опубликованная публикация сайта */
 const checkAnn = async (v: unknown) => {
   const id = str(v, 80);
@@ -207,7 +230,7 @@ export const createCampaign = async (raw: Record<string, unknown>) => {
   const start = checkStart(raw.start);
   const status: AdCampaignStatus = raw.status === 'awaiting_payment' ? 'awaiting_payment' : 'draft';
   // У закреплённой новости ссылка — сама публикация на сайте
-  const href = format === 'P' ? '' : checkHref(raw.href);
+  const href = format === 'P' ? '' : await verifyHref(checkHref(raw.href));
   const imageDesktop = noImage ? { url: '', size: undefined } : await takeImage(raw.imageDesktopData, f.desktop, 'Изображение для компьютера');
   const imageMobile = !noImage && raw.imageMobileData ? await takeImage(raw.imageMobileData, f.mobile || f.desktop, 'Изображение для телефона') : undefined;
   const now = kgNowLocal();
@@ -279,7 +302,7 @@ export const campaignAction = async (raw: Record<string, unknown>) => {
         advertiser: str(raw.advertiser ?? c.advertiser, 120) || c.advertiser,
         contact: str(raw.contact ?? c.contact, 160) || c.contact,
         alt: str(raw.alt ?? c.alt, 200) || c.alt,
-        href: c.format === 'P' ? '' : raw.href !== undefined ? checkHref(raw.href) : c.href,
+        href: c.format === 'P' ? '' : raw.href !== undefined && checkHref(raw.href) !== c.href ? await verifyHref(checkHref(raw.href)) : c.href,
         label: raw.label === 'partner' ? 'partner' : raw.label === 'ad' ? 'ad' : c.label,
         priority: raw.priority !== undefined ? Math.min(100, Math.max(0, Math.round(Number(raw.priority) || 0))) : c.priority,
         ...(c.format === 'C' ? { title: str(raw.title ?? c.title, 90) || c.title, text: str(raw.text ?? c.text, 200), cta: str(raw.cta ?? c.cta, 30) } : {}),

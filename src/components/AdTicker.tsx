@@ -4,7 +4,8 @@ import { AD_LABEL, byPriority, LiveAd } from '../config/ads';
 import { adClickUrl, observeAdView, useLiveAds } from '../services/ads';
 
 /** Один текст строки: переход через сайт (клик засчитывается), показ — когда текст виден на экране */
-const Item: React.FC<{ ad: LiveAd; track: boolean }> = ({ ad, track }) => {
+const MORE: Record<Language, string> = { ru: 'Подробнее', kg: 'Толугураак', en: 'More' };
+const Item: React.FC<{ ad: LiveAd; track: boolean; lang: Language }> = ({ ad, track, lang }) => {
   const ref = useRef<HTMLAnchorElement>(null);
   useEffect(() => (track && ref.current ? observeAdView(ref.current, ad.id) : undefined), [ad.id, track]);
   return (
@@ -20,7 +21,13 @@ const Item: React.FC<{ ad: LiveAd; track: boolean }> = ({ ad, track }) => {
         ◆
       </span>
       {ad.text}
-      <span className="font-normal text-white/60">· {ad.advertiser}</span>
+      {/* маленькая подсказка: нажатие откроет страницу рекламодателя */}
+      <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-[#20C7B5]">
+        {MORE[lang]}
+        <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
+          open_in_new
+        </span>
+      </span>
     </a>
   );
 };
@@ -36,21 +43,18 @@ export const AdTicker: React.FC<{ lang: Language }> = ({ lang }) => {
     .sort(byPriority);
   if (!ads.length) return null;
   // Скорость не зависит от количества текстов: ~ 90 px в секунду
-  const len = ads.reduce((n, a) => n + (a.text || '').length + a.advertiser.length + 8, 0);
+  const len = ads.reduce((n, a) => n + (a.text || '').length + 14, 0);
   const seconds = Math.max(18, Math.round((len * 8) / 90));
   return (
     <aside aria-label={AD_LABEL.ad[lang]} data-ad="T" className="w-full bg-[#0d2459] text-sm border-b border-white/10">
       <div className="flex items-stretch">
-        <span className="shrink-0 flex items-center px-3 bg-[#20C7B5] text-[#0d2459] text-[10.5px] font-extrabold uppercase tracking-wider">
-          {AD_LABEL.ad[lang]}
-        </span>
         <div className="dn-ticker relative flex-1 overflow-hidden py-2">
           <div className="dn-ticker-track inline-flex" style={{ animationDuration: `${seconds}s` }}>
             {/* Два одинаковых ряда подряд — строка идёт без разрыва */}
-            <span className="inline-flex">{ads.map((a) => <Item key={a.id} ad={a} track />)}</span>
+            <span className="inline-flex">{ads.map((a) => <Item key={a.id} ad={a} lang={lang} track />)}</span>
             <span className="inline-flex" aria-hidden="true">
               {ads.map((a) => (
-                <Item key={a.id} ad={a} track={false} />
+                <Item key={a.id} ad={a} lang={lang} track={false} />
               ))}
             </span>
           </div>

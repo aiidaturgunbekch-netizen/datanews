@@ -60,11 +60,12 @@ export const TopStories: React.FC<{
         <span className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
       </span>
       {isPin(a) ? (
-        <span className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/95 text-partner text-[10.5px] font-bold uppercase tracking-wide shadow-sm">
-          <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
+        // закреплённая новость: только значок булавки, без подписи
+        <span className="absolute top-3 right-3 inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/95 text-[#12327A] shadow-sm" title={AD_LABEL.partner[lang]}>
+          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
             push_pin
           </span>
-          {AD_LABEL.partner[lang]}
+          <span className="sr-only">{AD_LABEL.partner[lang]}</span>
         </span>
       ) : (
         isPaid(a) && (

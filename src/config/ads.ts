@@ -65,9 +65,9 @@ export const DEFAULT_AD_FORMATS: Record<AdFormatId, AdFormat> = {
       'Home page, between the main content blocks. Never covers the menu, headlines or story cards.'
     ),
     benefits: L(
-      'Первое, что видит читатель после главных новостей\nОтдельная картинка для телефона\nМетка «Реклама»',
-      'Окурман башкы жаңылыктардан кийин биринчи көрөт\nТелефон үчүн өзүнчө сүрөт\n«Жарнама» белгиси',
-      'Seen right after the top stories\nSeparate image for phones\n“Advertisement” label'
+      'Первое, что видит читатель после главных новостей\nОтдельная картинка для телефона',
+      'Окурман башкы жаңылыктардан кийин биринчи көрөт\nТелефон үчүн өзүнчө сүрөт',
+      'Seen right after the top stories\nSeparate image for phones'
     ),
     desktop: { w: 1200, h: 300 },
     mobile: { w: 750, h: 300 },
@@ -84,9 +84,9 @@ export const DEFAULT_AD_FORMATS: Record<AdFormatId, AdFormat> = {
       'Right column of the home page and of each story page, next to “Latest news”. On narrow screens it moves between blocks, uncropped.'
     ),
     benefits: L(
-      'Виден на главной и на каждой странице новости\nНа телефоне — отдельная широкая картинка\nМетка «Реклама»',
-      'Башкы бетте жана ар бир жаңылык бетинде көрүнөт\nТелефондо — өзүнчө кең сүрөт\n«Жарнама» белгиси',
-      'Shown on the home page and every story page\nSeparate wide image on phones\n“Advertisement” label'
+      'Виден на главной и на каждой странице новости\nНа телефоне — отдельная широкая картинка',
+      'Башкы бетте жана ар бир жаңылык бетинде көрүнөт\nТелефондо — өзүнчө кең сүрөт',
+      'Shown on the home page and every story page\nSeparate wide image on phones'
     ),
     // 300×400 в двойном размере — чётко на экранах высокой плотности (колонка новости — 320 px)
     desktop: { w: 600, h: 800 },
@@ -104,9 +104,9 @@ export const DEFAULT_AD_FORMATS: Record<AdFormatId, AdFormat> = {
       'The main feed on the home page — between regular cards, at most one per 8 stories.'
     ),
     benefits: L(
-      'Изображение, заголовок, короткий текст и кнопка\nВ потоке, который читают целиком\nМетка «Реклама», не выдаётся за новость',
-      'Сүрөт, аталыш, кыска текст жана баскыч\nТолугу менен окулган тасмада\n«Жарнама» белгиси, жаңылык катары көрсөтүлбөйт',
-      'Image, headline, short text and a button\nInside the feed people read in full\n“Advertisement” label, never passed off as news'
+      'Изображение, заголовок, короткий текст и кнопка\nВ потоке, который читают целиком, не выдаётся за новость',
+      'Сүрөт, аталыш, кыска текст жана баскыч\nТолугу менен окулган тасмада, жаңылык катары көрсөтүлбөйт',
+      'Image, headline, short text and a button\nInside the feed people read in full, never passed off as news'
     ),
     desktop: { w: 1200, h: 675 },
     mobile: null,
@@ -123,9 +123,9 @@ export const DEFAULT_AD_FORMATS: Record<AdFormatId, AdFormat> = {
       'Above the list of one chosen section (e.g. “AI & IT Technologies” or “Sport”). Not shown in other sections.'
     ),
     benefits: L(
-      'Только читатели нужной темы\nОтдельная картинка для телефона\nМетка «Реклама»',
-      'Керектүү теманын окурмандары гана\nТелефон үчүн өзүнчө сүрөт\n«Жарнама» белгиси',
-      'Only readers of that topic\nSeparate image for phones\n“Advertisement” label'
+      'Только читатели нужной темы\nОтдельная картинка для телефона',
+      'Керектүү теманын окурмандары гана\nТелефон үчүн өзүнчө сүрөт',
+      'Only readers of that topic\nSeparate image for phones'
     ),
     desktop: { w: 1200, h: 300 },
     mobile: { w: 750, h: 300 },
@@ -146,9 +146,9 @@ export const DEFAULT_AD_FORMATS: Record<AdFormatId, AdFormat> = {
       'A narrow moving line right under the header — on every page. Several advertisers run one after another; it pauses on hover.'
     ),
     benefits: L(
-      'Виден на каждой странице сайта\nТекст до 120 знаков и ссылка\nМетка «Реклама»',
-      'Сайттын ар бир бетинде көрүнөт\n120 белгиге чейинки текст жана шилтеме\n«Жарнама» белгиси',
-      'Visible on every page\nUp to 120 characters and a link\n“Advertisement” label'
+      'Виден на каждой странице сайта\nТекст до 120 знаков и ссылка',
+      'Сайттын ар бир бетинде көрүнөт\n120 белгиге чейинки текст жана шилтеме',
+      'Visible on every page\nUp to 120 characters and a link'
     ),
     desktop: { w: 0, h: 0 },
     mobile: null,
@@ -165,14 +165,14 @@ export const DEFAULT_AD_FORMATS: Record<AdFormatId, AdFormat> = {
       'Your story is pinned in “Top stories” on the home page for the days you choose'
     ),
     placement: L(
-      'Главная страница, блок «Главное» — одно из двух мест рядом с главной новостью. С пометкой «Партнёрский материал».',
-      'Башкы бет, «Башкы жаңылыктар» блогу — башкы жаңылыктын жанындагы эки орундун бири. «Өнөктөштүк материал» белгиси менен.',
-      'Home page, “Top stories” — one of the two spots next to the lead story. Marked “Partner content”.'
+      'Главная страница, блок «Главное» — одно из двух мест рядом с главной новостью.',
+      'Башкы бет, «Башкы жаңылыктар» блогу — башкы жаңылыктын жанындагы эки орундун бири.',
+      'Home page, “Top stories” — one of the two spots next to the lead story.'
     ),
     benefits: L(
-      'Самое видное место сайта\nФото и заголовок вашей новости\nМетка «Партнёрский материал»',
-      'Сайттын эң көрүнүктүү орду\nЖаңылыгыңыздын сүрөтү жана аталышы\n«Өнөктөштүк материал» белгиси',
-      'The most visible spot on the site\nYour story’s photo and headline\n“Partner content” label'
+      'Самое видное место сайта\nФото и заголовок вашей новости\nЗначок 📌 на карточке',
+      'Сайттын эң көрүнүктүү орду\nЖаңылыгыңыздын сүрөтү жана аталышы\nКарточкада 📌 белгиси',
+      'The most visible spot on the site\nYour story’s photo and headline\n📌 icon on the card'
     ),
     desktop: { w: 0, h: 0 },
     mobile: null,

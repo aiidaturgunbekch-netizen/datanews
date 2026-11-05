@@ -268,7 +268,9 @@ export const CategoryResults: React.FC<{
   title?: string;
   /** Раздел для тематической рекламы D (показывается, только если для этого раздела есть идущая кампания) */
   adRubric?: string;
-}> = ({ lang, category, items, onOpen, onReset, extra, title, adRubric }) => {
+  /** Текст, если ничего нет (null — не показывать, например когда сверху уже есть прогноз погоды) */
+  emptyText?: string | null;
+}> = ({ lang, category, items, onOpen, onReset, extra, title, adRubric, emptyText }) => {
   const { t } = getTranslation(lang);
   // Прошедшее — в архив (свёрнут), сверху только актуальное
   const sorted = items.filter((a) => isFresh(a)).sort((a, b) => freshOrder(a, b));
@@ -296,12 +298,13 @@ export const CategoryResults: React.FC<{
           {home[lang]}
         </button>
         <h2 className="text-xl sm:text-2xl font-extrabold text-[#0f1b33] mb-3">
-          {title || t(`categories.${category}`)} <span className="text-gray-500 font-bold">· {sorted.length}</span>
+          {title || t(`categories.${category}`)}{' '}
+          {!(sorted.length === 0 && emptyText === null) && <span className="text-gray-500 font-bold">· {sorted.length}</span>}
         </h2>
         {extra && <div className="mb-4">{extra}</div>}
         {adRubric && <AdSlot format="D" rubric={adRubric} lang={lang} className="mb-5" />}
         {sorted.length === 0 ? (
-          <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{empty[lang]}</div>
+          emptyText === null ? null : <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{emptyText || empty[lang]}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {sorted.map((a) => (

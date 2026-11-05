@@ -59,3 +59,9 @@ export const matchesSearch = (a: Announcement, query: string, text = searchText(
     return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(w)}${tail}`, 'u').test(text);
   });
 };
+
+/** Запрос о погоде: «погода», «аба ырайы», «прогноз», «weather»… — тогда в результатах первым идёт прогноз Кыргызгидромета */
+export const isWeatherQuery = (query: string) =>
+  normalizeSearch(query)
+    .split(' ')
+    .some((w) => /^(погод|аба|ырай|weather|forecast|прогноз|температур|гидромет|кыргызгидромет|осадк|дожд|снег|жаан|божомол)/.test(w));

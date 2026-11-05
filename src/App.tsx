@@ -32,7 +32,7 @@ import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { AdSlot } from './components/AdSlot';
 import { isPaid } from './components/PaidBadge';
 import { pickTopStories } from './utils/timeline';
-import { matchesSearch } from './utils/search';
+import { isWeatherQuery, matchesSearch } from './utils/search';
 import { TopStories } from './components/TopStories';
 import { PopularNews } from './components/PopularNews';
 import { Footer } from './components/Footer';
@@ -341,6 +341,18 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [announcements, rubric, selectedCity, dateFilter, searchQuery]
   );
+  // Поиск относится к текущей странице: при переходе в раздел или на другую страницу он сбрасывается,
+  // иначе забытое в строке слово («аба») прячет все новости раздела
+  useEffect(() => {
+    setSearchQuery('');
+  }, [currentView, activeRubric]);
+  const searching = searchQuery.trim().length > 0;
+  const weatherQuery = isWeatherQuery(searchQuery);
+  const searchItems = useMemo(
+    () => (searching ? announcements.filter((a) => matchesScope(a, true)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [announcements, searching, selectedCity, dateFilter, searchQuery]
+  );
   const selectRubric = (id: string | null) => {
     setActiveRubric(id);
     setSelectedCategory('all');
@@ -489,7 +501,10 @@ export default function App() {
                 onReset={() => selectRubric(null)}
                 extra={
                   rubric.id === 'weather' ? (
-                    <HydrometLine lang={currentLanguage} />
+                    <div className="space-y-4">
+                      <WeatherCard lang={currentLanguage} city={selectedCity} />
+                      <HydrometLine lang={currentLanguage} />
+                    </div>
                   ) : rubric.id === 'culture' ? (
                     <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
                   ) : undefined
@@ -508,7 +523,10 @@ export default function App() {
                 onReset={() => setSelectedCategory('all')}
                 extra={
                   selectedCategory === 'hazard' ? (
-                    <HydrometLine lang={currentLanguage} />
+                    <div className="space-y-4">
+                      <WeatherCard lang={currentLanguage} city={selectedCity} />
+                      <HydrometLine lang={currentLanguage} />
+                    </div>
                   ) : selectedCategory === 'culture' || selectedCategory === 'concerts' ? (
                     <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
                   ) : undefined
@@ -516,7 +534,29 @@ export default function App() {
               />
             )}
 
-            {!rubric && selectedCategory === 'all' && (
+            {/* Поиск — отдельный список результатов (а не пустые блоки главной); о погоде — сверху прогноз */}
+            {!rubric && selectedCategory === 'all' && searching && (
+              <CategoryResults
+                lang={currentLanguage}
+                category="news"
+                title={`${currentLanguage === 'kg' ? 'Издөө' : currentLanguage === 'en' ? 'Search' : 'Поиск'}: «${searchQuery.trim()}»`}
+                items={searchItems}
+                onOpen={setActiveNoticeDetail}
+                onReset={() => setSearchQuery('')}
+                extra={weatherQuery ? <WeatherCard lang={currentLanguage} city={selectedCity} /> : undefined}
+                emptyText={
+                  weatherQuery
+                    ? null
+                    : currentLanguage === 'kg'
+                    ? 'Бул сөз боюнча эч нерсе табылган жок. Башка сөз менен издеп көрүңүз.'
+                    : currentLanguage === 'en'
+                    ? 'Nothing found. Try another word.'
+                    : 'По этому запросу ничего не найдено. Попробуйте другое слово.'
+                }
+              />
+            )}
+
+            {!rubric && selectedCategory === 'all' && !searching && (
               <>
                 {/* Главное: одна главная история, важные рядом и действующие предупреждения */}
                 <section className="w-full bg-white pt-5 pb-10 sm:pt-6 sm:pb-12" aria-labelledby="top-stories-title">
@@ -652,7 +692,10 @@ export default function App() {
                 onReset={() => setSelectedCategory('all')}
                 extra={
                   selectedCategory === 'hazard' ? (
-                    <HydrometLine lang={currentLanguage} />
+                    <div className="space-y-4">
+                      <WeatherCard lang={currentLanguage} city={selectedCity} />
+                      <HydrometLine lang={currentLanguage} />
+                    </div>
                   ) : selectedCategory === 'culture' || selectedCategory === 'concerts' ? (
                     <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
                   ) : undefined

@@ -279,9 +279,15 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     },
     { title: L.organizer[lang], items: groups.organizer },
     // ссылка «Источник фото» в списке источников не нужна: подпись автора фото — одной серой строкой под фотографией
-    { title: L.additional[lang], items: groups.additional.filter((l) => l.label !== 'image') },
+    // Частные СМИ не показываем и не рекламируем, если есть официальный первоисточник или организатор:
+    // текст переписан по первоисточнику. СМИ указываем, только если новость есть лишь у них (они — автор)
+    {
+      title: L.additional[lang],
+      items: groups.additional.filter(
+        (l) => l.label !== 'image' && !(l.label === 'media' && (groups.official.length > 0 || groups.organizer.length > 0))
+      ),
+    },
   ].filter((x) => x.items.length > 0);
-  const corrections = (a.history || []).filter((h) => h.action === 'edited' && h.changes?.length).slice(-5);
   useEffect(() => {
     // при переходе к другому событию меню «Поделиться» закрывается
     setShareOpen(false);
@@ -692,29 +698,6 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             )}
           </section>
         )}
-
-        {/* Публичная история исправлений — мелко, в конце статьи */}
-        <div className="mt-8 space-y-3 text-xs text-gray-500">
-          {/* Публичная история существенных исправлений (без внутренних заметок) */}
-          {corrections.length > 0 && (
-            <div className="rounded-xl border border-gray-100 bg-[#f8fafc] p-3 text-gray-700">
-              <div className="font-bold text-[#0f1b33] flex items-center gap-1.5 mb-1">
-                <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
-                  edit_note
-                </span>
-                {CORR.title[lang]}
-              </div>
-              <ul className="space-y-0.5">
-                {corrections.map((h, i) => (
-                  <li key={i}>
-                    {formatDayMonthTime(h.at, lang)} — {CORR.changed[lang]}: {(h.changes || []).map((c) => CORR[c === 'title' ? 'title_' : c]?.[lang] || c).join(', ')}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-        </div>
 
         {/* Поделиться новостью — в конце материала: ссылка именно на эту публикацию (/n/<id>) и её заголовок */}
         <section aria-labelledby="share-title" className="mt-10 pt-6 border-t border-gray-200">

@@ -176,7 +176,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
         <div className="lg:col-span-8 bg-white p-3 sm:p-5 rounded-3xl border border-gray-200 shadow-sm">
           {/* Weekday Header */}
           <div
-            className="grid grid-cols-7 gap-1 sm:gap-2 text-center font-extrabold text-gray-500 mb-3 text-xs uppercase tracking-wider"
+            className="grid grid-cols-7 gap-1 sm:gap-2 text-center font-extrabold text-[#334155] mb-3 text-xs uppercase tracking-wider"
           >
             {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
               <span
@@ -227,11 +227,6 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                     >
                       {dayNum}
                     </span>
-                    {items.length > 0 && (
-                      <span className="hidden sm:inline text-[10px] font-bold text-gray-500">
-                        {items.length}
-                      </span>
-                    )}
                   </div>
 
                   {/* Micro list of item titles */}
@@ -254,7 +249,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                       return (
                         <div
                           key={item.id}
-                          className={`flex items-center gap-1 text-[10px] text-gray-600 truncate ${idx === 2 ? 'sm:hidden' : ''}`}
+                          className={`flex items-center gap-1 text-[10px] text-[#334155] truncate ${idx === 2 ? 'sm:hidden' : ''}`}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${bgDot} flex-shrink-0`} />
                           <span className="truncate max-sm:hidden">
@@ -291,10 +286,10 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
               <span className="material-symbols-outlined text-3xl mb-1">calendar_today</span>
               <p className="text-xs">
                 {currentLanguage === 'kg'
-                  ? 'Бул күнгө жазуулар табылган жок'
+                  ? 'Бул күнгө азырынча жаңылык жок. Жаңылыктар күн сайын кошулат — кийинчерээк кайра караңыз.'
                   : currentLanguage === 'en'
-                  ? 'No records for this date'
-                  : 'На эту дату записей не найдено'}
+                  ? 'No news for this date yet. News is added every day — check back later.'
+                  : 'На эту дату новостей пока нет. Новости добавляются каждый день — загляните позже.'}
               </p>
             </div>
           ) : (

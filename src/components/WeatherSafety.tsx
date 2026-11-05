@@ -73,8 +73,8 @@ const W: Record<string, L3> = {
   title: { ru: 'Погода', kg: 'Аба ырайы', en: 'Weather' },
   today: { ru: 'Сегодня', kg: 'Бүгүн', en: 'Today' },
   tomorrow: { ru: 'Завтра', kg: 'Эртең', en: 'Tomorrow' },
-  day: { ru: 'днём', kg: 'күндүз', en: 'day' },
-  night: { ru: 'ночью', kg: 'түнкүсүн', en: 'night' },
+  day: { ru: 'Днём', kg: 'Күндүз', en: 'Day' },
+  night: { ru: 'Ночью', kg: 'Түнкүсүн', en: 'Night' },
   all: { ru: 'Все области', kg: 'Бардык облустар', en: 'All regions' },
 };
 
@@ -133,14 +133,17 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: s
             {t(`cities.${main}`)} · {label(f.date)}
           </p>
           {v && (
-            <p className="mt-1 text-ink">
-              {/* На узком экране с крупным шрифтом диапазон переносится после «…» */}
-              <span className="text-[1.75rem] min-[24em]:text-[2.25rem] leading-none font-extrabold">{range(v.dayFrom, v.dayTo).replace('…', '…\u200b')}°</span>{' '}
-              <span className="text-sm text-ink-soft">{W.day[lang]}</span>
-              <span className="block mt-1 text-sm text-ink-soft">
-                {W.night[lang]}: <b className="text-ink">{range(v.nightFrom, v.nightTo)}°</b>
-              </span>
-            </p>
+            // Сначала слово, потом цифры: «Днём +21…+23°», «Ночью +5…+7°»
+            <div className="mt-1 text-ink space-y-0.5">
+              <p className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-sm font-semibold text-ink-soft">{W.day[lang]}</span>
+                <span className="text-[1.75rem] min-[24em]:text-[2.25rem] leading-none font-extrabold">{range(v.dayFrom, v.dayTo).replace('…', '…\u200b')}°</span>
+              </p>
+              <p className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-sm font-semibold text-ink-soft">{W.night[lang]}</span>
+                <span className="text-lg font-bold">{range(v.nightFrom, v.nightTo).replace('…', '…\u200b')}°</span>
+              </p>
+            </div>
           )}
         </div>
         {text && <p className="text-[15px] leading-relaxed text-ink">{text}</p>}
@@ -153,8 +156,8 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: s
               <li key={r.id} className="rounded-xl bg-[#f6f8fd] px-3 py-2">
                 <p className="text-sm font-bold text-[#0f1b33]">{t(`cities.${r.id}`)}</p>
                 <p className="text-sm text-ink">
-                  <b>{range(x.dayFrom, x.dayTo).replace('…', '…\u200b')}°</b>
-                  <span className="text-ink-soft"> {W.day[lang]} · {range(x.nightFrom, x.nightTo).replace('…', '…\u200b')}° {W.night[lang]}</span>
+                  <span className="text-ink-soft">{W.day[lang]}</span> <b>{range(x.dayFrom, x.dayTo).replace('…', '…\u200b')}°</b>
+                  <span className="text-ink-soft"> · {W.night[lang]}</span> {range(x.nightFrom, x.nightTo).replace('…', '…\u200b')}°
                 </p>
               </li>
             );

@@ -148,7 +148,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                 onClick={() => onSelectDate(dateStr)}
                 aria-pressed={isSelected}
                 className={`py-1.5 rounded-xl font-bold flex flex-col items-center ${
-                  isSelected ? 'bg-[#12327A] text-white' : dateStr === todayStr ? 'bg-blue-50 text-[#12327A] ring-1 ring-[#20C7B5]' : 'text-gray-700'
+                  isSelected ? 'bg-[#12327A] text-white' : dateStr === todayStr ? 'bg-blue-50 text-[#12327A] ring-1 ring-[#20C7B5]' : 'text-[#0f1b33]'
                 }`}
               >
                 <span className={`text-[10px] uppercase ${isSelected ? 'text-white/80' : wk === 'sat' || wk === 'sun' ? 'text-[#dc2626]' : 'text-gray-500'}`}>{t(`days.${wk}`)}</span>
@@ -197,7 +197,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
 
       {/* Weekday Names (Monday-start) */}
       <div
-        className="grid grid-cols-7 gap-1 text-center font-bold text-gray-500 mb-2 text-[11px] uppercase tracking-wider"
+        className="grid grid-cols-7 gap-1 text-center font-bold text-[#334155] mb-2 text-[11px] uppercase tracking-wider"
       >
         {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
           <span
@@ -211,14 +211,27 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-1 text-center text-xs mb-4">
+      <div className="grid grid-cols-7 gap-1 text-center text-sm mb-4">
         {/* Days from previous month */}
         {Array.from({ length: startOffset }).map((_, idx) => {
+          // Дни прошлого месяца тоже нажимаются: выбирают дату и листают календарь на тот месяц
           const prevDayNum = daysInPrevMonth - startOffset + idx + 1;
+          const py = currentMonth === 0 ? currentYear - 1 : currentYear;
+          const pm = currentMonth === 0 ? 12 : currentMonth;
+          const dateStr = `${py}-${String(pm).padStart(2, '0')}-${String(prevDayNum).padStart(2, '0')}`;
           return (
-            <span key={`prev-${idx}`} aria-hidden="true" className="py-2 text-gray-500 font-normal select-none">
-              {prevDayNum}
-            </span>
+            <button
+              key={`prev-${idx}`}
+              type="button"
+              onClick={() => {
+                handlePrevMonth();
+                onSelectDate(dateStr);
+              }}
+              className="py-1.5 rounded-xl font-semibold flex flex-col items-center text-gray-500 hover:bg-[#eef2f9] transition-all"
+            >
+              <span>{prevDayNum}</span>
+              <Dots dateStr={dateStr} isSelected={false} />
+            </button>
           );
         })}
 
@@ -240,7 +253,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                   ? 'bg-[#12327A] text-white shadow-sm ring-2 ring-[#12327A]/20'
                   : isToday
                   ? 'bg-blue-50 text-[#12327A] ring-1 ring-[#20C7B5]'
-                  : 'text-gray-700 hover:bg-[#eef2f9]'
+                  : 'text-[#0f1b33] hover:bg-[#eef2f9]'
               }`}
             >
               <span>{dayNum}</span>
@@ -284,10 +297,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
         {selectedItems.length === 0 ? (
           <p className="text-xs text-gray-500 py-2 text-center">
             {currentLanguage === 'kg'
-              ? 'Бул күнгө катталган окуялар жок'
+              ? 'Бул күнгө азырынча жаңылык жок. Жаңылыктар күн сайын кошулат — кийинчерээк кайра караңыз.'
               : currentLanguage === 'en'
-              ? 'No registered notices on this date'
-              : 'На выбранную дату нет зарегистрированных событий'}
+              ? 'No news for this date yet. News is added every day — check back later.'
+              : 'На эту дату новостей пока нет. Новости добавляются каждый день — загляните позже.'}
           </p>
         ) : (
           <ul className="space-y-2">

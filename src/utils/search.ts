@@ -60,8 +60,10 @@ export const matchesSearch = (a: Announcement, query: string, text = searchText(
   });
 };
 
-/** Запрос о погоде: «погода», «аба ырайы», «прогноз», «weather»… — тогда в результатах первым идёт прогноз Кыргызгидромета */
+/** Слова о погоде: запрос, с которого начинается любое из них («п», «по», «пог», «аб»), уже показывает прогноз */
+const WEATHER_WORDS = ['погода', 'прогноз', 'температура', 'осадки', 'дождь', 'снег', 'гидромет', 'кыргызгидромет', 'аба', 'ырайы', 'жаан', 'кар', 'божомол', 'weather', 'forecast', 'temperature', 'rain', 'snow'];
 export const isWeatherQuery = (query: string) =>
   normalizeSearch(query)
     .split(' ')
-    .some((w) => /^(погод|аба|ырай|weather|forecast|прогноз|температур|гидромет|кыргызгидромет|осадк|дожд|снег|жаан|божомол)/.test(w));
+    .filter(Boolean)
+    .some((w) => WEATHER_WORDS.some((k) => { const n = normalizeSearch(k); return n.startsWith(w) || w.startsWith(n); }));

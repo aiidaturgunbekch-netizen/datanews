@@ -58,3 +58,11 @@ describe('черновик из письма — текст только в по
     assert.ok(r.missing.includes('перевод на кыргызский'));
   });
 });
+
+import { isWeatherQuery } from '../src/utils/search';
+describe('поиск погоды с первых букв', () => {
+  it('п, по, пог, аб, аба ырайы, weather — прогноз; «концерт» — нет', () => {
+    for (const q of ['п', 'по', 'пог', 'погода', 'аб', 'аба', 'аба ырайы', 'Ырайы', 'wea', 'прогноз']) assert.equal(isWeatherQuery(q), true, q);
+    for (const q of ['концерт', 'автобус', 'спорт']) assert.equal(isWeatherQuery(q), false, q);
+  });
+});

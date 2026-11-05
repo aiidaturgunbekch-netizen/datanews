@@ -299,12 +299,12 @@ export const CategoryResults: React.FC<{
         </button>
         <h2 className="text-xl sm:text-2xl font-extrabold text-[#0f1b33] mb-3">
           {title || t(`categories.${category}`)}{' '}
-          {!(sorted.length === 0 && emptyText === null) && <span className="text-gray-500 font-bold">· {sorted.length}</span>}
+          {!(sorted.length === 0 && (emptyText === null || extra)) && <span className="text-gray-500 font-bold">· {sorted.length}</span>}
         </h2>
         {extra && <div className="mb-4">{extra}</div>}
         {adRubric && <AdSlot format="D" rubric={adRubric} lang={lang} className="mb-5" />}
         {sorted.length === 0 ? (
-          emptyText === null ? null : <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{emptyText || empty[lang]}</div>
+          emptyText === null || extra ? null : <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{emptyText || empty[lang]}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {sorted.map((a) => (

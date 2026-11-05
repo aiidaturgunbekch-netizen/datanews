@@ -42,7 +42,13 @@ export const PopularNews: React.FC<{
                 </span>
                 <span className="block text-xs text-gray-500 mt-1">
                   {formatWhen(a.startDate, a.endDate, lang, false, a.timeTBA, a.allDay)}
-                  {mode === 'popular' && reads[a.id] ? ` · ${reads[a.id]} ${T.reads[lang]}` : ''}
+                  {mode === 'popular' && reads[a.id] ? (
+                    <span className="inline-flex items-center gap-0.5 ml-1.5 align-middle" title={T.reads[lang]}>
+                      · <span className="material-symbols-outlined text-[14px]" aria-hidden="true">visibility</span>
+                      <span className="sr-only">{T.reads[lang]}:</span>
+                      {reads[a.id]}
+                    </span>
+                  ) : null}
                 </span>
               </span>
               <EventImage item={a} lang={lang} compact className="w-16 h-12 rounded-md shrink-0 @max-[16.5rem]:hidden" />

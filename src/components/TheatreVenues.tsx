@@ -17,7 +17,11 @@ const L = {
   tba: { ru: 'время уточняется', kg: 'убактысы такталууда', en: 'time TBA' },
 };
 
-const tel = (s: string) => `tel:+996${s.replace(/\D/g, '').replace(/^0/, '')}`;
+/** Номер для набора: «+996 550 …», «(0312) …», «0312 …» → tel:+996… */
+const tel = (s: string) => {
+  const d = s.replace(/\D/g, '');
+  return `tel:+${d.startsWith('996') ? d : `996${d.replace(/^0/, '')}`}`;
+};
 
 /** Карточки площадок: свежие спектакли/концерты каждой площадки и подтверждённые контакты */
 export const TheatreVenues: React.FC<{
@@ -43,19 +47,34 @@ export const TheatreVenues: React.FC<{
             {v.photo && <img src={v.photo} alt={v.name[lang]} loading="lazy" className="w-full h-40 object-cover rounded-xl mb-2" />}
             <h4 className="text-sm font-extrabold text-[#0f1b33] leading-snug mb-1">{v.name[lang]}</h4>
             {/* Контакты площадки — сразу под названием; если их нет, читатель ничего не видит, редакция — пометку */}
-            {v.address || v.phone ? (
-              <p className="text-xs text-gray-600 mb-2">
-                <span className="material-symbols-outlined text-[14px] align-[-2px] mr-0.5 text-[#12327A]" aria-hidden="true">location_on</span>
-                {v.address?.[lang]}
-                {v.phone && (
-                  <>
-                    {v.address ? ' · ' : ''}
-                    <a href={tel(v.phone)} className="font-bold text-[#12327A] hover:underline whitespace-nowrap">
-                      {v.phone}
-                    </a>
-                  </>
+            {v.address || v.phone || v.phones?.length ? (
+              <div className="text-xs text-gray-600 mb-2 space-y-0.5">
+                {v.address && (
+                  <p>
+                    <span className="material-symbols-outlined text-[14px] align-[-2px] mr-0.5 text-[#12327A]" aria-hidden="true">location_on</span>
+                    {v.address[lang]}
+                  </p>
                 )}
-              </p>
+                {[...(v.phone ? [{ number: v.phone, label: undefined }] : []), ...(v.phones || [])].length > 0 && (
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="material-symbols-outlined text-[14px] text-[#12327A]" aria-hidden="true">call</span>
+                    {[...(v.phone ? [{ number: v.phone, label: undefined }] : []), ...(v.phones || [])].map((p) => (
+                      <a key={p.number} href={tel(p.number)} className="font-bold text-[#12327A] hover:underline whitespace-nowrap">
+                        {p.number}
+                        {p.label && <span className="font-normal text-gray-500"> ({p.label[lang]})</span>}
+                      </a>
+                    ))}
+                  </p>
+                )}
+                {v.site && (
+                  <p>
+                    <a href={v.site} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-semibold text-[#12327A] hover:underline">
+                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{/instagram/.test(v.site) ? 'photo_camera' : 'language'}</span>
+                      {/instagram/.test(v.site) ? `Instagram @${v.site.replace(/.*instagram\.com\//, '').replace(/\/$/, '')}` : v.site.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+                    </a>
+                  </p>
+                )}
+              </div>
             ) : (
               editorView && <p className="text-[11px] mb-2 px-2 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">{L.noContacts[lang]}</p>
             )}

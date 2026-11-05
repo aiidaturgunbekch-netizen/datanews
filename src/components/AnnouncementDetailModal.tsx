@@ -34,6 +34,8 @@ interface Props {
   onClose: () => void;
   onSelectOtherNotice?: (a: Announcement) => void;
   allAnnouncements: Announcement[];
+  /** Редакция (админ/редактор): видит служебные пометки, читатель — нет */
+  editorView?: boolean;
 }
 
 const L = {
@@ -205,6 +207,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   onClose,
   onSelectOtherNotice,
   allAnnouncements,
+  editorView = false,
 }) => {
   // Меню «Поделиться» в верхней строке; Escape сначала закрывает меню, потом статью
   const [shareOpen, setShareOpen] = useState(false);
@@ -665,7 +668,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
               </div>
             ))}
             {/* «Купить билет» — только у событий с билетами (концерты, спорт, кино…); у новостей, решений и предупреждений блока нет */}
-            {(tickets.url || (isEvent && TICKETED.includes(a.category) && !freeEntry)) && (
+            {((tickets.url && tickets.verified) || (editorView && (tickets.url || (isEvent && TICKETED.includes(a.category) && !freeEntry)))) && (
               <div>
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">{L.ticketsTitle[lang]}</h3>
                 <ul className="space-y-1 text-sm">
@@ -678,19 +681,20 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                       </a>
                     </li>
                   )}
-                  {tickets.url && !tickets.verified && (
-                    <li className="flex flex-wrap items-center gap-1.5 text-gray-600">
+                  {/* Неподтверждённая ссылка и «ссылки нет» — служебное, видит только редакция */}
+                  {editorView && tickets.url && !tickets.verified && (
+                    <li className="flex flex-wrap items-center gap-1.5 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
                       <span className="material-symbols-outlined text-[16px] text-amber-600">help</span>
-                      <span>{L.ticketUnverified[lang]}:</span>
-                      <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="text-gray-600 underline break-all">
+                      <span>Для редакции — {L.ticketUnverified[lang]}:</span>
+                      <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="underline break-all">
                         {hostOf(tickets.url)}
                       </a>
                     </li>
                   )}
-                  {!tickets.url && (
-                    <li className="flex items-center gap-1.5 text-gray-500">
+                  {editorView && !tickets.url && (
+                    <li className="flex items-center gap-1.5 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
                       <span className="material-symbols-outlined text-[16px]">info</span>
-                      <span>{L.noTickets[lang]}</span>
+                      <span>Для редакции — {L.noTickets[lang]}</span>
                     </li>
                   )}
                 </ul>

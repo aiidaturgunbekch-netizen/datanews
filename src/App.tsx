@@ -506,7 +506,7 @@ export default function App() {
                       <HydrometLine lang={currentLanguage} />
                     </div>
                   ) : rubric.id === 'culture' ? (
-                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
+                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} editorView={role === 'admin'} />
                   ) : undefined
                 }
               />
@@ -528,7 +528,7 @@ export default function App() {
                       <HydrometLine lang={currentLanguage} />
                     </div>
                   ) : selectedCategory === 'culture' || selectedCategory === 'concerts' ? (
-                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
+                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} editorView={role === 'admin'} />
                   ) : undefined
                 }
               />
@@ -697,7 +697,7 @@ export default function App() {
                       <HydrometLine lang={currentLanguage} />
                     </div>
                   ) : selectedCategory === 'culture' || selectedCategory === 'concerts' ? (
-                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
+                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} editorView={role === 'admin'} />
                   ) : undefined
                 }
               />
@@ -848,6 +848,7 @@ export default function App() {
           onClose={() => setActiveNoticeDetail(null)}
           onSelectOtherNotice={(ann) => setActiveNoticeDetail(ann)}
           allAnnouncements={announcements}
+          editorView={role === 'admin'}
         />
       )}
 

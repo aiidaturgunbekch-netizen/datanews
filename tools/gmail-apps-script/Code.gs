@@ -27,6 +27,9 @@
  *
  * Защита: каждый запрос подписан HMAC-SHA256 (время + одноразовая строка + тело), подпись живёт 5 минут.
  * Повторы: обработанные письма запоминаются в свойстве PROCESSED_IDS; сайт к тому же сам не принимает одно письмо дважды.
+ *
+ * Пакет новостей сборщика: письмо с блоком DATANEWS-BATCH, отправленное с этого же ящика самому себе, сайт разбирает сам —
+ * черновики в «Модерацию», прогноз погоды — на сайт. Признак «отправлено этим ящиком» (fromSelf) берётся из метки Gmail «SENT».
  */
 
 // Тема тестового письма: латиницей (TEST) или кириллицей (ТЕСТ) — принимаются оба написания
@@ -175,7 +178,8 @@ function process_(query, limit, testOnly) {
 /** Идентификаторы писем по поиску Gmail (только чтение) */
 function listIds_(query, limit) {
   var res = Gmail.Users.Messages.list('me', { q: query, maxResults: limit });
-  return (res && res.messages) || [];
+  // От старых к новым: письма с фото попадают на сайт раньше пакета сборщика, который на них ссылается
+  return ((res && res.messages) || []).slice().reverse();
 }
 
 function header_(msg, name) {
@@ -273,6 +277,9 @@ function buildPayload_(msg, withImages) {
     text: text.length > MAX_TEXT ? text.slice(0, MAX_TEXT) : text,
     authResults: header_(msg, 'Authentication-Results'),
     permalink: 'https://mail.google.com/mail/u/0/#all/' + msg.threadId,
+    // Письмо отправлено с этого же ящика (метка Gmail «Отправленные» — её нельзя поставить письму снаружи).
+    // Только из таких писем сайт принимает пакет новостей сборщика (DATANEWS-BATCH).
+    fromSelf: (msg.labelIds || []).indexOf('SENT') >= 0,
     attachments: attachments,
   };
 }

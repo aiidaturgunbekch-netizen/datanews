@@ -250,3 +250,19 @@ export const withHistory = (a: Announcement, by: HistoryEntry['by'], action: His
   ...a,
   history: [...(a.history || []), { at: kgNowLocal(), by, action, ...(note ? { note: note.slice(0, 500) } : {}), ...(changes?.length ? { changes } : {}) }].slice(-50),
 });
+
+const norm = (t: string) => t.toLowerCase().replace(/[«»"'.,:;!?()—–-]/g, ' ').replace(/\s+/g, ' ').trim();
+/** Дубль: совпадает ссылка на первоисточник, либо совпадает дата и заголовки почти одинаковые (≥ 80% общих слов) */
+export const findDuplicate = (a: Announcement, pool: Announcement[]) => {
+  const words = new Set(norm(a.title.ru).split(' ').filter((w) => w.length > 2));
+  return pool.find((b) => {
+    if (b.id === a.id) return false;
+    if (a.eventSourceUrl && b.eventSourceUrl && a.eventSourceUrl === b.eventSourceUrl) return true;
+    if (a.startDate.slice(0, 10) !== b.startDate.slice(0, 10)) return false;
+    const bw = norm(b.title.ru).split(' ').filter((w) => w.length > 2);
+    if (!bw.length || !words.size) return false;
+    const common = bw.filter((w) => words.has(w)).length;
+    return common / Math.max(bw.length, words.size) >= 0.8;
+  });
+};
+

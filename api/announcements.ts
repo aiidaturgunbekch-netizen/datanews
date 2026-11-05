@@ -21,7 +21,7 @@
 import type { Announcement, MailItem } from '../src/types';
 import { cmd, hgetJson, hvalsJson } from './_lib/kv';
 import { handler, HttpError, json, rateLimit, readBody, readSession, requireAdmin, requireUser } from './_lib/http';
-import { ANN_KEY, CHECKED_KEY, diffFields, HIDDEN_KEY, isPublicItem, publicView, sanitize, saveAnnouncement, splitChecked, withHistory } from './_lib/announcements';
+import { ANN_KEY, CHECKED_KEY, diffFields, findDuplicate, HIDDEN_KEY, isPublicItem, publicView, sanitize, saveAnnouncement, splitChecked, withHistory } from './_lib/announcements';
 import { TEST_MARK_RE } from '../src/config/mailSenders';
 import { MAIL_KEY } from './_lib/mail';
 import { CHECK_NOTE, isCheckOnlyCopy } from '../src/utils/mergeAnnouncements';
@@ -32,21 +32,6 @@ import { kgNowLocal } from '../src/utils/time';
 import { INITIAL_ANNOUNCEMENTS } from '../src/data/initialAnnouncements';
 
 export const config = { runtime: 'edge' };
-
-const norm = (t: string) => t.toLowerCase().replace(/[«»"'.,:;!?()—–-]/g, ' ').replace(/\s+/g, ' ').trim();
-/** Дубль: совпадает ссылка на первоисточник, либо совпадает дата и заголовки почти одинаковые (≥ 80% общих слов) */
-const findDuplicate = (a: Announcement, pool: Announcement[]) => {
-  const words = new Set(norm(a.title.ru).split(' ').filter((w) => w.length > 2));
-  return pool.find((b) => {
-    if (b.id === a.id) return false;
-    if (a.eventSourceUrl && b.eventSourceUrl && a.eventSourceUrl === b.eventSourceUrl) return true;
-    if (a.startDate.slice(0, 10) !== b.startDate.slice(0, 10)) return false;
-    const bw = norm(b.title.ru).split(' ').filter((w) => w.length > 2);
-    if (!bw.length || !words.size) return false;
-    const common = bw.filter((w) => words.has(w)).length;
-    return common / Math.max(bw.length, words.size) >= 0.8;
-  });
-};
 
 const isPublic = isPublicItem;
 

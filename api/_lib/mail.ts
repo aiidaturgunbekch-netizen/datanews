@@ -10,6 +10,7 @@
  *   X-DataNews-Signature  — hex HMAC-SHA256(MAIL_INGEST_SECRET, `${timestamp}.${nonce}.${тело запроса}`).
  * Сам секрет по сети не передаётся, в ответы и логи не попадает.
  */
+import { batchSummary, importBatch } from './batchIngest';
 import type { MailAttachment, MailFlag, MailItem } from '../../src/types';
 import { parseNotice } from '../../src/utils/importText';
 import { findKnownSender, isGovDomain } from '../../src/config/mailSenders';
@@ -22,6 +23,7 @@ export const MAIL_KEY = 'dn:mail'; // id письма Gmail → MailItem
 export const MAIL_FP_KEY = 'dn:mail:fp'; // отпечаток содержания → id письма
 export const MAIL_RFC_KEY = 'dn:mail:rfc'; // заголовок Message-ID → id письма
 export const mailAttKey = (id: string, n: number) => `dn:mail:att:${id}:${n}`;
+const BATCH_START_RE = /DATANEWS-BATCH/;
 const NONCE_KEY = (n: string) => `dn:mail:nonce:${n}`;
 export const MAIL_SETTINGS_KEY = 'dn:mail:settings'; // выключатель в панели: { enabled, at }
 
@@ -344,6 +346,16 @@ export const ingestMail = async (raw: Record<string, unknown>) => {
   if (!Number(created)) return { result: 'already' as const, id, status: (await hgetJson<MailItem>(MAIL_KEY, id))?.status || 'new' };
   await cmd('HSETNX', MAIL_FP_KEY, fingerprint, id);
   if (rfcMessageId) await cmd('HSETNX', MAIL_RFC_KEY, rfcMessageId, id);
+
+  // Пакет новостей от сборщика: только письмо, отправленное с этого же ящика (скрипт передаёт fromSelf по метке Gmail
+  // «Отправленные», запрос подписан секретом) и с блоком DATANEWS-BATCH. Чужие письма с таким текстом не разбираются.
+  if (raw.fromSelf === true && BATCH_START_RE.test(fullText) && item.status === 'new') {
+    const r = await importBatch(fullText, id);
+    item.status = 'prepared';
+    item.history.push({ at: kgNowLocal(), action: 'batch_imported', note: batchSummary(r) });
+    await cmd('HSET', MAIL_KEY, id, JSON.stringify(item));
+    return { result: 'stored' as const, id, status: item.status, flags: item.flags, batch: { drafts: r.drafts.length, weather: r.weather, skipped: r.skipped.length, errors: r.errors } };
+  }
   return { result: 'stored' as const, id, status: item.status, flags: item.flags };
 };
 

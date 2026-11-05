@@ -532,3 +532,58 @@ describe('настройка и сбои', () => {
     assert.ok(Array.isArray((await r.json()).sources));
   });
 });
+
+describe('автоприём пакета сборщика из письма', () => {
+  const batch = (title: string) =>
+    `Отчёт сборщика.\n\nDATANEWS-BATCH\n${JSON.stringify([
+      {
+        kind: 'weather',
+        date: '2099-01-02',
+        sourceUrl: 'https://www.meteo.kg/ru/forecast',
+        text: { ru: 'Без осадков.', kg: 'Жаан-чачынсыз.', en: 'No precipitation.' },
+        regions: { bishkek: { night: [3, 5], day: [21, 23] } },
+      },
+      {
+        kind: 'new',
+        category: 'roads',
+        city: 'bishkek',
+        startDate: '2099-01-03',
+        title: { ru: title, kg: `${title} (кыргызча)` },
+        text: { ru: 'Улица закрыта для транспорта.', kg: 'Көчө транспорт үчүн жабык.' },
+        sourceName: 'Мэрия Бишкека',
+        sourceUrl: 'https://www.bishkek.gov.kg/ru/post/1',
+        sourceKind: 'official',
+      },
+    ])}\nEND-BATCH`;
+  const self = 'DataNews <datanews.kg7@gmail.com>';
+
+  it('письмо, отправленное этим же ящиком: черновик в «Модерации» и прогноз на сайте', async () => {
+    await setSwitch(true);
+    const before = await annCount();
+    const l = letter({ from: self, subject: 'DATANEWS-BATCH утро', text: batch('Тестовое закрытие улицы Пакетной'), fromSelf: true });
+    const r = await send(await signed(l));
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.batch.drafts, 1);
+    assert.deepEqual(r.body.batch.weather, ['2099-01-02']);
+    assert.equal(await annCount(), before + 1);
+    const draft = ((await hvalsJson('dn:ann')) as { title: { ru: string }; moderationStatus: string }[]).find((a) => a.title.ru === 'Тестовое закрытие улицы Пакетной');
+    assert.equal(draft?.moderationStatus, 'pending', 'на сайт не попадает до «Одобрить»');
+    const days = JSON.parse((await cmd<string>('GET', 'dn:weather:official:days')) || '[]');
+    assert.ok(days.some((d: { date: string }) => d.date === '2099-01-02'));
+    assert.equal((await getItem(l.messageId)).status, 'prepared');
+  });
+
+  it('то же письмо от постороннего (без метки «Отправленные») — пакет не разбирается', async () => {
+    const before = await annCount();
+    const l = letter({ from: self, subject: 'DATANEWS-BATCH', text: batch('Чужой пакет не должен пройти'), fromSelf: false });
+    const r = await send(await signed(l));
+    assert.equal(r.status, 200);
+    assert.equal(r.body.batch, undefined);
+    assert.equal(await annCount(), before);
+  });
+
+  it('повтор той же новости — пропускается как похожая', async () => {
+    const r = await send(await signed(letter({ from: self, text: batch('Тестовое закрытие улицы Пакетной') + '\n', fromSelf: true })));
+    assert.equal(r.body.batch.drafts, 0);
+  });
+});

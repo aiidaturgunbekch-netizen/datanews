@@ -553,7 +553,7 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
   if (c.format === 'T' && !ex.text.trim()) exProblems.push('Текст бегущей строки');
   if (c.format === 'C' && !ex.title.trim()) exProblems.push('Заголовок карточки');
   if (c.format === 'P' && !ex.annId) exProblems.push('Закреплённая новость');
-  if (!paid && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start)) problems.start = 'Начало (дата и время)';
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start)) problems.start = 'Начало (дата и время)';
   const bad = (k: keyof typeof v) => (tried ? problems[k] : undefined);
   const pick = (which: 'desk' | 'mob') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -646,26 +646,38 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
         {(desk || mob) && <p className="sm:col-span-2 text-amber-700 font-semibold">Новое изображение сохранится после нажатия «Сохранить изменения».</p>}
         {imgErr && <p className="sm:col-span-2 text-red-700 font-semibold">{imgErr}</p>}
       </div>}
-      {!paid ? (
-        <>
-          <label className="block">
-            <span className="font-bold text-gray-600">Начало (Бишкек)</span>
-            <input type="datetime-local" className={bad('start') ? inputErrCls : inputCls} value={v.start} onChange={set('start')} />
-            {bad('start') && <FieldErr text="Укажите дату и время начала" />}
-          </label>
-          <DurationPicker
-            unit={unit}
-            amount={amountStr}
-            onUnit={(u) => {
-              setUnit(u);
-              setAmountStr(u === 'days' ? '30' : '1');
-            }}
-            onAmount={setAmountStr}
-          />
-        </>
-      ) : (
-        <p className="text-gray-500 sm:col-span-2">Оплата подтверждена — период и цена не меняются.</p>
-      )}
+      {/* Срок можно менять всегда; у оплаченной — по её цене, разница (доплата или возврат) видна сразу */}
+      <label className="block">
+        <span className="font-bold text-gray-600">Начало (Бишкек)</span>
+        <input type="datetime-local" className={bad('start') ? inputErrCls : inputCls} value={v.start} onChange={set('start')} />
+        {bad('start') && <FieldErr text="Укажите дату и время начала" />}
+      </label>
+      <DurationPicker
+        unit={unit}
+        amount={amountStr}
+        onUnit={(u) => {
+          setUnit(u);
+          setAmountStr(u === 'days' ? '30' : '1');
+        }}
+        onAmount={setAmountStr}
+      />
+      {(() => {
+        const amt = clampAmount(unit, amountStr || 1);
+        const newEnd = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v.start) ? addDaysLocal(v.start, durationDays(unit, amt, f.periodDays)) : '';
+        const newTotal = durationPrice(paid ? c.pricePerPeriod : f.price, unit, amt, f.periodDays);
+        const diff = newTotal - c.total;
+        return (
+          <p className="sm:col-span-2 rounded-xl bg-[#eef2f9] p-3 text-sm" data-edit-term>
+            Показ до <b>{newEnd ? formatKgDateTime(newEnd) : '—'}</b> · {durationText(unit, amt, f.periodDays)} = <b>{formatSom(newTotal)}</b>
+            {paid && diff !== 0 && (
+              <span className={diff > 0 ? 'text-amber-800' : 'text-emerald-800'}>
+                {' '}
+                · оплачено {formatSom(c.total)}, {diff > 0 ? `к доплате ${formatSom(diff)}` : `к возврату ${formatSom(-diff)}`}
+              </span>
+            )}
+          </p>
+        );
+      })()}
       {tried && Object.keys(problems).length + exProblems.length > 0 && (
         <div className="sm:col-span-2">
           <MissingBox items={[...(Object.values(problems) as string[]), ...exProblems]} />
@@ -688,7 +700,13 @@ const EditBox: React.FC<{ c: api.AdminCampaign; f: AdFormat; paid: boolean; onSa
               ...(desk ? { imageDesktopData: desk.data } : {}),
               ...(mob ? { imageMobileData: mob.data } : {}),
             };
-            onSave(paid ? base : { ...base, start, unit, amount: clampAmount(unit, amountStr || 1) });
+            const amt = clampAmount(unit, amountStr || 1);
+            const termChanged = start !== c.start || unit !== (c.unit || 'months') || amt !== (c.amount ?? c.periods);
+            if (paid && termChanged) {
+              const diff = durationPrice(c.pricePerPeriod, unit, amt, f.periodDays) - c.total;
+              if (diff !== 0 && !window.confirm(diff > 0 ? `Срок оплаченной кампании изменится. К доплате ${formatSom(diff)} — оформите доплату. Сохранить?` : `Срок оплаченной кампании изменится. К возврату ${formatSom(-diff)}. Сохранить?`)) return;
+            }
+            onSave(termChanged ? { ...base, start, unit, amount: amt } : base);
           }}
           className="px-4 py-2 rounded-xl bg-[#12327A] text-white font-bold"
         >

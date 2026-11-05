@@ -192,7 +192,7 @@ describe('кампании', () => {
     assert.equal((await adm({ op: 'action', id: c.id, action: 'activate' })).status, 409, 'просроченную не включить');
   });
 
-  it('смена цены в каталоге не меняет созданные и оплаченные кампании; период оплаченной не меняется', async () => {
+  it('смена цены в каталоге не меняет созданные и оплаченные кампании; срок оплаченной меняется по её цене, разница — в истории', async () => {
     const paid = await liveCampaign({ format: 'D', rubric: 'sport' });
     const draft = (await adm(base({ format: 'D', rubric: 'sport' }))).body.campaign;
     assert.equal((await adm({ op: 'format', id: 'D', price: 3500, desktop: { w: 1200, h: 300 } })).status, 200);
@@ -201,7 +201,11 @@ describe('кампании', () => {
     assert.equal(list.campaigns.find((x: any) => x.id === paid.id).total, 3000, 'оплаченная — по старой цене');
     assert.equal(list.campaigns.find((x: any) => x.id === draft.id).total, 3000, 'созданная — по цене на момент создания');
     assert.equal((await adm(base({ format: 'D', rubric: 'sport' }))).body.campaign.pricePerPeriod, 3500, 'новая — по новой цене');
-    assert.equal((await adm({ op: 'action', id: paid.id, action: 'edit', periods: 3 })).status, 409);
+    const moved = await adm({ op: 'action', id: paid.id, action: 'edit', unit: 'months', amount: 3 });
+    assert.equal(moved.status, 200);
+    assert.equal(moved.body.campaign.total, 9000, 'по цене кампании (3000 × 3), а не по новой цене каталога');
+    assert.equal(moved.body.campaign.payment.status, 'confirmed');
+    assert.ok(moved.body.campaign.history.some((h: any) => h.action === 'term_changed' && /к доплате 6000 сом/.test(h.note)));
     assert.equal((await adm({ op: 'format', id: 'D', price: 0 })).status, 400);
     await adm({ op: 'format', id: 'D', price: 3000 });
   });

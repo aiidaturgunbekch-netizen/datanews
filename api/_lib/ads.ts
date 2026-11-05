@@ -338,7 +338,29 @@ export const campaignAction = async (raw: Record<string, unknown>) => {
           total: durationPrice(f.price, unit, amount, f.periodDays),
         };
       } else if (paid && changesTerm) {
-        throw new HttpError('locked', 409, 'Период оплаченной кампании не меняется');
+        // Оплаченную кампанию можно перенести или продлить/сократить: цена — по цене, зафиксированной при создании
+        // (каталог не влияет), разница записывается в историю — доплату или возврат администратор оформляет сам
+        const start = raw.start !== undefined ? checkStart(raw.start) : c.start;
+        const unit: DurationUnit = raw.unit === 'days' || raw.unit === 'months' ? raw.unit : c.unit || 'months';
+        const amount = clampAmount(unit, raw.amount ?? raw.periods ?? c.amount ?? c.periods);
+        const days = durationDays(unit, amount, f.periodDays);
+        const total = durationPrice(c.pricePerPeriod, unit, amount, f.periodDays);
+        const diff = total - c.total;
+        next = {
+          ...next,
+          start,
+          unit,
+          amount,
+          days,
+          periods: Math.ceil(days / f.periodDays),
+          end: addDaysLocal(start, days),
+          total,
+        };
+        next = withHistory(
+          next,
+          'term_changed',
+          `Срок: было ${c.start} — ${c.end} (${c.total} сом), стало ${start} — ${next.end} (${total} сом)${diff > 0 ? `; к доплате ${diff} сом` : diff < 0 ? `; к возврату ${-diff} сом` : ''}`
+        );
       }
       next = withHistory(next, 'edited');
       break;

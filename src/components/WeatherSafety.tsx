@@ -133,8 +133,9 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: s
             {t(`cities.${main}`)} · {label(f.date)}
           </p>
           {v && (
-            <p className="mt-1 text-ink whitespace-nowrap">
-              <span className="text-[2.25rem] leading-none font-extrabold">{range(v.dayFrom, v.dayTo)}°</span>{' '}
+            <p className="mt-1 text-ink">
+              {/* На узком экране с крупным шрифтом диапазон переносится после «…» */}
+              <span className="text-[1.75rem] min-[24em]:text-[2.25rem] leading-none font-extrabold">{range(v.dayFrom, v.dayTo).replace('…', '…\u200b')}°</span>{' '}
               <span className="text-sm text-ink-soft">{W.day[lang]}</span>
               <span className="block mt-1 text-sm text-ink-soft">
                 {W.night[lang]}: <b className="text-ink">{range(v.nightFrom, v.nightTo)}°</b>

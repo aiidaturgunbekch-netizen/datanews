@@ -14,7 +14,7 @@
 import { cmd, hgetJson } from './_lib/kv';
 import { handler, HttpError, json, readBody, readSession, requireAdmin } from './_lib/http';
 import { kgDateStr } from '../src/utils/time';
-import { FORECAST_REGIONS, OfficialForecast } from '../src/config/weather';
+import { FORECAST_REGIONS, OfficialForecast, upcomingForecasts } from '../src/config/weather';
 import { fetchSnapshot, PointForecast, WeatherSnapshot } from './_lib/weather';
 import { recordAttempt, SourceStatus } from './_lib/sources';
 
@@ -23,6 +23,8 @@ export const config = { runtime: 'edge' };
 const KEY = 'dn:weather:v1';
 const REFRESH_AFTER_MS = 3 * 3600_000;
 const OFFICIAL_KEY = 'dn:weather:official';
+/** Прогнозы по дням (сегодня, завтра…): утренний сбор пишет «сегодня», вечерний — «завтра», одно не стирает другое */
+const OFFICIAL_DAYS_KEY = 'dn:weather:official:days';
 
 const temp = (v: unknown) => {
   const n = Number(v);
@@ -49,7 +51,10 @@ const sanitizeOfficial = (b: Partial<OfficialForecast>): OfficialForecast => {
     date,
     sourceName: String(b.sourceName || 'Кыргызгидромет').slice(0, 120),
     sourceUrl: sourceUrl.slice(0, 500),
-    text: b.text ? String(b.text).slice(0, 1000) : undefined,
+    text: b.text ? String(b.text).slice(0, 1000) : b.texts?.ru ? String(b.texts.ru).slice(0, 1000) : undefined,
+    texts: b.texts
+      ? Object.fromEntries((['ru', 'kg', 'en'] as const).filter((l) => b.texts?.[l]).map((l) => [l, String(b.texts![l]).trim().slice(0, 1000)]))
+      : undefined,
     regions,
     updatedAt: new Date().toISOString(),
   };
@@ -60,12 +65,16 @@ export default handler(async (req) => {
     await requireAdmin(req);
     const official = sanitizeOfficial(await readBody<Partial<OfficialForecast>>(req, 20_000));
     await cmd('SET', OFFICIAL_KEY, JSON.stringify(official));
+    const daysRaw = await cmd<string | null>('GET', OFFICIAL_DAYS_KEY);
+    const days = upcomingForecasts([...(daysRaw ? (JSON.parse(daysRaw) as OfficialForecast[]) : []), official], kgDateStr()).slice(0, 10);
+    await cmd('SET', OFFICIAL_DAYS_KEY, JSON.stringify(days));
     await recordAttempt('kyrgyzhydromet', true, undefined, Object.keys(official.regions).length);
     return json({ official });
   }
   if (req.method === 'DELETE') {
     await requireAdmin(req);
     await cmd('DEL', OFFICIAL_KEY);
+    await cmd('DEL', OFFICIAL_DAYS_KEY);
     return json({ ok: true });
   }
   const url = new URL(req.url);
@@ -112,8 +121,10 @@ export default handler(async (req) => {
   const offParsed: OfficialForecast | null = offRaw ? JSON.parse(offRaw) : null;
   // Прогноз на прошедшую дату не показываем
   const official = offParsed && offParsed.date >= kgDateStr() ? offParsed : null;
+  const daysRaw = await cmd<string | null>('GET', OFFICIAL_DAYS_KEY);
+  const officialDays = upcomingForecasts([...(daysRaw ? (JSON.parse(daysRaw) as OfficialForecast[]) : []), ...(official ? [official] : [])], kgDateStr());
   return json(
-    { snapshot: wantModel || force ? snap : null, status: wantModel || force ? status : null, official, refreshAfterHours: 3, staleAfterHours: 12 },
+    { officialDays, snapshot: wantModel || force ? snap : null, status: wantModel || force ? status : null, official, refreshAfterHours: 3, staleAfterHours: 12 },
     200,
     { 'Cache-Control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=600' }
   );

@@ -244,6 +244,8 @@ export interface WeatherResponse {
   status: { lastAttemptAt?: string; lastSuccessAt?: string; lastError?: string } | null;
   /** Официальный прогноз Кыргызгидромета, внесённый редакцией (только на сегодня и позже) */
   official?: OfficialForecast | null;
+  /** Официальные прогнозы по дням: сегодня, завтра… */
+  officialDays?: OfficialForecast[];
   refreshAfterHours: number;
   staleAfterHours: number;
 }

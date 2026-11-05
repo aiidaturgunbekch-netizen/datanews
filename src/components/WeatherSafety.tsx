@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Announcement, CityId, Language } from '../types';
 import { normalizeCity } from '../config/regions';
-import { EMERGENCY_NUMBERS, FORECAST_REGIONS, KYRGYZHYDROMET } from '../config/weather';
+import { EMERGENCY_NUMBERS, FORECAST_REGIONS, forecastText, KYRGYZHYDROMET, OfficialForecast, upcomingForecasts } from '../config/weather';
 import { formatDayMonth, formatDayMonthTime, formatWhen } from '../utils/dates';
 import { addDaysStr, kgDateStr, kgNowLocal } from '../utils/time';
 import { isListed } from '../utils/urgency';
@@ -46,6 +46,95 @@ const range = (a: number, b: number) => (a === b ? signed(a) : `${signed(a)}…$
 
 const isoToLocal = (iso: string) => kgNowLocal(Date.parse(iso));
 const tel = (s: string) => `tel:${s.replace(/[^\d+]/g, '')}`;
+
+/** Официальные прогнозы Кыргызгидромета на сегодня и позже (один запрос на страницу) */
+let daysPromise: Promise<OfficialForecast[]> | null = null;
+const loadDays = () =>
+  (daysPromise ??= api
+    .fetchWeather()
+    .then((r) => upcomingForecasts([...(r.officialDays || []), ...(r.official ? [r.official] : [])], kgDateStr()))
+    .catch(() => {
+      daysPromise = null;
+      return [];
+    }));
+const useOfficialDays = () => {
+  const [days, setDays] = useState<OfficialForecast[]>([]);
+  useEffect(() => {
+    let alive = true;
+    loadDays().then((d) => alive && setDays(d));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return days;
+};
+
+const W: Record<string, L3> = {
+  title: { ru: 'Погода', kg: 'Аба ырайы', en: 'Weather' },
+  today: { ru: 'Сегодня', kg: 'Бүгүн', en: 'Today' },
+  tomorrow: { ru: 'Завтра', kg: 'Эртең', en: 'Tomorrow' },
+  day: { ru: 'днём', kg: 'күндүз', en: 'day' },
+  night: { ru: 'ночью', kg: 'түнкүсүн', en: 'night' },
+  all: { ru: 'Все области', kg: 'Бардык облустар', en: 'All regions' },
+};
+
+/**
+ * Карточка «Погода» на главной (справа, рядом с «Главным»): официальный прогноз Кыргызгидромета
+ * на сегодня и завтра для выбранного города или области (по умолчанию — Бишкек).
+ */
+export const WeatherCard: React.FC<{ lang: Language; city: CityId }> = ({ lang, city }) => {
+  const { t } = getTranslation(lang);
+  const days = useOfficialDays();
+  const today = kgDateStr();
+  const tomorrow = addDaysStr(today, 1);
+  const shown = days.filter((f) => f.date === today || f.date === tomorrow);
+  if (!shown.length) return null;
+  const want = normalizeCity(city) as CityId;
+  const regionOf = (f: OfficialForecast): CityId => (f.regions[want] ? want : f.regions.bishkek ? 'bishkek' : (Object.keys(f.regions)[0] as CityId));
+  const place = regionOf(shown[0]);
+  return (
+    <section className="rounded-2xl border border-line bg-white p-4 sm:p-5" aria-labelledby="weather-card-title" data-weather-card>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <h2 id="weather-card-title" className="text-lg font-extrabold text-ink flex items-center gap-2">
+          <span className="material-symbols-outlined text-[22px] text-[#12327A]" aria-hidden="true">
+            partly_cloudy_day
+          </span>
+          {W.title[lang]} · {t(`cities.${place}`)}
+        </h2>
+      </div>
+      <ul className="space-y-3">
+        {shown.map((f) => {
+          const v = f.regions[regionOf(f)];
+          const text = forecastText(f, lang);
+          return (
+            <li key={f.date} className="border-t border-line pt-3 first:border-t-0 first:pt-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-meta">
+                {f.date === today ? W.today[lang] : W.tomorrow[lang]}, {formatDayMonth(f.date, lang)}
+              </p>
+              {v && (
+                <p className="mt-1 text-ink">
+                  <span className="text-2xl font-extrabold">{range(v.dayFrom, v.dayTo)}°</span>{' '}
+                  <span className="text-sm text-ink-soft">
+                    {W.day[lang]} · {range(v.nightFrom, v.nightTo)}° {W.night[lang]}
+                  </span>
+                </p>
+              )}
+              {text && <p className="mt-1 text-sm text-ink-soft">{text}</p>}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-3 pt-3 border-t border-line flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+        <a href={shown[0].sourceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] hover:underline">
+          {T.source[lang]}: {shown[0].sourceName}
+        </a>
+        <a href="#weather-safety" className="font-bold text-[#12327A] hover:underline">
+          {W.all[lang]} →
+        </a>
+      </div>
+    </section>
+  );
+};
 
 /** Экстренные службы — отдельный квадрат с номерами и названиями */
 export const EmergencyBox: React.FC<{ lang: Language }> = ({ lang }) => (
@@ -103,19 +192,11 @@ export const WeatherSafety: React.FC<{
   showWarnings?: boolean;
 }> = ({ lang, announcements, city, onOpen, showWarnings = true }) => {
   const { t } = getTranslation(lang);
-  const [official, setOfficial] = useState<api.WeatherResponse['official']>(null);
-
-  useEffect(() => {
-    api
-      .fetchWeather()
-      .then((r) => setOfficial(r.official || null))
-      .catch(() => {});
-  }, []);
-
+  const days = useOfficialDays();
   const today = kgDateStr();
   const tomorrow = addDaysStr(today, 1);
   // Официальный прогноз — на завтра, а если на завтра ещё не внесён — на сегодня
-  const forecast = official && (official.date === tomorrow || official.date === today) ? official : null;
+  const forecast = days.find((f) => f.date === tomorrow) || days.find((f) => f.date === today) || null;
 
   const warnings = useMemo(
     () =>
@@ -183,10 +264,10 @@ export const WeatherSafety: React.FC<{
                   <span className="material-symbols-outlined text-[14px]">open_in_new</span>
                 </a>
               </div>
-              {forecast.text && <p className="text-sm text-gray-700 mb-2">{forecast.text}</p>}
+              {forecastText(forecast, lang) && <p className="text-sm text-gray-700 mb-2">{forecastText(forecast, lang)}</p>}
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
+                  <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
                     <th className="py-1 font-bold">{T.region[lang]}</th>
                     <th className="py-1 font-bold">{T.nightCol[lang]}</th>
                     <th className="py-1 font-bold">{T.dayCol[lang]}</th>
@@ -198,8 +279,9 @@ export const WeatherSafety: React.FC<{
                     return (
                       <tr key={r.id} className="border-t border-gray-100">
                         <td className="py-1.5 pr-2 font-semibold text-[#0f1b33]">{t(`cities.${r.id}`)}</td>
-                        <td className="py-1.5 pr-2 whitespace-nowrap">{range(v.nightFrom, v.nightTo)} °C</td>
-                        <td className="py-1.5 whitespace-nowrap font-bold">{range(v.dayFrom, v.dayTo)} °C</td>
+                        {/* На узком экране с крупным шрифтом диапазон переносится после «…» */}
+                        <td className="py-1.5 pr-2">{range(v.nightFrom, v.nightTo).replace('…', '…\u200b')}°</td>
+                        <td className="py-1.5 font-bold">{range(v.dayFrom, v.dayTo).replace('…', '…\u200b')}°</td>
                       </tr>
                     );
                   })}

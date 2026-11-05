@@ -58,6 +58,11 @@ export const BatchImport: React.FC<{
     }
     for (const b of items as BatchItem[]) {
       try {
+        if (b.kind === 'weather') {
+          await api.saveOfficialForecast(b.forecast);
+          ok.push(`№${b.n}: прогноз погоды на ${b.forecast.date.split('-').reverse().join('.')} — ${Object.keys(b.forecast.regions).length} обл. (сразу на сайте)`);
+          continue;
+        }
         if (b.kind === 'update') {
           const norm = (x: string) => x.trim().toLowerCase().replace(/\s+/g, ' ');
           const found = serverItems.filter((x) => norm(x.title.ru) === norm(b.matchTitle));
@@ -94,7 +99,7 @@ export const BatchImport: React.FC<{
         const mail = b.mailId ? mails.find((m) => m.id === b.mailId) : undefined;
         if (b.mailId && !mail && mails.length) errs.push(`№${b.n}: письмо ${b.mailId} не найдено во «Материалах из почты» — черновик без фото письма`);
         const photos = mail ? await mailPhotos(mail) : {};
-        const item = { ...toDraftItem(b), ...photos, ...(photos.imageData ? { imageUrl: '' } : {}) };
+        const item = { ...toDraftItem(b), ...photos, ...(photos.imageData ? { imageUrl: '', imageCredit: undefined, imageSourceUrl: undefined } : {}) };
         let saved: Announcement;
         try {
           saved = await api.submitDraft(item, mail?.id);
@@ -125,6 +130,7 @@ export const BatchImport: React.FC<{
       <p className="text-xs text-gray-600">
         Вставьте блок целиком — от строки <b>DATANEWS-BATCH</b> до <b>END-BATCH</b>. Сайт создаст черновики в «Модерации» с текстами на русском,
         кыргызском и английском и подставит фото из писем. На сайт ничего не попадает, пока вы не нажмёте «Одобрить».
+        Исключение — официальный прогноз погоды Кыргызгидромета: он сразу встаёт в блок «Погода» на главной.
       </p>
       <textarea
         className="w-full h-40 px-3 py-2 rounded-xl border border-gray-200 font-mono text-xs"
@@ -139,6 +145,7 @@ export const BatchImport: React.FC<{
         <p className="text-xs text-gray-700" data-batch-preview>
           В пакете: новых новостей — {preview.items.filter((i) => i.kind === 'new').length}, переводов — {preview.items.filter((i) => i.kind === 'translate').length}
           {preview.items.some((i) => i.kind === 'update') && <>, исправлений — {preview.items.filter((i) => i.kind === 'update').length}</>}
+          {preview.items.some((i) => i.kind === 'weather') && <>, прогнозов погоды — {preview.items.filter((i) => i.kind === 'weather').length}</>}
           {preview.errors.length > 0 && <span className="text-red-700 font-semibold"> · с ошибками — {preview.errors.length} (их пропущу)</span>}
         </p>
       )}

@@ -16,6 +16,7 @@
 import type { AnnouncementStatus, CategoryId, CityId, Language, UrgencyType } from '../types';
 import { CATEGORY_IDS, PLACE_IDS } from '../config/regions';
 import { looksKyrgyz } from './lang';
+import { FORECAST_REGIONS, OfficialForecast } from '../config/weather';
 
 export const BATCH_START = 'DATANEWS-BATCH';
 export const BATCH_END = 'END-BATCH';
@@ -41,6 +42,10 @@ export interface BatchNew {
   sourceUrl?: string;
   sourceKind?: 'official' | 'media';
   imageUrl?: string;
+  /** Автор и лицензия фото (для фото со свободной лицензией, например Wikimedia Commons) */
+  imageCredit?: string;
+  /** Страница фото (где указаны автор и лицензия) */
+  imageSourceUrl?: string;
   ticketUrl?: string;
   price?: string;
 }
@@ -60,7 +65,13 @@ export interface BatchUpdate {
   sourceUrl?: string;
   sourceKind?: 'official' | 'media';
 }
-export type BatchItem = BatchNew | BatchTranslate | BatchUpdate;
+/** Официальный прогноз Кыргызгидромета на день: температура по областям и короткий текст на трёх языках */
+export interface BatchWeather {
+  kind: 'weather';
+  n: number;
+  forecast: OfficialForecast;
+}
+export type BatchItem = BatchNew | BatchTranslate | BatchUpdate | BatchWeather;
 
 const STATUSES: AnnouncementStatus[] = ['scheduled', 'active', 'rescheduled', 'cancelled', 'completed', 'archived'];
 const URGENCIES: UrgencyType[] = ['emergency', 'planned', 'regular', 'event'];
@@ -118,6 +129,51 @@ export const parseBatch = (input: string): { items: BatchItem[]; errors: string[
       items.push({ kind: 'update', n, matchTitle, sourceName, sourceUrl, sourceKind: o.sourceKind === 'media' ? 'media' : o.sourceKind === 'official' ? 'official' : undefined });
       return;
     }
+    if (o.kind === 'weather') {
+      const date = s(o.date, 10);
+      const probs: string[] = [];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) probs.push('нет даты прогноза (ГГГГ-ММ-ДД)');
+      const sourceUrl = https(o.sourceUrl);
+      if (!sourceUrl) probs.push('нет ссылки на прогноз Кыргызгидромета (https://…)');
+      const regIn = (o.regions && typeof o.regions === 'object' ? o.regions : {}) as Record<string, unknown>;
+      const regions: OfficialForecast['regions'] = {};
+      const pair = (v: unknown): [number, number] | null => {
+        const a = Array.isArray(v) ? v : typeof v === 'number' ? [v, v] : null;
+        if (!a || a.length < 1) return null;
+        const [x, y] = [Number(a[0]), Number(a[a.length - 1])];
+        return Number.isInteger(x) && Number.isInteger(y) && x >= -60 && y <= 60 ? [Math.min(x, y), Math.max(x, y)] : null;
+      };
+      for (const { id } of FORECAST_REGIONS) {
+        const r = regIn[id] as Record<string, unknown> | undefined;
+        if (!r) continue;
+        const night = pair(r.night ?? [r.nightFrom, r.nightTo]);
+        const day = pair(r.day ?? [r.dayFrom, r.dayTo]);
+        if (!night || !day) {
+          probs.push(`«${id}»: температура — целые числа, например "night":[3,5],"day":[21,23]`);
+          continue;
+        }
+        regions[id] = { nightFrom: night[0], nightTo: night[1], dayFrom: day[0], dayTo: day[1] };
+      }
+      const unknown = Object.keys(regIn).filter((k) => !FORECAST_REGIONS.some((r) => r.id === k));
+      if (unknown.length) probs.push(`неизвестные области: ${unknown.join(', ')}`);
+      if (!Object.keys(regions).length) probs.push('нет температуры ни для одной области');
+      const texts = lang(o.text, 1000);
+      if (texts.ru && looksKyrgyz(texts.ru)) probs.push('в русском тексте — кыргызский');
+      if (probs.length) return errors.push(`№${n} (погода ${date || '—'}): ${probs.join('; ')}`);
+      items.push({
+        kind: 'weather',
+        n,
+        forecast: {
+          date,
+          sourceName: s(o.sourceName, 120) || 'Кыргызгидромет',
+          sourceUrl: sourceUrl!,
+          text: texts.ru || undefined,
+          texts: Object.fromEntries(Object.entries(texts).filter(([, v]) => v)),
+          regions,
+        },
+      });
+      return;
+    }
     if (o.kind === 'translate') {
       const id = s(o.id, 80);
       if (!/^[\w-]{3,80}$/.test(id)) return errors.push(`${label}: нет id публикации для перевода`);
@@ -162,6 +218,8 @@ export const parseBatch = (input: string): { items: BatchItem[]; errors: string[
       sourceUrl: https(o.sourceUrl),
       sourceKind: o.sourceKind === 'media' ? 'media' : o.sourceKind === 'official' ? 'official' : undefined,
       imageUrl: https(o.imageUrl),
+      imageCredit: https(o.imageUrl) ? s(o.imageCredit, 200) || undefined : undefined,
+      imageSourceUrl: https(o.imageUrl) ? https(o.imageSourceUrl) : undefined,
       ticketUrl: https(o.ticketUrl),
       price: s(o.price, 120) || undefined,
     });
@@ -197,6 +255,8 @@ export const toDraftItem = (b: BatchNew): Record<string, unknown> => ({
   sourceKind: b.sourceKind,
   eventSourceUrl: b.sourceUrl,
   imageUrl: b.imageUrl,
+  imageCredit: b.imageCredit,
+  imageSourceUrl: b.imageSourceUrl,
   ticketUrl: b.ticketUrl,
   eventDetails: { ticketUrl: b.ticketUrl || '', priceText: b.price ? { ru: b.price } : undefined, organizer: b.sourceName },
   imageFit: 'contain',

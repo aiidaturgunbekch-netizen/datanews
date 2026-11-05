@@ -63,7 +63,9 @@ export const EventImage: React.FC<{
   compact?: boolean;
   /** Страница новости: фото в своём оригинальном размере и пропорциях — без рамки, фона и обрезки */
   natural?: boolean;
-}> = ({ item, className = '', lang = 'ru', compact = false, natural = false }) => {
+  /** Заполнить рамку целиком (миниатюры рядом с афишей), независимо от imageFit публикации */
+  fill?: boolean;
+}> = ({ item, className = '', lang = 'ru', compact = false, natural = false, fill = false }) => {
   const [failed, setFailed] = useState(false);
   // другое изображение (например, переход к соседнему событию в том же окне) — пробуем загрузить заново
   useEffect(() => {
@@ -98,7 +100,7 @@ export const EventImage: React.FC<{
   }
 
   if (item.imageUrl && !failed) {
-    const cover = item.imageFit === 'cover';
+    const cover = fill || item.imageFit === 'cover';
     const alt = item.imageAlt || item.title[lang] || item.title.ru;
     // В карточках фото вписывается целиком; поля по краям — нейтральные, без размытого фона
     return (

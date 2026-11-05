@@ -11,11 +11,20 @@ import { RelDay } from './cards';
 const T = {
   title: { ru: 'Главное', kg: 'Башкы жаңылыктар', en: 'Top stories' },
   source: { ru: 'Источник', kg: 'Булагы', en: 'Source' },
-  verified: { ru: 'Подтверждено по первоисточнику', kg: 'Баштапкы булак боюнча тастыкталды', en: 'Verified against the source' },
+  verified: {
+    ru: 'Подтверждено по первоисточнику',
+    kg: 'Баштапкы булак боюнча тастыкталды',
+    en: 'Verified against the source',
+  },
 };
 
 /** Когда, где и откуда — у каждой новости; дата события и источник различаются по смыслу */
-const Meta: React.FC<{ a: Announcement; lang: Language; className?: string; withPlace?: boolean }> = ({ a, lang, className = '', withPlace = false }) => {
+const Meta: React.FC<{
+  a: Announcement;
+  lang: Language;
+  className?: string;
+  withPlace?: boolean;
+}> = ({ a, lang, className = '', withPlace = false }) => {
   const place = withPlace ? placeText(a, lang) : '';
   return (
     <p className={`dn-meta ${className}`}>
@@ -45,7 +54,9 @@ export const TopStories: React.FC<{
   hideTitle?: boolean;
   /** Что поставить сразу под главной историей (рекламное место A) */
   afterLead?: React.ReactNode;
-}> = ({ lang, stories, onOpen, hideTitle = false, afterLead }) => {
+  /** Фото главной — вертикальная/квадратная афиша: она стоит целиком слева, справа три новости с фото */
+  tallLead?: boolean;
+}> = ({ lang, stories, onOpen, hideTitle = false, afterLead, tallLead = false }) => {
   const { t } = getTranslation(lang);
   if (stories.length === 0) return null;
   const [lead, ...rest] = stories;
@@ -58,53 +69,112 @@ export const TopStories: React.FC<{
           {T.title[lang]}
         </h2>
       )}
-      {/* Главная история */}
-      <article>
-        <button type="button" onClick={() => onOpen(lead)} className="group w-full text-left">
-          <EventImage item={lead} lang={lang} className="w-full aspect-[16/9] rounded-xl mb-4" />
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
-            {label(lead)}
-            <RelDay item={lead} lang={lang} />
-            {lead.isVerified && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-teal-ink">
-                <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
-                  verified
-                </span>
-                {T.verified[lang]}
-              </span>
-            )}
-            <PaidBadge item={lead} lang={lang} />
-          </div>
-          <h3 className="dn-lead-title group-hover:text-brand-blue group-hover:underline decoration-2 underline-offset-4">{lead.title[lang] || lead.title.ru}</h3>
-          {(lead.summary[lang] || lead.summary.ru) && <p className="dn-body mt-3 line-clamp-3">{lead.summary[lang] || lead.summary.ru}</p>}
-          <Meta a={lead} lang={lang} className="mt-3" withPlace />
-        </button>
-      </article>
-
-      {afterLead}
-
-      {/* Важные — под главной, в две колонки, одинаковые по структуре */}
-      {rest.length > 0 && (
-        <ul className="mt-8 pt-6 border-t border-line grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-          {rest.map((a) => (
-            <li key={a.id}>
-              <button type="button" onClick={() => onOpen(a)} className="@container group w-full text-left flex gap-4">
-                <span className="flex-1 min-w-0">
-                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
-                    {label(a)}
-                    <RelDay item={a} lang={lang} />
-                  </span>
-                  <span className="dn-card-title block line-clamp-3 group-hover:text-brand-blue group-hover:underline underline-offset-2">
-                    {a.title[lang] || a.title.ru}
-                  </span>
-                  <Meta a={a} lang={lang} className="mt-1.5" />
-                  <PaidBadge item={a} lang={lang} className="mt-1.5" />
-                </span>
-                <EventImage item={a} lang={lang} compact className="w-24 h-20 sm:w-28 sm:h-[84px] rounded-lg shrink-0 @max-[17rem]:hidden" />
+      {tallLead && (
+        <div className="@container" data-tall-lead>
+          <div className="grid grid-cols-1 @[40rem]:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-6 @[40rem]:gap-8">
+            <article className="min-w-0">
+              <button type="button" onClick={() => onOpen(lead)} className="group w-full text-left">
+                {/* Афиша целиком, в своих пропорциях — без пустых полей по бокам */}
+                <img
+                  src={lead.imageUrl}
+                  alt={lead.imageAlt || lead.title[lang] || lead.title.ru}
+                  referrerPolicy="no-referrer"
+                  className="block w-full h-auto max-h-[44rem] object-contain rounded-xl mb-4"
+                />
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
+                  {label(lead)}
+                  <RelDay item={lead} lang={lang} />
+                  <PaidBadge item={lead} lang={lang} />
+                </div>
+                <h3 className="dn-lead-title group-hover:text-brand-blue group-hover:underline decoration-2 underline-offset-4">
+                  {lead.title[lang] || lead.title.ru}
+                </h3>
+                {(lead.summary[lang] || lead.summary.ru) && <p className="dn-body mt-3 line-clamp-3">{lead.summary[lang] || lead.summary.ru}</p>}
+                <Meta a={lead} lang={lang} className="mt-3" withPlace />
               </button>
-            </li>
-          ))}
-        </ul>
+            </article>
+            <ul className="min-w-0 flex flex-col gap-5 @[40rem]:gap-6 border-t border-line pt-5 @[40rem]:border-t-0 @[40rem]:pt-0" data-side-stories>
+              {rest.slice(0, 3).map((a) => (
+                <li key={a.id}>
+                  <button type="button" onClick={() => onOpen(a)} className="group w-full text-left flex gap-4 @[40rem]:flex-col @[40rem]:gap-2.5">
+                    <EventImage
+                      item={a}
+                      lang={lang}
+                      compact
+                      fill
+                      className="order-last @[40rem]:order-first w-24 h-20 shrink-0 @[40rem]:w-full @[40rem]:h-36 rounded-lg"
+                    />
+                    <span className="flex-1 min-w-0">
+                      <span className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
+                        {label(a)}
+                        <RelDay item={a} lang={lang} />
+                      </span>
+                      <span className="dn-card-title block line-clamp-3 group-hover:text-brand-blue group-hover:underline underline-offset-2">
+                        {a.title[lang] || a.title.ru}
+                      </span>
+                      <PaidBadge item={a} lang={lang} className="mt-1.5" />
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+          {afterLead}
+        </div>
+      )}
+      {!tallLead && (
+        <>
+          {/* Главная история */}
+          <article>
+            <button type="button" onClick={() => onOpen(lead)} className="group w-full text-left">
+              <EventImage item={lead} lang={lang} className="w-full aspect-[16/9] rounded-xl mb-4" />
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
+                {label(lead)}
+                <RelDay item={lead} lang={lang} />
+                {lead.isVerified && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-teal-ink">
+                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                      verified
+                    </span>
+                    {T.verified[lang]}
+                  </span>
+                )}
+                <PaidBadge item={lead} lang={lang} />
+              </div>
+              <h3 className="dn-lead-title group-hover:text-brand-blue group-hover:underline decoration-2 underline-offset-4">
+                {lead.title[lang] || lead.title.ru}
+              </h3>
+              {(lead.summary[lang] || lead.summary.ru) && <p className="dn-body mt-3 line-clamp-3">{lead.summary[lang] || lead.summary.ru}</p>}
+              <Meta a={lead} lang={lang} className="mt-3" withPlace />
+            </button>
+          </article>
+
+          {afterLead}
+
+          {/* Важные — под главной, в две колонки, одинаковые по структуре */}
+          {rest.length > 0 && (
+            <ul className="mt-8 pt-6 border-t border-line grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+              {rest.map((a) => (
+                <li key={a.id}>
+                  <button type="button" onClick={() => onOpen(a)} className="@container group w-full text-left flex gap-4">
+                    <span className="flex-1 min-w-0">
+                      <span className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
+                        {label(a)}
+                        <RelDay item={a} lang={lang} />
+                      </span>
+                      <span className="dn-card-title block line-clamp-3 group-hover:text-brand-blue group-hover:underline underline-offset-2">
+                        {a.title[lang] || a.title.ru}
+                      </span>
+                      <Meta a={a} lang={lang} className="mt-1.5" />
+                      <PaidBadge item={a} lang={lang} className="mt-1.5" />
+                    </span>
+                    <EventImage item={a} lang={lang} compact className="w-24 h-20 sm:w-28 sm:h-[84px] rounded-lg shrink-0 @max-[17rem]:hidden" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </section>
   );

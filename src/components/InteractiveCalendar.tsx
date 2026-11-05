@@ -13,6 +13,10 @@ interface InteractiveCalendarProps {
   selectedDate: string; // 'YYYY-MM-DD'
   onSelectDate: (dateStr: string) => void;
   onSelectAnnouncement: (announcement: Announcement) => void;
+  /** Сколько событий выбранного дня показать (на главной — 3, чтобы колонка не была длиннее основной) */
+  maxItems?: number;
+  /** «Ещё N» — открыть полный календарь */
+  onShowAll?: () => void;
 }
 
 export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
@@ -21,6 +25,8 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   selectedDate,
   onSelectDate,
   onSelectAnnouncement,
+  maxItems = Infinity,
+  onShowAll,
 }) => {
   const { t } = getTranslation(currentLanguage);
 
@@ -285,7 +291,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           </p>
         ) : (
           <ul className="space-y-2">
-            {selectedItems.map((item) => {
+            {selectedItems.slice(0, maxItems).map((item) => {
               const displayStatus = getAnnouncementDisplayStatus(item);
               const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
 
@@ -338,6 +344,11 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
               );
             })}
           </ul>
+        )}
+        {selectedItems.length > maxItems && (
+          <button type="button" onClick={onShowAll} className="mt-2.5 text-xs font-bold text-[#12327A] hover:underline" data-calendar-more>
+            {currentLanguage === 'kg' ? `Дагы ${selectedItems.length - maxItems} — толук календарь` : currentLanguage === 'en' ? `${selectedItems.length - maxItems} more — full calendar` : `Ещё ${selectedItems.length - maxItems} — весь календарь`} →
+          </button>
         )}
       </div>
     </div>

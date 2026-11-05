@@ -39,7 +39,7 @@ import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
 import { SearchModal } from './components/SearchModal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
-import { EmergencyBox, HydrometLine, WeatherCard, WeatherSafety } from './components/WeatherSafety';
+import { EmergencyBox, HydrometLine, WeatherCard } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
 import { freshOrder, isFresh } from './utils/statusUtils';
 import { rubricIdOf, rubricOf } from './config/rubrics';
@@ -525,8 +525,8 @@ export default function App() {
                     <h2 id="top-stories-title" className="dn-kicker mb-3">
                       {currentLanguage === 'kg' ? 'Башкы жаңылыктар' : currentLanguage === 'en' ? 'Top stories' : 'Главное'}
                     </h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-                      <div className="lg:col-span-8 min-w-0">
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 xl:gap-10 items-start">
+                      <div className="xl:col-span-8 min-w-0">
                         <TopStories
                           lang={currentLanguage}
                           stories={topOrdered}
@@ -542,7 +542,8 @@ export default function App() {
                           }
                         />
                       </div>
-                      <div className="lg:col-span-4 min-w-0 space-y-6">
+                      {/* До 1280 px — под «Главным» во всю ширину, а не узкой колонкой сбоку */}
+                      <div className="xl:col-span-4 min-w-0 space-y-6">
                         {/* Заметный блок — только когда есть действующие предупреждения; иначе одна строка-статус */}
                         {alertsList.length > 0 ? (
                           <MainAlerts
@@ -561,6 +562,8 @@ export default function App() {
                           selectedDate={calendarSelectedDate}
                           onSelectDate={setCalendarSelectedDate}
                           onSelectAnnouncement={setActiveNoticeDetail}
+                          maxItems={3}
+                          onShowAll={() => setCurrentView('calendar')}
                         />
                       </div>
                     </div>
@@ -573,15 +576,6 @@ export default function App() {
                   items={upcomingPool}
                   onOpen={setActiveNoticeDetail}
                   onOpenCalendar={() => setCurrentView('calendar')}
-                />
-
-                {/* Официальный прогноз Кыргызгидромета (предупреждения — в блоке выше) */}
-                <WeatherSafety
-                  lang={currentLanguage}
-                  announcements={announcements}
-                  city={selectedCity}
-                  onOpen={setActiveNoticeDetail}
-                  showWarnings={false}
                 />
 
                 {/* Лента (без повторов из «Главного»), сбоку — календарь и экстренные службы */}

@@ -79,59 +79,99 @@ const W: Record<string, L3> = {
 };
 
 /**
- * Карточка «Погода» на главной (справа, рядом с «Главным»): официальный прогноз Кыргызгидромета
- * на сегодня и завтра для выбранного города или области (по умолчанию — Бишкек).
+ * Блок «Погода» на главной: официальный прогноз Кыргызгидромета открыто, без перехода на другой сайт —
+ * выбранный город крупно и все области с температурой (°C) днём и ночью. Дни — только те, на которые прогноз есть
+ * (сегодня, завтра, послезавтра). Источник — маленькой серой строкой внизу.
  */
 export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: string }> = ({ lang, city, className = '' }) => {
   const { t } = getTranslation(lang);
   const days = useOfficialDays();
   const today = kgDateStr();
   const tomorrow = addDaysStr(today, 1);
-  const shown = days.filter((f) => f.date === today || f.date === tomorrow);
+  const shown = days.slice(0, 3);
+  const [picked, setPicked] = useState<string | null>(null);
   if (!shown.length) return null;
+  const f = shown.find((d) => d.date === picked) || shown[0];
   const want = normalizeCity(city) as CityId;
-  const regionOf = (f: OfficialForecast): CityId => (f.regions[want] ? want : f.regions.bishkek ? 'bishkek' : (Object.keys(f.regions)[0] as CityId));
-  const place = regionOf(shown[0]);
+  const main: CityId = f.regions[want] ? want : f.regions.bishkek ? 'bishkek' : (Object.keys(f.regions)[0] as CityId);
+  const v = f.regions[main];
+  const text = forecastText(f, lang);
+  const dayName = (d: string) => (d === today ? W.today[lang] : d === tomorrow ? W.tomorrow[lang] : '');
+  const label = (d: string) => [dayName(d), formatDayMonth(d, lang)].filter(Boolean).join(', ');
+  const regions = FORECAST_REGIONS.filter((r) => f.regions[r.id] && r.id !== main);
   return (
-    <section className={`@container rounded-2xl border border-line bg-[#f6f8fd] p-4 sm:p-5 ${className}`} aria-labelledby="weather-card-title" data-weather-card>
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <section className={`rounded-2xl border border-line bg-white p-4 sm:p-5 ${className}`} aria-labelledby="weather-card-title" data-weather-card>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <h2 id="weather-card-title" className="text-lg font-extrabold text-ink flex items-center gap-2">
           <span className="material-symbols-outlined text-[22px] text-[#12327A]" aria-hidden="true">
             partly_cloudy_day
           </span>
-          {W.title[lang]} · {t(`cities.${place}`)}
+          {W.title[lang]}
         </h2>
+        {shown.length > 1 && (
+          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={W.title[lang]}>
+            {shown.map((d) => (
+              <button
+                key={d.date}
+                type="button"
+                role="tab"
+                aria-selected={d.date === f.date}
+                onClick={() => setPicked(d.date)}
+                className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
+                  d.date === f.date ? 'bg-[#12327A] text-white border-[#12327A]' : 'bg-white text-[#12327A] border-[#12327A]/25 hover:border-[#12327A]'
+                }`}
+              >
+                {dayName(d.date) || formatDayMonth(d.date, lang)}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      <ul className="grid grid-cols-1 gap-3 @[30rem]:grid-cols-2">
-        {shown.map((f) => {
-          const v = f.regions[regionOf(f)];
-          const text = forecastText(f, lang);
-          return (
-            <li key={f.date} className="rounded-xl bg-white border border-line p-3 sm:p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-meta">
-                {f.date === today ? W.today[lang] : W.tomorrow[lang]}, {formatDayMonth(f.date, lang)}
-              </p>
-              {v && (
-                <p className="mt-1 text-ink">
-                  <span className="text-2xl font-extrabold">{range(v.dayFrom, v.dayTo)}°</span>{' '}
-                  <span className="text-sm text-ink-soft">
-                    {W.day[lang]} · {range(v.nightFrom, v.nightTo)}° {W.night[lang]}
-                  </span>
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 items-center">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-meta">
+            {t(`cities.${main}`)} · {label(f.date)}
+          </p>
+          {v && (
+            <p className="mt-1 text-ink whitespace-nowrap">
+              <span className="text-[2.25rem] leading-none font-extrabold">{range(v.dayFrom, v.dayTo)}°</span>{' '}
+              <span className="text-sm text-ink-soft">{W.day[lang]}</span>
+              <span className="block mt-1 text-sm text-ink-soft">
+                {W.night[lang]}: <b className="text-ink">{range(v.nightFrom, v.nightTo)}°</b>
+              </span>
+            </p>
+          )}
+        </div>
+        {text && <p className="text-[15px] leading-relaxed text-ink">{text}</p>}
+      </div>
+      {regions.length > 0 && (
+        <ul className="mt-4 grid grid-cols-1 min-[24em]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2" data-region-forecast>
+          {regions.map((r) => {
+            const x = f.regions[r.id]!;
+            return (
+              <li key={r.id} className="rounded-xl bg-[#f6f8fd] px-3 py-2">
+                <p className="text-sm font-bold text-[#0f1b33]">{t(`cities.${r.id}`)}</p>
+                <p className="text-sm text-ink">
+                  <b>{range(x.dayFrom, x.dayTo).replace('…', '…\u200b')}°</b>
+                  <span className="text-ink-soft"> {W.day[lang]} · {range(x.nightFrom, x.nightTo).replace('…', '…\u200b')}° {W.night[lang]}</span>
                 </p>
-              )}
-              {text && <p className="mt-1 text-sm text-ink-soft">{text}</p>}
-            </li>
-          );
-        })}
-      </ul>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
-        <a href={shown[0].sourceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] hover:underline">
-          {T.source[lang]}: {shown[0].sourceName}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="mt-3 text-[11px] text-gray-500">
+        {T.source[lang]}:{' '}
+        <a href={f.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+          {f.sourceName}
         </a>
-        <a href="#weather-safety" className="font-bold text-[#12327A] hover:underline">
-          {W.all[lang]} →
-        </a>
-      </div>
+        {f.updatedAt && (
+          <>
+            {' · '}
+            {T.updated[lang]}: {formatDayMonthTime(isoToLocal(f.updatedAt), lang)}
+          </>
+        )}
+      </p>
     </section>
   );
 };

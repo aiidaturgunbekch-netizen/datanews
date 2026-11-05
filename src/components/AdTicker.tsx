@@ -48,6 +48,8 @@ export const AdTicker: React.FC<{ lang: Language }> = ({ lang }) => {
   return (
     <aside aria-label={AD_LABEL.ad[lang]} data-ad="T" className="w-full bg-[#0d2459] text-sm border-b border-white/10">
       <div className="flex items-stretch">
+        {/* «Реклама» — маленьким неярким текстом (закон КР «О рекламе») */}
+        <span className="shrink-0 flex items-center pl-3 pr-2 text-[10px] text-white/45">{AD_LABEL.ad[lang]}</span>
         <div className="dn-ticker relative flex-1 overflow-hidden py-2">
           <div className="dn-ticker-track inline-flex" style={{ animationDuration: `${seconds}s` }}>
             {/* Два одинаковых ряда подряд — строка идёт без разрыва */}

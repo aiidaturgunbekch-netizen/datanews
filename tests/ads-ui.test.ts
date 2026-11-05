@@ -90,14 +90,15 @@ describe('рекламные места на сайте', () => {
     for (const format of ['A', 'B', 'D'] as const) assert.equal(html(React.createElement(AdSlot, { format, lang: 'ru', rubric: 'tech' })), '');
   });
 
-  it('баннер: видимой подписи нет (решение редакции), «Реклама» — только для программ чтения с экрана; ссылка через сайт', () => {
+  it('баннер: маленькая неяркая подпись «Реклама» без имени заказчика; ссылка через сайт', () => {
     const h = html(React.createElement(AdBanner, { ad: live(), lang: 'ru' }));
     assert.ok(!text(h).includes('Пример ОсОО'), 'имя рекламодателя не показывается');
-    assert.ok(h.includes('class="sr-only">Реклама<'));
+    assert.ok(h.includes('text-gray-400') && text(h).includes('Реклама'));
     assert.ok(h.includes('href="/api/track?ad=ad1&amp;go=1"'));
     assert.ok(h.includes('rel="sponsored noopener noreferrer"') && h.includes('target="_blank"'));
     assert.ok(h.includes('alt="Пример рекламного баннера"'));
-    assert.ok(text(html(React.createElement(AdBanner, { ad: live({ label: 'partner' }), lang: 'ru' }))).includes('Партнёрский материал'));
+    // по закону — везде одно слово «Реклама», в том числе у партнёрских материалов
+    assert.ok(text(html(React.createElement(AdBanner, { ad: live({ label: 'partner' }), lang: 'ru' }))).includes('Реклама'));
     assert.ok(text(html(React.createElement(AdBanner, { ad: live(), lang: 'kg' }))).includes('Жарнама'));
   });
 

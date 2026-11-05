@@ -51,7 +51,7 @@ export const VENUES: Venue[] = [
       { number: '(0312) 66-18-41', label: { ru: 'касса', kg: 'касса', en: 'box office' } },
       { number: '(0312) 62-16-19', label: { ru: 'касса', kg: 'касса', en: 'box office' } },
     ],
-    site: 'https://www.instagram.com/operaballet.kg/',
+    site: 'https://www.instagram.com/opera.ballet.teatr/',
   },
   {
     id: 'philharmonic',

@@ -32,7 +32,6 @@ import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { AdSlot } from './components/AdSlot';
 import { isPaid } from './components/PaidBadge';
 import { pickTopStories } from './utils/timeline';
-import { useImageShape } from './utils/useImageShape';
 import { matchesSearch } from './utils/search';
 import { TopStories } from './components/TopStories';
 import { PopularNews } from './components/PopularNews';
@@ -298,32 +297,15 @@ export default function App() {
   // Отбор — pickTopStories: сильные кандидаты по homeScore, по одному на рубрику; состав может смениться
   // после обновления страницы (homeSeed — один на посещение), но не меняется, пока страница открыта.
   const [homeSeed] = useState(() => Math.floor(Math.random() * 1e9));
-  // Кандидаты с запасом: если фото главной — вертикальная афиша, рядом с ней встают три новости с фото
-  const topPool = useMemo(
-    () => pickTopStories(eventsList.filter((a) => isFresh(a)).sort(freshOrder), homeSeed, (a) => rubricIdOf(a.category), Date.now(), 8),
+  const topStories = useMemo(
+    () => pickTopStories(eventsList.filter((a) => isFresh(a)).sort(freshOrder), homeSeed, (a) => rubricIdOf(a.category)),
     [eventsList, homeSeed]
   );
-  const leadStory = useMemo(() => topPool.slice(0, 3).find((a) => !isPaid(a)), [topPool]);
-  const leadShape = useImageShape(leadStory?.imageUrl);
-  const topStories = useMemo(() => {
-    const base = topPool.slice(0, 3);
-    if (leadShape !== 'tall' || !leadStory) return base;
-    // Рядом с афишей — три материала из разных рубрик, сначала с настоящими фото
-    const hasPhoto = (a: Announcement) => Boolean(a.imageUrl && !a.imageUrl.startsWith('/illustrations/'));
-    const others = topPool.filter((a) => a.id !== leadStory.id);
-    const ordered = [...others.filter(hasPhoto), ...others.filter((a) => !hasPhoto(a))];
-    const side: Announcement[] = [];
-    const used = new Set([rubricIdOf(leadStory.category)]);
-    for (const a of ordered) if (side.length < 3 && !used.has(rubricIdOf(a.category))) (used.add(rubricIdOf(a.category)), side.push(a));
-    for (const a of ordered) if (side.length < 3 && !side.includes(a)) side.push(a);
-    return [leadStory, ...side];
-  }, [topPool, leadStory, leadShape]);
   // Главная история — первая редакционная (не партнёрская) из отобранных
   const topOrdered = useMemo(() => {
     const lead = topStories.find((a) => !isPaid(a));
     return lead ? [lead, ...topStories.filter((a) => a.id !== lead.id)] : topStories;
   }, [topStories]);
-  const tallLead = leadShape === 'tall' && topOrdered[0]?.id === leadStory?.id;
   // Лента ниже не повторяет материалы из «Главного»
   const feedList = useMemo(() => {
     const top = new Set(topStories.map((a) => a.id));
@@ -549,10 +531,15 @@ export default function App() {
                           lang={currentLanguage}
                           stories={topOrdered}
                           onOpen={setActiveNoticeDetail}
-                          tallLead={tallLead}
                           hideTitle
                           /* Рекламное место A — сразу под главной новостью, как в макете; только при действующей кампании */
-                          afterLead={<AdSlot format="A" lang={currentLanguage} className="mt-6" />}
+                          afterLead={
+                            <>
+                              <AdSlot format="A" lang={currentLanguage} className="mt-6" />
+                              {/* Погода на сегодня и завтра — ежедневная рубрика, на видном месте сразу под главными новостями */}
+                              <WeatherCard lang={currentLanguage} city={selectedCity} className="mt-6" />
+                            </>
+                          }
                         />
                       </div>
                       <div className="lg:col-span-4 min-w-0 space-y-6">
@@ -568,8 +555,6 @@ export default function App() {
                         ) : (
                           <NoAlertsLine lang={currentLanguage} city={selectedCity} onOpenAll={() => setCurrentView('alerts')} />
                         )}
-                        {/* Погода на сегодня и завтра — официальный прогноз Кыргызгидромета */}
-                        <WeatherCard lang={currentLanguage} city={selectedCity} />
                         <InteractiveCalendar
                           currentLanguage={currentLanguage}
                           announcements={announcements}

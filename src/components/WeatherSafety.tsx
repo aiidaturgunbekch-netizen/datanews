@@ -82,7 +82,7 @@ const W: Record<string, L3> = {
  * Карточка «Погода» на главной (справа, рядом с «Главным»): официальный прогноз Кыргызгидромета
  * на сегодня и завтра для выбранного города или области (по умолчанию — Бишкек).
  */
-export const WeatherCard: React.FC<{ lang: Language; city: CityId }> = ({ lang, city }) => {
+export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: string }> = ({ lang, city, className = '' }) => {
   const { t } = getTranslation(lang);
   const days = useOfficialDays();
   const today = kgDateStr();
@@ -93,7 +93,7 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId }> = ({ lang, 
   const regionOf = (f: OfficialForecast): CityId => (f.regions[want] ? want : f.regions.bishkek ? 'bishkek' : (Object.keys(f.regions)[0] as CityId));
   const place = regionOf(shown[0]);
   return (
-    <section className="rounded-2xl border border-line bg-white p-4 sm:p-5" aria-labelledby="weather-card-title" data-weather-card>
+    <section className={`@container rounded-2xl border border-line bg-[#f6f8fd] p-4 sm:p-5 ${className}`} aria-labelledby="weather-card-title" data-weather-card>
       <div className="flex items-start justify-between gap-3 mb-3">
         <h2 id="weather-card-title" className="text-lg font-extrabold text-ink flex items-center gap-2">
           <span className="material-symbols-outlined text-[22px] text-[#12327A]" aria-hidden="true">
@@ -102,12 +102,12 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId }> = ({ lang, 
           {W.title[lang]} · {t(`cities.${place}`)}
         </h2>
       </div>
-      <ul className="space-y-3">
+      <ul className="grid grid-cols-1 gap-3 @[30rem]:grid-cols-2">
         {shown.map((f) => {
           const v = f.regions[regionOf(f)];
           const text = forecastText(f, lang);
           return (
-            <li key={f.date} className="border-t border-line pt-3 first:border-t-0 first:pt-0">
+            <li key={f.date} className="rounded-xl bg-white border border-line p-3 sm:p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-meta">
                 {f.date === today ? W.today[lang] : W.tomorrow[lang]}, {formatDayMonth(f.date, lang)}
               </p>
@@ -124,7 +124,7 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId }> = ({ lang, 
           );
         })}
       </ul>
-      <div className="mt-3 pt-3 border-t border-line flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
         <a href={shown[0].sourceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] hover:underline">
           {T.source[lang]}: {shown[0].sourceName}
         </a>
@@ -253,7 +253,7 @@ export const WeatherSafety: React.FC<{
           )}
 
           {forecast && (
-            <div className="rounded-2xl bg-white border border-gray-200 p-4 sm:p-5 max-w-2xl">
+            <div className="rounded-2xl bg-white border border-gray-200 p-4 sm:p-5">
               <h3 className="text-sm font-extrabold text-[#0f1b33] mb-1">
                 {forecast.date === today ? T.todayTitle[lang] : T.tomorrow[lang]} — {formatDayMonth(forecast.date, lang)}
               </h3>
@@ -265,28 +265,24 @@ export const WeatherSafety: React.FC<{
                 </a>
               </div>
               {forecastText(forecast, lang) && <p className="text-sm text-gray-700 mb-2">{forecastText(forecast, lang)}</p>}
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
-                    <th className="py-1 font-bold">{T.region[lang]}</th>
-                    <th className="py-1 font-bold">{T.nightCol[lang]}</th>
-                    <th className="py-1 font-bold">{T.dayCol[lang]}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {FORECAST_REGIONS.filter((r) => forecast.regions[r.id]).map((r) => {
-                    const v = forecast.regions[r.id]!;
-                    return (
-                      <tr key={r.id} className="border-t border-gray-100">
-                        <td className="py-1.5 pr-2 font-semibold text-[#0f1b33]">{t(`cities.${r.id}`)}</td>
-                        {/* На узком экране с крупным шрифтом диапазон переносится после «…» */}
-                        <td className="py-1.5 pr-2">{range(v.nightFrom, v.nightTo).replace('…', '…\u200b')}°</td>
-                        <td className="py-1.5 font-bold">{range(v.dayFrom, v.dayTo).replace('…', '…\u200b')}°</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {/* Области — плиткой на всю ширину: без пустого места справа */}
+              <ul className="grid grid-cols-1 min-[24em]:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5" data-region-forecast>
+                {FORECAST_REGIONS.filter((r) => forecast.regions[r.id]).map((r) => {
+                  const v = forecast.regions[r.id]!;
+                  return (
+                    <li key={r.id} className="rounded-xl bg-[#f6f8fd] border border-gray-100 px-3 py-2.5">
+                      <p className="text-sm font-bold text-[#0f1b33]">{t(`cities.${r.id}`)}</p>
+                      <p className="mt-0.5 text-sm">
+                        <span className="text-[11px] uppercase tracking-wide text-gray-500">{T.dayCol[lang]}</span>{' '}
+                        <b>{range(v.dayFrom, v.dayTo).replace('…', '…\u200b')}°</b>
+                        <span className="text-gray-400"> · </span>
+                        <span className="text-[11px] uppercase tracking-wide text-gray-500">{T.nightCol[lang]}</span>{' '}
+                        {range(v.nightFrom, v.nightTo).replace('…', '…\u200b')}°
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
               {forecast.updatedAt && (
                 <p className="text-[11px] text-gray-500 mt-2">
                   {T.updated[lang]}: {formatDayMonthTime(isoToLocal(forecast.updatedAt), lang)}

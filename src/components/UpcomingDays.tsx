@@ -50,6 +50,7 @@ export const UpcomingDays: React.FC<{
   const { t } = getTranslation(lang);
   const { groups, shown } = pickUpcoming(items);
   if (shown.length === 0) return null;
+  const total = shown.reduce((n, b) => n + Math.min(groups.get(b)!.length, PER_GROUP), 0);
 
   const when = (a: Announcement, b: DayBucket) => {
     if (a.allDay) return T.allDay[lang];
@@ -61,12 +62,13 @@ export const UpcomingDays: React.FC<{
     <section className="dn-section bg-white border-t border-line" aria-labelledby="upcoming-title">
       <div className="dn-container">
         <SectionHeader id="upcoming-title" kicker={T.kicker[lang]} title={T.title[lang]} action={{ label: T.calendar[lang], onClick: onOpenCalendar }} />
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${shown.length >= 4 ? 'lg:grid-cols-4' : shown.length === 3 ? 'lg:grid-cols-3' : ''} gap-x-8 gap-y-8`}>
-          {shown.map((b) => {
+        {/* Газетная вёрстка: группы перетекают из колонки в колонку, колонки выходят одной высоты — без пустых мест */}
+        <div className={`gap-x-8 ${total >= 3 ? 'sm:columns-2' : ''} ${total >= 6 ? 'lg:columns-3' : ''}`} data-upcoming-flow>
+          {shown.map((b, gi) => {
             const list = groups.get(b)!;
             return (
-              <div key={b} className="min-w-0">
-                <h3 className="flex items-baseline justify-between gap-2 pb-2 mb-1 border-b-2 border-ink">
+              <div key={b} className={`min-w-0 ${gi > 0 ? 'mt-6' : ''}`}>
+                <h3 className="flex items-baseline justify-between gap-2 pb-2 mb-1 border-b-2 border-ink break-inside-avoid break-after-avoid">
                   <span className={`text-[15px] font-extrabold ${b === 'today' ? 'text-brand-blue' : 'text-ink'}`}>{BUCKET_LABEL[b][lang]}</span>
                   <span className="text-xs font-semibold text-meta tabular-nums">{list.length}</span>
                 </h3>
@@ -75,7 +77,7 @@ export const UpcomingDays: React.FC<{
                     const time = when(a, b);
                     const place = placeText(a, lang);
                     return (
-                      <li key={a.id}>
+                      <li key={a.id} className="break-inside-avoid">
                         <button type="button" onClick={() => onOpen(a)} className="group w-full text-left py-3 flex gap-3 items-start">
                           <DateBadge date={a.startDate} lang={lang} size="sm" />
                           <span className="min-w-0 flex-1">

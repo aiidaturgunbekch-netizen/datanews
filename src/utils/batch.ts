@@ -84,13 +84,22 @@ export const extractJson = (input: string): string => {
   return i >= 0 && j > i ? body.slice(i, j + 1) : body;
 };
 
+/** Типографские двойные кавычки → прямые, неразрывные пробелы → обычные (только если пакет иначе не читается) */
+export const repairQuotes = (json: string) => json.replace(/[\u201c\u201d\u201e\u201f\u2033\u02ba]/g, '"').replace(/[\u00a0\u202f\u2007]/g, ' ');
+
 export const parseBatch = (input: string): { items: BatchItem[]; errors: string[] } => {
   const errors: string[] = [];
   let raw: unknown;
+  const json = extractJson(input);
   try {
-    raw = JSON.parse(extractJson(input));
+    raw = JSON.parse(json);
   } catch {
-    return { items: [], errors: ['Не удалось прочитать пакет. Вставьте блок от Claude целиком — от строки DATANEWS-BATCH до END-BATCH.'] };
+    try {
+      // Окно чата при копировании иногда меняет прямые кавычки на «красивые» (“ ” „ ″) и пробелы на неразрывные
+      raw = JSON.parse(repairQuotes(json));
+    } catch {
+      return { items: [], errors: ['Не удалось прочитать пакет. Вставьте блок от Claude целиком — от строки DATANEWS-BATCH до END-BATCH.'] };
+    }
   }
   if (!Array.isArray(raw)) return { items: [], errors: ['В пакете нет списка новостей.'] };
   const items: BatchItem[] = [];

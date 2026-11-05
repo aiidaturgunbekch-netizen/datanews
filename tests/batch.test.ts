@@ -72,3 +72,12 @@ describe('пакет новостей', () => {
     assert.match(r.errors[0], /нечего исправлять/);
   });
 });
+
+describe('пакет с «красивыми» кавычками после копирования из чата', () => {
+  it('читается: “ ” заменяются на прямые', () => {
+    const t = `DATANEWS-BATCH\n[{”kind”:”new”,"category":"roads",”city”:”bishkek”,”startDate”:”2026-11-05”, ”title”:{”ru”:”Ул. Ауэзова закрыта”,”kg”:”Ауэзов көчөсү жабык”},”text”:{”ru”:”С 5 ноября.”,”kg”:”5-ноябрдан тартып.”},”sourceName”:”Мэрия Бишкека”}]\nEND-BATCH`;
+    const r = parseBatch(t);
+    assert.deepEqual(r.errors, []);
+    assert.equal(r.items.length, 1);
+  });
+});

@@ -1,3 +1,5 @@
+import { Highlight } from './Highlight';
+import { searchSnippet } from '../utils/search';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AdSlot } from './AdSlot';
 import { Announcement, CategoryId, CityId, Language } from '../types';
@@ -63,8 +65,10 @@ const postsLabel = (n: number, lang: Language) => {
   return `${n} ${ruPlural(n, 'публикация', 'публикации', 'публикаций')}`;
 };
 
-export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a: Announcement) => void }> = ({ item, lang, onOpen }) => {
+export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a: Announcement) => void; query?: string }> = ({ item, lang, onOpen, query }) => {
   const { t } = getTranslation(lang);
+  // при поиске — отрывок текста с найденными словами
+  const snippet = query ? searchSnippet(item.description?.[lang] || item.description?.ru || item.summary?.[lang] || '', query) : '';
   return (
     <button
       type="button"
@@ -81,7 +85,14 @@ export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a:
           <UrgencyBadge item={item} lang={lang} />
           <PaidBadge item={item} lang={lang} />
         </div>
-        <div className="font-bold text-sm text-[#0f1b33] leading-snug break-words">{item.title[lang] || item.title.ru}</div>
+        <div className="font-bold text-sm text-[#0f1b33] leading-snug break-words">
+          <Highlight text={item.title[lang] || item.title.ru} query={query} />
+        </div>
+        {snippet && (
+          <div className="text-xs text-gray-600 mt-0.5 break-words line-clamp-2">
+            <Highlight text={snippet} query={query} />
+          </div>
+        )}
         <div className="text-xs text-gray-500 mt-0.5 break-words">
           {[formatWhen(item.startDate, item.endDate, lang, false, item.timeTBA, item.allDay), placeText(item, lang)].filter(Boolean).join(' · ')}
         </div>
@@ -270,13 +281,24 @@ export const CategoryResults: React.FC<{
   adRubric?: string;
   /** Текст, если ничего нет (null — не показывать, например когда сверху уже есть прогноз погоды) */
   emptyText?: string | null;
-}> = ({ lang, category, items, onOpen, onReset, extra, title, adRubric, emptyText }) => {
+  /** Поисковый запрос: список уже отсортирован по похожести (порядок не меняем), найденные слова — жирным */
+  query?: string;
+}> = ({ lang, category, items, onOpen, onReset, extra, title, adRubric, emptyText, query }) => {
   const { t } = getTranslation(lang);
   // Прошедшее — в архив (свёрнут), сверху только актуальное
-  const sorted = items.filter((a) => isFresh(a)).sort((a, b) => freshOrder(a, b));
-  const archived = items.filter((a) => !isFresh(a)).sort((a, b) => byStart(b, a));
-  const [showArchive, setShowArchive] = useState(false);
-  const archiveLabel = { ru: 'Архив', kg: 'Архив', en: 'Archive' };
+  const sorted = items.filter((a) => isFresh(a));
+  const archived = items.filter((a) => !isFresh(a));
+  if (!query) {
+    sorted.sort((a, b) => freshOrder(a, b));
+    archived.sort((a, b) => byStart(b, a));
+  }
+  // в поиске прошедшее тоже показываем сразу (ниже актуального) — читатель ищет всё, что есть на сайте
+  const [showArchive, setShowArchive] = useState(Boolean(query));
+  useEffect(() => {
+    if (query) setShowArchive(true);
+  }, [query]);
+  const archiveLabel = query ? { ru: 'Прошедшие', kg: 'Өткөндөр', en: 'Past' } : { ru: 'Архив', kg: 'Архив', en: 'Archive' };
+  const total = query ? items.length : sorted.length;
   const empty = {
     ru: 'Пока нет опубликованных материалов в этом разделе',
     kg: 'Бул бөлүмдө азырынча жарыяланган материалдар жок',
@@ -299,16 +321,16 @@ export const CategoryResults: React.FC<{
         </button>
         <h2 className="text-xl sm:text-2xl font-extrabold text-[#0f1b33] mb-3">
           {title || t(`categories.${category}`)}{' '}
-          {!(sorted.length === 0 && (emptyText === null || extra)) && <span className="text-gray-500 font-bold">· {sorted.length}</span>}
+          {!(total === 0 && (emptyText === null || extra)) && <span className="text-gray-500 font-bold">· {total}</span>}
         </h2>
         {extra && <div className="mb-4">{extra}</div>}
         {adRubric && <AdSlot format="D" rubric={adRubric} lang={lang} className="mb-5" />}
         {sorted.length === 0 ? (
-          emptyText === null || extra ? null : <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{emptyText || empty[lang]}</div>
+          total > 0 ? null : emptyText === null || extra ? null : <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{emptyText || empty[lang]}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {sorted.map((a) => (
-              <ItemRow key={a.id} item={a} lang={lang} onOpen={onOpen} />
+              <ItemRow key={a.id} item={a} lang={lang} onOpen={onOpen} query={query} />
             ))}
           </div>
         )}
@@ -326,7 +348,7 @@ export const CategoryResults: React.FC<{
             {showArchive && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 opacity-80">
                 {archived.map((a) => (
-                  <ItemRow key={a.id} item={a} lang={lang} onOpen={onOpen} />
+                  <ItemRow key={a.id} item={a} lang={lang} onOpen={onOpen} query={query} />
                 ))}
               </div>
             )}

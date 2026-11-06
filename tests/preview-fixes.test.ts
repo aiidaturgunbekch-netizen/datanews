@@ -9,7 +9,8 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 const { INITIAL_ANNOUNCEMENTS: A } = await import('../src/data/initialAnnouncements');
-const { matchesSearch, normalizeSearch } = await import('../src/utils/search');
+const { matchesSearch, normalizeSearch, searchScore, rankSearch, highlightParts, searchSnippet } = await import('../src/utils/search');
+const { isAlert } = await import('../src/utils/urgency');
 const { rubricOf, rubricIdOf, NAV_RUBRICS } = await import('../src/config/rubrics');
 const { getTranslation } = await import('../src/locales/translations');
 const { EventImage } = await import('../src/components/EventImage');
@@ -19,6 +20,7 @@ const { isFresh } = await import('../src/utils/statusUtils');
 
 const ids = (q: string) => A.filter((a) => matchesSearch(a, q)).map((a) => a.id);
 const FROST = 'ann-frost-warning-2026-10-17';
+const FROST_ITEM = A.find((a) => a.id === FROST)!;
 
 describe('поиск', () => {
   it('регистр не важен: «аба», «АБА», «Аба» — одинаковые результаты, в том числе погодное предупреждение', () => {
@@ -36,20 +38,51 @@ describe('поиск', () => {
     assert.equal(normalizeSearch('  ӨЧҮРҮҮ   Аң '), 'очуруу ан');
   });
 
-  it('поиск по началу слова: любые слова, начинающиеся с набранных букв; середина слова не считается', () => {
-    // «аба» находит и «абаттандыруу» — слово начинается с этих букв (по просьбе редакции: «всё, что начинается с аб»)
+  it('похожие слова: начало слова сверху, середина слова (от 4 букв) — ниже', () => {
     const trash = A.find((a) => /абаттандыруу/.test(a.description.kg));
     assert.ok(trash);
     assert.ok(matchesSearch(trash!, 'аба'));
     assert.ok(matchesSearch(trash!, 'аб'));
-    // середина слова — нет: «бар» не находит «Кабар», «ттанды» не находит «абаттандыруу»
-    assert.ok(!matchesSearch(trash!, 'ттанды'));
+    assert.ok(matchesSearch(trash!, 'ттанды'), 'середина слова тоже находится');
+    assert.ok(searchScore(trash!, 'абаттан') > searchScore(trash!, 'ттанды'), 'начало слова — выше середины');
+    assert.ok(!matchesSearch(trash!, 'бар') || !/кабар/i.test(trash!.description.kg), '3 буквы в середине слова не ищутся');
   });
 
-  it('русский и английский, несколько слов — все должны найтись', () => {
+  it('несколько слов или предложение: показываются частичные совпадения, полные — выше', () => {
     assert.ok(ids('заморозки').includes(FROST));
     assert.ok(ids('FROST warning').includes(FROST));
-    assert.ok(!ids('frost концерт').includes(FROST));
+    assert.ok(ids('frost концерт').includes(FROST), 'нашлось одно слово — тоже показываем');
+    const ranked = rankSearch(A, 'заморозки концерт');
+    assert.ok(ranked.length > 1);
+    assert.ok(searchScore(FROST_ITEM, 'заморозки октябрь') > searchScore(FROST_ITEM, 'заморозки концерт'), 'все слова — выше');
+  });
+
+  it('«пре», «предупреждения», «срочное», «важное» находят предупреждения, даже если слова нет в тексте', () => {
+    const alerts = A.filter(isAlert).map((a) => a.id);
+    for (const q of ['пре', 'предупреждения', 'Предупреждение', 'эскертүү', 'warning']) {
+      const found = ids(q);
+      assert.ok(alerts.every((id) => found.includes(id)), `${q}: все предупреждения`);
+    }
+    const em = { ...FROST_ITEM, id: 'x-em', urgency: 'emergency' as const };
+    for (const q of ['срочное', 'срочно', 'важное', 'авария']) assert.ok(matchesSearch(em, q), q);
+    // предупреждения — выше случайных совпадений
+    const top = rankSearch(A, 'предупреждения').slice(0, alerts.length).map((a) => a.id);
+    assert.ok(alerts.every((id) => top.includes(id)), 'все предупреждения — в начале списка');
+  });
+
+  it('опечатки и формы слова', () => {
+    assert.ok(ids('предупреждние').includes(FROST), 'пропущена буква');
+    assert.ok(ids('заморозок').includes(FROST), 'другая форма слова');
+    assert.ok(ids('штормовое предупреждение').includes(FROST));
+    assert.equal(rankSearch(A, 'штормовое предупреждение')[0].id, FROST, 'фраза из заголовка — первой');
+  });
+
+  it('найденные слова выделяются; отрывок текста — вокруг найденного', () => {
+    const parts = highlightParts('Штормовое предупреждение: заморозки', 'предупреждения заморозк');
+    assert.deepEqual(parts.filter((p) => p.hit).map((p) => p.text), ['предупреждение', 'заморозки']);
+    assert.equal(parts.map((p) => p.text).join(''), 'Штормовое предупреждение: заморозки', 'текст не меняется');
+    const sn = searchSnippet('a '.repeat(80) + 'ярмарка в Бишкеке', 'ярмарки');
+    assert.ok(sn.startsWith('…') && /ярмарка/.test(sn));
   });
 });
 

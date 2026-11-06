@@ -35,7 +35,7 @@ import { useLiveAds } from './services/ads';
 import { byPriority } from './config/ads';
 import { isPaid } from './components/PaidBadge';
 import { pickTopStories } from './utils/timeline';
-import { isWeatherQuery, matchesSearch } from './utils/search';
+import { isWeatherQuery, matchesSearch, rankSearch } from './utils/search';
 import { TopStories } from './components/TopStories';
 import { PopularNews } from './components/PopularNews';
 import { Footer } from './components/Footer';
@@ -253,8 +253,9 @@ export default function App() {
    * Один общий фильтр для счётчиков и списков (город, дата, поиск) — чтобы число на чипе категории
    * всегда совпадало с тем, что открывается по нажатию. Завершённые предупреждения не показываются.
    */
-  const matchesScope = (item: Announcement, ignoreCategory = false) => {
-    if (!isListed(item)) return false;
+  const matchesScope = (item: Announcement, ignoreCategory = false, withArchive = false) => {
+    // в поиске — и завершённые предупреждения (они попадают в свёрнутый «Архив» результатов)
+    if (!withArchive && !isListed(item)) return false;
     // Город: публикации «Весь Кыргызстан» (city = 'all') видны в любом городе
     const city = normalizeCity(item.city);
     if (selectedCity !== 'all' && city !== selectedCity && city !== 'all') return false;
@@ -362,7 +363,8 @@ export default function App() {
   const searching = searchQuery.trim().length > 0;
   const weatherQuery = isWeatherQuery(searchQuery);
   const searchItems = useMemo(
-    () => (searching ? announcements.filter((a) => matchesScope(a, true)) : []),
+    // самые похожие сверху (rankSearch), найденные слова выделяются в списке
+    () => (searching ? rankSearch(announcements.filter((a) => matchesScope(a, true, true)), searchQuery) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [announcements, searching, selectedCity, dateFilter, searchQuery]
   );
@@ -556,6 +558,7 @@ export default function App() {
                 category="news"
                 title={`${currentLanguage === 'kg' ? 'Издөө' : currentLanguage === 'en' ? 'Search' : 'Поиск'}: «${searchQuery.trim()}»`}
                 items={searchItems}
+                query={searchQuery}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSearchQuery('')}
                 extra={weatherQuery ? <WeatherCard lang={currentLanguage} city={selectedCity} /> : undefined}

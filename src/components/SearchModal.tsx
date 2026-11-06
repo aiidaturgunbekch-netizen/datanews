@@ -3,7 +3,8 @@ import { PLACE_IDS } from '../config/regions';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { placeText } from '../utils/place';
-import { isWeatherQuery, matchesSearch } from '../utils/search';
+import { isWeatherQuery, rankSearch, searchSnippet } from '../utils/search';
+import { Highlight } from './Highlight';
 import { WeatherCard } from './WeatherSafety';
 
 interface SearchModalProps {
@@ -32,13 +33,14 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const [selectedCat, setSelectedCat] = useState<CategoryId>('all');
   const [selectedCity, setSelectedCity] = useState<CityId>('all');
 
+  // самые похожие на запрос — сверху; «Весь Кыргызстан» виден в любом городе
   const filtered = useMemo(() => {
-    return announcements.filter((item) => {
+    const scoped = announcements.filter((item) => {
       if (selectedCat !== 'all' && item.category !== selectedCat) return false;
-      if (selectedCity !== 'all' && item.city !== selectedCity) return false;
-
-      return matchesSearch(item, query);
+      if (selectedCity !== 'all' && item.city !== selectedCity && item.city !== 'all') return false;
+      return true;
     });
+    return query.trim() ? rankSearch(scoped, query) : scoped;
   }, [announcements, query, selectedCat, selectedCity]);
 
   return (
@@ -145,8 +147,13 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                     </span>
                   </div>
                   <h4 className="text-xs sm:text-sm font-bold text-[#0f1b33] group-hover:text-[#12327A] truncate">
-                    {item.title[currentLanguage] || item.title.ru}
+                    <Highlight text={item.title[currentLanguage] || item.title.ru} query={query} />
                   </h4>
+                  {query.trim() && searchSnippet(item.description?.[currentLanguage] || item.description?.ru || '', query) && (
+                    <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                      <Highlight text={searchSnippet(item.description?.[currentLanguage] || item.description?.ru || '', query)} query={query} />
+                    </p>
+                  )}
                   {placeText(item, currentLanguage) && <p className="text-xs text-gray-500 truncate mt-0.5">{placeText(item, currentLanguage)}</p>}
                 </div>
 

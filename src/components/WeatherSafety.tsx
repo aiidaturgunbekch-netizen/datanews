@@ -100,10 +100,10 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: s
   const label = (d: string) => [dayName(d), formatDayMonth(d, lang)].filter(Boolean).join(', ');
   const regions = FORECAST_REGIONS.filter((r) => f.regions[r.id] && r.id !== main);
   return (
-    <section className={`rounded-2xl border border-line bg-white p-4 sm:p-5 ${className}`} aria-labelledby="weather-card-title" data-weather-card>
+    <section className={`rounded-2xl border border-[#12327A]/15 bg-white p-4 sm:p-5 shadow-[0_1px_0_rgba(18,50,122,0.04)] ${className}`} aria-labelledby="weather-card-title" data-weather-card>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h2 id="weather-card-title" className="text-lg font-extrabold text-ink flex items-center gap-2">
-          <span className="material-symbols-outlined text-[22px] text-[#12327A]" aria-hidden="true">
+        <h2 id="weather-card-title" className="text-xl font-extrabold text-[#12327A] flex items-center gap-2">
+          <span className="material-symbols-outlined text-[24px] text-[#12327A]" aria-hidden="true">
             partly_cloudy_day
           </span>
           {W.title[lang]}
@@ -129,18 +129,30 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: s
       </div>
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 items-center">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-meta">
-            {t(`cities.${main}`)} · {label(f.date)}
+          {/* Место и дата — сразу видны: город на синем, дата на светло-синем */}
+          <p className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#12327A] px-3 py-1 text-sm font-bold text-white">
+              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+                location_on
+              </span>
+              {t(`cities.${main}`)}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#e8eefb] px-3 py-1 text-sm font-bold text-[#12327A]">
+              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+                calendar_today
+              </span>
+              {label(f.date)}
+            </span>
           </p>
           {v && (
             // Сначала слово, потом цифры: «Днём +21…+23°», «Ночью +5…+7°»
-            <div className="mt-1 text-ink space-y-0.5">
+            <div className="mt-2 text-ink space-y-0.5">
               <p className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-sm font-semibold text-ink-soft">{W.day[lang]}</span>
+                <span className="text-sm font-bold text-[#12327A]">{W.day[lang]}</span>
                 <span className="text-[1.75rem] min-[24em]:text-[2.25rem] leading-none font-extrabold">{range(v.dayFrom, v.dayTo).replace('…', '…\u200b')}°</span>
               </p>
               <p className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-sm font-semibold text-ink-soft">{W.night[lang]}</span>
+                <span className="text-sm font-bold text-[#12327A]/80">{W.night[lang]}</span>
                 <span className="text-lg font-bold">{range(v.nightFrom, v.nightTo).replace('…', '…\u200b')}°</span>
               </p>
             </div>
@@ -153,11 +165,13 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: s
           {regions.map((r) => {
             const x = f.regions[r.id]!;
             return (
-              <li key={r.id} className="rounded-xl bg-[#f6f8fd] px-3 py-2">
-                <p className="text-sm font-bold text-[#0f1b33]">{t(`cities.${r.id}`)}</p>
+              <li key={r.id} className="rounded-xl bg-[#f3f6fc] border-l-[3px] border-[#12327A]/70 px-3 py-2">
+                <p className="text-[15px] font-extrabold text-[#12327A]">{t(`cities.${r.id}`)}</p>
                 <p className="text-sm text-ink">
                   <span className="text-ink-soft">{W.day[lang]}</span> <b>{range(x.dayFrom, x.dayTo).replace('…', '…\u200b')}°</b>
-                  <span className="text-ink-soft"> · {W.night[lang]}</span> {range(x.nightFrom, x.nightTo).replace('…', '…\u200b')}°
+                </p>
+                <p className="text-sm text-ink">
+                  <span className="text-ink-soft">{W.night[lang]}</span> {range(x.nightFrom, x.nightTo).replace('…', '…\u200b')}°
                 </p>
               </li>
             );

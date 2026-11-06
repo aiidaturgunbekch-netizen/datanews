@@ -80,7 +80,26 @@ const lang = (v: unknown, max: number): L => {
   const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
   return { ru: s(o.ru, max), kg: s(o.kg, max), en: s(o.en, max) };
 };
-const https = (v: unknown) => (/^https:\/\/[^\s]+\.[^\s]+$/.test(s(v, 600)) ? s(v, 600) : undefined);
+/**
+ * Ссылка из пакета. Gmail, пересылая или отправляя письмо, заворачивает ссылки в переадресацию
+ * «https://www.google.com/url?q=<настоящий адрес>&source=gmail…» — берём настоящий адрес.
+ */
+export const unwrapRedirect = (url: string) => {
+  try {
+    const u = new URL(url);
+    if (/(^|\.)google\.[a-z.]+$/.test(u.hostname) && u.pathname === '/url') {
+      const q = u.searchParams.get('q') || u.searchParams.get('url');
+      if (q && /^https?:\/\//.test(q)) return q;
+    }
+  } catch {
+    /* не адрес — вернём как есть */
+  }
+  return url;
+};
+const https = (v: unknown) => {
+  const raw = unwrapRedirect(s(v, 1200));
+  return /^https:\/\/[^\s]+\.[^\s]+$/.test(raw) ? raw.slice(0, 600) : undefined;
+};
 const DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/;
 
 /** Вырезать JSON из вставленного текста: между маркерами, из блока ```json или первый […] */

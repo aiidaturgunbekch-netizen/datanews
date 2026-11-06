@@ -132,3 +132,22 @@ describe('фото со свободной лицензией', () => {
     assert.equal(d.imageSourceUrl, 'https://commons.wikimedia.org/wiki/File:Bishkek.jpg');
   });
 });
+
+describe('ссылки в пакете, пришедшем письмом', () => {
+  it('переадресация Gmail «google.com/url?q=…» заменяется настоящим адресом', () => {
+    const r = parseBatch(
+      JSON.stringify([
+        {
+          kind: 'weather',
+          date: '2026-11-06',
+          sourceUrl: 'https://www.google.com/url?q=https://www.meteo.kg/ru/forecast&source=gmail&ust=1794036360236000&sa=E',
+          text: { ru: 'Без осадков.', kg: 'Жаан-чачынсыз.' },
+          regions: { bishkek: { night: [3, 5], day: [21, 23] } },
+        },
+      ])
+    );
+    const w = r.items[0];
+    assert.equal(w.kind, 'weather');
+    if (w.kind === 'weather') assert.equal(w.forecast.sourceUrl, 'https://www.meteo.kg/ru/forecast');
+  });
+});

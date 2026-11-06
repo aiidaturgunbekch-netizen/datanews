@@ -13,7 +13,7 @@ import type { Announcement, MailItem } from '../../src/types';
 import { BatchNew, parseBatch, toDraftItem } from '../../src/utils/batch';
 import { TEST_MARK_RE } from '../../src/config/mailSenders';
 import { INITIAL_ANNOUNCEMENTS } from '../../src/data/initialAnnouncements';
-import { kgNowLocal } from '../../src/utils/time';
+import { kgDateStr, kgNowLocal } from '../../src/utils/time';
 import { cmd, hgetJson, hvalsJson } from './kv';
 import { ANN_KEY, findDuplicate, GALLERY_MAX, sanitize, saveAnnouncement, storeImage, withHistory } from './announcements';
 import { saveOfficial } from './officialWeather';
@@ -64,6 +64,11 @@ export const importBatch = async (text: string, batchMailId: string): Promise<Ba
   for (const b of items) {
     try {
       if (b.kind === 'weather') {
+        // прогноз на прошедший день сайту не нужен
+        if (b.forecast.date < kgDateStr()) {
+          out.skipped.push(`прогноз на ${b.forecast.date} — день уже прошёл`);
+          continue;
+        }
         const f = await saveOfficial(b.forecast);
         out.weather.push(f.date);
       } else if (b.kind === 'new') {

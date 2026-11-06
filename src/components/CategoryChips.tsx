@@ -54,7 +54,6 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
         <ul className="space-y-0.5">
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.id;
-            const count = categoryCounts[cat.id] ?? 0;
             return (
               <li key={cat.id}>
                 <button
@@ -67,7 +66,6 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
                 >
                   <span className={`material-symbols-outlined text-[20px] ${isSelected ? 'text-white' : 'text-[#12327A]'}`}>{cat.icon}</span>
                   <span className="flex-1 leading-tight">{cat.label}</span>
-                  <span className={`text-xs font-bold tabular-nums ${isSelected ? 'text-white/85' : count ? 'text-[#12327A]' : 'text-gray-500'}`}>{count}</span>
                 </button>
               </li>
             );
@@ -84,7 +82,6 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
         <div className="flex items-center gap-2 whitespace-nowrap min-w-max py-0.5 pr-4">
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.id;
-            const count = categoryCounts[cat.id] ?? 0;
 
             return (
               <button
@@ -105,13 +102,6 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
                   {cat.icon}
                 </span>
                 <span>{cat.label}</span>
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-gray-200/80 text-gray-700'
-                  }`}
-                >
-                  {count}
-                </span>
               </button>
             );
           })}

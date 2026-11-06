@@ -3,7 +3,8 @@ import { PLACE_IDS } from '../config/regions';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { placeText } from '../utils/place';
-import { matchesSearch } from '../utils/search';
+import { isWeatherQuery, matchesSearch } from '../utils/search';
+import { WeatherCard } from './WeatherSafety';
 
 interface SearchModalProps {
   currentLanguage: Language;
@@ -107,7 +108,10 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
         {/* Results List */}
         <div className="max-h-[60vh] overflow-y-auto p-4 space-y-2">
+          {/* «пог…», «аба…», «weather» — сразу официальный прогноз Кыргызгидромета */}
+          {isWeatherQuery(query) && <WeatherCard lang={currentLanguage} city={selectedCity} />}
           {filtered.length === 0 ? (
+            isWeatherQuery(query) ? null : (
             <div className="py-12 text-center text-gray-500">
               <span className="material-symbols-outlined text-4xl mb-2 text-gray-300">
                 search_off
@@ -120,6 +124,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                   : 'По вашему запросу ничего не найдено'}
               </p>
             </div>
+            )
           ) : (
             filtered.map((item) => (
               <div
@@ -134,9 +139,6 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                   <div className="flex items-center gap-2 mb-1">
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 text-[#12327A]">
                       {t(`categories.${item.category}`)}
-                    </span>
-                    <span className="text-[11px] font-mono text-gray-500">
-                      {item.protocolCode}
                     </span>
                     <span className="text-[11px] text-gray-500">
                       • {t(`cities.${item.city}`)}

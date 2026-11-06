@@ -148,12 +148,12 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: s
             // Сначала слово, потом цифры: «Днём +21…+23°», «Ночью +5…+7°»
             <div className="mt-2 text-ink space-y-0.5">
               <p className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-sm font-bold text-[#12327A]">{W.day[lang]}</span>
-                <span className="text-[1.75rem] min-[24em]:text-[2.25rem] leading-none font-extrabold">{range(v.dayFrom, v.dayTo).replace('…', '…\u200b')}°</span>
+                <span className="text-sm font-semibold text-gray-500">{W.day[lang]}</span>
+                <span className="text-[1.75rem] min-[24em]:text-[2.25rem] leading-none font-extrabold text-[#12327A]">{range(v.dayFrom, v.dayTo).replace('…', '…\u200b')}°</span>
               </p>
               <p className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-sm font-bold text-[#12327A]/80">{W.night[lang]}</span>
-                <span className="text-lg font-bold">{range(v.nightFrom, v.nightTo).replace('…', '…\u200b')}°</span>
+                <span className="text-sm font-semibold text-gray-500">{W.night[lang]}</span>
+                <span className="text-lg font-bold text-[#12327A]">{range(v.nightFrom, v.nightTo).replace('…', '…\u200b')}°</span>
               </p>
             </div>
           )}
@@ -168,10 +168,10 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: s
               <li key={r.id} className="rounded-xl bg-[#f3f6fc] border-l-[3px] border-[#12327A]/70 px-3 py-2">
                 <p className="text-[15px] font-extrabold text-[#12327A]">{t(`cities.${r.id}`)}</p>
                 <p className="text-sm text-ink">
-                  <span className="text-ink-soft">{W.day[lang]}</span> <b>{range(x.dayFrom, x.dayTo).replace('…', '…\u200b')}°</b>
+                  <span className="text-gray-500">{W.day[lang]}</span> <b className="text-[#12327A]">{range(x.dayFrom, x.dayTo).replace('…', '…\u200b')}°</b>
                 </p>
                 <p className="text-sm text-ink">
-                  <span className="text-ink-soft">{W.night[lang]}</span> {range(x.nightFrom, x.nightTo).replace('…', '…\u200b')}°
+                  <span className="text-gray-500">{W.night[lang]}</span> <span className="font-semibold text-[#12327A]">{range(x.nightFrom, x.nightTo).replace('…', '…\u200b')}°</span>
                 </p>
               </li>
             );

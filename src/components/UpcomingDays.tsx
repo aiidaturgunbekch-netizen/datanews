@@ -58,50 +58,59 @@ export const UpcomingDays: React.FC<{
     return b === 'today' || b === 'tomorrow' ? formatTime(a.startDate) : '';
   };
 
+  const renderGroup = (b: DayBucket) => {
+    const list = groups.get(b)!;
+    return (
+      <div key={b} className="min-w-0">
+        <h3 className="flex items-baseline justify-between gap-2 pb-2 mb-1 border-b-2 border-ink break-inside-avoid break-after-avoid">
+          <span className={`text-[15px] font-extrabold ${b === 'today' ? 'text-brand-blue' : 'text-ink'}`}>{BUCKET_LABEL[b][lang]}</span>
+          <span className="text-xs font-semibold text-meta tabular-nums">{list.length}</span>
+        </h3>
+        <ul className="divide-y divide-line">
+          {list.slice(0, PER_GROUP).map((a) => {
+            const time = when(a, b);
+            const place = placeText(a, lang);
+            return (
+              <li key={a.id} className="break-inside-avoid">
+                <button type="button" onClick={() => onOpen(a)} className="group w-full text-left py-3 flex gap-3 items-start">
+                  <DateBadge date={a.startDate} lang={lang} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="dn-card-title-sm block line-clamp-3 group-hover:text-brand-blue group-hover:underline underline-offset-2">
+                      {a.title[lang] || a.title.ru}
+                    </span>
+                    <span className="dn-meta block mt-1">
+                      {[time, t(`categories.${a.category}`), place].filter(Boolean).join(' · ')}
+                    </span>
+                    <PaidBadge item={a} lang={lang} className="mt-1.5" />
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {list.length > PER_GROUP && (
+          <button type="button" onClick={onOpenCalendar} className="mt-1 text-xs font-bold text-brand-blue hover:underline">
+            + {list.length - PER_GROUP} {T.more[lang]}
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <section className="dn-section bg-white border-t border-line" aria-labelledby="upcoming-title">
       <div className="dn-container">
         <SectionHeader id="upcoming-title" kicker={T.kicker[lang]} title={T.title[lang]} action={{ label: T.calendar[lang], onClick: onOpenCalendar }} />
-        {/* Ровная сетка, читается слева направо: «Сегодня» | «Завтра», ниже «На этой неделе» | «Позднее» — заголовки на одной линии */}
-        <div className={`grid grid-cols-1 gap-x-8 gap-y-8 items-start ${total >= 2 && shown.length > 1 ? 'sm:grid-cols-2' : ''}`} data-upcoming-flow>
-          {shown.map((b) => {
-            const list = groups.get(b)!;
-            return (
-              <div key={b} className="min-w-0">
-                <h3 className="flex items-baseline justify-between gap-2 pb-2 mb-1 border-b-2 border-ink break-inside-avoid break-after-avoid">
-                  <span className={`text-[15px] font-extrabold ${b === 'today' ? 'text-brand-blue' : 'text-ink'}`}>{BUCKET_LABEL[b][lang]}</span>
-                  <span className="text-xs font-semibold text-meta tabular-nums">{list.length}</span>
-                </h3>
-                <ul className="divide-y divide-line">
-                  {list.slice(0, PER_GROUP).map((a) => {
-                    const time = when(a, b);
-                    const place = placeText(a, lang);
-                    return (
-                      <li key={a.id} className="break-inside-avoid">
-                        <button type="button" onClick={() => onOpen(a)} className="group w-full text-left py-3 flex gap-3 items-start">
-                          <DateBadge date={a.startDate} lang={lang} size="sm" />
-                          <span className="min-w-0 flex-1">
-                            <span className="dn-card-title-sm block line-clamp-3 group-hover:text-brand-blue group-hover:underline underline-offset-2">
-                              {a.title[lang] || a.title.ru}
-                            </span>
-                            <span className="dn-meta block mt-1">
-                              {[time, t(`categories.${a.category}`), place].filter(Boolean).join(' · ')}
-                            </span>
-                            <PaidBadge item={a} lang={lang} className="mt-1.5" />
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {list.length > PER_GROUP && (
-                  <button type="button" onClick={onOpenCalendar} className="mt-1 text-xs font-bold text-brand-blue hover:underline">
-                    + {list.length - PER_GROUP} {T.more[lang]}
-                  </button>
-                )}
+        {/* Две колонки, читаются сверху вниз: слева «Сегодня», под ним «Завтра»; справа «На этой неделе», под ним «Позднее».
+            Верхние заголовки обеих колонок — на одной линии */}
+        <div className={`grid grid-cols-1 gap-x-8 gap-y-8 items-start ${shown.length > 1 ? 'sm:grid-cols-2' : ''}`} data-upcoming-flow>
+          {[shown.slice(0, Math.ceil(shown.length / 2)), shown.slice(Math.ceil(shown.length / 2))]
+            .filter((col) => col.length)
+            .map((col, ci) => (
+              <div key={ci} className="min-w-0 space-y-8">
+                {col.map((b) => renderGroup(b))}
               </div>
-            );
-          })}
+            ))}
         </div>
       </div>
     </section>

@@ -35,6 +35,7 @@ import { isPaid } from './components/PaidBadge';
 import { pickTopStories } from './utils/timeline';
 import { isWeatherQuery, matchesSearch, rankSearch } from './utils/search';
 import { TopStories } from './components/TopStories';
+import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { PopularNews } from './components/PopularNews';
 import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { Footer } from './components/Footer';
@@ -298,6 +299,7 @@ export default function App() {
   // «Главное»: три актуальных материала из разных рубрик (не предупреждения: у них свой блок рядом).
   // Отбор — pickTopStories: сильные кандидаты по homeScore, по одному на рубрику; состав может смениться
   // после обновления страницы (homeSeed — один на посещение), но не меняется, пока страница открыта.
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => kgDateStr());
   const [homeSeed] = useState(() => Math.floor(Math.random() * 1e9));
   const topStories = useMemo(
     () => pickTopStories(eventsList.filter((a) => isFresh(a)).sort(freshOrder), homeSeed, (a) => rubricIdOf(a.category)),
@@ -601,8 +603,7 @@ export default function App() {
                         />
                       </div>
                       {/* До 1280 px — под «Главным» во всю ширину, а не узкой колонкой сбоку */}
-                      {/* Предупреждения и «Самое читаемое» — небольшие окошки: на широком экране друг под другом справа, на среднем — рядом */}
-                      <div className="xl:col-span-4 min-w-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6 items-start">
+                      <div className="xl:col-span-4 min-w-0 space-y-6">
                         {/* Заметный блок — только когда есть действующие предупреждения; иначе одна строка-статус */}
                         {alertsList.length > 0 ? (
                           <MainAlerts
@@ -615,17 +616,16 @@ export default function App() {
                         ) : (
                           <NoAlertsLine lang={currentLanguage} city={selectedCity} onOpenAll={() => setCurrentView('alerts')} />
                         )}
-                        {/* «Самое читаемое» — на видном месте, рядом с предупреждениями (по настоящим прочтениям) */}
-                        {/* пока прочтений нет — «Скоро»: ближайшие события, чтобы колонка не пустовала */}
-                        {sideNews.items.length > 0 && (
-                          <PopularNews
-                            lang={currentLanguage}
-                            items={sideNews.items}
-                            mode={sideNews.mode}
-                            reads={popularReads}
-                            onOpen={setActiveNoticeDetail}
-                          />
-                        )}
+                        {/* Небольшой календарь — сбоку, рядом с предупреждениями */}
+                        <InteractiveCalendar
+                          currentLanguage={currentLanguage}
+                          announcements={announcements}
+                          selectedDate={calendarSelectedDate}
+                          onSelectDate={setCalendarSelectedDate}
+                          onSelectAnnouncement={setActiveNoticeDetail}
+                          maxItems={3}
+                          onShowAll={() => setCurrentView('calendar')}
+                        />
                       </div>
                     </div>
                   </div>
@@ -653,6 +653,17 @@ export default function App() {
                         />
                       </div>
                       <aside className="lg:col-span-4 min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
+                        {/* «Самое читаемое» — небольшое окошко рядом с лентой, над экстренными службами */}
+                        {/* только по настоящим прочтениям; ближайшие даты уже есть выше */}
+                        {sideNews.mode === 'popular' && (
+                          <PopularNews
+                            lang={currentLanguage}
+                            items={sideNews.items}
+                            mode={sideNews.mode}
+                            reads={popularReads}
+                            onOpen={setActiveNoticeDetail}
+                          />
+                        )}
                         {/* Рекламное место B (правая колонка; на телефоне и планшете — под лентой, между блоками) */}
                         <AdSlot format="B" lang={currentLanguage} className="lg:max-w-[360px]" />
                         <EmergencyBox lang={currentLanguage} />

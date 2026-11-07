@@ -11,7 +11,7 @@ import { PaidBadge } from './PaidBadge';
 import { formatWhen, MONTHS } from '../utils/dates';
 import { alertLevel, isListed } from '../utils/urgency';
 import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
-import { freshOrder, isFresh } from '../utils/statusUtils';
+import { ARTICLE_CATEGORIES, freshOrder, isFresh } from '../utils/statusUtils';
 import { ruPlural } from '../utils/plural';
 import { placeText } from '../utils/place';
 
@@ -286,9 +286,11 @@ export const CategoryResults: React.FC<{
 }> = ({ lang, category, items, onOpen, onReset, extra, title, adRubric, emptyText, query }) => {
   const { t } = getTranslation(lang);
   // Прошедшее — в архив (свёрнут), сверху только актуальное
-  const sorted = items.filter((a) => isFresh(a));
-  const archived = items.filter((a) => !isFresh(a));
-  if (!query) {
+  // Раздел новостей (ИИ и IT, бизнес): всё сразу, новые сверху — без архива (новость читают и через неделю, и через месяц)
+  const articles = !query && items.length > 0 && items.every((a) => ARTICLE_CATEGORIES.includes(a.category) || a.category === 'state' || a.category === 'laws');
+  const sorted = articles ? [...items].sort((a, b) => kgTs(b.startDate) - kgTs(a.startDate)) : items.filter((a) => isFresh(a));
+  const archived = articles ? [] : items.filter((a) => !isFresh(a));
+  if (!query && !articles) {
     sorted.sort((a, b) => freshOrder(a, b));
     archived.sort((a, b) => byStart(b, a));
   }

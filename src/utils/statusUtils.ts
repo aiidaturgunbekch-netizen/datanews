@@ -2,6 +2,9 @@ import { Announcement, Language } from '../types';
 import { kgTs } from './time';
 import { endTs } from './urgency';
 
+/** Категории-новости: у них дата — день публикации, а не время события; они не «завершаются» и не уходят в архив раздела */
+export const ARTICLE_CATEGORIES: string[] = ['news', 'tech', 'business'];
+
 export type DisplayStatus = 'upcoming' | 'active' | 'completed' | 'cancelled' | 'rescheduled' | 'inForce' | 'notYet' | 'published';
 
 /**
@@ -24,6 +27,8 @@ export function getAnnouncementDisplayStatus(
   if (ann.status === 'completed' || ann.status === 'archived') return 'completed';
 
   const refTime = referenceDate.getTime();
+  // Новость (ИИ и IT, бизнес, новости) — не событие: она не «завершается», а остаётся опубликованной
+  if (ARTICLE_CATEGORIES.includes(ann.category)) return 'published';
   // Объявление — не событие: «Опубликовано», пока не истёк срок действия
   if (ann.category === 'notices') return refTime > endTs(ann) ? 'completed' : 'published';
   // Даты в данных — время Бишкека (UTC+6), сравниваем независимо от часового пояса посетителя

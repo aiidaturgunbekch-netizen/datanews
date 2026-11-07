@@ -868,6 +868,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     try {
       await fn();
       setMsg(okMsg);
+      // сообщение об успехе не висит над следующими действиями
+      window.setTimeout(() => setMsg((m) => (m === okMsg ? '' : m)), 8000);
       load();
       onRefreshData();
     } catch (e) {
@@ -1163,6 +1165,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             <span className="px-2 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44]">{catLabel(a.category)}</span>
                             <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{cityLabel(a.city)}</span>
                             {a.testMaterial && <span className="px-2 py-0.5 rounded-full bg-red-600 text-white">ТЕСТ — публикация запрещена</span>}
+                            {/* Редактор уже открывал «Исправить» и сохранил — видно, что материал проверен и его можно одобрить */}
+                            {(a.history || []).some((h) => h.action === 'edited' && h.by === 'admin') && (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 inline-flex items-center gap-1" data-edited-badge>
+                                <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
+                                  edit_note
+                                </span>
+                                Исправлено
+                              </span>
+                            )}
                             {missingLangs(a).length > 0 && (
                               <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" title="Пока нет текста на этом языке, в этой версии сайта новость не показывается. «Исправить» → добавьте текст.">
                                 Нет перевода: {missingLangs(a).join(', ')}
@@ -1225,7 +1236,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             {/* Тестовый материал сервер не даст одобрить; кнопку не показываем, чтобы не было лишней ошибки */}
                             {!a.testMaterial && (
                               <button
-                                onClick={() => act(() => api.moderateAnnouncement(a.id, 'approve'), 'Опубликовано на сайте')}
+                                onClick={() => act(() => api.moderateAnnouncement(a.id, 'approve'), `Одобрено и опубликовано на сайте: «${a.title.ru}»`)}
                                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold inline-flex items-center gap-1"
                               >
                                 <span className="material-symbols-outlined text-[18px]">check</span>Одобрить
@@ -1234,8 +1245,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             <button onClick={() => reject(a)} className="px-4 py-2 rounded-xl bg-red-50 text-red-700 text-sm font-bold inline-flex items-center gap-1">
                               <span className="material-symbols-outlined text-[18px]">close</span>Отклонить
                             </button>
-                            <button onClick={() => setEditing(a)} className="px-4 py-2 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold">
-                              Исправить
+                            <button
+                              onClick={() => {
+                                setMsg('');
+                                setEditing(a);
+                              }}
+                              className="px-4 py-2 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold"
+                            >
+                              {(a.history || []).some((h) => h.action === 'edited' && h.by === 'admin') ? 'Исправить ещё' : 'Исправить'}
                             </button>
                           </div>
                         </div>

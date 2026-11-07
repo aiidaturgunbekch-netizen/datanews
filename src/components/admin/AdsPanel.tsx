@@ -1,3 +1,4 @@
+import { markAdsChanged } from '../../services/ads';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../../services/api';
 import { inputCls } from '../AnnouncementForm';
@@ -255,6 +256,7 @@ export const AdsPanel: React.FC = () => {
     setResult(null);
     try {
       await api.adsPost({ op: 'action', id, action, ...extra });
+      markAdsChanged();
       setResult({ id, ok: 'Сохранено' });
       load();
       return true;
@@ -755,6 +757,7 @@ const FormatForm: React.FC<{ f: AdFormat; onSaved: () => void; onError: (m: stri
   const txt = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV({ ...v, [k]: e.target.value });
   const save = async () => {
     try {
+      markAdsChanged();
       await api.adsPost({
         op: 'format',
         id: f.id,
@@ -911,6 +914,7 @@ const CreateForm: React.FC<{ formats: Record<AdFormatId, AdFormat>; initial: AdF
     setBusy(true);
     setErr('');
     try {
+      markAdsChanged();
       await api.adsPost({
         op: 'create',
         format,

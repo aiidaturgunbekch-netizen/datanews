@@ -33,7 +33,8 @@ const POPULAR_DAYS = 7;
 export default handler(async (req) => {
   if (req.method === 'GET') {
     const q = new URL(req.url).searchParams;
-    if (q.get('ads')) return json({ ads: await liveAds() }, 200, { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=120' });
+    // короткий кэш: остановленная кампания пропадает у посетителей примерно за 15–30 секунд
+    if (q.get('ads')) return json({ ads: await liveAds() }, 200, { 'Cache-Control': 'public, max-age=0, s-maxage=15, stale-while-revalidate=15' });
     if (q.get('adformats')) return json({ formats: await getFormats() }, 200, { 'Cache-Control': 'public, max-age=0, s-maxage=300' });
     if (q.get('ad') && q.get('go')) {
       const id = String(q.get('ad'));

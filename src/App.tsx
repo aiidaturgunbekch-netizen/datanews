@@ -28,7 +28,6 @@ import { EventsFeed } from './components/EventsFeed';
 import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { SectionsDrawer } from './components/SectionsDrawer';
 import { MainAlerts, NoAlertsLine } from './components/MainAlerts';
-import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { AdSlot } from './components/AdSlot';
 import { AdTicker } from './components/AdTicker';
 import { useLiveAds } from './services/ads';
@@ -325,12 +324,8 @@ export default function App() {
     const top = new Set(topStories.map((a) => a.id));
     return eventsList.filter((a) => !top.has(a.id));
   }, [eventsList, topStories]);
-  // «Ближайшие даты» берут из ленты то, что предстоит; в самой ленте эти материалы не повторяются
-  const upcomingPool = useMemo(() => feedList.filter((a) => isFresh(a)), [feedList]);
-  const feedRest = useMemo(() => {
-    const shown = pickUpcoming(upcomingPool).shownIds;
-    return feedList.filter((a) => !shown.has(a.id));
-  }, [feedList, upcomingPool]);
+  // «Ближайшие даты» убраны с главной (они есть в «Календаре») — лента показывает всё, кроме «Главного»
+  const feedRest = feedList;
   // «Самое читаемое»: реальные прочтения карточек за 7 дней; пока их нет — «Скоро» (ближайшие по дате)
   const [popularReads, setPopularReads] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -342,11 +337,12 @@ export default function App() {
   }, [activeNoticeDetail?.id]);
   const sideNews = useMemo(() => {
     const top = new Set(topStories.map((a) => a.id));
-    const pool = eventsList.filter((a) => isFresh(a) && !top.has(a.id));
-    const read = pool.filter((a) => (popularReads[a.id] || 0) > 0).sort((a, b) => popularReads[b.id] - popularReads[a.id]);
+    // часто читаемое остаётся в списке, даже если дата прошла (новость могут читать и через неделю)
+    const read = eventsList.filter((a) => !top.has(a.id) && a.status !== 'cancelled')
+      .filter((a) => (popularReads[a.id] || 0) > 0).sort((a, b) => popularReads[b.id] - popularReads[a.id]);
     if (read.length > 0) return { mode: 'popular' as const, items: read.slice(0, 5) };
     const now = Date.now();
-    const soon = pool.filter((a) => kgTs(a.startDate) >= now).sort((a, b) => kgTs(a.startDate) - kgTs(b.startDate));
+    const soon = eventsList.filter((a) => isFresh(a) && !top.has(a.id)).filter((a) => kgTs(a.startDate) >= now).sort((a, b) => kgTs(a.startDate) - kgTs(b.startDate));
     return { mode: 'soon' as const, items: soon.slice(0, 5) };
   }, [eventsList, topStories, popularReads]);
   const rubric = rubricOf(activeRubric);
@@ -615,27 +611,21 @@ export default function App() {
                         ) : (
                           <NoAlertsLine lang={currentLanguage} city={selectedCity} onOpenAll={() => setCurrentView('alerts')} />
                         )}
-                        <InteractiveCalendar
-                          currentLanguage={currentLanguage}
-                          announcements={announcements}
-                          selectedDate={calendarSelectedDate}
-                          onSelectDate={setCalendarSelectedDate}
-                          onSelectAnnouncement={setActiveNoticeDetail}
-                          maxItems={3}
-                          onShowAll={() => setCurrentView('calendar')}
-                        />
+                        {/* «Самое читаемое» — на видном месте, рядом с предупреждениями (по настоящим прочтениям) */}
+                        {/* пока прочтений нет — «Скоро»: ближайшие события, чтобы колонка не пустовала */}
+                        {sideNews.items.length > 0 && (
+                          <PopularNews
+                            lang={currentLanguage}
+                            items={sideNews.items}
+                            mode={sideNews.mode}
+                            reads={popularReads}
+                            onOpen={setActiveNoticeDetail}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
                 </section>
-
-                {/* Что предстоит: сегодня, завтра, ближайшие дни — без повторов из «Главного» */}
-                <UpcomingDays
-                  lang={currentLanguage}
-                  items={upcomingPool}
-                  onOpen={setActiveNoticeDetail}
-                  onOpenCalendar={() => setCurrentView('calendar')}
-                />
 
                 {/* Лента (без повторов из «Главного»), сбоку — календарь и экстренные службы */}
                 <section id="events-feed" className="w-full dn-section bg-wash border-t border-line scroll-mt-[calc(var(--header-h,136px)+1rem)]">
@@ -651,16 +641,16 @@ export default function App() {
                         />
                       </div>
                       <aside className="lg:col-span-4 min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
-                        {/* «Самое читаемое» — только по настоящим прочтениям; ближайшие даты уже есть выше */}
-                        {sideNews.mode === 'popular' && (
-                          <PopularNews
-                            lang={currentLanguage}
-                            items={sideNews.items}
-                            mode={sideNews.mode}
-                            reads={popularReads}
-                            onOpen={setActiveNoticeDetail}
-                          />
-                        )}
+                        {/* Мини-календарь — рядом с лентой (полный — в разделе «Календарь») */}
+                        <InteractiveCalendar
+                          currentLanguage={currentLanguage}
+                          announcements={announcements}
+                          selectedDate={calendarSelectedDate}
+                          onSelectDate={setCalendarSelectedDate}
+                          onSelectAnnouncement={setActiveNoticeDetail}
+                          maxItems={3}
+                          onShowAll={() => setCurrentView('calendar')}
+                        />
                         {/* Рекламное место B (правая колонка; на телефоне и планшете — под лентой, между блоками) */}
                         <AdSlot format="B" lang={currentLanguage} className="lg:max-w-[360px]" />
                         <EmergencyBox lang={currentLanguage} />

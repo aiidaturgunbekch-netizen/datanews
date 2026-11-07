@@ -6,9 +6,27 @@ import type { AdFormat, AdFormatId, LiveAd } from '../config/ads';
  * учёт показов (один раз за открытие страницы, когда баннер действительно появился на экране) и адрес перехода.
  */
 let livePromise: Promise<LiveAd[]> | null = null;
+/** Метка «реклама изменена» — панель ставит её после любого действия с кампанией */
+export const ADS_CHANGED_KEY = 'dn-ads-changed';
+export const markAdsChanged = () => {
+  try {
+    localStorage.setItem(ADS_CHANGED_KEY, String(Date.now()));
+  } catch {
+    /* ничего */
+  }
+};
+
 export const fetchLiveAds = (): Promise<LiveAd[]> => {
   if (!livePromise) {
-    livePromise = fetch('/api/track?ads=1')
+    // после изменения кампании в панели (этим браузером) — свежий список в обход кэша
+    let v = '';
+    try {
+      const t = Number(localStorage.getItem(ADS_CHANGED_KEY) || 0);
+      if (Date.now() - t < 10 * 60_000) v = `&v=${t}`;
+    } catch {
+      /* без хранилища — обычный запрос */
+    }
+    livePromise = fetch(`/api/track?ads=1${v}`)
       .then((r) => (r.ok ? r.json() : { ads: [] }))
       .then((d: { ads?: LiveAd[] }) => (Array.isArray(d.ads) ? d.ads : []))
       .catch(() => []);

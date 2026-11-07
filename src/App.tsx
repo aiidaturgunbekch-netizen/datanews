@@ -25,7 +25,6 @@ import { HeroFilter } from './components/HeroFilter';
 import { CategoryChips } from './components/CategoryChips';
 import { AlertsGrid } from './components/AlertsGrid';
 import { EventsFeed } from './components/EventsFeed';
-import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { SectionsDrawer } from './components/SectionsDrawer';
 import { MainAlerts, NoAlertsLine } from './components/MainAlerts';
 import { AdSlot } from './components/AdSlot';
@@ -37,6 +36,7 @@ import { pickTopStories } from './utils/timeline';
 import { isWeatherQuery, matchesSearch, rankSearch } from './utils/search';
 import { TopStories } from './components/TopStories';
 import { PopularNews } from './components/PopularNews';
+import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
 import { SearchModal } from './components/SearchModal';
@@ -113,7 +113,6 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
-  const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => kgDateStr());
 
   // Data Store: встроенные события показываются сразу, публикации с сервера догружаются
   const [allAnnouncements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
@@ -324,8 +323,12 @@ export default function App() {
     const top = new Set(topStories.map((a) => a.id));
     return eventsList.filter((a) => !top.has(a.id));
   }, [eventsList, topStories]);
-  // «Ближайшие даты» убраны с главной (они есть в «Календаре») — лента показывает всё, кроме «Главного»
-  const feedRest = feedList;
+  // «Ближайшие даты» берут из ленты то, что предстоит; в самой ленте эти материалы не повторяются
+  const upcomingPool = useMemo(() => feedList.filter((a) => isFresh(a)), [feedList]);
+  const feedRest = useMemo(() => {
+    const shown = pickUpcoming(upcomingPool).shownIds;
+    return feedList.filter((a) => !shown.has(a.id));
+  }, [feedList, upcomingPool]);
   // «Самое читаемое»: реальные прочтения карточек за 7 дней; пока их нет — «Скоро» (ближайшие по дате)
   const [popularReads, setPopularReads] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -598,7 +601,8 @@ export default function App() {
                         />
                       </div>
                       {/* До 1280 px — под «Главным» во всю ширину, а не узкой колонкой сбоку */}
-                      <div className="xl:col-span-4 min-w-0 space-y-6">
+                      {/* Предупреждения и «Самое читаемое» — небольшие окошки: на широком экране друг под другом справа, на среднем — рядом */}
+                      <div className="xl:col-span-4 min-w-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6 items-start">
                         {/* Заметный блок — только когда есть действующие предупреждения; иначе одна строка-статус */}
                         {alertsList.length > 0 ? (
                           <MainAlerts
@@ -627,6 +631,14 @@ export default function App() {
                   </div>
                 </section>
 
+                {/* Что предстоит: сегодня, завтра, ближайшие дни — без повторов из «Главного» */}
+                <UpcomingDays
+                  lang={currentLanguage}
+                  items={upcomingPool}
+                  onOpen={setActiveNoticeDetail}
+                  onOpenCalendar={() => setCurrentView('calendar')}
+                />
+
                 {/* Лента (без повторов из «Главного»), сбоку — календарь и экстренные службы */}
                 <section id="events-feed" className="w-full dn-section bg-wash border-t border-line scroll-mt-[calc(var(--header-h,136px)+1rem)]">
                   <div className="dn-container">
@@ -641,16 +653,6 @@ export default function App() {
                         />
                       </div>
                       <aside className="lg:col-span-4 min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
-                        {/* Мини-календарь — рядом с лентой (полный — в разделе «Календарь») */}
-                        <InteractiveCalendar
-                          currentLanguage={currentLanguage}
-                          announcements={announcements}
-                          selectedDate={calendarSelectedDate}
-                          onSelectDate={setCalendarSelectedDate}
-                          onSelectAnnouncement={setActiveNoticeDetail}
-                          maxItems={3}
-                          onShowAll={() => setCurrentView('calendar')}
-                        />
                         {/* Рекламное место B (правая колонка; на телефоне и планшете — под лентой, между блоками) */}
                         <AdSlot format="B" lang={currentLanguage} className="lg:max-w-[360px]" />
                         <EmergencyBox lang={currentLanguage} />

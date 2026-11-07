@@ -62,12 +62,12 @@ export const UpcomingDays: React.FC<{
     <section className="dn-section bg-white border-t border-line" aria-labelledby="upcoming-title">
       <div className="dn-container">
         <SectionHeader id="upcoming-title" kicker={T.kicker[lang]} title={T.title[lang]} action={{ label: T.calendar[lang], onClick: onOpenCalendar }} />
-        {/* Газетная вёрстка: группы перетекают из колонки в колонку, колонки выходят одной высоты — без пустых мест */}
-        <div className={`gap-x-8 ${total >= 3 ? 'sm:columns-2' : ''} ${total >= 6 ? 'lg:columns-3' : ''}`} data-upcoming-flow>
-          {shown.map((b, gi) => {
+        {/* Ровная сетка, читается слева направо: «Сегодня» | «Завтра», ниже «На этой неделе» | «Позднее» — заголовки на одной линии */}
+        <div className={`grid grid-cols-1 gap-x-8 gap-y-8 items-start ${total >= 2 && shown.length > 1 ? 'sm:grid-cols-2' : ''}`} data-upcoming-flow>
+          {shown.map((b) => {
             const list = groups.get(b)!;
             return (
-              <div key={b} className={`min-w-0 ${gi > 0 ? 'mt-6' : ''}`}>
+              <div key={b} className="min-w-0">
                 <h3 className="flex items-baseline justify-between gap-2 pb-2 mb-1 border-b-2 border-ink break-inside-avoid break-after-avoid">
                   <span className={`text-[15px] font-extrabold ${b === 'today' ? 'text-brand-blue' : 'text-ink'}`}>{BUCKET_LABEL[b][lang]}</span>
                   <span className="text-xs font-semibold text-meta tabular-nums">{list.length}</span>

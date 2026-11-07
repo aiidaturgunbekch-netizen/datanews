@@ -605,8 +605,10 @@ export default function App() {
                       {/* До 1280 px — под «Главным» во всю ширину, а не узкой колонкой сбоку */}
                       {/* Предупреждения и небольшой календарь: на широком экране — справа друг под другом,
                           на экране поуже — рядом (предупреждения слева, календарь справа), а не во всю ширину */}
-                      <div className="xl:col-span-4 min-w-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6 items-start">
+                      <div className="xl:col-span-4 min-w-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 xl:grid-cols-1 gap-6 lg:gap-10 xl:gap-6 items-start">
                         {/* Заметный блок — только когда есть действующие предупреждения; иначе одна строка-статус */}
+                        {/* шире — предупреждения (как лента ниже), уже — календарь (как «Самое читаемое» ниже) */}
+                        <div className="min-w-0 lg:col-span-8 xl:col-span-1">
                         {alertsList.length > 0 ? (
                           <MainAlerts
                             lang={currentLanguage}
@@ -618,7 +620,9 @@ export default function App() {
                         ) : (
                           <NoAlertsLine lang={currentLanguage} city={selectedCity} onOpenAll={() => setCurrentView('alerts')} />
                         )}
-                        {/* Небольшой календарь — сбоку, рядом с предупреждениями */}
+                        </div>
+                        {/* Небольшой календарь — сбоку, рядом с предупреждениями; ширина та же, что у «Самого читаемого» */}
+                        <div className="min-w-0 lg:col-span-4 xl:col-span-1">
                         <InteractiveCalendar
                           currentLanguage={currentLanguage}
                           announcements={announcements}
@@ -628,6 +632,7 @@ export default function App() {
                           maxItems={3}
                           onShowAll={() => setCurrentView('calendar')}
                         />
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -1,6 +1,5 @@
 import { PaidNote } from './PaidBadge';
 import { EditButton } from './EditButton';
-import { splitLead } from '../utils/lead';
 import React, { useEffect, useRef, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
@@ -282,14 +281,15 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
       title: groups.official.some((o) => o.label === 'official') ? L.official[lang] : L.authorityTitle[lang],
       items: groups.official,
     },
-    { title: L.organizer[lang], items: groups.organizer },
+    // у новостей и предупреждений «Организатора» нет — такая ссылка идёт в источники
+    { title: L.organizer[lang], items: isEvent ? groups.organizer : [] },
     // ссылка «Источник фото» в списке источников не нужна: подпись автора фото — одной серой строкой под фотографией
     // Частные СМИ не показываем и не рекламируем, если есть официальный первоисточник или организатор:
     // текст переписан по первоисточнику. СМИ указываем, только если новость есть лишь у них (они — автор)
     {
       title: L.additional[lang],
-      items: groups.additional.filter(
-        (l) => l.label !== 'image' && !(l.label === 'media' && (groups.official.length > 0 || groups.organizer.length > 0))
+      items: [...(isEvent ? [] : groups.organizer), ...groups.additional].filter(
+        (l) => l.label !== 'image' && !(l.label === 'media' && (groups.official.length > 0 || (isEvent && groups.organizer.length > 0)))
       ),
     },
   ].filter((x) => x.items.length > 0);
@@ -346,11 +346,12 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   // вступление и текст — на одном языке: если текст на языке страницы есть, краткое берём только на нём же
   const hasBody = Boolean(a.description[lang]?.trim());
   // старые записи: русское краткое скопировано в другие языки — такое краткое не берём
-  const copiedRu = lang !== 'ru' && a.summary[lang] === a.summary.ru && a.description[lang] !== a.description.ru;
-  const { lead: summary, rest: body } = splitLead(
-    hasBody ? (copiedRu ? '' : a.summary[lang] || '') : a.summary[lang] || a.summary.ru,
-    hasBody ? a.description[lang] : a.description.ru
-  );
+  // Над фото — только заголовок (тема); под фото — весь текст один раз (краткое — только если основного текста нет)
+  const body = (hasBody ? a.description[lang] : a.description.ru || a.summary[lang] || a.summary.ru || '').trim();
+  // Организатор — только у событий (концерт, спектакль, ярмарка…); у новостей и предупреждений — источник
+  const organizer = isEvent ? a.eventDetails?.organizer?.trim() || '' : '';
+  // «Фото: Фото: Кабар» → «Фото: Кабар»
+  const photoCredit = (a.imageCredit || '').replace(/^\s*(фото|сүрөт|photo)\s*:\s*/i, '');
 
   /** Одна строка блока «Коротко» */
   const Fact = ({ icon, label, children, wide = false }: { icon: string; label: string; children: React.ReactNode; wide?: boolean }) => (
@@ -451,29 +452,6 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         <h1 id="article-title" className="mt-4 font-serif text-[30px] sm:text-[42px] leading-[1.12] font-bold text-[#0f1b33] [overflow-wrap:anywhere]">
           {title}
         </h1>
-        {summary && <p className="mt-4 text-lg sm:text-xl leading-relaxed text-[#3b4252]">{summary}</p>}
-
-        {/* Строка доверия: кто сообщил и когда */}
-        <div className="mt-6 py-3 border-y border-gray-200 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
-          <span>
-            {L.source[lang]}:{' '}
-            {source ? (
-              <a href={source} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline">
-                {sourceLabel(a, lang)}
-              </a>
-            ) : (
-              <b className="text-[#0f1b33]">{sourceLabel(a, lang)}</b>
-            )}
-          </span>
-          <span>
-            {L.published[lang]}: <time dateTime={a.publishedAt}>{formatDayMonthTime(a.publishedAt, lang)}</time>
-          </span>
-          {a.updatedAt && a.updatedAt !== a.publishedAt && (
-            <span>
-              {L.updated[lang]}: <time dateTime={a.updatedAt}>{formatDayMonthTime(a.updatedAt, lang)}</time>
-            </span>
-          )}
-        </div>
 
         <EventImage
           item={a}
@@ -482,27 +460,34 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           className={`mt-6 w-full rounded-xl ${a.imageFit === 'cover' ? 'aspect-[16/9]' : 'h-[52vh] max-h-[560px] min-h-[220px]'}`}
         />
         {/* Подпись автора фото — только когда её требует лицензия (например, Wikimedia Commons); фото от первоисточника — без подписи */}
-        {a.imageCredit && (
+        {photoCredit && (
           <p className="mt-1.5 text-[11px] text-gray-400" data-photo-credit>
-            {L.photo[lang]}: {a.imageCredit}
+            {L.photo[lang]}: {photoCredit}
           </p>
         )}
         {/* Галерея — дополнительные фото под главным; нажатие открывает фото крупно */}
         {(a.gallery?.length || 0) > 0 && <Gallery photos={a.gallery!} alt={a.imageAlt || a.title[lang] || a.title.ru} lang={lang} />}
 
-        {/* Коротко: главное о событии одним взглядом */}
-        <section aria-labelledby="brief-title" className="mt-8 rounded-2xl bg-[#f3f6fc] p-5 sm:p-6">
-          <h2 id="brief-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-4">
+        {/* Текст новости — сразу под фото, один раз */}
+        {body && (
+          <div className="mt-5 text-[17px] leading-[1.7] text-[#1f2937] whitespace-pre-line [overflow-wrap:anywhere]" data-article-body>
+            {body}
+          </div>
+        )}
+
+        {/* Коротко: главное одним взглядом — компактно */}
+        <section aria-labelledby="brief-title" className="mt-6 rounded-xl bg-[#f3f6fc] px-4 py-3 sm:px-5 sm:py-4">
+          <h2 id="brief-title" className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500 mb-2">
             {L.brief[lang]}
           </h2>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
             <Fact icon="event" label={L.when[lang]}>
               {whenText}
             </Fact>
             {/* «Где»: только известное — адрес или площадка, ниже территория; без адреса — одна территория */}
             <Fact icon="location_on" label={L.where[lang]}>
               {place || [a.locality, a.district, cityLabel].filter(Boolean).join(' • ')}
-              {place && (
+              {place && place !== cityLabel && (
                 <span className="block text-xs font-normal text-gray-500 mt-0.5">{[a.locality, a.district, cityLabel].filter(Boolean).join(' • ')}</span>
               )}
             </Fact>
@@ -537,14 +522,14 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                 {a.eventDetails.priceText[lang]}
               </Fact>
             )}
-            {a.eventDetails?.timeRange && (
+            {a.eventDetails?.timeRange && !String(whenText).includes(a.eventDetails.timeRange.trim()) && (
               <Fact icon="schedule" label={lang === 'en' ? 'Time & age' : lang === 'kg' ? 'Убактысы жана жаш чеги' : 'Время и возраст'}>
                 {a.eventDetails.timeRange}
               </Fact>
             )}
-            {a.eventDetails?.organizer && (
+            {organizer && (
               <Fact icon="groups" label={L.organizer[lang]}>
-                {a.eventDetails.organizer}
+                {organizer}
               </Fact>
             )}
             {a.eventDetails?.contactPhone && (
@@ -571,7 +556,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             )}
           </dl>
 
-          <div className="mt-5 pt-5 border-t border-[#12327A]/10 flex flex-wrap gap-2">
+          <div className="mt-3 pt-3 border-t border-[#12327A]/10 flex flex-wrap gap-2">
             {tickets.url && tickets.verified && (
               <a href={tickets.url} target="_blank" rel="noopener noreferrer" className={`${btn} bg-[#20C7B5] text-[#002f29] font-extrabold hover:bg-[#1bb3a2]`}>
                 <span className="material-symbols-outlined text-[18px]">confirmation_number</span>
@@ -592,10 +577,27 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           </div>
         </section>
 
-        {/* Текст новости: крупный шрифт, удобная длина строки */}
-        {body && (
-          <div className="mt-8 text-[18px] leading-[1.75] text-[#1f2937] whitespace-pre-line [overflow-wrap:anywhere]">{body}</div>
-        )}
+        {/* Кто сообщил и когда — мелко, после текста. У событий — организатор, у новостей — источник (один раз) */}
+        <p className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500" data-article-meta>
+          <span>
+            {organizer ? L.organizer[lang] : L.source[lang]}:{' '}
+            {source ? (
+              <a href={source} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] hover:underline">
+                {organizer || sourceLabel(a, lang)}
+              </a>
+            ) : (
+              <b className="font-semibold text-gray-700">{organizer || sourceLabel(a, lang)}</b>
+            )}
+          </span>
+          <span>
+            {L.published[lang]}: <time dateTime={a.publishedAt}>{formatDayMonthTime(a.publishedAt, lang)}</time>
+          </span>
+          {a.updatedAt && a.updatedAt !== a.publishedAt && (
+            <span>
+              {L.updated[lang]}: <time dateTime={a.updatedAt}>{formatDayMonthTime(a.updatedAt, lang)}</time>
+            </span>
+          )}
+        </p>
 
 
         {a.legal && (
@@ -668,8 +670,8 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                   {sec.items.map((l) => (
                     <li key={l.href}>
                       <a href={l.href} target="_blank" rel="noopener noreferrer" className="inline-flex flex-wrap items-center gap-x-1.5 text-[#12327A] font-semibold hover:underline [overflow-wrap:anywhere]">
-                        <span className="material-symbols-outlined text-[16px]">{LINK_META[l.label].icon}</span>
-                        <span>{LINK_META[l.label].text}</span>
+                        <span className="material-symbols-outlined text-[16px]">{!isEvent && l.label === 'organizer' ? 'link' : LINK_META[l.label].icon}</span>
+                        <span>{!isEvent && l.label === 'organizer' ? L.source[lang] : LINK_META[l.label].text}</span>
                         <span className="text-gray-500 font-normal">— {hostOf(l.href)}</span>
                         <span className="material-symbols-outlined text-[14px]">open_in_new</span>
                       </a>

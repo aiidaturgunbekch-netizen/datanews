@@ -145,7 +145,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
               <p className="text-lg sm:text-xl font-bold tracking-tight text-[#12327A]">
                 {currentLanguage === 'kg' ? (
                   <>
-                    <span>Датаны бил</span> <span className="text-[#20C7B5]">—</span> <span>күнүңдү пландаштыр</span>
+                    <span>Убакытты бил</span> <span className="text-[#20C7B5]">—</span> <span>күнүңдү планда!</span>
                   </>
                 ) : currentLanguage === 'en' ? (
                   <>

@@ -304,7 +304,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     ),
     category: 'gov',
     city: 'bishkek',
-    location: L('г. Бишкек, все районы', 'Бишкек ш., баардык райондор', 'Bishkek, all districts'),
+    location: L('г. Бишкек, все районы', 'Бишкек ш., бардык райондор', 'Bishkek, all districts'),
     startDate: '2026-10-13T08:00',
     endDate: '2026-10-13T23:59',
     urgency: 'regular',

@@ -28,6 +28,7 @@ import { CHECK_NOTE, isCheckOnlyCopy } from '../src/utils/mergeAnnouncements';
 import { isEditor, StoredUser, USERS_KEY } from './_lib/users';
 import { checkPublishCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
 import { normalizePlan } from '../src/config/site';
+import { allowedCategories } from '../src/config/publishTypes';
 import { kgNowLocal } from '../src/utils/time';
 import { INITIAL_ANNOUNCEMENTS } from '../src/data/initialAnnouncements';
 
@@ -312,9 +313,26 @@ export default handler(async (req) => {
       return json({ item });
     }
 
-    if (!current || current.submittedBy?.email !== session.sub) throw new HttpError('forbidden', 403);
     const user = await hgetJson<StoredUser>(USERS_KEY, session.sub);
     const editor = isEditor(user);
+    // Сотрудник редакции может исправить любой редакционный материал своих разделов (не только свой),
+    // кроме платных размещений и публикаций госорганов; встроенные материалы — тоже (сохраняется правленая копия)
+    const base = current || (editor ? INITIAL_ANNOUNCEMENTS.find((a) => a.id === id) || null : null);
+    const own = Boolean(base && base.submittedBy?.email === session.sub);
+    const editorAny = Boolean(
+      editor && base && !own && !(base.dataOrigin === 'user' && !base.publishedByGov) && !base.publishedByGov &&
+        allowedCategories({ plan: normalizePlan(user!.plan), govVerified: false, editor: true }).includes(base.category)
+    );
+    if (!base || (!own && !editorAny)) throw new HttpError('forbidden', 403);
+    if (editorAny) {
+      await rateLimit(req, 'edit', 30, 3600, session.sub);
+      let item = await sanitize(authorFields(body.item), base);
+      item = { ...keepEditorial(item, base), submittedBy: base.submittedBy, dataOrigin: base.dataOrigin, moderationStatus: base.moderationStatus || 'approved' };
+      item = withHistory(item, 'author', 'edited', `Правка сотрудника редакции: ${user!.name}`, diffFields(base, item));
+      await saveAnnouncement(item);
+      return json({ item });
+    }
+    if (!current) throw new HttpError('forbidden', 403);
     if (current.moderationStatus === 'withdrawn' && !current.publishedByGov && !editor) throw new HttpError('forbidden', 403);
     await rateLimit(req, 'edit', 30, 3600, session.sub);
     let item = keepEditorial(await sanitize(authorFields(body.item), current), current);

@@ -37,6 +37,8 @@ import { isWeatherQuery, matchesSearch, rankSearch } from './utils/search';
 import { TopStories } from './components/TopStories';
 import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { PopularNews } from './components/PopularNews';
+import { EditContext } from './components/EditButton';
+import { allowedCategories } from './config/publishTypes';
 import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
@@ -243,7 +245,37 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView]);
 
+  // «Исправить» на сайте: админ — любая публикация; сотрудник редакции — редакционные материалы своих разделов
+  const [isEditorUser, setIsEditorUser] = useState(false);
+  useEffect(() => {
+    if (role !== 'user') {
+      setIsEditorUser(false);
+      return;
+    }
+    api
+      .me()
+      .then((r) => setIsEditorUser(Boolean(r.usage?.editor)))
+      .catch(() => setIsEditorUser(false));
+  }, [role]);
+  const [editFromSite, setEditFromSite] = useState<Announcement | null>(null);
+  const editorCats = useMemo(() => allowedCategories({ plan: 'start', govVerified: false, editor: true }), []);
+  const editApi = useMemo(
+    () => ({
+      canEdit: (a: Announcement) =>
+        role === 'admin' || (isEditorUser && !isPaid(a) && !a.publishedByGov && editorCats.includes(a.category)),
+      edit: (a: Announcement) => {
+        setActiveNoticeDetail(null);
+        setEditFromSite(a);
+        if (role === 'admin') setIsAdminOpen(true);
+        else setAccountMode('cabinet');
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [role, isEditorUser, editorCats]
+  );
+
   const closeAdmin = () => {
+    setEditFromSite(null);
     setIsAdminOpen(false);
     if (isAdminHash()) history.replaceState(null, '', window.location.pathname + window.location.search);
   };
@@ -437,6 +469,7 @@ export default function App() {
   };
 
   return (
+    <EditContext.Provider value={editApi}>
     <div className="min-h-screen flex flex-col bg-[#F5F7FB] text-[#0f1b33]">
       {/* Fixed Header */}
       <Header
@@ -913,6 +946,7 @@ export default function App() {
           onRefreshData={refreshData}
           onRoleChange={setRole}
           onClose={closeAdmin}
+          initialEdit={editFromSite}
         />
       )}
 
@@ -924,10 +958,16 @@ export default function App() {
           startWithLogin={accountMode === 'login'}
           adminSession={role === 'admin'}
           onRoleChange={setRole}
-          onClose={() => setAccountMode(null)}
+          initialEdit={editFromSite}
+          onClose={() => {
+            if (editFromSite) refreshData();
+            setEditFromSite(null);
+            setAccountMode(null);
+          }}
         />
       )}
       </Suspense>
     </div>
+    </EditContext.Provider>
   );
 }

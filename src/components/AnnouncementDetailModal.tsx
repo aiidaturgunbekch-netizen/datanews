@@ -1,4 +1,5 @@
 import { PaidNote } from './PaidBadge';
+import { EditButton } from './EditButton';
 import React, { useEffect, useRef, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
@@ -376,6 +377,8 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           <button type="button" onClick={onClose} aria-label={L.close[lang]} className="hidden sm:block">
             <BrandBadge height={24} />
           </button>
+          {/* для админа и сотрудника редакции — сразу «Исправить» */}
+          <EditButton item={a} lang={lang} className="ml-auto !text-sm !px-3 !py-1.5" />
           <div className="relative" ref={shareBoxRef}>
             <button
               type="button"

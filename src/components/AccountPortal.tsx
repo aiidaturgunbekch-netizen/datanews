@@ -18,6 +18,8 @@ interface Props {
   adminSession?: boolean;
   onRoleChange: (role: api.Role) => void;
   onClose: () => void;
+  /** Сотрудник редакции нажал «Исправить» на сайте — сразу форма правки этого материала, после сохранения — назад на сайт */
+  initialEdit?: Announcement | null;
 }
 
 type Tab = 'cabinet' | 'publish' | 'mine';
@@ -210,15 +212,15 @@ const GovBlock: React.FC<{ lang: Language; user: PublicUser; onUser: (u: PublicU
   );
 };
 
-export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogin, adminSession, onRoleChange, onClose }) => {
+export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogin, adminSession, onRoleChange, onClose, initialEdit }) => {
   const tr = (k: AccountKey) => ta(k, lang);
   const [user, setUser] = useState<PublicUser | null>(null);
   const [usage, setUsage] = useState<PlanUsage | null>(null);
   const [loading, setLoading] = useState(Boolean(api.getSession()));
   const [authTab, setAuthTab] = useState<'login' | 'register'>(startWithLogin || adminSession ? 'login' : 'register');
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [tab, setTab] = useState<Tab>(initialEdit ? 'mine' : initialTab);
   const [mine, setMine] = useState<Announcement[]>([]);
-  const [editing, setEditing] = useState<Announcement | null>(null);
+  const [editing, setEditing] = useState<Announcement | null>(initialEdit || null);
   const [notice, setNotice] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -293,7 +295,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
     setPassword('');
     loadMine();
     const us = await refreshUsage();
-    setTab(canPublishNow(u, us) ? initialTab : 'cabinet');
+    setTab(initialEdit ? 'mine' : canPublishNow(u, us) ? initialTab : 'cabinet');
   };
 
   const logout = () => {
@@ -665,9 +667,13 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                     direct={Boolean(editing.publishedByGov)}
                     editor={isEditorUser}
                     submitLabel={isEditorUser ? tp('publish', lang) : editing.publishedByGov ? tr('publishNow') : tr('resubmit')}
-                    onCancel={() => setEditing(null)}
+                    onCancel={() => (initialEdit ? onClose() : setEditing(null))}
                     onSubmit={async (item) => {
                       await api.updateAnnouncement(editing.id, item);
+                      if (initialEdit) {
+                        onClose();
+                        return;
+                      }
                       await loadMine();
                       setNotice(isEditorUser ? tp('sentEditor', lang) : editing.publishedByGov ? tr('publishedDirect') : tr('resubmitted'));
                       setEditing(null);

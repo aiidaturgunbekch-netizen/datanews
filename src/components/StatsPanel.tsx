@@ -1,4 +1,5 @@
 import { Highlight } from './Highlight';
+import { EditButton, useEdit } from './EditButton';
 import { searchSnippet } from '../utils/search';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AdSlot } from './AdSlot';
@@ -20,7 +21,7 @@ export type StatsMode = 'all' | 'alerts' | 'regions';
 const NATIONWIDE = '__nationwide';
 
 const T = {
-  allTitle: { ru: 'Все публикации', kg: 'Баардык жарыялар', en: 'All posts' },
+  allTitle: { ru: 'Все публикации', kg: 'Бардык жарыялар', en: 'All posts' },
   alertsTitle: { ru: 'Актуальные предупреждения', kg: 'Актуалдуу эскертүүлөр', en: 'Current alerts' },
   regionsTitle: { ru: 'Области Кыргызстана', kg: 'Кыргызстандын облустары', en: 'Regions of Kyrgyzstan' },
   category: { ru: 'Категория', kg: 'Категория', en: 'Category' },
@@ -54,7 +55,7 @@ const T = {
   },
   posts: { ru: 'публикаций', kg: 'жарыя', en: 'posts' },
   close: { ru: 'Закрыть', kg: 'Жабуу', en: 'Close' },
-  back: { ru: 'Все области', kg: 'Баардык облустар', en: 'All regions' },
+  back: { ru: 'Все области', kg: 'Бардык облустар', en: 'All regions' },
 };
 
 /** Строка публикации в списках: миниатюра, бейджи, дата, место */
@@ -69,7 +70,8 @@ export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a:
   const { t } = getTranslation(lang);
   // при поиске — отрывок текста с найденными словами
   const snippet = query ? searchSnippet(item.description?.[lang] || item.description?.ru || item.summary?.[lang] || '', query) : '';
-  return (
+  const { canEdit } = useEdit();
+  const row = (
     <button
       type="button"
       onClick={() => onOpen(item)}
@@ -98,6 +100,14 @@ export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a:
         </div>
       </div>
     </button>
+  );
+  if (!canEdit(item)) return row;
+  // для редакции — «Исправить» прямо в списке (отдельная кнопка рядом, не внутри карточки)
+  return (
+    <div className="relative">
+      {row}
+      <EditButton item={item} lang={lang} className="absolute right-2 bottom-2" />
+    </div>
   );
 };
 

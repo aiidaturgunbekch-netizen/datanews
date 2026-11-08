@@ -1,3 +1,4 @@
+import { downloadXlsx } from '../utils/xlsx';
 import React, { useEffect, useMemo, useState } from 'react';
 import { BatchImport, untranslatedForClaude } from './admin/BatchImport';
 import { missingLangs } from '../utils/lang';
@@ -26,6 +27,8 @@ interface AdminPortalProps {
   onRefreshData: () => void;
   onRoleChange: (role: api.Role) => void;
   onClose: () => void;
+  /** Открыть сразу форму правки этой публикации (кнопка «Исправить» на сайте); после сохранения — назад на сайт */
+  initialEdit?: Announcement | null;
 }
 
 const HISTORY_BY: Record<HistoryEntry['by'], string> = { admin: 'администратор', author: 'автор', reader: 'читатель', system: 'система' };
@@ -378,7 +381,40 @@ const StatsTab: React.FC = () => {
             {d} дней
           </button>
         ))}
-        <button onClick={() => setShowTable((v) => !v)} className="ml-auto text-xs font-bold text-[#12327A] hover:underline">
+        {stats && (
+          <button
+            type="button"
+            onClick={() => {
+              const top = (items: { key: string; count: number }[], labels?: Record<string, string>) => items.map((i) => [labels?.[i.key] || i.key, i.count]);
+              downloadXlsx(`DataNews-statistika-${days}d-${new Date().toISOString().slice(0, 10)}`, [
+                {
+                  name: 'Итого',
+                  rows: [
+                    ['Показатель', 'Значение'],
+                    ['Посетителей сегодня', stats.totals.todayVisitors],
+                    ['Просмотров сегодня', stats.totals.todayViews],
+                    [`Посетителей за ${days} дн.`, stats.totals.visitors],
+                    [`Просмотров за ${days} дн.`, stats.totals.views],
+                  ],
+                },
+                { name: 'По дням', rows: [['Дата', 'Просмотры', 'Посетители'], ...stats.days.map((d) => [new Date(d.date).toLocaleDateString('ru-RU'), d.views, d.visitors])] },
+                { name: 'Разделы', rows: [['Раздел', 'Просмотры'], ...top(stats.topPages, PAGE_LABELS)] },
+                { name: 'Откуда приходят', rows: [['Источник', 'Посетители'], ...top(stats.topReferrers)] },
+                { name: 'Города', rows: [['Город', 'Посетители'], ...stats.cities.map((i) => [placeRu(i.key), i.count])] },
+                { name: 'Устройства', rows: [['Устройство', 'Посетители'], ...top(stats.devices)] },
+                { name: 'Язык', rows: [['Язык', 'Посетители'], ...top(stats.languages, { ru: 'Русский', kg: 'Кыргызский', en: 'Английский', other: 'Другой' })] },
+              ]);
+            }}
+            className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold"
+            data-export-stats
+          >
+            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+              download
+            </span>
+            Скачать в Excel
+          </button>
+        )}
+        <button onClick={() => setShowTable((v) => !v)} className={`${stats ? '' : 'ml-auto '}text-xs font-bold text-[#12327A] hover:underline`}>
           {showTable ? 'Скрыть таблицу' : 'Показать таблицей'}
         </button>
       </div>
@@ -660,7 +696,7 @@ const StaffAccountBox: React.FC<{
   );
 };
 
-export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleChange, onClose }) => {
+export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleChange, onClose, initialEdit }) => {
   const [isAdmin, setIsAdmin] = useState(api.getSession()?.role === 'admin');
   const [password, setPassword] = useState('');
   const [loginErr, setLoginErr] = useState('');
@@ -674,7 +710,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   // Ошибка загрузки списка пользователей — показывается во вкладке, а не скрывается
   const [usersErr, setUsersErr] = useState('');
   const [pushTotal, setPushTotal] = useState<number | null>(null);
-  const [editing, setEditing] = useState<Announcement | null | 'new'>(null);
+  const [editing, setEditing] = useState<Announcement | null | 'new'>(initialEdit || null);
   const [query, setQuery] = useState('');
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
@@ -800,7 +836,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     await api.updateAnnouncement(draft.id, { ...draft, imageUrl: '', imageData: image, imageCredit: undefined, imageSourceUrl: undefined, gallery });
     load();
   };
+  // правка, открытая с сайта: как только загрузится полная версия из базы — подставляем её (в публичной нет служебных полей)
+  useEffect(() => {
+    if (!initialEdit) return;
+    const full = serverItems.find((x) => x.id === initialEdit.id);
+    if (full) setEditing((e) => (e && e !== 'new' && e.id === full.id && e !== full ? full : e));
+  }, [serverItems, initialEdit]);
   const closeEditor = () => {
+    // открыто кнопкой «Исправить» на сайте — возвращаемся на сайт
+    if (initialEdit) {
+      onClose();
+      return;
+    }
     setEditing(null);
     setImported(null);
     setFromMail(null);

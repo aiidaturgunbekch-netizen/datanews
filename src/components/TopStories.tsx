@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { EditButton } from './EditButton';
 import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { formatWhen } from '../utils/dates';
@@ -90,6 +91,14 @@ export const TopStories: React.FC<{
     </button>
   );
 
+  // «Исправить» для редакции — поверх угла рамки, отдельной кнопкой (не внутри кнопки-рамки)
+  const EditWrap: React.FC<{ a: Announcement; className?: string; children: React.ReactNode }> = ({ a, className = '', children }) => (
+    <div className={`relative min-w-0 ${className}`}>
+      {children}
+      <EditButton item={a} lang={lang} className={`absolute left-3 z-20 ${isPaid(a) && !isPin(a) ? 'top-11' : 'top-3'}`} />
+    </div>
+  );
+
   return (
     <section aria-labelledby={hideTitle ? undefined : 'top-stories-title'} aria-label={hideTitle ? T.title[lang] : undefined}>
       {!hideTitle && (
@@ -108,9 +117,13 @@ export const TopStories: React.FC<{
                 : '@[44rem]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] @[44rem]:aspect-[16/7]'
             }`}
           >
-            <Tile a={lead} big className={`aspect-[4/3] @[44rem]:aspect-auto ${side.length === 2 ? '@[44rem]:row-span-2' : ''}`} />
+            <EditWrap a={lead} className={side.length === 2 ? '@[44rem]:row-span-2' : ''}>
+              <Tile a={lead} big className={`h-full aspect-[4/3] @[44rem]:aspect-auto`} />
+            </EditWrap>
             {side.map((a) => (
-              <Tile key={a.id} a={a} className="aspect-[16/9] @[44rem]:aspect-auto" />
+              <EditWrap key={a.id} a={a}>
+                <Tile a={a} className="h-full aspect-[16/9] @[44rem]:aspect-auto" />
+              </EditWrap>
             ))}
           </div>
         )}

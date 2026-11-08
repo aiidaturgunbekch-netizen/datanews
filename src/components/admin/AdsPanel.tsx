@@ -1,4 +1,5 @@
 import { markAdsChanged } from '../../services/ads';
+import { downloadXlsx } from '../../utils/xlsx';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../../services/api';
 import { inputCls } from '../AnnouncementForm';
@@ -1142,7 +1143,39 @@ const StatsTable: React.FC<{ list: api.AdminCampaign[]; formats: Record<AdFormat
   if (rows.length === 0) return <div className="bg-white rounded-2xl border border-gray-100 p-6 text-sm text-gray-600">{NO_STATS}.</div>;
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 overflow-x-auto">
-      <p className="text-xs text-gray-500 mb-2">Показ засчитывается, когда баннер виден на экране не меньше секунды. Клик — нажатие на рекламу и переход к рекламодателю.</p>
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+        <p className="text-xs text-gray-500">Показ засчитывается, когда баннер виден на экране не меньше секунды. Клик — нажатие на рекламу и переход к рекламодателю.</p>
+        <button
+          type="button"
+          onClick={() =>
+            downloadXlsx(`DataNews-reklama-${now.slice(0, 10)}`, [
+              {
+                name: 'Кампании',
+                rows: [
+                  ['Кампания', 'Формат', 'Начало', 'Окончание', 'Статус', 'Показы', 'Клики', 'CTR, %'],
+                  ...rows.map((c) => [
+                    c.name,
+                    `${c.format} · ${formats[c.format].name.ru}`,
+                    fmt(c.start),
+                    fmt(c.end),
+                    AD_STATUS_LABEL[effectiveStatus(c, now)],
+                    c.stats.views,
+                    c.stats.clicks,
+                    c.stats.ctr === null ? '' : c.stats.ctr,
+                  ]),
+                ],
+              },
+            ])
+          }
+          className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold"
+          data-export-ads
+        >
+          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+            download
+          </span>
+          Скачать в Excel
+        </button>
+      </div>
       <table className="w-full text-xs">
         <thead className="text-left text-gray-500">
           <tr>

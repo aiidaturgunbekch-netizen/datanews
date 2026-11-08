@@ -13,7 +13,7 @@ export const translations = {
     en: 'Kyrgyzstan',
   },
   // Девиз DataNews
-  motto: { ru: 'Знай дату — планируй день!', kg: 'Датаны бил — күнүңдү пландаштыр!', en: 'Know the date — plan your day!' },
+  motto: { ru: 'Знай дату — планируй день!', kg: 'Убакытты бил — күнүңдү планда!', en: 'Know the date — plan your day!' },
   appSlogan: {
     ru: 'Знай, что, где и когда',
     kg: 'Эмне, кайда жана качан болорун бил',
@@ -21,7 +21,7 @@ export const translations = {
   },
   officialSlogan: {
     ru: 'Знай дату — планируй день',
-    kg: 'Датаны бил — күнүңдү пландаштыр',
+    kg: 'Убакытты бил — күнүңдү планда!',
     en: 'Know the date — plan your day',
   },
   appHeroDesc: {
@@ -215,7 +215,7 @@ export const translations = {
     tomorrow: { ru: 'Завтра', kg: 'Эртең', en: 'Tomorrow' },
     weekend: { ru: 'Выходные', kg: 'Дем алыш күндөрү', en: 'Weekend' },
     thisWeek: { ru: 'Ближайшие 7 дней', kg: 'Жакынкы 7 күн', en: 'Next 7 days' },
-    allDates: { ru: 'Все даты', kg: 'Баардык күндөр', en: 'All Dates' },
+    allDates: { ru: 'Все даты', kg: 'Бардык күндөр', en: 'All Dates' },
     popularTags: { ru: 'Популярное:', kg: 'Популярдуу:', en: 'Trending:' },
     eventsOnDate: { ru: 'Публикации', kg: 'Жарыялар', en: 'Posts' },
     activeAlerts: { ru: 'Предупреждения', kg: 'Эскертүүлөр', en: 'Alerts' },
@@ -224,7 +224,7 @@ export const translations = {
 
   // Categories
   categories: {
-    all: { ru: 'Все события', kg: 'Баардык окуялар', en: 'All Events' },
+    all: { ru: 'Все события', kg: 'Бардык окуялар', en: 'All Events' },
     water: { ru: 'Отключение воды', kg: 'Суу өчүрүү', en: 'Water Outage' },
     electricity: { ru: 'Отключение электричества', kg: 'Жарык өчүрүү', en: 'Power Outage' },
     roads: { ru: 'Дороги и транспорт', kg: 'Жолдор жана транспорт', en: 'Roads & Traffic' },
@@ -272,14 +272,14 @@ export const translations = {
       en: 'Real-time feed from municipal utilities and local authorities',
     },
     upcomingTitle: { ru: 'Афиша, новости и объявления', kg: 'Афиша, жаңылыктар жана жарыялар', en: 'Events, news & notices' },
-    upcomingSubtitle: { ru: 'Всё актуальное', kg: 'Бардык актуалдуу', en: 'Everything current' },
+    upcomingSubtitle: { ru: 'Всё актуальное', kg: 'Бардык актуалдуу маалыматтар', en: 'Everything current' },
     citiesTitle: { ru: 'Обзор по городам Кыргызстана', kg: 'Кыргызстандын шаарлары боюнча сереп', en: 'Overview by Cities of Kyrgyzstan' },
     citiesSubtitle: {
       ru: 'Выберите ваш город, чтобы следовать исключительно за локальными коммунальными графиками и культурными мероприятиями.',
       kg: 'Жергиликтүү коммуналдык графиктерди жана маданий иш-чараларды көрүү үчүн шаарыңызды тандаңыз.',
       en: 'Select your city to track local municipal schedules and cultural happenings.',
     },
-    viewAllCities: { ru: 'Смотреть все города и регионы', kg: 'Баардык шаарларды жана аймактарды көрүү', en: 'View all cities & regions' },
+    viewAllCities: { ru: 'Смотреть все города и регионы', kg: 'Бардык шаарларды жана аймактарды көрүү', en: 'View all cities & regions' },
     loadMore: { ru: 'Показать ещё события', kg: 'Дагы окуяларды көрсөтүү', en: 'Show more events' },
   },
 
@@ -362,7 +362,7 @@ export const translations = {
     saveFavorite: { ru: 'Сохранить в избранное', kg: 'Тандалгандарга сактоо', en: 'Save to Favorites' },
     googleCalendar: { ru: 'Google Календарь', kg: 'Google Календарь', en: 'Google Calendar' },
     nearbyTitle: { ru: 'Рядом в этом районе', kg: 'Бул райондо жакын жерде', en: 'Nearby in this district' },
-    allAlertsCity: { ru: 'Все предупреждения Бишкека', kg: 'Бишкектин баардык эскертүүлөрү', en: 'All Bishkek alerts' },
+    allAlertsCity: { ru: 'Все предупреждения Бишкека', kg: 'Бишкектин бардык эскертүүлөрү', en: 'All Bishkek alerts' },
   },
 
   // For Organizations Section
@@ -403,7 +403,7 @@ export const translations = {
     publishNowBtn: { ru: 'Опубликовать', kg: 'Жарыялоо', en: 'Publish Now' },
     saveBtn: { ru: 'Сохранить изменения', kg: 'Өзгөртүүлөрдү сактоо', en: 'Save Changes' },
     cancelBtn: { ru: 'Отмена', kg: 'Жокко чыгаруу', en: 'Cancel' },
-    filterAll: { ru: 'Все статусы', kg: 'Баардык статустар', en: 'All Statuses' },
+    filterAll: { ru: 'Все статусы', kg: 'Бардык статустар', en: 'All Statuses' },
     statusActive: { ru: 'Активные', kg: 'Активдүү', en: 'Active' },
     statusScheduled: { ru: 'Запланированные', kg: 'Пландалган', en: 'Scheduled' },
     statusCompleted: { ru: 'Завершенные', kg: 'Аяктагандар', en: 'Completed' },

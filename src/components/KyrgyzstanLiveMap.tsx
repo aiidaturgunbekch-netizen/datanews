@@ -75,7 +75,7 @@ const T = {
   region: { ru: 'Область / город', kg: 'Облус / шаар', en: 'Region / city' },
   all: { ru: 'Весь Кыргызстан', kg: 'Бүт Кыргызстан', en: 'All of Kyrgyzstan' },
   district: { ru: 'Район', kg: 'Район', en: 'District' },
-  anyDistrict: { ru: 'Все районы', kg: 'Баардык райондор', en: 'All districts' },
+  anyDistrict: { ru: 'Все районы', kg: 'Бардык райондор', en: 'All districts' },
   place: { ru: 'Населённый пункт', kg: 'Калктуу пункт', en: 'Settlement' },
   placePh: { ru: 'Например: Кочкор, Кант, Арсланбоб', kg: 'Мисалы: Кочкор, Кант, Арстанбап', en: 'E.g. Kochkor, Kant, Arslanbob' },
   find: { ru: 'Найти', kg: 'Табуу', en: 'Find' },

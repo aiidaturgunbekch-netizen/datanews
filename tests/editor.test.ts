@@ -184,15 +184,20 @@ describe('свои и чужие материалы', () => {
     assert.ok((await publicIds()).includes(editorPost));
   });
 
-  it('8. не правит и не снимает чужую публикацию (пользователя, другого сотрудника, администратора)', async () => {
+  it('8. исправляет чужой редакционный материал (другого сотрудника, администратора), но не снимает и не модерирует', async () => {
     const other = await call(usersApi, 'users', 'POST', admin, { name: 'Другой редактор', email: 'editor2@example.com', phone: '+996555100004', organization: 'Редакция', password: 'editor-pass-2', plan: 'start', editor: true });
     assert.equal(other.status, 201);
     const t2 = await login('editor2@example.com', 'editor-pass-2');
     const foreign = (await call(announcements, 'announcements', 'POST', t2, news())).body.item.id;
     const adminItem = (await call(announcements, 'announcements', 'POST', admin, news())).body.item.id;
     for (const id of [foreign, adminItem]) {
-      assert.equal((await call(announcements, 'announcements', 'PATCH', editor, { id, item: news().item })).status, 403);
-      assert.equal((await call(announcements, 'announcements', 'PATCH', editor, { id, action: 'withdraw' })).status, 403);
+      const before = (await stored(id))!;
+      const r = await call(announcements, 'announcements', 'PATCH', editor, { id, item: news().item });
+      assert.equal(r.status, 200, 'исправить опечатку в редакционном материале можно');
+      assert.equal(r.body.item.moderationStatus, before.moderationStatus, 'статус не меняется');
+      assert.deepEqual(r.body.item.submittedBy, before.submittedBy, 'автор остаётся прежним');
+      assert.ok(r.body.item.history.some((h: { note?: string }) => /Правка сотрудника редакции/.test(h.note || '')), 'в истории — кто исправил');
+      assert.equal((await call(announcements, 'announcements', 'PATCH', editor, { id, action: 'withdraw' })).status, 403, 'снять с сайта — нельзя');
     }
     assert.equal((await call(announcements, 'announcements', 'PATCH', editor, { id: foreign, action: 'approve' })).status, 403, 'модерация — только администратор');
   });

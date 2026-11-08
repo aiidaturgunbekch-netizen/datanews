@@ -1,3 +1,4 @@
+import { EditButton } from './EditButton';
 import React, { useEffect, useState, useMemo } from 'react';
 import { Announcement, CityId, Language } from '../types';
 import { DISTRICTS, inDistrict } from '../config/districts';
@@ -160,7 +161,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               districtCode ? 'bg-[#12327A] text-white border-[#12327A]' : 'bg-white text-gray-600 border-gray-200'
             }`}
           >
-            <option value="">{currentLanguage === 'kg' ? 'Баардык райондор' : currentLanguage === 'en' ? 'All districts' : 'Все районы'}</option>
+            <option value="">{currentLanguage === 'kg' ? 'Бардык райондор' : currentLanguage === 'en' ? 'All districts' : 'Все районы'}</option>
             {districtList.map((d) => {
               const n = allEvents.filter((a) => inDistrict(a, d)).length;
               return (
@@ -190,7 +191,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
               onClick={() => setDistrictCode('')}
               className="mt-3 px-4 py-2 rounded-xl bg-gray-100 text-[#12327A] text-xs font-bold hover:bg-gray-200"
             >
-              {currentLanguage === 'kg' ? 'Баардык райондорду көрсөтүү' : currentLanguage === 'en' ? 'Show all districts' : 'Показать все районы'}
+              {currentLanguage === 'kg' ? 'Бардык райондорду көрсөтүү' : currentLanguage === 'en' ? 'Show all districts' : 'Показать все районы'}
             </button>
           )}
           {/* В актуальном пусто, а в архиве есть — подсказываем и даём перейти */}
@@ -279,6 +280,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                 <div className="relative shrink-0 flex flex-col items-end gap-2">
                   {/* Картинка — только когда тексту остаётся достаточно места (иначе заголовок сжимается в столбик) */}
                   <EventImage item={item} lang={currentLanguage} compact className="w-24 h-[72px] sm:w-40 sm:h-[104px] rounded-lg @max-[19rem]:hidden" />
+                  <EditButton item={item} lang={currentLanguage} />
                   <button
                     type="button"
                     onClick={(e) => toggleFav(e, item.id)}
@@ -342,6 +344,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                       </span>
                     </div>
 
+                    <EditButton item={item} lang={currentLanguage} className="ml-auto mr-1" />
                     <button
                       type="button"
                       onClick={(e) => toggleFav(e, item.id)}

@@ -1,3 +1,4 @@
+import { EditButton } from './EditButton';
 import React from 'react';
 import type { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -9,7 +10,7 @@ import { DateBadge, SectionHeader } from './cards';
 import { PaidBadge } from './PaidBadge';
 
 const T = {
-  kicker: { ru: 'Знай дату — планируй день', kg: 'Күндү бил — күнүңдү пландаштыр', en: 'Know the date, plan your day' },
+  kicker: { ru: 'Знай дату — планируй день', kg: 'Убакытты бил — күнүңдү планда', en: 'Know the date, plan your day' },
   title: { ru: 'Ближайшие даты', kg: 'Жакынкы даталар', en: 'Coming up' },
   calendar: { ru: 'Весь календарь', kg: 'Толук календарь', en: 'Full calendar' },
   allDay: { ru: 'весь день', kg: 'күн бою', en: 'all day' },
@@ -71,7 +72,7 @@ export const UpcomingDays: React.FC<{
             const time = when(a, b);
             const place = placeText(a, lang);
             return (
-              <li key={a.id} className="break-inside-avoid">
+              <li key={a.id} className="break-inside-avoid relative">
                 <button type="button" onClick={() => onOpen(a)} className="group w-full text-left py-3 flex gap-3 items-start">
                   <DateBadge date={a.startDate} lang={lang} size="sm" />
                   <span className="min-w-0 flex-1">
@@ -84,6 +85,7 @@ export const UpcomingDays: React.FC<{
                     <PaidBadge item={a} lang={lang} className="mt-1.5" />
                   </span>
                 </button>
+                <EditButton item={a} lang={lang} className="absolute right-0 bottom-2" />
               </li>
             );
           })}

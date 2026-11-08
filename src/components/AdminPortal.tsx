@@ -777,6 +777,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   const [usersErr, setUsersErr] = useState('');
   const [pushTotal, setPushTotal] = useState<number | null>(null);
   const [editing, setEditing] = useState<Announcement | null | 'new'>(initialEdit || null);
+  // карточка в «Модерации», к которой вернуться после правки (подсветка и прокрутка)
+  const [focusId, setFocusId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
@@ -902,6 +904,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     await api.updateAnnouncement(draft.id, { ...draft, imageUrl: '', imageData: image, imageCredit: undefined, imageSourceUrl: undefined, gallery });
     load();
   };
+  // вернулись из правки черновика — прокрутить к нему (подсветка гаснет через 6 секунд или после «Одобрить»)
+  useEffect(() => {
+    if (!focusId || editing) return;
+    const t = window.setTimeout(() => document.getElementById(`mod-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    const t2 = window.setTimeout(() => setFocusId(null), 6000);
+    return () => {
+      window.clearTimeout(t);
+      window.clearTimeout(t2);
+    };
+  }, [focusId, editing]);
   // правка, открытая с сайта: как только загрузится полная версия из базы — подставляем её (в публичной нет служебных полей)
   useEffect(() => {
     if (!initialEdit) return;
@@ -1187,7 +1199,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     // Черновик из письма можно сохранить на одном языке; публикация и правка — с русским и кыргызским текстом
                     requireBothLangs={!(editing === 'new' && fromMail)}
                     submitLabel={editing === 'new' ? (fromMail ? 'Сохранить черновик в «Модерацию»' : 'Опубликовать') : 'Сохранить'}
-                    onCancel={closeEditor}
+                    onCancel={() => {
+                      if (editing !== 'new' && editing?.moderationStatus === 'pending') setFocusId(editing.id);
+                      closeEditor();
+                    }}
+                    // черновик из «Модерации»: исправить и сразу опубликовать, не ища его потом в списке
+                    secondarySubmit={
+                      editing !== 'new' && editing.moderationStatus === 'pending' && !editing.testMaterial
+                        ? {
+                            label: 'Сохранить и одобрить',
+                            onSubmit: async (item) => {
+                              await api.updateAnnouncement(editing.id, item);
+                              await api.moderateAnnouncement(editing.id, 'approve');
+                              closeEditor();
+                              setMsg(`Исправлено, одобрено и опубликовано на сайте: «${String((item.title as { ru?: string })?.ru || editing.title.ru)}»`);
+                              load();
+                              onRefreshData();
+                            },
+                          }
+                        : undefined
+                    }
                     onSubmit={async (item) => {
                       if (editing === 'new' && fromMail) {
                         // Черновик из письма: только в «Модерацию», без публикации
@@ -1218,6 +1249,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                       }
                       else if (serverItems.some((s) => s.id === editing.id)) await api.updateAnnouncement(editing.id, item);
                       else await api.submitAnnouncement({ ...item, id: editing.id }); // правка встроенного события
+                      // после правки черновика — назад к этой же карточке в «Модерации», с подсветкой
+                      if (editing !== 'new' && editing.moderationStatus === 'pending') setFocusId(editing.id);
                       closeEditor();
                       setMsg('Сохранено');
                       load();
@@ -1271,7 +1304,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     <div className="py-12 text-center text-gray-500 bg-white rounded-2xl">Новых публикаций нет 🎉</div>
                   ) : (
                     pending.map((a) => (
-                      <div key={a.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col md:flex-row">
+                      <div
+                        key={a.id}
+                        id={`mod-${a.id}`}
+                        className={`bg-white rounded-2xl border overflow-hidden flex flex-col md:flex-row scroll-mt-4 transition-shadow ${
+                          focusId === a.id ? 'border-emerald-500 ring-4 ring-emerald-200' : 'border-gray-100'
+                        }`}
+                      >
                         <EventImage item={a} className="md:w-64 h-40 md:h-auto flex-shrink-0" />
                         <div className="p-4 flex-1 min-w-0 space-y-2">
                           <div className="flex flex-wrap gap-2 text-[11px] font-bold">

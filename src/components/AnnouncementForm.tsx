@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Announcement, AnnouncementStatus, CategoryId, CityId, Language, SourceKind, UrgencyType } from '../types';
 import { compressImage, uploadImage } from '../services/api';
 import { ORIGINAL_MAX_BYTES } from '../config/site';
@@ -88,6 +88,8 @@ interface Props {
    * Черновик из письма можно сохранить на одном языке: перевод добавляется до публикации.
    */
   requireBothLangs?: boolean;
+  /** Вторая кнопка рядом с основной (например, «Сохранить и одобрить» для черновика в «Модерации») */
+  secondarySubmit?: { label: string; onSubmit: (item: Record<string, unknown>) => Promise<void> };
 }
 
 /**
@@ -174,7 +176,9 @@ export const inputCls =
   'w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-[#0f1b33] focus:outline-none focus:ring-2 focus:ring-[#12327A]/30 focus:border-[#12327A]';
 const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1';
 
-export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, submitLabel, onSubmit, onCancel, allowedCategories, defaultOrganizer, initialImageData, requireBothLangs = true }) => {
+export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, submitLabel, onSubmit, onCancel, allowedCategories, defaultOrganizer, initialImageData, requireBothLangs = true, secondarySubmit }) => {
+  // какой кнопкой отправлена форма: основной или «Сохранить и одобрить»
+  const via = useRef<'main' | 'secondary'>('main');
   const tr = (k: AccountKey) => ta(k, lang);
   const { t } = getTranslation(lang);
   // Тексты по языкам — только «свои»: копия другого языка (или кыргызский текст в русском поле) в поле не попадает
@@ -447,7 +451,7 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
     };
     setBusy(true);
     try {
-      await onSubmit(item);
+      await (via.current === 'secondary' && secondarySubmit ? secondarySubmit.onSubmit : onSubmit)(item);
     } catch (ex) {
       setErr(errorText(ex, lang));
     } finally {
@@ -900,10 +904,27 @@ export const AnnouncementForm: React.FC<Props> = ({ lang = 'ru', initial, mode, 
         <button
           type="submit"
           disabled={busy}
-          className="px-5 py-2.5 rounded-xl bg-[#20C7B5] text-[#002f29] text-sm font-extrabold hover:bg-[#1bb3a2] disabled:opacity-60"
+          onClick={() => (via.current = 'main')}
+          className={`px-5 py-2.5 rounded-xl text-sm font-extrabold disabled:opacity-60 ${
+            secondarySubmit ? 'bg-[#eef2f9] text-[#12327A] hover:bg-[#e2e9f6]' : 'bg-[#20C7B5] text-[#002f29] hover:bg-[#1bb3a2]'
+          }`}
         >
           {busy ? tr('fSaving') : submitLabel}
         </button>
+        {secondarySubmit && (
+          <button
+            type="submit"
+            disabled={busy}
+            onClick={() => (via.current = 'secondary')}
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 disabled:opacity-60 inline-flex items-center gap-1"
+            data-save-approve
+          >
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+              check
+            </span>
+            {busy ? tr('fSaving') : secondarySubmit.label}
+          </button>
+        )}
       </div>
     </form>
   );

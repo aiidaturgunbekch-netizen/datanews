@@ -32,13 +32,9 @@ const ABOUT: Record<Language, React.ReactNode> = {
         афиша концертов, спектаклей, выставок и ярмарок.
       </P>
       <P>
-        Зачем это нужно? В общем потоке новостей — политика, скандалы, кто что натворил — легко пропустить главное: когда отключат воду, когда
-        выходной, до какого числа подать документы, когда концерт. В DataNews только важное и только с датами, чтобы вы были в курсе и спокойно
-        планировали свой день.
-      </P>
-      <P>
         А ещё — полезные новости образования, ИИ и технологий, бизнеса и государства: то, что можно применить в повседневной жизни и работе.
       </P>
+      <P>В DataNews только важное и с датами, чтобы вы были в курсе и спокойно планировали свой день.</P>
       <H>Как мы работаем</H>
       <UL
         items={[
@@ -59,14 +55,10 @@ const ABOUT: Record<Language, React.ReactNode> = {
         чечимдер жана мөөнөттөр, концерттердин, спектаклдердин, көргөзмөлөрдүн жана жарманкелердин афишасы.
       </P>
       <P>
-        Бул эмне үчүн керек? Жалпы жаңылыктардын агымында — саясат, чатактар, ким эмне кылды — эң негизгисин өткөрүп жиберүү оңой: суу качан
-        өчөт, дем алыш качан, документтерди кайсы күнгө чейин тапшыруу керек, концерт качан. DataNews'та маанилүү маалымат гана жана даталары
-        менен — кабардар болуп, күнүңүздү тынч пландаңыз.
-      </P>
-      <P>
         Ошондой эле — билим берүү, жасалма интеллект жана технологиялар, бизнес жана мамлекет тармагындагы пайдалуу жаңылыктар: күнүмдүк жашоодо
         жана иште колдоно турган маалымат.
       </P>
+      <P>DataNews'та маанилүү маалымат гана жана даталары менен — кабардар болуп, күнүңүздү тынч пландаңыз.</P>
       <H>Кантип иштейбиз</H>
       <UL
         items={[
@@ -86,12 +78,8 @@ const ABOUT: Record<Language, React.ReactNode> = {
         coming days, in one place: the weather forecast, warnings about water, power and heating outages, road closures, government decisions and
         deadlines, and listings of concerts, plays, exhibitions and fairs.
       </P>
-      <P>
-        Why? In the general news flow — politics, scandals, who did what — it is easy to miss what really matters: when the water will be off, when
-        the day off is, the deadline for documents, when the concert starts. DataNews covers only what is important, always with dates, so you stay
-        informed and can plan your day calmly.
-      </P>
       <P>Plus useful news on education, AI and technology, business and government — things you can apply in everyday life and work.</P>
+      <P>DataNews covers what matters, with dates, so you stay informed and can plan your day calmly.</P>
       <H>How we work</H>
       <UL
         items={[

@@ -59,6 +59,11 @@ export default handler(async (req) => {
     dates.flatMap((d) => [['HGETALL', K.pages(d)], ['HGETALL', K.refs(d)], ['HGETALL', K.devices(d)], ['HGETALL', K.langs(d)], ['HGETALL', K.cities(d)]])
   );
   const pick = (offset: number) => dates.map((_, i) => toCountMap(hashes[i * 5 + offset]));
+  // переходы в соцсети: по дням и итог по сети и цели
+  const outMaps = (await pipeline(dates.map((d) => ['HGETALL', K.out(d)]))).map(toCountMap);
+  const outbound: Record<string, number> = {};
+  outMaps.forEach((m) => Object.entries(m).forEach(([k, n]) => (outbound[k] = (outbound[k] || 0) + n)));
+  const net = (m: Record<string, number>, n: string) => Object.entries(m).reduce((s, [k, v]) => (k.startsWith(`${n}|`) ? s + v : s), 0);
 
   const dayStats = dates.map((date, i) => ({
     date,
@@ -80,6 +85,10 @@ export default handler(async (req) => {
     devices: top(pick(2)),
     languages: top(pick(3)),
     cities: top(pick(4)),
+    outbound: Object.entries(outbound)
+      .map(([k, count]) => ({ network: k.split('|')[0], kind: k.split('|')[1] || 'other', count }))
+      .sort((a, b) => b.count - a.count),
+    outboundDays: dates.map((date, i) => ({ date, instagram: net(outMaps[i], 'instagram'), whatsapp: net(outMaps[i], 'whatsapp'), telegram: net(outMaps[i], 'telegram') })),
   };
   return json(stats);
 });

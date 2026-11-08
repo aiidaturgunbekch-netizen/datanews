@@ -2,6 +2,7 @@
  * /api/track — счётчик посещений (вызывается сайтом при открытии каждой страницы).
  * Хранит только агрегаты: число просмотров, уникальных посетителей (HyperLogLog),
  * разделы, источники переходов, тип устройства, язык и город (по IP от Vercel).
+ *   POST { out, kind }    переход с сайта в Instagram / WhatsApp / Telegram (kind: contact | share | other)
  *   POST { annId }        прочтение публикации (открыта её карточка) — для блока «Самое читаемое»
  *   GET ?popular=1        самые читаемые публикации за 7 дней: [{ id, reads }] (без личных данных)
  *
@@ -59,7 +60,7 @@ export default handler(async (req) => {
   const ua = req.headers.get('user-agent') || '';
   if (BOT.test(ua)) return json({ ok: true, skipped: 'bot' });
 
-  const body = await readBody<{ path?: string; visitorId?: string; referrer?: string; lang?: string; annId?: string; adView?: string }>(req, 4000);
+  const body = await readBody<{ path?: string; visitorId?: string; referrer?: string; lang?: string; annId?: string; adView?: string; out?: string; kind?: string }>(req, 4000);
 
   // Не больше 120 просмотров в минуту с одного IP — защита статистики от накрутки
   const ip = (req.headers.get('x-forwarded-for') || 'local').split(',')[0].trim();
@@ -72,6 +73,19 @@ export default handler(async (req) => {
     const id = String(body.adView);
     if (!/^[\w-]{3,40}$/.test(id)) throw new HttpError('bad_id', 400);
     return json({ ok: true, counted: await recordView(req, id) });
+  }
+
+  // Переход в соцсеть — только известные сети и цели
+  if (body.out !== undefined) {
+    const net = ['instagram', 'whatsapp', 'telegram'].includes(String(body.out)) ? String(body.out) : '';
+    if (!net) throw new HttpError('bad_network', 400);
+    const kind = ['contact', 'share', 'other'].includes(String(body.kind)) ? String(body.kind) : 'other';
+    const day = dayKey(new Date());
+    await pipeline([
+      ['HINCRBY', K.out(day), `${net}|${kind}`, 1],
+      ['EXPIRE', K.out(day), STATS_TTL],
+    ]);
+    return json({ ok: true });
   }
 
   // Прочтение публикации — отдельный счётчик, просмотры разделов не меняются

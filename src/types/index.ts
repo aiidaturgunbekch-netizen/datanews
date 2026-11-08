@@ -376,6 +376,9 @@ export interface SiteStats {
   devices: { key: string; count: number }[];
   languages: { key: string; count: number }[];
   cities: { key: string; count: number }[];
+  /** Переходы с сайта в соцсети за период: сеть, цель (contact — написать/подписаться на DataNews, share — поделиться, other — организатор/источник) */
+  outbound?: { network: string; kind: string; count: number }[];
+  outboundDays?: { date: string; instagram: number; whatsapp: number; telegram: number }[];
 }
 
 export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'advertising' | 'admin' | 'about' | 'rules' | 'contacts';

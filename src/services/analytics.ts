@@ -65,3 +65,35 @@ export const trackView = (path: string, lang: string) => {
     () => {}
   );
 };
+
+/** Соцсеть по адресу ссылки (или null — не Instagram/WhatsApp/Telegram) */
+export const outboundNetwork = (href: string): 'instagram' | 'whatsapp' | 'telegram' | null => {
+  let host = '';
+  try {
+    host = new URL(href, 'https://datanews.kg').hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+  if (host === 'instagram.com' || host.endsWith('.instagram.com')) return 'instagram';
+  if (host === 'wa.me' || host === 'api.whatsapp.com' || host.endsWith('whatsapp.com')) return 'whatsapp';
+  if (host === 't.me' || host === 'telegram.me' || host.endsWith('.t.me')) return 'telegram';
+  return null;
+};
+
+/**
+ * Зачем перешли: «contact» — написать или подписаться на DataNews, «share» — поделиться новостью,
+ * «other» — страница организатора, театра или источника.
+ */
+export const outboundKind = (href: string, ownUrls: string[]): 'contact' | 'share' | 'other' => {
+  if (/wa\.me\/\?text=|t\.me\/share\/|whatsapp\.com\/send\?text=|api\.whatsapp\.com\/send/i.test(href) && !ownUrls.some((u) => href.startsWith(u))) return 'share';
+  const norm = (u: string) => u.replace(/^https?:\/\/(www\.)?/, '').replace(/\/+$/, '').split('?')[0].toLowerCase();
+  const h = norm(href);
+  return ownUrls.some((u) => h === norm(u) || h.startsWith(`${norm(u)}/`)) ? 'contact' : 'other';
+};
+
+/** Переход с сайта в Instagram, WhatsApp или Telegram (один клик — одна запись; личные данные не собираются) */
+export const trackOutbound = (network: string, kind: string) => {
+  fetch('/api/track', { method: 'POST', body: JSON.stringify({ out: network, kind }), keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(
+    () => {}
+  );
+};

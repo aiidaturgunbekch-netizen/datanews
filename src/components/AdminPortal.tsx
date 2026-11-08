@@ -402,6 +402,20 @@ const StatsTab: React.FC = () => {
                 { name: 'Откуда приходят', rows: [['Источник', 'Посетители'], ...top(stats.topReferrers)] },
                 { name: 'Города', rows: [['Город', 'Посетители'], ...stats.cities.map((i) => [placeRu(i.key), i.count])] },
                 { name: 'Устройства', rows: [['Устройство', 'Посетители'], ...top(stats.devices)] },
+                {
+                  name: 'Переходы в соцсети',
+                  rows: [
+                    ['Соцсеть', 'Цель', 'Переходы'],
+                    ...(stats.outbound || []).map((o) => [OUT_NET[o.network] || o.network, OUT_KIND[o.kind] || o.kind, o.count]),
+                  ],
+                },
+                {
+                  name: 'Соцсети по дням',
+                  rows: [
+                    ['Дата', 'Instagram', 'WhatsApp', 'Telegram'],
+                    ...(stats.outboundDays || []).map((d) => [new Date(d.date).toLocaleDateString('ru-RU'), d.instagram, d.whatsapp, d.telegram]),
+                  ],
+                },
                 { name: 'Язык', rows: [['Язык', 'Посетители'], ...top(stats.languages, { ru: 'Русский', kg: 'Кыргызский', en: 'Английский', other: 'Другой' })] },
               ]);
             }}
@@ -430,6 +444,7 @@ const StatsTab: React.FC = () => {
             <StatTile label={`Просмотров за ${days} дн.`} value={stats.totals.views} />
           </div>
           <DailyChart days={stats.days} />
+          <OutboundBox stats={stats} days={days} />
           {showTable && (
             <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
               <table className="w-full text-sm">
@@ -465,6 +480,57 @@ const StatsTab: React.FC = () => {
         </>
       )}
     </div>
+  );
+};
+
+// ─────────────── Переходы с сайта в соцсети ───────────────
+const OUT_NET: Record<string, string> = { instagram: 'Instagram', whatsapp: 'WhatsApp', telegram: 'Telegram' };
+const OUT_KIND: Record<string, string> = {
+  contact: 'Написать / подписаться на DataNews',
+  share: 'Поделиться новостью',
+  other: 'Страница организатора, театра или источника',
+};
+const OutboundBox: React.FC<{ stats: SiteStats; days: number }> = ({ stats, days }) => {
+  const list = stats.outbound || [];
+  const total = list.reduce((n, o) => n + o.count, 0);
+  const byNet = (n: string) => list.filter((o) => o.network === n);
+  return (
+    <section className="rounded-2xl border border-gray-100 bg-white p-4 space-y-3" data-outbound-stats>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-extrabold text-[#0f1b33]">Переходы с сайта в соцсети</h3>
+        <span className="text-xs text-gray-500">
+          за {days} дн. · всего {total}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {(['instagram', 'whatsapp', 'telegram'] as const).map((n) => {
+          const rows = byNet(n);
+          const sum = rows.reduce((x, o) => x + o.count, 0);
+          return (
+            <div key={n} className="rounded-xl bg-[#f6f8fd] p-3">
+              <p className="text-xs font-bold text-gray-500">{OUT_NET[n]}</p>
+              <p className="text-2xl font-extrabold text-[#12327A] tabular-nums">{sum}</p>
+              {rows.length > 0 ? (
+                <ul className="mt-1 space-y-0.5 text-xs text-gray-700">
+                  {rows.map((o) => (
+                    <li key={o.kind} className="flex justify-between gap-2">
+                      <span>{OUT_KIND[o.kind] || o.kind}</span>
+                      <b className="tabular-nums">{o.count}</b>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-gray-500">Пока нет переходов</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-xs text-gray-500">
+        Считается каждое нажатие на ссылку Instagram, WhatsApp или Telegram на сайте: кнопки связи с редакцией, «Поделиться», страницы театров и организаторов. Ваши
+        клики как администратора не считаются. Переход по рекламе считается отдельно, в разделе «Реклама».
+      </p>
+    </section>
   );
 };
 

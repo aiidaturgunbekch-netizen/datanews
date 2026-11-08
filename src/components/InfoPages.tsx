@@ -25,20 +25,26 @@ const UL: React.FC<{ items: string[] }> = ({ items }) => (
 const ABOUT: Record<Language, React.ReactNode> = {
   ru: (
     <>
+      <p className="text-lg font-extrabold text-[#12327A] mb-3">Знай дату — планируй день!</p>
       <P>
-        DataNews Kyrgyzstan — информационная платформа: предупреждения об отключениях и опасной погоде, ограничения на дорогах и перевалах,
-        государственные решения и изменения законов, события и афиша по всем регионам страны.
+        <b>DataNews Кыргызстан — информационная платформа о важных датах в Кыргызстане.</b> В одном месте — всё, что каждому нужно знать на
+        ближайшие дни: прогноз погоды, предупреждения об отключениях воды, света и тепла, перекрытия дорог, государственные решения и сроки,
+        афиша концертов, спектаклей, выставок и ярмарок.
       </P>
       <P>
-        DataNews не является государственным органом. Первоисточник официальных решений, предупреждений и прогнозов — соответствующее
-        государственное учреждение; у каждой публикации указаны источник, дата публикации и дата последней проверки.
+        Зачем это нужно? В общем потоке новостей — политика, скандалы, кто что натворил — легко пропустить главное: когда отключат воду, когда
+        выходной, до какого числа подать документы, когда концерт. В DataNews только важное и только с датами, чтобы вы были в курсе и спокойно
+        планировали свой день.
+      </P>
+      <P>
+        А ещё — полезные новости образования, ИИ и технологий, бизнеса и государства: то, что можно применить в повседневной жизни и работе.
       </P>
       <H>Как мы работаем</H>
       <UL
         items={[
-          'Официальные источники (мэрии, министерства, Кыргызгидромет, МЧС) — в приоритете; сведения СМИ помечаются как СМИ.',
-          'Мы не публикуем выдуманные события и не выдаём заявления или обещания за принятые решения.',
-          'Устаревшие предупреждения автоматически уходят из списка действующих, но остаются в архиве.',
+          'Берём сведения из первоисточников: министерства, мэрии, Кыргызгидромет, МЧС, театры и организаторы. Пишем своими словами — коротко и понятно.',
+          'У каждой публикации — источник, дата публикации и дата последней проверки. DataNews не государственный орган: официальные решения принимают сами ведомства.',
+          'Не публикуем выдуманные события и не выдаём обещания за принятые решения. Прошедшие предупреждения уходят в архив.',
           'Нашли ошибку? Напишите редакции — контакты на странице «Контакты».',
         ]}
       />
@@ -46,20 +52,27 @@ const ABOUT: Record<Language, React.ReactNode> = {
   ),
   kg: (
     <>
+      <p className="text-lg font-extrabold text-[#12327A] mb-3">Убакытты бил — күнүңдү планда!</p>
       <P>
-        DataNews Kyrgyzstan — маалымат платформасы: өчүрүүлөр жана коркунучтуу аба ырайы тууралуу эскертүүлөр, жолдордогу жана ашуулардагы
-        чектөөлөр, мамлекеттик чечимдер жана мыйзам өзгөрүүлөрү, өлкөнүн бардык аймактарындагы иш-чаралар.
+        <b>DataNews Кыргызстан — Кыргызстандагы маанилүү даталар тууралуу маалымат платформасы.</b> Жакынкы күндөрү ар бир адамга керектүү
+        маалымат бир жерде: аба ырайынын божомолу, суу, жарык жана жылуулук өчүрүү тууралуу эскертүүлөр, жолдордун жабылышы, мамлекеттик
+        чечимдер жана мөөнөттөр, концерттердин, спектаклдердин, көргөзмөлөрдүн жана жарманкелердин афишасы.
       </P>
       <P>
-        DataNews мамлекеттик орган эмес. Расмий чечимдердин, эскертүүлөрдүн жана божомолдордун түпкү булагы — тиешелүү мамлекеттик мекеме;
-        ар бир жарыяда булак, жарыяланган күнү жана акыркы текшерүү күнү көрсөтүлөт.
+        Бул эмне үчүн керек? Жалпы жаңылыктардын агымында — саясат, чатактар, ким эмне кылды — эң негизгисин өткөрүп жиберүү оңой: суу качан
+        өчөт, дем алыш качан, документтерди кайсы күнгө чейин тапшыруу керек, концерт качан. DataNews'та маанилүү маалымат гана жана даталары
+        менен — кабардар болуп, күнүңүздү тынч пландаңыз.
+      </P>
+      <P>
+        Ошондой эле — билим берүү, жасалма интеллект жана технологиялар, бизнес жана мамлекет тармагындагы пайдалуу жаңылыктар: күнүмдүк жашоодо
+        жана иште колдоно турган маалымат.
       </P>
       <H>Кантип иштейбиз</H>
       <UL
         items={[
-          'Расмий булактар (мэриялар, министрликтер, Кыргызгидромет, ӨКМ) — биринчи кезекте; ЖМКнын маалыматы ЖМК катары белгиленет.',
-          'Ойдон чыгарылган окуяларды жарыяланбайбыз жана билдирүүлөрдү же убадаларды кабыл алынган чечим катары көрсөтпөйбүз.',
-          'Мөөнөтү бүткөн эскертүүлөр күчүндөгүлөрдүн тизмесинен автоматтык түрдө чыгат, бирок архивде калат.',
+          'Маалыматты түпкү булактардан алабыз: министрликтер, мэриялар, Кыргызгидромет, ӨКМ, театрлар жана уюштуруучулар. Өз сөзүбүз менен — кыска жана түшүнүктүү жазабыз.',
+          'Ар бир жарыяда булак, жарыяланган күнү жана акыркы текшерүү күнү көрсөтүлөт. DataNews мамлекеттик орган эмес: расмий чечимдерди мекемелер өздөрү кабыл алат.',
+          'Ойдон чыгарылган окуяларды жарыялабайбыз жана убадаларды кабыл алынган чечим катары көрсөтпөйбүз. Өткөн эскертүүлөр архивге кетет.',
           'Ката таптыңызбы? Редакцияга жазыңыз — байланыштар «Байланыш» баракчасында.',
         ]}
       />
@@ -67,20 +80,24 @@ const ABOUT: Record<Language, React.ReactNode> = {
   ),
   en: (
     <>
+      <p className="text-lg font-extrabold text-[#12327A] mb-3">Know the date — plan your day!</p>
       <P>
-        DataNews Kyrgyzstan is an information platform: outage and severe-weather warnings, road and mountain-pass restrictions, government decisions
-        and law changes, and events across every region of the country.
+        <b>DataNews Kyrgyzstan is an information platform about the important dates in Kyrgyzstan.</b> Everything you need to know for the
+        coming days, in one place: the weather forecast, warnings about water, power and heating outages, road closures, government decisions and
+        deadlines, and listings of concerts, plays, exhibitions and fairs.
       </P>
       <P>
-        DataNews is not a government body. The primary source of official decisions, warnings and forecasts is the responsible state institution; every post
-        shows its source, publication date and the date it was last checked.
+        Why? In the general news flow — politics, scandals, who did what — it is easy to miss what really matters: when the water will be off, when
+        the day off is, the deadline for documents, when the concert starts. DataNews covers only what is important, always with dates, so you stay
+        informed and can plan your day calmly.
       </P>
+      <P>Plus useful news on education, AI and technology, business and government — things you can apply in everyday life and work.</P>
       <H>How we work</H>
       <UL
         items={[
-          'Official sources (city halls, ministries, Kyrgyzhydromet, Emergency Ministry) come first; media reports are labelled as media.',
-          'We do not publish invented events, and we never present statements or promises as decisions taken.',
-          'Expired warnings leave the active list automatically but stay in the archive.',
+          'We take information from primary sources: ministries, city halls, Kyrgyzhydromet, the Emergency Ministry, theatres and organisers, and write it in our own words — short and clear.',
+          'Every post shows its source, publication date and last-checked date. DataNews is not a government body: official decisions are made by the institutions themselves.',
+          'We do not publish invented events or present promises as decisions taken. Past warnings move to the archive.',
           'Found a mistake? Message the editors — see the Contacts page.',
         ]}
       />

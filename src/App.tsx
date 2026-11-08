@@ -15,7 +15,8 @@ import {
 import { INITIAL_ANNOUNCEMENTS } from './data/initialAnnouncements';
 import { mergeAnnouncements } from './utils/mergeAnnouncements';
 import * as api from './services/api';
-import { fetchPopular, trackRead, trackView } from './services/analytics';
+import { fetchPopular, outboundKind, outboundNetwork, trackOutbound, trackRead, trackView } from './services/analytics';
+import { CONTACTS, telegramUrl } from './config/contacts';
 import { addDaysStr, kgDateStr, kgTs } from './utils/time';
 import { alertLevel, isAlert, isExpired, isListed } from './utils/urgency';
 import { CATEGORY_IDS, normalizeCity, REGIONS } from './config/regions';
@@ -243,6 +244,20 @@ export default function App() {
     if (role !== 'admin') trackView(currentView, currentLanguage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView]);
+  // Переходы с сайта в Instagram, WhatsApp и Telegram — любой клик по такой ссылке на любой странице
+  // (подвал, кнопки связи, «Поделиться», страницы театров); клики администратора не считаются
+  useEffect(() => {
+    if (role === 'admin') return;
+    const own = [CONTACTS.whatsappUrl, CONTACTS.instagramUrl, telegramUrl(), CONTACTS.telegramPhoneUrl];
+    const onClick = (e: MouseEvent) => {
+      const link = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!link) return;
+      const net = outboundNetwork(link.href);
+      if (net) trackOutbound(net, outboundKind(link.href, own));
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [role]);
 
   // «Исправить» на сайте: админ — любая публикация; сотрудник редакции — редакционные материалы своих разделов
   const [isEditorUser, setIsEditorUser] = useState(false);

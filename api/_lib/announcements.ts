@@ -73,9 +73,10 @@ const sanitizeLegal = (r: Record<string, unknown>) => {
 const summaryOf = (summary: unknown, description: unknown) => {
   const s = loc(summary, 400);
   if (s.ru) return s;
-  const d = loc(description, 5000, true).ru;
-  const cut = d.length <= 300 ? d : `${d.slice(0, 300).replace(/\s+\S*$/, '')}…`;
-  return { ru: cut, kg: cut, en: cut };
+  // начало текста — на каждом языке своё (раньше русское копировалось в кыргызский и английский)
+  const d = loc(description, 5000, true);
+  const cut = (t: string) => (t.length <= 300 ? t : `${t.slice(0, 300).replace(/\s+\S*$/, '')}…`);
+  return { ru: cut(d.ru), kg: cut(d.kg || ''), en: cut(d.en || '') };
 };
 
 const isoLocal = (v: unknown, required: boolean) => {

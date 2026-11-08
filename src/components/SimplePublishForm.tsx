@@ -183,6 +183,8 @@ interface Props {
   submitLabel: string;
   onSubmit: (item: Record<string, unknown>) => Promise<void>;
   onCancel?: () => void;
+  /** Вторая кнопка (сотрудник редакции правит черновик из «Модерации»): «Сохранить и одобрить» */
+  secondarySubmit?: { label: string; onSubmit: (item: Record<string, unknown>) => Promise<void> };
 }
 
 const readDraft = (key?: string): SimpleState | null => {
@@ -195,7 +197,7 @@ const readDraft = (key?: string): SimpleState | null => {
   }
 };
 
-export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, author, initial, storageKey, direct, editor, submitLabel, onSubmit, onCancel }) => {
+export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, author, initial, storageKey, direct, editor, submitLabel, onSubmit, onCancel, secondarySubmit }) => {
   const tr = (k: PublishKey) => tp(k, lang);
   const { t } = getTranslation(lang);
   const publisher = { plan, govVerified, editor: Boolean(editor) };
@@ -290,7 +292,7 @@ export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, au
     setStep(3);
   };
 
-  const submit = async () => {
+  const submit = async (alt?: boolean) => {
     const e = validate(s);
     if (e || !item) {
       setErr(tr(e || 'errRequired'));
@@ -300,7 +302,7 @@ export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, au
     setBusy(true);
     setErr('');
     try {
-      await onSubmit(item);
+      await (alt && secondarySubmit ? secondarySubmit.onSubmit : onSubmit)(item);
       if (storageKey && !initial) {
         try {
           localStorage.removeItem(storageKey);
@@ -610,11 +612,27 @@ export const SimplePublishForm: React.FC<Props> = ({ lang, plan, govVerified, au
             <button
               type="button"
               disabled={busy}
-              onClick={submit}
-              className="px-5 py-2.5 rounded-xl bg-[#20C7B5] text-[#002f29] text-sm font-extrabold hover:bg-[#1bb3a2] disabled:opacity-60"
+              onClick={() => submit()}
+              className={`px-5 py-2.5 rounded-xl text-sm font-extrabold disabled:opacity-60 ${
+                secondarySubmit ? 'bg-[#eef2f9] text-[#12327A] hover:bg-[#e2e9f6]' : 'bg-[#20C7B5] text-[#002f29] hover:bg-[#1bb3a2]'
+              }`}
             >
               {busy ? tr('sending') : submitLabel}
             </button>
+            {secondarySubmit && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => submit(true)}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 disabled:opacity-60 inline-flex items-center gap-1"
+                data-save-approve
+              >
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                  check
+                </span>
+                {busy ? tr('sending') : secondarySubmit.label}
+              </button>
+            )}
           </div>
         </section>
       )}

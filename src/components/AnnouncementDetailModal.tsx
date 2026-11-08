@@ -1,5 +1,6 @@
 import { PaidNote } from './PaidBadge';
 import { EditButton } from './EditButton';
+import { splitLead } from '../utils/lead';
 import React, { useEffect, useRef, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
@@ -341,8 +342,15 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
 
   const cityLabel = t(`cities.${a.city === 'karakol' ? 'issykkul' : a.city}`);
   const title = a.title[lang] || a.title.ru;
-  const summary = a.summary[lang] || a.summary.ru;
-  const body = a.description[lang] || a.description.ru;
+  // вступление (главное) над фото и продолжение под фото — без повтора одного и того же текста
+  // вступление и текст — на одном языке: если текст на языке страницы есть, краткое берём только на нём же
+  const hasBody = Boolean(a.description[lang]?.trim());
+  // старые записи: русское краткое скопировано в другие языки — такое краткое не берём
+  const copiedRu = lang !== 'ru' && a.summary[lang] === a.summary.ru && a.description[lang] !== a.description.ru;
+  const { lead: summary, rest: body } = splitLead(
+    hasBody ? (copiedRu ? '' : a.summary[lang] || '') : a.summary[lang] || a.summary.ru,
+    hasBody ? a.description[lang] : a.description.ru
+  );
 
   /** Одна строка блока «Коротко» */
   const Fact = ({ icon, label, children, wide = false }: { icon: string; label: string; children: React.ReactNode; wide?: boolean }) => (
@@ -585,7 +593,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         </section>
 
         {/* Текст новости: крупный шрифт, удобная длина строки */}
-        {body && body !== summary && (
+        {body && (
           <div className="mt-8 text-[18px] leading-[1.75] text-[#1f2937] whitespace-pre-line [overflow-wrap:anywhere]">{body}</div>
         )}
 

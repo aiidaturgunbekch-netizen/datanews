@@ -684,6 +684,24 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                     direct={Boolean(editing.publishedByGov)}
                     editor={isEditorUser}
                     submitLabel={isEditorUser ? tp('publish', lang) : editing.publishedByGov ? tr('publishNow') : tr('resubmit')}
+                    // черновик из «Модерации»: исправить и сразу опубликовать
+                    secondarySubmit={
+                      editFrom === 'moderation' && editing.moderationStatus === 'pending'
+                        ? {
+                            label: lang === 'kg' ? 'Сактоо жана жактыруу' : lang === 'en' ? 'Save and approve' : 'Сохранить и одобрить',
+                            onSubmit: async (item) => {
+                              await api.updateAnnouncement(editing.id, item);
+                              await api.moderateAnnouncement(editing.id, 'approve');
+                              setNotice(
+                                `${lang === 'kg' ? 'Оңдолуп, жактырылды жана жарыяланды' : lang === 'en' ? 'Edited, approved and published' : 'Исправлено, одобрено и опубликовано'}: «${editing.title[lang] || editing.title.ru}»`
+                              );
+                              setEditing(null);
+                              setTab('moderation');
+                              setEditFrom(null);
+                            },
+                          }
+                        : undefined
+                    }
                     onCancel={() => {
                       if (initialEdit) return onClose();
                       setEditing(null);

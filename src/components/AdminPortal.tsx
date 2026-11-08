@@ -1,4 +1,5 @@
 import { downloadXlsx } from '../utils/xlsx';
+import { splitLead } from '../utils/lead';
 import React, { useEffect, useMemo, useState } from 'react';
 import { BatchImport, untranslatedForClaude } from './admin/BatchImport';
 import { missingLangs } from '../utils/lang';
@@ -1333,8 +1334,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                             )}
                           </div>
                           <h3 className="font-extrabold text-[#0f1b33]">{a.title.ru}</h3>
-                          <p className="text-sm text-gray-700">{a.summary.ru}</p>
-                          {a.description.ru !== a.summary.ru && <p className="text-xs text-gray-600 whitespace-pre-line">{a.description.ru}</p>}
+                          {/* полный текст один раз; краткое — только если написано отдельно, а не обрезанное начало текста */}
+                          {(() => {
+                            const { lead, rest } = splitLead(a.summary.ru, a.description.ru);
+                            return (
+                              <p className="text-sm text-gray-700 whitespace-pre-line">
+                                <b className="font-semibold">{lead}</b>
+                                {rest ? ` ${rest}` : ''}
+                              </p>
+                            );
+                          })()}
                           {/* Ссылки на источник и билеты — проверить одним нажатием (в новой вкладке) */}
                           {(() => {
                             const links = [

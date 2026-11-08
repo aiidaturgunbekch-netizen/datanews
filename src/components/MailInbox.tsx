@@ -187,6 +187,33 @@ export const MailInbox: React.FC<{
           const d = m.suggestion.draft;
           const photosOf = m.attachments.filter((a) => a.kind === 'image' && a.storedKey);
           const state = draftState(m);
+          // Пакет сборщика разобран сайтом сам — вручную с ним делать ничего не нужно, показываем только итог
+          const batch = m.history.find((h) => h.action === 'batch_imported');
+          if (batch)
+            return (
+              <article key={m.id} className="bg-white rounded-2xl border border-emerald-200 p-4 space-y-2" aria-label={m.subject || 'Пакет сборщика'} data-batch-mail>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
+                      task_alt
+                    </span>
+                    Пакет сборщика — принят автоматически
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-[#0f1b33] [overflow-wrap:anywhere]">{m.subject || '(без темы)'}</h3>
+                <p className="text-xs text-gray-600">Получено: {formatKgDateTime(m.receivedAt)}</p>
+                <p className="text-sm text-[#0f1b33]">
+                  <b>Итог:</b> {batch.note || 'разобран'}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Погода уже на сайте. Новости (если есть) — черновиками в{' '}
+                  <button type="button" onClick={onOpenModeration} className="font-bold text-[#12327A] underline">
+                    «Модерации»
+                  </button>
+                  . С этим письмом делать ничего не нужно: «Подготовить черновик» не нажимайте.
+                </p>
+              </article>
+            );
           return (
             <article key={m.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3" aria-label={m.subject || 'Письмо без темы'}>
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">

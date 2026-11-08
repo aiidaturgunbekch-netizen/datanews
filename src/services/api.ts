@@ -143,6 +143,9 @@ export const uploadImage = (data: string) => post<{ url: string }>('image', { da
 export const updateAnnouncement = (id: string, item: Record<string, unknown>) =>
   post<{ item: Announcement }>('announcements', { id, item }, 'PATCH').then((r) => r.item);
 
+/** Очередь модерации для сотрудника редакции (без платных размещений) */
+export const fetchPendingForEditor = () => request<{ items: Announcement[] }>('announcements?scope=pending').then((r) => r.items);
+
 export const moderateAnnouncement = (id: string, action: 'approve' | 'reject' | 'restore' | 'withdraw', note?: string) =>
   post<{ item: Announcement }>('announcements', { id, action, note }, 'PATCH').then((r) => r.item);
 

@@ -28,7 +28,6 @@ import { CHECK_NOTE, isCheckOnlyCopy } from '../src/utils/mergeAnnouncements';
 import { isEditor, StoredUser, USERS_KEY } from './_lib/users';
 import { checkPublishCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
 import { normalizePlan } from '../src/config/site';
-import { allowedCategories } from '../src/config/publishTypes';
 import { kgNowLocal } from '../src/utils/time';
 import { INITIAL_ANNOUNCEMENTS } from '../src/data/initialAnnouncements';
 
@@ -95,6 +94,15 @@ const withEditorCheck = (item: Announcement, raw: Record<string, unknown> | unde
 const organizerOf = (item: Announcement, user: StoredUser) =>
   item.eventDetails?.organizer?.trim() || (isGovVerified(user) && user.gov?.orgName) || user.organization?.trim() || user.name?.trim() || '';
 
+/** Платное размещение пользователя (не госорган): его правят и одобряют только администратор */
+const isPaidItem = (a: Announcement) => a.dataOrigin === 'user' && !a.publishedByGov;
+
+/** Сотрудник редакции (действующий) — или null */
+const editorOf = async (sub: string) => {
+  const u = await hgetJson<StoredUser>(USERS_KEY, sub);
+  return isEditor(u) ? u : null;
+};
+
 export default handler(async (req) => {
   const url = new URL(req.url);
 
@@ -106,6 +114,13 @@ export default handler(async (req) => {
       const hidden = ((await cmd<string[]>('HVALS', HIDDEN_KEY)) || []) as string[];
       const { items, checked } = await splitChecked(all);
       return json({ items, hidden, checked });
+    }
+    // Очередь модерации для сотрудника редакции: черновики без платных размещений, без личных контактов авторов
+    if (scope === 'pending') {
+      const s = await requireUser(req);
+      if (s.role !== 'admin' && !(await editorOf(s.sub))) throw new HttpError('forbidden', 403);
+      const pending = all.filter((a) => a.moderationStatus === 'pending' && (s.role === 'admin' || !isPaidItem(a)));
+      return json({ items: pending.map((a) => ({ ...a, submittedBy: a.submittedBy ? { userId: a.submittedBy.userId, name: a.submittedBy.name, email: '', organization: a.submittedBy.organization } : undefined })) });
     }
     if (scope === 'mine') {
       const s = await requireUser(req);
@@ -223,6 +238,22 @@ export default handler(async (req) => {
     const current = await hgetJson<Announcement>(ANN_KEY, id);
     const note = String(body.note || '').slice(0, 500) || undefined;
 
+    // Сотрудник редакции может одобрить черновик (кроме платных размещений); отклонять и возвращать — только администратор
+    if (body.action === 'approve' && session.role !== 'admin') {
+      const ed = await editorOf(session.sub);
+      if (!ed) throw new HttpError('forbidden', 403);
+      if (!current) throw new HttpError('not_found', 404);
+      if (isPaidItem(current)) throw new HttpError('forbidden', 403, 'Платные размещения одобряет только администратор');
+      if (current.moderationStatus !== 'pending') throw new HttpError('not_pending', 409, 'Этот материал уже не ждёт модерации');
+      const next = withHistory(
+        { ...current, moderationStatus: 'approved', moderationNote: note, updatedAt: kgNowLocal() },
+        'author',
+        'approved',
+        `Одобрил сотрудник редакции: ${ed.name}`
+      );
+      await saveAnnouncement(next);
+      return json({ item: next });
+    }
     if (body.action === 'approve' || body.action === 'reject' || body.action === 'restore') {
       await requireAdmin(req);
       if (!current) throw new HttpError('not_found', 404);
@@ -291,6 +322,8 @@ export default handler(async (req) => {
       if (!current) throw new HttpError('not_found', 404);
       const isAdmin = session.role === 'admin';
       if (!isAdmin && current.submittedBy?.email !== session.sub) throw new HttpError('forbidden', 403);
+      // сотрудник редакции материалы не снимает (даже свои) — это делает администратор
+      if (!isAdmin && (await editorOf(session.sub))) throw new HttpError('forbidden', 403, 'Снять материал с сайта может только администратор');
       const next = withHistory(
         { ...current, moderationStatus: 'withdrawn', moderationNote: note, updatedAt: kgNowLocal() },
         isAdmin ? 'admin' : 'author',
@@ -315,19 +348,33 @@ export default handler(async (req) => {
 
     const user = await hgetJson<StoredUser>(USERS_KEY, session.sub);
     const editor = isEditor(user);
-    // Сотрудник редакции может исправить любой редакционный материал своих разделов (не только свой),
-    // кроме платных размещений и публикаций госорганов; встроенные материалы — тоже (сохраняется правленая копия)
+    // Сотрудник редакции может исправить любой материал сайта (не только свой), кроме платных размещений;
+    // встроенные материалы — тоже (сохраняется правленая копия). Раздел, статус и автор остаются прежними.
     const base = current || (editor ? INITIAL_ANNOUNCEMENTS.find((a) => a.id === id) || null : null);
     const own = Boolean(base && base.submittedBy?.email === session.sub);
-    const editorAny = Boolean(
-      editor && base && !own && !(base.dataOrigin === 'user' && !base.publishedByGov) && !base.publishedByGov &&
-        allowedCategories({ plan: normalizePlan(user!.plan), govVerified: false, editor: true }).includes(base.category)
-    );
+    // любой материал, кроме платных размещений (в том числе госорганов и официальных разделов) — исправить текст
+    const editorAny = Boolean(editor && base && !own && !isPaidItem(base));
     if (!base || (!own && !editorAny)) throw new HttpError('forbidden', 403);
     if (editorAny) {
       await rateLimit(req, 'edit', 30, 3600, session.sub);
-      let item = await sanitize(authorFields(body.item), base);
-      item = { ...keepEditorial(item, base), submittedBy: base.submittedBy, dataOrigin: base.dataOrigin, moderationStatus: base.moderationStatus || 'approved' };
+      // Правка чужого материала — только текст (заголовок, кратко, текст, место); даты, раздел, автор, статус,
+      // источники и всё остальное остаются как были (форма сотрудника не знает всех полей, например «весь день»)
+      const edited = await sanitize(authorFields(body.item), base);
+      // язык, который форма прислала пустым, не стирает существующий перевод
+      const merge = <T extends Announcement['title']>(was: T, now: T | undefined): T => {
+        const out = { ...was };
+        for (const k of ['ru', 'kg', 'en'] as const) if (now?.[k]?.trim()) (out as unknown as Record<string, string>)[k] = now[k]!;
+        return out;
+      };
+      let item: Announcement = {
+        ...base,
+        title: merge(base.title, edited.title),
+        summary: merge(base.summary, edited.summary),
+        description: merge(base.description, edited.description),
+        location: merge(base.location, edited.location),
+        moderationStatus: base.moderationStatus || 'approved',
+        updatedAt: kgNowLocal(),
+      };
       item = withHistory(item, 'author', 'edited', `Правка сотрудника редакции: ${user!.name}`, diffFields(base, item));
       await saveAnnouncement(item);
       return json({ item });

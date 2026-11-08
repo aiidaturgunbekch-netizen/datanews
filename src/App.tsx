@@ -38,7 +38,6 @@ import { TopStories } from './components/TopStories';
 import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { PopularNews } from './components/PopularNews';
 import { EditContext } from './components/EditButton';
-import { allowedCategories } from './config/publishTypes';
 import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
@@ -258,11 +257,11 @@ export default function App() {
       .catch(() => setIsEditorUser(false));
   }, [role]);
   const [editFromSite, setEditFromSite] = useState<Announcement | null>(null);
-  const editorCats = useMemo(() => allowedCategories({ plan: 'start', govVerified: false, editor: true }), []);
   const editApi = useMemo(
     () => ({
       canEdit: (a: Announcement) =>
-        role === 'admin' || (isEditorUser && !isPaid(a) && !a.publishedByGov && editorCats.includes(a.category)),
+        // сотрудник редакции — любой материал, кроме платных размещений (сервер проверяет то же)
+        role === 'admin' || (isEditorUser && !isPaid(a)),
       edit: (a: Announcement) => {
         setActiveNoticeDetail(null);
         setEditFromSite(a);
@@ -271,7 +270,7 @@ export default function App() {
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [role, isEditorUser, editorCats]
+    [role, isEditorUser]
   );
 
   const closeAdmin = () => {

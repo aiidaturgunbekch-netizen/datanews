@@ -6,6 +6,7 @@ import { AccountKey, errorText, ta } from '../locales/account';
 import { formatDate, formatDayMonth, formatDayMonthTime } from '../utils/dates';
 import { inputCls } from './AnnouncementForm';
 import { SimplePublishForm } from './SimplePublishForm';
+import { EditorModeration } from './EditorModeration';
 import { PublishKey, tp } from '../locales/publish';
 import { EventImage } from './EventImage';
 
@@ -22,7 +23,7 @@ interface Props {
   initialEdit?: Announcement | null;
 }
 
-type Tab = 'cabinet' | 'publish' | 'mine';
+type Tab = 'cabinet' | 'publish' | 'mine' | 'moderation';
 
 export const MODERATION_BADGE: Record<string, { label: string; key: AccountKey; cls: string; icon: string }> = {
   pending: { label: 'На модерации', key: 'modPending', cls: 'bg-amber-100 text-amber-800', icon: 'hourglass_top' },
@@ -221,6 +222,9 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
   const [tab, setTab] = useState<Tab>(initialEdit ? 'mine' : initialTab);
   const [mine, setMine] = useState<Announcement[]>([]);
   const [editing, setEditing] = useState<Announcement | null>(initialEdit || null);
+  // откуда открыта правка (чтобы вернуться в «Модерацию») и сколько там ждёт
+  const [editFrom, setEditFrom] = useState<Tab | null>(null);
+  const [modCount, setModCount] = useState(0);
   const [notice, setNotice] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -452,6 +456,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                     ['cabinet', isEditorUser ? tp('profileTab', lang) : tr('tabProfile')],
                     ['publish', tr('tabPublish')],
                     ['mine', `${tr('tabMine')}${pendingCount ? ` (${pendingCount})` : ''}`],
+                    ...(isEditorUser ? [['moderation', `${lang === 'kg' ? 'Модерация' : lang === 'en' ? 'Moderation' : 'Модерация'}${modCount ? ` (${modCount})` : ''}`]] : []),
                   ] as [Tab, string][]
                 ).map(([t, label]) => (
                   <button
@@ -655,6 +660,18 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                   </>
                 ))}
 
+              {tab === 'moderation' && isEditorUser && (
+                <EditorModeration
+                  lang={lang}
+                  onCount={setModCount}
+                  onEdit={(a) => {
+                    setEditFrom('moderation');
+                    setEditing(a);
+                    setTab('mine');
+                  }}
+                />
+              )}
+
               {tab === 'mine' &&
                 (editing ? (
                   <SimplePublishForm
@@ -667,7 +684,14 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                     direct={Boolean(editing.publishedByGov)}
                     editor={isEditorUser}
                     submitLabel={isEditorUser ? tp('publish', lang) : editing.publishedByGov ? tr('publishNow') : tr('resubmit')}
-                    onCancel={() => (initialEdit ? onClose() : setEditing(null))}
+                    onCancel={() => {
+                      if (initialEdit) return onClose();
+                      setEditing(null);
+                      if (editFrom) {
+                        setTab(editFrom);
+                        setEditFrom(null);
+                      }
+                    }}
                     onSubmit={async (item) => {
                       await api.updateAnnouncement(editing.id, item);
                       if (initialEdit) {
@@ -677,6 +701,11 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                       await loadMine();
                       setNotice(isEditorUser ? tp('sentEditor', lang) : editing.publishedByGov ? tr('publishedDirect') : tr('resubmitted'));
                       setEditing(null);
+                      // исправляли черновик из «Модерации» — возвращаемся туда (метка «Исправлено»)
+                      if (editFrom) {
+                        setTab(editFrom);
+                        setEditFrom(null);
+                      }
                     }}
                   />
                 ) : mine.length === 0 ? (

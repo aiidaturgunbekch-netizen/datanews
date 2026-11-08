@@ -13,7 +13,7 @@ delete process.env.ADMIN_PASSWORD;
 const { default: auth } = await import('../api/auth');
 const { default: announcements } = await import('../api/announcements');
 const { default: usersApi } = await import('../api/users');
-const { hgetJson, hsetJson } = await import('../api/_lib/kv');
+const { cmd, hgetJson, hsetJson } = await import('../api/_lib/kv');
 const { ANN_KEY } = await import('../api/_lib/announcements');
 const { USERS_KEY } = await import('../api/_lib/users');
 const { buildItem, emptyState } = await import('../src/components/SimplePublishForm');
@@ -184,29 +184,55 @@ describe('свои и чужие материалы', () => {
     assert.ok((await publicIds()).includes(editorPost));
   });
 
-  it('8. исправляет чужой редакционный материал (другого сотрудника, администратора), но не снимает и не модерирует', async () => {
+  it('8. исправляет любой материал (другого сотрудника, администратора, госоргана, встроенный), но не снимает', async () => {
     const other = await call(usersApi, 'users', 'POST', admin, { name: 'Другой редактор', email: 'editor2@example.com', phone: '+996555100004', organization: 'Редакция', password: 'editor-pass-2', plan: 'start', editor: true });
     assert.equal(other.status, 201);
     const t2 = await login('editor2@example.com', 'editor-pass-2');
     const foreign = (await call(announcements, 'announcements', 'POST', t2, news())).body.item.id;
     const adminItem = (await call(announcements, 'announcements', 'POST', admin, news())).body.item.id;
-    for (const id of [foreign, adminItem]) {
+    // официальный раздел (госорган) — тоже можно исправить текст; раздел и статус остаются
+    const govItem = (await call(announcements, 'announcements', 'POST', admin, { item: { ...news().item, category: 'state', title: { ru: 'Решение правительства', kg: 'Өкмөттүн чечими', en: 'Gov decision' } } })).body.item.id;
+    for (const id of [foreign, adminItem, govItem]) {
       const before = (await stored(id))!;
-      const r = await call(announcements, 'announcements', 'PATCH', editor, { id, item: news().item });
-      assert.equal(r.status, 200, 'исправить опечатку в редакционном материале можно');
+      const fix = news().item;
+      const r = await call(announcements, 'announcements', 'PATCH', editor, { id, item: fix });
+      assert.equal(r.status, 200, 'исправить опечатку можно');
       assert.equal(r.body.item.moderationStatus, before.moderationStatus, 'статус не меняется');
+      assert.equal(r.body.item.category, before.category, 'раздел не меняется');
+      assert.equal(r.body.item.startDate, before.startDate, 'дата не меняется');
+      assert.equal(r.body.item.endDate, before.endDate, 'дата окончания не теряется');
+      assert.equal(r.body.item.title.ru, (fix as { title: { ru: string } }).title.ru, 'текст исправлен');
       assert.deepEqual(r.body.item.submittedBy, before.submittedBy, 'автор остаётся прежним');
       assert.ok(r.body.item.history.some((h: { note?: string }) => /Правка сотрудника редакции/.test(h.note || '')), 'в истории — кто исправил');
       assert.equal((await call(announcements, 'announcements', 'PATCH', editor, { id, action: 'withdraw' })).status, 403, 'снять с сайта — нельзя');
     }
-    assert.equal((await call(announcements, 'announcements', 'PATCH', editor, { id: foreign, action: 'approve' })).status, 403, 'модерация — только администратор');
   });
 
-  it('9. сотрудник снимает свою публикацию; администратор может снять любую', async () => {
+  it('8а. одобряет черновик в «Модерации», но не отклоняет и не возвращает; платное — только администратор', async () => {
+    const draft = (await call(announcements, 'announcements', 'POST', admin, { ...news(), asDraft: true })).body.item.id;
+    assert.equal((await stored(draft))!.moderationStatus, 'pending');
+    const q = await call(announcements, 'announcements?scope=pending', 'GET', editor);
+    assert.equal(q.status, 200);
+    assert.ok(q.body.items.some((a: { id: string }) => a.id === draft), 'видит очередь модерации');
+    assert.ok(q.body.items.every((a: { submittedBy?: { email?: string } }) => !a.submittedBy?.email), 'без личных контактов авторов');
+    assert.equal((await call(announcements, 'announcements', 'PATCH', editor, { id: draft, action: 'reject' })).status, 403, 'отклонить — только администратор');
+    const ok = await call(announcements, 'announcements', 'PATCH', editor, { id: draft, action: 'approve' });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.body.item.moderationStatus, 'approved');
+    assert.ok((await publicIds()).includes(draft), 'одобренное — на сайте');
+    // платное размещение пользователя: ни править, ни одобрять
+    const paid = { ...(await stored(draft))!, id: 'paid-test-1', dataOrigin: 'user', moderationStatus: 'pending', submittedBy: { userId: 'u1', name: 'Клиент', email: 'client@example.com' } };
+    await cmd('HSET', ANN_KEY, paid.id, JSON.stringify(paid));
+    assert.equal((await call(announcements, 'announcements', 'PATCH', editor, { id: paid.id, action: 'approve' })).status, 403);
+    assert.equal((await call(announcements, 'announcements', 'PATCH', editor, { id: paid.id, item: news().item })).status, 403);
+    const q2 = await call(announcements, 'announcements?scope=pending', 'GET', editor);
+    assert.ok(!q2.body.items.some((a: { id: string }) => a.id === paid.id), 'платного нет в очереди сотрудника');
+  });
+
+  it('9. сотрудник не снимает даже свою публикацию; администратор может снять любую', async () => {
     const own = (await call(announcements, 'announcements', 'POST', editor, news())).body.item.id;
-    const r = await call(announcements, 'announcements', 'PATCH', editor, { id: own, action: 'withdraw', note: 'Устарело' });
-    assert.equal(r.body.item.moderationStatus, 'withdrawn');
-    assert.ok(!(await publicIds()).includes(own));
+    assert.equal((await call(announcements, 'announcements', 'PATCH', editor, { id: own, action: 'withdraw', note: 'Устарело' })).status, 403);
+    assert.ok((await publicIds()).includes(own));
     const adm = await call(announcements, 'announcements', 'PATCH', admin, { id: editorPost, action: 'withdraw', note: 'Проверка администратора' });
     assert.equal(adm.body.item.moderationStatus, 'withdrawn');
   });

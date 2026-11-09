@@ -266,6 +266,9 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   const source = eventSource(a);
   const isAfisha = AFISHA_CATS.includes(a.category);
   const groups = groupedSources(a);
+  // Один главный источник: официальное сообщение → сайт ведомства → указанный источник (СМИ — только если больше ничего нет)
+  const primary = groups.official.find((l) => l.label === 'official')?.href || groups.official[0]?.href || source;
+  const primaryLabel = primary && primary !== source ? hostOf(primary) : sourceLabel(a, lang);
   const govTicket = tickets.url ? isGovTicket(tickets.url) : false;
   const LINK_META: Record<SourceLink['label'], { text: string; icon: string }> = {
     official: { text: L.official[lang], icon: 'verified' },
@@ -284,18 +287,18 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
       // только сайт ведомства (само сообщение там не найдено) — не называем это официальным источником
       title: groups.official.some((o) => o.label === 'official') ? L.official[lang] : L.authorityTitle[lang],
       // ссылка на основной источник уже стоит в строке «Источник» под текстом — здесь не повторяем
-      items: groups.official.filter((l) => l.href !== source),
+      items: groups.official.filter((l) => l.href !== primary),
     },
     // у новостей и предупреждений «Организатора» нет — такая ссылка идёт в источники
-    { title: L.organizer[lang], items: isAfisha ? groups.organizer.filter((l) => l.href !== source) : [] },
+    { title: L.organizer[lang], items: isAfisha ? groups.organizer.filter((l) => l.href !== primary) : [] },
     // ссылка «Источник фото» в списке источников не нужна: подпись автора фото — одной серой строкой под фотографией
     // Частные СМИ не показываем и не рекламируем, если есть официальный первоисточник или организатор:
     // текст переписан по первоисточнику. СМИ указываем, только если новость есть лишь у них (они — автор)
     {
       title: L.additional[lang],
-      items: [...(isAfisha ? [] : groups.organizer), ...groups.additional].filter((l) => l.href !== source).filter(
-        (l) => l.label !== 'image' && !(l.label === 'media' && (groups.official.length > 0 || (isEvent && groups.organizer.length > 0)))
-      ),
+      items: [...(isAfisha ? [] : groups.organizer), ...groups.additional]
+        .filter((l) => l.href !== primary && l.href !== source)
+        .filter((l) => l.label !== 'image' && l.label !== 'media'),
     },
   ].filter((x) => x.items.length > 0);
   useEffect(() => {
@@ -449,7 +452,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             </span>
           )}
           {/* Читателю — только положительная отметка; «Требует проверки» — служебная, видна редакции в панели */}
-          {a.isVerified && (
+          {a.isVerified && editorView && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#eef2f9] text-[#12327A] text-[11px] font-bold">
               <span className="material-symbols-outlined text-[14px]">verified</span>
               {L.verified[lang]}
@@ -587,15 +590,15 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
 
         {/* Источник (единственное место, со ссылкой) и даты — мелко, после текста. Организатор — только в «Коротко» у афиши */}
         <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-gray-400" data-article-meta>
-          {sourceLabel(a, lang) && sourceLabel(a, lang) !== organizer && (
+          {primaryLabel && primaryLabel !== organizer && (
             <span>
               {L.source[lang]}:{' '}
-              {source ? (
-                <a href={source} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] hover:underline">
-                  {sourceLabel(a, lang)}
+              {primary ? (
+                <a href={primary} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] hover:underline">
+                  {primaryLabel}
                 </a>
               ) : (
-                <b className="font-semibold text-gray-600">{sourceLabel(a, lang)}</b>
+                <b className="font-semibold text-gray-600">{primaryLabel}</b>
               )}
             </span>
           )}
@@ -664,10 +667,10 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         </div>
 
         {/* Источники: официальный, организатор, билеты, дополнительный — отдельными ссылками */}
-        {(sections.length > 0 || (tickets.url && tickets.verified) || (editorView && isEvent) || (groups.mediaOnly && !isEvent)) && (
+        {(sections.length > 0 || (tickets.url && tickets.verified) || (editorView && isEvent) || (groups.mediaOnly && groups.official.length === 0 && !isEvent)) && (
           <section className="mt-5 pt-4 border-t border-gray-200 space-y-3">
             <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500">{L.links[lang]}</h2>
-            {groups.mediaOnly && !isEvent && (
+            {groups.mediaOnly && groups.official.length === 0 && !isEvent && (
               <p className="text-sm text-amber-900 bg-amber-50 rounded-xl p-3 flex gap-1.5">
                 <span className="material-symbols-outlined text-[16px]">info</span>
                 {L.mediaOnly[lang]}

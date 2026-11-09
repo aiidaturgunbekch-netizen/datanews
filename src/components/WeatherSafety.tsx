@@ -180,7 +180,7 @@ export const WeatherCard: React.FC<{ lang: Language; city: CityId; className?: s
       )}
       <p className="mt-3 text-[11px] text-gray-500">
         {T.source[lang]}:{' '}
-        <a href={f.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+        <a href={f.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] underline decoration-[#12327A]/30 underline-offset-2 hover:decoration-[#12327A]">
           {f.sourceName}
         </a>
         {f.updatedAt && (

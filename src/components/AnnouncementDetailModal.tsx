@@ -202,6 +202,9 @@ const TICKETED = ['concerts', 'festivals', 'culture', 'cinema', 'sport', 'fairs'
 
 const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
 
+/** Афиша: только здесь бывает «Организатор»; у новостей, решений и предупреждений — только источник */
+const AFISHA_CATS = ['concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'cinema', 'sport'];
+
 export const AnnouncementDetailModal: React.FC<Props> = ({
   announcement: a,
   currentLanguage: lang,
@@ -261,6 +264,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   // Свободный вход — билеты не нужны, пометку «ссылка не подтверждена» не показываем
   const freeEntry = /свободный|бесплатн|акысыз|free/i.test(a.eventDetails?.priceText?.ru || '');
   const source = eventSource(a);
+  const isAfisha = AFISHA_CATS.includes(a.category);
   const groups = groupedSources(a);
   const govTicket = tickets.url ? isGovTicket(tickets.url) : false;
   const LINK_META: Record<SourceLink['label'], { text: string; icon: string }> = {
@@ -279,16 +283,17 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     {
       // только сайт ведомства (само сообщение там не найдено) — не называем это официальным источником
       title: groups.official.some((o) => o.label === 'official') ? L.official[lang] : L.authorityTitle[lang],
-      items: groups.official,
+      // ссылка на основной источник уже стоит в строке «Источник» под текстом — здесь не повторяем
+      items: groups.official.filter((l) => l.href !== source),
     },
     // у новостей и предупреждений «Организатора» нет — такая ссылка идёт в источники
-    { title: L.organizer[lang], items: isEvent ? groups.organizer : [] },
+    { title: L.organizer[lang], items: isAfisha ? groups.organizer.filter((l) => l.href !== source) : [] },
     // ссылка «Источник фото» в списке источников не нужна: подпись автора фото — одной серой строкой под фотографией
     // Частные СМИ не показываем и не рекламируем, если есть официальный первоисточник или организатор:
     // текст переписан по первоисточнику. СМИ указываем, только если новость есть лишь у них (они — автор)
     {
       title: L.additional[lang],
-      items: [...(isEvent ? [] : groups.organizer), ...groups.additional].filter(
+      items: [...(isAfisha ? [] : groups.organizer), ...groups.additional].filter((l) => l.href !== source).filter(
         (l) => l.label !== 'image' && !(l.label === 'media' && (groups.official.length > 0 || (isEvent && groups.organizer.length > 0)))
       ),
     },
@@ -349,7 +354,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   // Над фото — только заголовок (тема); под фото — весь текст один раз (краткое — только если основного текста нет)
   const body = (hasBody ? a.description[lang] : a.description.ru || a.summary[lang] || a.summary.ru || '').trim();
   // Организатор — только у событий (концерт, спектакль, ярмарка…); у новостей и предупреждений — источник
-  const organizer = isEvent ? a.eventDetails?.organizer?.trim() || '' : '';
+  const organizer = isAfisha ? a.eventDetails?.organizer?.trim() || '' : '';
   // «Фото: Фото: Кабар» → «Фото: Кабар»
   const photoCredit = (a.imageCredit || '').replace(/^\s*(фото|сүрөт|photo)\s*:\s*/i, '');
 
@@ -436,10 +441,13 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         </p>
 
         <div className="flex flex-wrap items-center gap-2 mt-3">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${badge.bg} ${badge.text}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-            {badge.label}
-          </span>
+          {/* «Опубликовано» не повторяем — дата публикации есть под текстом */}
+          {status !== 'published' && (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${badge.bg} ${badge.text}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+              {badge.label}
+            </span>
+          )}
           {/* Читателю — только положительная отметка; «Требует проверки» — служебная, видна редакции в панели */}
           {a.isVerified && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#eef2f9] text-[#12327A] text-[11px] font-bold">
@@ -487,7 +495,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             {/* «Где»: только известное — адрес или площадка, ниже территория; без адреса — одна территория */}
             <Fact icon="location_on" label={L.where[lang]}>
               {place || [a.locality, a.district, cityLabel].filter(Boolean).join(' • ')}
-              {place && place !== cityLabel && (
+              {place && !place.toLowerCase().includes(cityLabel.replace(/^г\.\s*|\s*ш\.$/g, '').toLowerCase()) && (
                 <span className="block text-xs font-normal text-gray-500 mt-0.5">{[a.locality, a.district, cityLabel].filter(Boolean).join(' • ')}</span>
               )}
             </Fact>
@@ -577,18 +585,20 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           </div>
         </section>
 
-        {/* Кто сообщил и когда — мелко, после текста. У событий — организатор, у новостей — источник (один раз) */}
-        <p className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500" data-article-meta>
-          <span>
-            {organizer ? L.organizer[lang] : L.source[lang]}:{' '}
-            {source ? (
-              <a href={source} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] hover:underline">
-                {organizer || sourceLabel(a, lang)}
-              </a>
-            ) : (
-              <b className="font-semibold text-gray-700">{organizer || sourceLabel(a, lang)}</b>
-            )}
-          </span>
+        {/* Источник (единственное место, со ссылкой) и даты — мелко, после текста. Организатор — только в «Коротко» у афиши */}
+        <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-gray-400" data-article-meta>
+          {sourceLabel(a, lang) && sourceLabel(a, lang) !== organizer && (
+            <span>
+              {L.source[lang]}:{' '}
+              {source ? (
+                <a href={source} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] hover:underline">
+                  {sourceLabel(a, lang)}
+                </a>
+              ) : (
+                <b className="font-semibold text-gray-600">{sourceLabel(a, lang)}</b>
+              )}
+            </span>
+          )}
           <span>
             {L.published[lang]}: <time dateTime={a.publishedAt}>{formatDayMonthTime(a.publishedAt, lang)}</time>
           </span>
@@ -654,9 +664,9 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         </div>
 
         {/* Источники: официальный, организатор, билеты, дополнительный — отдельными ссылками */}
-        {(isEvent || sections.length > 0 || tickets.url) && (
-          <section className="mt-10 pt-6 border-t border-gray-200 space-y-4">
-            <SectionTitle>{L.links[lang]}</SectionTitle>
+        {(sections.length > 0 || (tickets.url && tickets.verified) || (editorView && isEvent) || (groups.mediaOnly && !isEvent)) && (
+          <section className="mt-5 pt-4 border-t border-gray-200 space-y-3">
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500">{L.links[lang]}</h2>
             {groups.mediaOnly && !isEvent && (
               <p className="text-sm text-amber-900 bg-amber-50 rounded-xl p-3 flex gap-1.5">
                 <span className="material-symbols-outlined text-[16px]">info</span>
@@ -717,8 +727,8 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
         )}
 
         {/* Поделиться новостью — в конце материала: ссылка именно на эту публикацию (/n/<id>) и её заголовок */}
-        <section aria-labelledby="share-title" className="mt-10 pt-6 border-t border-gray-200">
-          <h2 id="share-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-3">
+        <section aria-labelledby="share-title" className="mt-5 pt-4 border-t border-gray-200">
+          <h2 id="share-title" className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500 mb-2">
             {SHARE_ARTICLE_TITLE[lang]}
           </h2>
           <ShareMenu url={shareUrl} title={title} lang={lang} />

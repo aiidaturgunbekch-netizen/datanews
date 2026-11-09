@@ -26,3 +26,17 @@ describe('вступление и продолжение статьи без п�
     assert.equal(r.rest, 'Билеты продаются на сайте.');
   });
 });
+
+describe('правленая копия встроенной новости с испорченным кыргызским текстом', () => {
+  it('кыргызский перевод возвращается из исходной новости', async () => {
+    const { mergeAnnouncements } = await import('../src/utils/mergeAnnouncements');
+    const { INITIAL_ANNOUNCEMENTS } = await import('../src/data/initialAnnouncements');
+    const { hasLangText } = await import('../src/utils/lang');
+    const orig = INITIAL_ANNOUNCEMENTS.find((a) => a.id === 'ann-dec31-short-day-2026')!;
+    const broken = { ...orig, title: { ...orig.title, kg: orig.title.ru }, description: { ...orig.description, kg: orig.description.ru } };
+    assert.ok(!hasLangText(broken, 'kg'));
+    const fixed = mergeAnnouncements([broken]).find((a) => a.id === orig.id)!;
+    assert.equal(fixed.description.kg, orig.description.kg);
+    assert.ok(hasLangText(fixed, 'kg'));
+  });
+});

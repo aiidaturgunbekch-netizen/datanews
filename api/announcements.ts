@@ -360,18 +360,24 @@ export default handler(async (req) => {
       // Правка чужого материала — только текст (заголовок, кратко, текст, место); даты, раздел, автор, статус,
       // источники и всё остальное остаются как были (форма сотрудника не знает всех полей, например «весь день»)
       const edited = await sanitize(authorFields(body.item), base);
-      // язык, который форма прислала пустым, не стирает существующий перевод
-      const merge = <T extends Announcement['title']>(was: T, now: T | undefined): T => {
+      // меняем только те языки, которые сотрудник действительно прислал (не автокопию другого языка);
+      // пустой язык не стирает существующий перевод, а русский текст не попадает в кыргызский и наоборот
+      const rawItem = (body.item || {}) as Record<string, Record<string, unknown> | undefined>;
+      const merge = <T extends Announcement['title']>(was: T, now: T | undefined, field: string): T => {
         const out = { ...was };
-        for (const k of ['ru', 'kg', 'en'] as const) if (now?.[k]?.trim()) (out as unknown as Record<string, string>)[k] = now[k]!;
+        const sent = rawItem[field] && typeof rawItem[field] === 'object' ? rawItem[field]! : {};
+        for (const k of ['ru', 'kg', 'en'] as const) {
+          const v = typeof sent[k] === 'string' ? (sent[k] as string).trim() : '';
+          if (v && now?.[k]?.trim()) (out as unknown as Record<string, string>)[k] = now[k]!;
+        }
         return out;
       };
       let item: Announcement = {
         ...base,
-        title: merge(base.title, edited.title),
-        summary: merge(base.summary, edited.summary),
-        description: merge(base.description, edited.description),
-        location: merge(base.location, edited.location),
+        title: merge(base.title, edited.title, 'title'),
+        summary: merge(base.summary, edited.summary, 'summary'),
+        description: merge(base.description, edited.description, 'description'),
+        location: merge(base.location, edited.location, 'location'),
         moderationStatus: base.moderationStatus || 'approved',
         updatedAt: kgNowLocal(),
       };

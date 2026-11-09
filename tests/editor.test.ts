@@ -208,6 +208,22 @@ describe('свои и чужие материалы', () => {
     }
   });
 
+  it('8б. правка только русского текста не стирает кыргызский перевод (встроенная госновость остаётся в кыргызской версии)', async () => {
+    const id = 'ann-cec-nomination-end-2026';
+    const { INITIAL_ANNOUNCEMENTS } = await import('../src/data/initialAnnouncements');
+    const orig = INITIAL_ANNOUNCEMENTS.find((a) => a.id === id)!;
+    const r = await call(announcements, 'announcements', 'PATCH', editor, {
+      id,
+      item: { ...orig, title: { ru: orig.title.ru + '.' }, description: { ru: orig.description.ru + ' Уточнение.' }, summary: { ru: orig.summary.ru } },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.item.description.kg, orig.description.kg, 'кыргызский текст не заменён русским');
+    assert.equal(r.body.item.title.kg, orig.title.kg);
+    assert.ok(r.body.item.description.ru.endsWith('Уточнение.'), 'русский исправлен');
+    const { hasLangText } = await import('../src/utils/lang');
+    assert.ok(hasLangText(r.body.item, 'kg'), 'видна на кыргызском');
+  });
+
   it('8а. одобряет черновик в «Модерации», но не отклоняет и не возвращает; платное — только администратор', async () => {
     const draft = (await call(announcements, 'announcements', 'POST', admin, { ...news(), asDraft: true })).body.item.id;
     assert.equal((await stored(draft))!.moderationStatus, 'pending');

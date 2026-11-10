@@ -117,7 +117,9 @@ const authHandler = handler(async (req) => {
 
   if (action === 'register') {
     await rateLimit(req, 'register', 5);
-    const user = await newUser(body);
+    // Согласие на обработку персональных данных обязательно (Закон КР «Об информации персонального характера»)
+    if (body.consent !== true) throw new HttpError('consent_required', 400, 'Подтвердите согласие с Политикой конфиденциальности');
+    const user = { ...(await newUser(body)), privacyConsentAt: new Date().toISOString() };
     await hsetJson(USERS_KEY, user.email, user);
     return json({ role: 'user', user: toPublic(user), token: await signSession(user.email, 'user') }, 201);
   }

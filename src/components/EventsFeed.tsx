@@ -1,4 +1,5 @@
 import { EditButton } from './EditButton';
+import { CatLabel } from './CatLabel';
 import React, { useEffect, useState, useMemo } from 'react';
 import { Announcement, CityId, Language } from '../types';
 import { DISTRICTS, inDistrict } from '../config/districts';
@@ -238,7 +239,7 @@ export const EventsFeed: React.FC<EventsFeedProps> = ({
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5 text-[11px] font-bold">
-                    <span className="dn-kicker">{t(`categories.${item.category}`)}</span>
+                    <span className="dn-kicker"><CatLabel text={t(`categories.${item.category}`)} /></span>
                     <RelDay item={item} lang={currentLanguage} />
                     <span className={`inline-flex items-center gap-1 ${statusCfg.text}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />

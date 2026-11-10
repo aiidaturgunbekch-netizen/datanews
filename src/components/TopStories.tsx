@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { EditButton, FeatureButton } from './EditButton';
+import { CatLabel } from './CatLabel';
+import { EditButton, FeatureButton, isFeatured } from './EditButton';
 import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { formatWhen } from '../utils/dates';
@@ -42,7 +43,15 @@ export const TopStories: React.FC<{
     if (isPin(a)) fetch(adClickUrl(pinned!.adId), { redirect: 'manual', keepalive: true }).catch(() => {});
     onOpen(a);
   };
-  const [lead, ...others] = stories;
+  // Большое место — для новости с настоящим фото: без фото крупная рамка выглядит как пустой баннер.
+  // Закреплённое редакцией не двигаем; новость без фото остаётся в «Главном», но в малой рамке.
+  const hasPhoto = (a: Announcement) => Boolean(a.imageUrl && !a.imageUrl.startsWith('/illustrations/'));
+  const ordered = [...stories.slice(0, 3)];
+  if (ordered.length > 1 && !hasPhoto(ordered[0]) && !isFeatured(ordered[0])) {
+    const i = ordered.findIndex(hasPhoto);
+    if (i > 0) ordered.unshift(...ordered.splice(i, 1));
+  }
+  const [lead, ...others] = ordered;
   const side = others.slice(0, 2);
 
   const Tile: React.FC<{ a: Announcement; big?: boolean; className?: string }> = ({ a, big = false, className = '' }) => (
@@ -76,7 +85,7 @@ export const TopStories: React.FC<{
         )
       )}
       <span className={`relative block ${big ? 'p-4 sm:p-6' : 'p-3 sm:p-4'}`}>
-        <span className="block text-[11px] font-bold uppercase tracking-wider text-white/85">{t(`categories.${a.category}`)}</span>
+        <span className="block text-[11px] font-bold uppercase tracking-wider text-white/85"><CatLabel text={t(`categories.${a.category}`)} /></span>
         <span
           className={`mt-1 block font-serif font-bold text-white group-hover:underline decoration-2 underline-offset-4 ${
             big ? 'text-[1.5rem] leading-tight sm:text-[2rem] line-clamp-3' : 'text-[1.0625rem] leading-snug line-clamp-3'
@@ -116,8 +125,8 @@ export const TopStories: React.FC<{
           <div
             className={`grid grid-cols-1 gap-3 ${
               side.length === 2
-                ? '@[44rem]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] @[44rem]:grid-rows-2 @[44rem]:aspect-[16/8.5]'
-                : '@[44rem]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] @[44rem]:aspect-[16/7]'
+                ? '@[44rem]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] @[44rem]:grid-rows-2 @[44rem]:aspect-[16/8.5] @[64rem]:aspect-[16/6.4]'
+                : '@[44rem]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] @[44rem]:aspect-[16/7] @[64rem]:aspect-[16/5.5]'
             }`}
           >
             <EditWrap a={lead} className={side.length === 2 ? '@[44rem]:row-span-2' : ''}>

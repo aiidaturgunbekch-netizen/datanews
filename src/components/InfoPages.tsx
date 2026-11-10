@@ -4,7 +4,7 @@ import { ContactButtons } from './ContactButtons';
 import { EDITORIAL, EDITORIAL_PAGE_VISIBLE } from '../config/site';
 
 /** Публичные информационные страницы. «Источники информации» и «Политика конфиденциальности» из интерфейса убраны */
-export type InfoView = 'about' | 'rules' | 'contacts' | 'editorial';
+export type InfoView = 'about' | 'rules' | 'contacts' | 'editorial' | 'privacy';
 type L3 = Record<Language, string>;
 
 const TITLES: Record<InfoView, L3> = {
@@ -12,6 +12,7 @@ const TITLES: Record<InfoView, L3> = {
   rules: { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' },
   contacts: { ru: 'Связаться с DataNews', kg: 'DataNews менен байланышуу', en: 'Contact DataNews' },
   editorial: { ru: 'Редакция', kg: 'Редакция', en: 'Editorial team' },
+  privacy: { ru: 'Политика конфиденциальности', kg: 'Купуялык саясаты', en: 'Privacy policy' },
 };
 
 const P: React.FC<{ children: React.ReactNode }> = ({ children }) => <p className="text-sm text-gray-700 leading-relaxed">{children}</p>;
@@ -234,12 +235,138 @@ const Editorial: React.FC<{ lang: Language }> = ({ lang }) => {
   );
 };
 
+/**
+ * Политика конфиденциальности (Закон КР «Об информации персонального характера»).
+ * Черновик редакции — перед запуском его должен проверить юрист. Названия юрлица и адреса здесь нет: они появятся из настроек «Редакции».
+ */
+type Sec = [string, string[]];
+const PRIVACY: Record<Language, { intro: string; secs: Sec[]; updated: string }> = {
+  ru: {
+    intro:
+      'Эта политика объясняет, какие сведения о вас собирает сайт DataNews Кыргызстан, зачем и как мы их защищаем. Мы действуем по Закону Кыргызской Республики «Об информации персонального характера».',
+    secs: [
+      ['Какие сведения мы собираем', [
+        'При регистрации организации или автора: имя, название организации, e-mail, телефон, выбранный тариф и номер платежа (если указан).',
+        'При размещении публикации: её текст, фото, место, даты и контакты, которые вы сами указали для читателей.',
+        'При обращении к редакции (жалоба, письмо): текст обращения и контакт для ответа.',
+        'Читателям регистрироваться не нужно. Для общей статистики сайт учитывает просмотры страниц, тип устройства, язык и примерный город (по IP-адресу, без хранения самого адреса). Эти данные не позволяют узнать, кто вы.',
+        'Если вы включили push-уведомления, браузер передаёт нам технический адрес подписки — только для отправки уведомлений.',
+      ]],
+      ['Зачем', [
+        'Чтобы вести ваш личный кабинет, публиковать и модерировать ваши материалы, учитывать тариф и оплату.',
+        'Чтобы связаться с вами по поводу публикации, оплаты или жалобы.',
+        'Чтобы понимать, какие разделы полезны читателям (только обезличенная статистика).',
+        'Мы не продаём и не передаём ваши данные третьим лицам для рекламы.',
+      ]],
+      ['Что видят другие', [
+        'Читатели видят только то, что вы сами разместили в публикации (например, контакт организатора). E-mail и телефон из регистрации на сайте не показываются.',
+      ]],
+      ['Где и сколько хранятся', [
+        'Данные хранятся у облачных поставщиков сайта (хостинг и база данных), серверы которых могут находиться за пределами Кыргызстана. Доступ защищён паролями и шифрованием; пароли хранятся только в зашифрованном (хэшированном) виде.',
+        'Сведения аккаунта хранятся, пока аккаунт существует. После удаления аккаунта мы удаляем их, кроме того, что нужно хранить по закону (например, сведения об оплате).',
+      ]],
+      ['Ваши права', [
+        'Узнать, какие сведения о вас хранятся, исправить их или попросить удалить.',
+        'Отозвать согласие на обработку данных — тогда мы удалим аккаунт.',
+        'Для этого напишите редакции через страницу «Связаться с DataNews».',
+      ]],
+      ['Согласие', [
+        'Регистрируясь, вы подтверждаете, что прочитали эту политику и согласны на обработку ваших персональных данных для целей, указанных выше.',
+        'Если политика изменится, мы обновим дату ниже, а о существенных изменениях сообщим зарегистрированным пользователям.',
+      ]],
+    ],
+    updated: 'Редакция от 10 ноября 2026 г.',
+  },
+  kg: {
+    intro:
+      'Бул саясат DataNews Кыргызстан сайты сиз тууралуу кандай маалымат чогултарын, эмне үчүн жана аны кантип коргой турганыбызды түшүндүрөт. Биз Кыргыз Республикасынын «Жеке мүнөздөгү маалымат жөнүндө» мыйзамына ылайык иштейбиз.',
+    secs: [
+      ['Кандай маалымат чогултабыз', [
+        'Уюм же автор катталганда: аты, уюмдун аталышы, e-mail, телефон, тандалган тариф жана төлөмдүн номери (көрсөтүлсө).',
+        'Жарыя жайгаштырганда: анын тексти, сүрөтү, жери, даталары жана окурмандар үчүн өзүңүз көрсөткөн байланыштар.',
+        'Редакцияга кайрылганда (даттануу, кат): кайрылуунун тексти жана жооп берүү үчүн байланыш.',
+        'Окурмандарга катталуунун кереги жок. Жалпы статистика үчүн сайт барактардын көрүлүшүн, түзмөктүн түрүн, тилди жана болжолдуу шаарды (IP-дарек боюнча, даректин өзү сакталбайт) эсептейт. Бул маалыматтар сиздин ким экениңизди билүүгө мүмкүнчүлүк бербейт.',
+        'Push-билдирүүлөрдү күйгүзсөңүз, браузер бизге жазылуунун техникалык дарегин берет — билдирүү жөнөтүү үчүн гана.',
+      ]],
+      ['Эмне үчүн', [
+        'Жеке кабинетиңизди жүргүзүү, материалдарыңызды жарыялоо жана модерациялоо, тарифти жана төлөмдү эсепке алуу үчүн.',
+        'Жарыя, төлөм же даттануу боюнча сиз менен байланышуу үчүн.',
+        'Окурмандарга кайсы бөлүмдөр пайдалуу экенин түшүнүү үчүн (жеке маалыматсыз статистика гана).',
+        'Биз сиздин маалыматтарыңызды сатпайбыз жана жарнама үчүн үчүнчү тараптарга бербейбиз.',
+      ]],
+      ['Башкалар эмнени көрөт', [
+        'Окурмандар жарыяда өзүңүз жайгаштырганды гана көрөт (мисалы, уюштуруучунун байланышы). Каттоодогу e-mail жана телефон сайтта көрсөтүлбөйт.',
+      ]],
+      ['Кайда жана канча убакыт сакталат', [
+        'Маалыматтар сайттын булут провайдерлеринде (хостинг жана маалымат базасы) сакталат, алардын серверлери Кыргызстандан тышкары жайгашышы мүмкүн. Кирүү сырсөздөр жана шифрлөө менен корголгон; сырсөздөр шифрленген (хэштелген) түрдө гана сакталат.',
+        'Аккаунттун маалыматтары аккаунт бар кезде сакталат. Аккаунт өчүрүлгөндөн кийин биз аларды өчүрөбүз, мыйзам боюнча сакталышы керек болгондон тышкары (мисалы, төлөм тууралуу маалымат).',
+      ]],
+      ['Сиздин укуктарыңыз', [
+        'Сиз тууралуу кандай маалымат сакталганын билүү, аны оңдоо же өчүрүүнү суроо.',
+        'Маалыматтарды иштетүүгө макулдукту кайтарып алуу — анда биз аккаунтту өчүрөбүз.',
+        'Ал үчүн «DataNews менен байланышуу» барагы аркылуу редакцияга жазыңыз.',
+      ]],
+      ['Макулдук', [
+        'Катталуу менен сиз бул саясатты окуганыңызды жана жеке маалыматтарыңызды жогоруда көрсөтүлгөн максаттар үчүн иштетүүгө макул экениңизди тастыктайсыз.',
+        'Саясат өзгөрсө, төмөндөгү датаны жаңылайбыз, ал эми маанилүү өзгөрүүлөр тууралуу катталган колдонуучуларга кабарлайбыз.',
+      ]],
+    ],
+    updated: '2026-жылдын 10-ноябрындагы редакция.',
+  },
+  en: {
+    intro:
+      'This policy explains what information DataNews Kyrgyzstan collects about you, why, and how we protect it. We act under the Law of the Kyrgyz Republic “On Personal Information”.',
+    secs: [
+      ['What we collect', [
+        'When an organization or author registers: name, organization name, e-mail, phone, chosen plan and payment reference (if given).',
+        'When you post: its text, photos, place, dates and the contacts you chose to show readers.',
+        'When you contact the editors (report, letter): the message and a contact for the reply.',
+        'Readers do not need to register. For overall statistics the site counts page views, device type, language and approximate city (from the IP address, which is not stored). This does not identify you.',
+        'If you enable push notifications, your browser gives us a technical subscription address — used only to send notifications.',
+      ]],
+      ['Why', [
+        'To run your account, publish and moderate your posts, and track your plan and payment.',
+        'To contact you about a post, payment or report.',
+        'To understand which sections help readers (anonymous statistics only).',
+        'We do not sell your data or pass it to third parties for advertising.',
+      ]],
+      ['What others see', ['Readers see only what you put in a post (for example, the organizer contact). Your registration e-mail and phone are not shown on the site.']],
+      ['Where and how long', [
+        'Data is kept with the site’s cloud providers (hosting and database), whose servers may be outside Kyrgyzstan. Access is protected by passwords and encryption; passwords are stored only hashed.',
+        'Account data is kept while the account exists. After deletion we remove it, except what the law requires us to keep (for example, payment records).',
+      ]],
+      ['Your rights', ['Ask what data we hold, correct it or ask us to delete it.', 'Withdraw consent — we will then delete the account.', 'Write to the editors via “Contact DataNews”.']],
+      ['Consent', [
+        'By registering you confirm you have read this policy and agree to the processing of your personal data for the purposes above.',
+        'If the policy changes, we update the date below and notify registered users of significant changes.',
+      ]],
+    ],
+    updated: 'Version of 10 November 2026.',
+  },
+};
+
+export const PrivacyText: React.FC<{ lang: Language }> = ({ lang }) => {
+  const p = PRIVACY[lang];
+  return (
+    <div className="space-y-3" data-privacy>
+      <P>{p.intro}</P>
+      {p.secs.map(([h, items]) => (
+        <React.Fragment key={h}>
+          <H>{h}</H>
+          <UL items={items} />
+        </React.Fragment>
+      ))}
+      <p className="text-xs text-gray-500">{p.updated}</p>
+    </div>
+  );
+};
+
 export const InfoPage: React.FC<{ view: InfoView; lang: Language; onNavigate: (v: ViewMode) => void }> = ({ view, lang, onNavigate }) => {
   useEffect(() => {
     document.title = `${TITLES[view][lang]} — DataNews Kyrgyzstan`;
     window.scrollTo(0, 0);
   }, [view, lang]);
-  const tabs: InfoView[] = EDITORIAL_PAGE_VISIBLE ? ['about', 'rules', 'editorial', 'contacts'] : ['about', 'rules', 'contacts'];
+  const tabs: InfoView[] = EDITORIAL_PAGE_VISIBLE ? ['about', 'rules', 'privacy', 'editorial', 'contacts'] : ['about', 'rules', 'privacy', 'contacts'];
   return (
     <div className="w-full max-w-[960px] mx-auto px-4 md:px-6 py-8">
       <button onClick={() => onNavigate('home')} className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4">
@@ -263,6 +390,7 @@ export const InfoPage: React.FC<{ view: InfoView; lang: Language; onNavigate: (v
         {view === 'about' && ABOUT[lang]}
         {view === 'rules' && RULES[lang]}
         {view === 'editorial' && EDITORIAL_PAGE_VISIBLE && <Editorial lang={lang} />}
+        {view === 'privacy' && <PrivacyText lang={lang} />}
         {view === 'contacts' && (
           <>
             <P>

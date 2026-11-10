@@ -79,7 +79,7 @@ describe('1–3. публичный сайт и посетитель', () => {
 describe('4–5. пользователь: вход в кабинет, без доступа к панели', () => {
   let user = '';
   before(async () => {
-    const reg = await call(auth, 'auth', 'POST', undefined, { action: 'register', name: 'Айгуль', email: 'cab-user@example.com', phone: '+996555000333', organization: 'ОсОО «Тест»', password: 'user-pass-123', plan: 'start' });
+    const reg = await call(auth, 'auth', 'POST', undefined, { action: 'register', consent: true, name: 'Айгуль', email: 'cab-user@example.com', phone: '+996555000333', organization: 'ОсОО «Тест»', password: 'user-pass-123', plan: 'start' });
     assert.equal(reg.status, 201);
   });
 
@@ -174,7 +174,7 @@ describe('6–7. сотрудник: отдельная учётная запи�
   });
 
   it('сотрудник не правит чужие публикации', async () => {
-    const other = await call(auth, 'auth', 'POST', undefined, { action: 'register', name: 'Другой', email: 'other@example.com', phone: '+996555000555', organization: 'Другая организация', password: 'other-pass-1', plan: 'start' });
+    const other = await call(auth, 'auth', 'POST', undefined, { action: 'register', consent: true, name: 'Другой', email: 'other@example.com', phone: '+996555000555', organization: 'Другая организация', password: 'other-pass-1', plan: 'start' });
     await call(usersApi, 'users', 'PATCH', admin, { email: 'other@example.com', paymentStatus: 'paid' });
     const post = await call(announcements, 'announcements', 'POST', other.body.token, notice('Чужое объявление'));
     const r = await call(announcements, 'announcements', 'PATCH', staff, { id: post.body.item.id, item: notice('Подмена').item });
@@ -221,7 +221,7 @@ describe('9. выход и смена пароля', () => {
 
 describe('10. тарифы, лимиты и статусы работают как прежде', () => {
   it('лимит тарифа «Старт» и модерация', async () => {
-    await call(auth, 'auth', 'POST', undefined, { action: 'register', name: 'Лимит', email: 'limit2@example.com', phone: '+996555000666', organization: 'Лимит', password: 'limit-pass-1', plan: 'start' });
+    await call(auth, 'auth', 'POST', undefined, { action: 'register', consent: true, name: 'Лимит', email: 'limit2@example.com', phone: '+996555000666', organization: 'Лимит', password: 'limit-pass-1', plan: 'start' });
     await call(usersApi, 'users', 'PATCH', admin, { email: 'limit2@example.com', paymentStatus: 'paid' });
     const t = (await call(auth, 'auth', 'POST', undefined, { action: 'login', email: 'limit2@example.com', password: 'limit-pass-1' })).body.token;
     for (let i = 1; i <= 3; i++) {

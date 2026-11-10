@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PrivacyText } from './InfoPages';
 import { confirmApproveWithoutKg } from '../utils/translation';
 import { Announcement, Language, PlanId, PlanUsage, PublicUser } from '../types';
 import * as api from '../services/api';
@@ -219,6 +220,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
   const [user, setUser] = useState<PublicUser | null>(null);
   const [usage, setUsage] = useState<PlanUsage | null>(null);
   const [loading, setLoading] = useState(Boolean(api.getSession()));
+  const [consent, setConsent] = useState(false);
   const [authTab, setAuthTab] = useState<'login' | 'register'>(startWithLogin || adminSession ? 'login' : 'register');
   const [tab, setTab] = useState<Tab>(initialEdit ? 'mine' : initialTab);
   const [mine, setMine] = useState<Announcement[]>([]);
@@ -413,7 +415,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                     e.preventDefault();
                     run(async () =>
                       afterAuth(
-                        await api.register({ name, email, phone, organization: org, password, plan, paymentRef: paymentRef.trim() || undefined })
+                        await api.register({ name, email, phone, organization: org, password, plan, paymentRef: paymentRef.trim() || undefined, consent })
                       )
                     );
                   }}
@@ -442,7 +444,26 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                     value={paymentRef}
                     onChange={(e) => setPaymentRef(e.target.value)}
                   />
-                  <button disabled={busy} className="w-full py-3 rounded-xl bg-[#20C7B5] text-[#002f29] font-extrabold disabled:opacity-60">
+                  {/* Согласие на обработку персональных данных — обязательно (закон КР «Об информации персонального характера») */}
+                  <label className="flex items-start gap-2 text-xs text-gray-700" data-consent>
+                    <input type="checkbox" className="mt-0.5" checked={consent} onChange={(e) => setConsent(e.target.checked)} required />
+                    <span>
+                      {lang === 'kg'
+                        ? 'Купуялык саясатын окудум жана жеке маалыматтарымды иштетүүгө макулмун.'
+                        : lang === 'en'
+                        ? 'I have read the Privacy policy and agree to the processing of my personal data.'
+                        : 'Я прочитал(а) Политику конфиденциальности и согласен(на) на обработку моих персональных данных.'}
+                    </span>
+                  </label>
+                  <details className="text-xs text-gray-600 -mt-2 ml-6">
+                    <summary className="cursor-pointer font-bold text-[#12327A]">
+                      {lang === 'kg' ? 'Купуялык саясатын ачуу' : lang === 'en' ? 'Read the Privacy policy' : 'Открыть Политику конфиденциальности'}
+                    </summary>
+                    <div className="mt-2 max-h-64 overflow-y-auto p-3 rounded-lg bg-[#f8fafc]">
+                      <PrivacyText lang={lang} />
+                    </div>
+                  </details>
+                  <button disabled={busy || !consent} className="w-full py-3 rounded-xl bg-[#20C7B5] text-[#002f29] font-extrabold disabled:opacity-60">
                     {busy ? tr('signingUp') : tr('signUp')}
                   </button>
                 </form>

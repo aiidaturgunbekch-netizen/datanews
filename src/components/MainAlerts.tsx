@@ -1,4 +1,5 @@
 import React from 'react';
+import { CatLabel } from './CatLabel';
 import { Announcement, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { formatWhen } from '../utils/dates';
@@ -63,7 +64,7 @@ export const MainAlerts: React.FC<{
                 <span className="mt-1 w-2 h-2 rounded-full bg-[#12327A] shrink-0" aria-hidden="true" />
                 <span className="flex-1 min-w-0">
                   <span className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-[#12327A]">{t(`categories.${a.category}`)}</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-[#12327A]"><CatLabel text={t(`categories.${a.category}`)} /></span>
                     <UrgencyBadge item={a} lang={lang} />
                   </span>
                   <span className="block font-bold text-[15px] leading-snug text-[#0f1b33] line-clamp-2 [overflow-wrap:anywhere]">

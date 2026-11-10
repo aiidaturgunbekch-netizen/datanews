@@ -11,6 +11,7 @@ import { pipeline, toCountMap } from './_lib/kv';
 import { handler, HttpError, json, readBody, requireAdmin } from './_lib/http';
 import { dayKey, K } from './_lib/stats';
 import { buildBackup } from './_lib/backup';
+import { transferPart, type TransferPart } from './_lib/transfer';
 import { campaignAction, campaignStats, createCampaign, getFormats, listCampaigns, updateFormat } from './_lib/ads';
 
 export const config = { runtime: 'edge' };
@@ -38,6 +39,13 @@ export default handler(async (req) => {
     const campaigns = await listCampaigns();
     const stats = await Promise.all(campaigns.map((c) => campaignStats(c.id)));
     return json({ formats: await getFormats(), campaigns: campaigns.map((c, i) => ({ ...c, stats: stats[i] })) });
+  }
+  if (params.get('transfer') === '1') {
+    // Перенос публикаций из резервной копии: частями (фото, публикации, служебные списки), только админ
+    if (req.method !== 'POST') throw new HttpError('method_not_allowed', 405);
+    const body = await readBody<{ part?: TransferPart; entries?: unknown }>(req, 2_300_000);
+    if (!body.part || !['items', 'images', 'hidden', 'checked', 'weather'].includes(body.part)) throw new HttpError('bad_request', 400);
+    return json(await transferPart(body.part, body.entries));
   }
   if (params.get('backup') === '1') {
     const backup = await buildBackup(params.get('images') === '1');

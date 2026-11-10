@@ -59,6 +59,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigat
   const about: Link[] = [
     { label: t('footer.about'), onClick: nav('about') },
     { label: t('footer.rules'), onClick: nav('rules') },
+    { label: t('footer.privacy'), onClick: nav('privacy') },
     ...(EDITORIAL_PAGE_VISIBLE ? [{ label: t('footer.editorial'), onClick: nav('editorial') }] : []),
   ];
 

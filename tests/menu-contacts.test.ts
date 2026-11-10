@@ -1,6 +1,6 @@
 /**
  * Меню и контакты: «Новости» и «Объявления» не показываются отдельными пунктами меню (материалы и рубрики сохранены);
- * «Источники информации» и «Политика конфиденциальности» убраны из публичного интерфейса;
+ * «Источники информации» убраны из публичного интерфейса; «Политика конфиденциальности» есть;
  * WhatsApp редакции — +996 990 000365, Telegram и Instagram — прежние; номера не повторяются в подвале.
  */
 import { describe, it } from 'node:test';
@@ -36,14 +36,24 @@ describe('основное меню', () => {
   });
 });
 
-describe('«Источники информации» и «Политика конфиденциальности» убраны', () => {
-  const banned = /Источники информации|Политика конфиденциальности|Маалымат булактары|Купуялуулук саясаты|Information sources|Privacy policy/;
-  it('нет во вкладках страниц «О проекте», «Правила», «Контакты» и в подвале — на трёх языках', () => {
+describe('«Источники информации» убраны; «Политика конфиденциальности» есть (закон о персональных данных)', () => {
+  const banned = /Источники информации|Маалымат булактары|Information sources/;
+  const privacy: Record<string, string> = { ru: 'Политика конфиденциальности', kg: 'Купуялык саясаты', en: 'Privacy policy' };
+  it('во вкладках и в подвале — без «Источников», с «Политикой конфиденциальности» на трёх языках', () => {
     for (const lang of LANGS) {
-      for (const view of ['about', 'rules', 'contacts'] as const) assert.ok(!banned.test(render(React.createElement(InfoPage, { view, lang, onNavigate: noop }))), `${view}/${lang}`);
+      for (const view of ['about', 'rules', 'contacts'] as const) {
+        const h = render(React.createElement(InfoPage, { view, lang, onNavigate: noop }));
+        assert.ok(!banned.test(h), `${view}/${lang}`);
+        assert.ok(h.includes(privacy[lang]), `вкладка политики ${view}/${lang}`);
+      }
       const footer = render(React.createElement(Footer, { currentLanguage: lang, onNavigate: noop, onOpenAccount: noop, onOpenHome: noop, onOpenSearch: noop, onOpenArchive: noop, onOpenNews: noop }));
       assert.ok(!banned.test(footer), `footer/${lang}`);
+      assert.ok(footer.includes(privacy[lang]), `footer privacy/${lang}`);
     }
+  });
+  it('страница политики: права пользователя, согласие, хранение', () => {
+    const h = render(React.createElement(InfoPage, { view: 'privacy', lang: 'ru', onNavigate: noop }));
+    for (const s of ['Ваши права', 'Согласие', 'Где и сколько хранятся', 'Об информации персонального характера']) assert.ok(h.includes(s), s);
   });
 });
 

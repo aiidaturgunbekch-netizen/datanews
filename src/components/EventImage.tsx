@@ -30,7 +30,7 @@ const CATEGORY_STYLE: Record<string, { icon: string; bg: string }> = {
 const CATEGORY_ILLUSTRATION: Record<string, string> = {
   concerts: 'concert', festivals: 'festival', fairs: 'fair', exhibitions: 'exhibition', culture: 'culture', sport: 'sport',
   cinema: 'cinema', education: 'education', gov: 'gov', water: 'water', electricity: 'power', roads: 'roads', repairs: 'repairs',
-  hazard: 'hazard', state: 'gov', laws: 'law',
+  hazard: 'hazard', state: 'gov', laws: 'law', tech: 'tech', news: 'news', business: 'business', notices: 'notices',
 };
 
 /**

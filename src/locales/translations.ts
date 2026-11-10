@@ -59,6 +59,7 @@ export const translations = {
     about: { ru: 'О проекте', kg: 'Долбоор жөнүндө', en: 'About' },
     rules: { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' },
     editorial: { ru: 'Редакция', kg: 'Редакция', en: 'Editorial team' },
+    privacy: { ru: 'Политика конфиденциальности', kg: 'Купуялык саясаты', en: 'Privacy policy' },
     contacts: { ru: 'Контакты', kg: 'Байланыштар', en: 'Contacts' },
   },
 

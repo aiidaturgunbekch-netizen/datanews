@@ -36,7 +36,6 @@ import { isPaid } from './components/PaidBadge';
 import { pickTopStories } from './utils/timeline';
 import { isWeatherQuery, matchesSearch, rankSearch } from './utils/search';
 import { TopStories } from './components/TopStories';
-import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { PopularNews } from './components/PopularNews';
 import { EditContext } from './components/EditButton';
 import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
@@ -358,7 +357,6 @@ export default function App() {
   const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
   // «Главное»: три материала — сначала закреплённые редакцией, затем срочное, затем по оценке и прочтениям.
   // Порядок постоянный у всех читателей (без случайности).
-  const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => kgDateStr());
   // «Самое читаемое»: реальные прочтения карточек за 7 дней
   const [popularReads, setPopularReads] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -645,8 +643,8 @@ export default function App() {
                     <h2 id="top-stories-title" className="dn-kicker mb-3">
                       {currentLanguage === 'kg' ? 'Башкы жаңылыктар' : currentLanguage === 'en' ? 'Top stories' : 'Главное'}
                     </h2>
-                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 xl:gap-10 items-start">
-                      <div className="xl:col-span-8 min-w-0">
+                    {/* Календарь на главной не дублируем — он есть в разделе «Календарь»; после предупреждений идут «Ближайшие даты» */}
+                    <div className="min-w-0">
                         <TopStories
                           lang={currentLanguage}
                           stories={topOrdered}
@@ -674,19 +672,6 @@ export default function App() {
                             </>
                           }
                         />
-                      </div>
-                      {/* Небольшой календарь — справа от «Главного»; до 1280 px — под ним во всю ширину */}
-                      <div className="xl:col-span-4 min-w-0">
-                        <InteractiveCalendar
-                          currentLanguage={currentLanguage}
-                          announcements={announcements}
-                          selectedDate={calendarSelectedDate}
-                          onSelectDate={setCalendarSelectedDate}
-                          onSelectAnnouncement={setActiveNoticeDetail}
-                          maxItems={3}
-                          onShowAll={() => setCurrentView('calendar')}
-                        />
-                      </div>
                     </div>
                   </div>
                 </section>
@@ -853,7 +838,7 @@ export default function App() {
         )}
 
         {/* О проекте, правила, контакты */}
-        {(['about', 'rules', 'contacts', ...(EDITORIAL_PAGE_VISIBLE ? ['editorial'] : [])] as string[]).includes(currentView as InfoView) && (
+        {(['about', 'rules', 'contacts', 'privacy', ...(EDITORIAL_PAGE_VISIBLE ? ['editorial'] : [])] as string[]).includes(currentView as InfoView) && (
           <InfoPage view={currentView as InfoView} lang={currentLanguage} onNavigate={setCurrentView} />
         )}
       </Suspense>

@@ -383,7 +383,7 @@ export interface SiteStats {
   outboundDays?: { date: string; instagram: number; whatsapp: number; telegram: number }[];
 }
 
-export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'advertising' | 'admin' | 'about' | 'rules' | 'contacts' | 'editorial';
+export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'advertising' | 'admin' | 'about' | 'rules' | 'contacts' | 'editorial' | 'privacy';
 
 /**
  * Письмо из редакционной почты (dn:mail). Это входящий материал, а не публикация:

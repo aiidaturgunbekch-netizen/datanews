@@ -8,6 +8,8 @@ export const USERS_KEY = 'dn:users';
 export interface StoredUser extends PublicUser {
   salt: string;
   hash: string;
+  /** Когда пользователь при регистрации согласился с «Политикой конфиденциальности» (закон КР о персональных данных) */
+  privacyConsentAt?: string;
   /** Выход из аккаунта и новый пароль увеличивают номер — прежние входы перестают действовать */
   sessionVersion?: number;
 }

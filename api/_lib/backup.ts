@@ -11,7 +11,7 @@ import { USERS_KEY } from './users';
 
 // dn:mail — входящие письма редакционной почты (временные копии фото dn:mail:att:* не входят, они удаляются сами)
 const HASHES = [ANN_KEY, HIDDEN_KEY, CHECKED_KEY, 'dn:reports', 'dn:src:status', 'dn:mail', 'dn:ads:formats', 'dn:ads:campaigns'] as const;
-const STRINGS = ['dn:weather:official'] as const;
+const STRINGS = ['dn:weather:official', 'dn:weather:official:days'] as const;
 
 /** HGETALL отдаёт плоский список [поле, значение, поле, значение, …] */
 const toObject = (flat: unknown): Record<string, string> => {

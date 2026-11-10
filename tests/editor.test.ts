@@ -75,7 +75,7 @@ describe('назначение прав', () => {
   });
 
   it('1б. администратор назначает права существующему пользователю', async () => {
-    await call(auth, 'auth', 'POST', undefined, { action: 'register', name: 'Нурлан', email: 'later-editor@example.com', phone: '+996555100002', organization: 'Редакция', password: 'later-pass-1', plan: 'start' });
+    await call(auth, 'auth', 'POST', undefined, { action: 'register', consent: true, name: 'Нурлан', email: 'later-editor@example.com', phone: '+996555100002', organization: 'Редакция', password: 'later-pass-1', plan: 'start' });
     const r = await call(usersApi, 'users', 'PATCH', admin, { email: 'later-editor@example.com', editor: 'grant' });
     assert.equal(r.status, 200);
     assert.ok(r.body.user.editor.since);
@@ -83,7 +83,7 @@ describe('назначение прав', () => {
   });
 
   it('2. пользователь не может назначить права себе — ни через панель, ни при регистрации, ни через оплату', async () => {
-    const reg = await call(auth, 'auth', 'POST', undefined, { action: 'register', name: 'Хитрый', email: 'sneaky@example.com', phone: '+996555100003', organization: 'Хитрый', password: 'sneaky-pass-1', plan: 'start', editor: { since: '2026-01-01' } });
+    const reg = await call(auth, 'auth', 'POST', undefined, { action: 'register', consent: true, name: 'Хитрый', email: 'sneaky@example.com', phone: '+996555100003', organization: 'Хитрый', password: 'sneaky-pass-1', plan: 'start', editor: { since: '2026-01-01' } });
     assert.equal(reg.status, 201);
     const t = reg.body.token;
     assert.equal(reg.body.user.editor, undefined);
@@ -277,7 +277,7 @@ describe('отзыв прав', () => {
 
 describe('остальные пользователи — как прежде', () => {
   it('11. обычный пользователь: без оплаты нельзя, после оплаты — на модерацию, «Новости» закрыты', async () => {
-    await call(auth, 'auth', 'POST', undefined, { action: 'register', name: 'Клиент', email: 'client@example.com', phone: '+996555100005', organization: 'ОсОО Клиент', password: 'client-pass-1', plan: 'start' });
+    await call(auth, 'auth', 'POST', undefined, { action: 'register', consent: true, name: 'Клиент', email: 'client@example.com', phone: '+996555100005', organization: 'ОсОО Клиент', password: 'client-pass-1', plan: 'start' });
     const t = await login('client@example.com', 'client-pass-1');
     assert.equal((await call(announcements, 'announcements', 'POST', t, notice('Без оплаты'))).status, 402);
     await call(usersApi, 'users', 'PATCH', admin, { email: 'client@example.com', paymentStatus: 'paid' });
@@ -307,7 +307,7 @@ describe('остальные пользователи — как прежде', 
     assert.deepEqual(categoriesFor('news', { plan: 'start', govVerified: false, editor: true }), ['news', 'business', 'tech']);
     assert.ok(!categoriesFor('alert', { plan: 'start', govVerified: false, editor: true }).includes('hazard'));
     // подтверждённый госорган — как раньше: официальные разделы, но не «Новости» редакции
-    await call(auth, 'auth', 'POST', undefined, { action: 'register', name: 'Мэрия', email: 'gov@example.com', phone: '+996555100006', organization: 'Мэрия', password: 'gov-pass-123', plan: 'gov' });
+    await call(auth, 'auth', 'POST', undefined, { action: 'register', consent: true, name: 'Мэрия', email: 'gov@example.com', phone: '+996555100006', organization: 'Мэрия', password: 'gov-pass-123', plan: 'gov' });
     const u = (await hgetJson<Record<string, any>>(USERS_KEY, 'gov@example.com'))!;
     await hsetJson(USERS_KEY, 'gov@example.com', { ...u, govStatus: 'verified', gov: { orgName: 'Мэрия г. Тест', status: 'verified' } });
     await call(usersApi, 'users', 'PATCH', admin, { email: 'gov@example.com', paymentStatus: 'paid', plan: 'gov' });
@@ -320,7 +320,7 @@ describe('остальные пользователи — как прежде', 
   });
 
   it('коммерческий клиент с тарифом — в пределах лимита («Старт» — 3)', async () => {
-    await call(auth, 'auth', 'POST', undefined, { action: 'register', name: 'Лимит', email: 'limit-ed@example.com', phone: '+996555100007', organization: 'Лимит', password: 'limit-pass-1', plan: 'start' });
+    await call(auth, 'auth', 'POST', undefined, { action: 'register', consent: true, name: 'Лимит', email: 'limit-ed@example.com', phone: '+996555100007', organization: 'Лимит', password: 'limit-pass-1', plan: 'start' });
     await call(usersApi, 'users', 'PATCH', admin, { email: 'limit-ed@example.com', paymentStatus: 'paid' });
     const t = await login('limit-ed@example.com', 'limit-pass-1');
     for (let i = 1; i <= 3; i++) assert.equal((await call(announcements, 'announcements', 'POST', t, notice(`Лимит ${i}`))).status, 201);

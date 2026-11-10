@@ -42,7 +42,7 @@ const register = async (email: string, plan: string, opts: { paid?: boolean; org
     new Request('http://localhost/api/auth', {
       method: 'POST',
       headers: { 'x-forwarded-for': `10.8.0.${ip}` },
-      body: JSON.stringify({ action: 'register', name: 'Айгуль Асанова', email, phone: '+996555000111', organization: opts.organization ?? 'Центр «Ала-Тоо»', password: 'test-pass-123', plan, paymentRef: 'P-1' }),
+      body: JSON.stringify({ action: 'register', consent: true, name: 'Айгуль Асанова', email, phone: '+996555000111', organization: opts.organization ?? 'Центр «Ала-Тоо»', password: 'test-pass-123', plan, paymentRef: 'P-1' }),
     })
   );
   const token = (await r.json()).token as string;

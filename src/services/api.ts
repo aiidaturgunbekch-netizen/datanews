@@ -99,6 +99,8 @@ export const adminLogin = async (password: string) => {
 };
 
 export interface RegisterInput {
+  /** согласие с Политикой конфиденциальности */
+  consent: boolean;
   name: string;
   email: string;
   phone: string;
@@ -210,6 +212,10 @@ export const fetchMailAttachment = (key: string) =>
 export const mailItemAction = (id: string, action: 'reject' | 'duplicate' | 'reopen' | 'reparse' | 'prepared' | 'published', extra: { annId?: string; duplicateOf?: string; note?: string } = {}) =>
   post<{ item: MailItem }>('sources?mail=action', { id, action, ...extra }).then((r) => r.item);
 export const setMailEnabled = (enabled: boolean) => post<MailIngestStatus>('sources?mail=settings', { enabled });
+
+/** Перенос публикаций из резервной копии (только админ): одна часть за запрос */
+export const transferPart = (part: 'items' | 'images' | 'hidden' | 'checked' | 'weather', entries: unknown) =>
+  post<{ added: number; skipped: number; rejected: number }>('stats?transfer=1', { part, entries });
 
 /** Резервная копия данных (только админ): скачивается файлом JSON */
 export const downloadBackup = async (withImages: boolean) => {

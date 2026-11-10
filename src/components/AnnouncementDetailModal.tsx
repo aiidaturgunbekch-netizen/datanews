@@ -1,4 +1,5 @@
 import { PaidNote } from './PaidBadge';
+import { CatLabel } from './CatLabel';
 import { EditButton, FeatureButton, useEdit } from './EditButton';
 import React, { useEffect, useRef, useState } from 'react';
 import { Announcement, Language } from '../types';
@@ -757,7 +758,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                 <li key={n.id}>
                   <button type="button" onClick={() => onSelectOtherNotice(n)} className="group w-full text-left">
                     <EventImage item={n} lang={lang} compact className="w-full aspect-[16/9] rounded-lg mb-3" />
-                    <span className="block text-[11px] font-bold uppercase tracking-wider text-[#12327A]">{t(`categories.${n.category}`)}</span>
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-[#12327A]"><CatLabel text={t(`categories.${n.category}`)} /></span>
                     <span className="block mt-1 font-serif text-lg font-semibold leading-snug text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline underline-offset-2 line-clamp-3 [overflow-wrap:anywhere]">
                       {n.title[lang] || n.title.ru}
                     </span>
@@ -784,7 +785,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
               <li key={n.id}>
                 <button type="button" onClick={() => onSelectOtherNotice(n)} className="group w-full text-left py-3.5 flex gap-3 items-start">
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[11px] font-bold uppercase tracking-wider text-[#12327A]">{t(`categories.${n.category}`)}</span>
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-[#12327A]"><CatLabel text={t(`categories.${n.category}`)} /></span>
                     <span className="block mt-1 text-[15px] font-semibold leading-snug text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline underline-offset-2 line-clamp-3 [overflow-wrap:anywhere]">
                       {n.title[lang] || n.title.ru}
                     </span>

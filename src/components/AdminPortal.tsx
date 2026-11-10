@@ -1,4 +1,5 @@
 import { downloadXlsx } from '../utils/xlsx';
+import { chunkEntries, planTransfer, type TransferPlan } from '../utils/transfer';
 import { MODERATION_REMINDER, confirmApproveWithoutKg, missingKg } from '../utils/translation';
 import { splitLead } from '../utils/lead';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -282,6 +283,97 @@ const BackupBox: React.FC = () => {
 };
 
 /**
+ * «Перенос публикаций»: из файла резервной копии (скачанной «с фото» на другом сайте, например в Preview)
+ * в базу этого сайта. Только настоящие одобренные публикации — с прежними датами, фото и историей.
+ * Уже существующее не перезаписывается, повторный перенос не создаёт дублей.
+ */
+const TransferBox: React.FC<{ onDone: () => void }> = ({ onDone }) => {
+  const [plan, setPlan] = useState<TransferPlan | null>(null);
+  const [state, setState] = useState<'' | 'busy' | string>('');
+  const [log, setLog] = useState<string[]>([]);
+  const pick = async (file: File | undefined) => {
+    setPlan(null);
+    setLog([]);
+    setState('');
+    if (!file) return;
+    try {
+      setPlan(planTransfer(JSON.parse(await file.text())));
+    } catch (e) {
+      setState((e as Error).message || 'Не удалось прочитать файл');
+    }
+  };
+  const run = async () => {
+    if (!plan) return;
+    setState('busy');
+    const lines: string[] = [];
+    try {
+      const sum = { added: 0, skipped: 0, rejected: 0 };
+      const send = async (part: 'items' | 'images' | 'hidden' | 'checked', entries: Record<string, string>, label: string) => {
+        const s = { added: 0, skipped: 0, rejected: 0 };
+        for (const chunk of chunkEntries(entries)) {
+          const r = await api.transferPart(part, chunk);
+          s.added += r.added;
+          s.skipped += r.skipped;
+          s.rejected += r.rejected;
+        }
+        if (part === 'items') Object.assign(sum, s);
+        lines.push(`${label}: добавлено ${s.added}, уже были ${s.skipped}${s.rejected ? `, не подошло ${s.rejected}` : ''}`);
+        setLog([...lines]);
+      };
+      // сначала фото — чтобы публикации сразу появились с картинками
+      await send('images', plan.images, 'Фото');
+      await send('items', plan.items, 'Публикации');
+      await send('hidden', plan.hidden, 'Скрытые встроенные');
+      await send('checked', plan.checked, 'Сверенные встроенные');
+      const w = await api.transferPart('weather', plan.weather);
+      lines.push(`Прогноз погоды: добавлено ${w.added}, уже был ${w.skipped}`);
+      setLog([...lines]);
+      setState(`Готово: перенесено публикаций — ${sum.added}.`);
+      onDone();
+    } catch (e) {
+      setState((e as Error).message || 'Перенос прерван — можно запустить снова, дублей не будет');
+    }
+  };
+  const n = plan ? Object.keys(plan.items).length : 0;
+  return (
+    <div className="p-4 rounded-2xl bg-white border border-gray-200 text-sm" data-transfer-box>
+      <div className="font-bold text-[#0f1b33]">Перенос публикаций</div>
+      <p className="text-xs text-gray-600 mt-1">
+        Из файла резервной копии другого сайта (например, Preview: «Скачать копию с фото»). Переносятся только одобренные публикации — с прежними датами события и публикации,
+        фото, переводами и историей. Тестовые, черновики, отклонённые, учётные записи и статистика не переносятся. Уже существующее не перезаписывается — повторный перенос
+        безопасен.
+      </p>
+      <input type="file" accept="application/json,.json" className="mt-3 block text-xs" onChange={(e) => pick(e.target.files?.[0])} data-transfer-file />
+      {plan && (
+        <div className="mt-3 p-3 rounded-xl bg-[#f8fafc] text-xs text-gray-700 space-y-1" data-transfer-plan>
+          <div>
+            В файле публикаций: <b>{plan.total}</b>. Будет перенесено: <b>{n}</b>, не подходит (тест, черновик, отклонено, снято): {plan.excluded}.
+          </div>
+          <div>Фото к ним: {Object.keys(plan.images).length}.</div>
+          {plan.missingImages > 0 && (
+            <div className="text-amber-700 font-semibold">
+              В файле нет {plan.missingImages} фото — похоже, копия скачана без фото. Скачайте «Скачать копию с фото», иначе у этих публикаций будет заставка.
+            </div>
+          )}
+          <button disabled={state === 'busy' || n === 0} onClick={run} className="mt-2 px-3 py-1.5 rounded-lg bg-[#12327A] text-white text-xs font-bold disabled:opacity-60">
+            Перенести {n}
+          </button>
+        </div>
+      )}
+      {log.length > 0 && (
+        <ul className="mt-2 text-xs text-gray-700 list-disc ml-5" data-transfer-log>
+          {log.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
+      )}
+      {state === 'busy' && <p className="text-xs text-gray-500 mt-2">Переносим…</p>}
+      {state && state !== 'busy' && <p className={`text-xs font-semibold mt-2 ${state.startsWith('Готово') ? 'text-emerald-700' : 'text-red-700'}`}>{state}</p>}
+    </div>
+  );
+};
+
+/**
  * Выключатель приёма редакционной почты (Google Apps Script → входящие письма).
  * Выключен — новые письма не принимаются (остаются в почтовом ящике). Публикации, модерацию и другие разделы не затрагивает.
  */
@@ -355,7 +447,7 @@ const MailSwitchBox: React.FC = () => {
   );
 };
 
-const StatsTab: React.FC = () => {
+const StatsTab: React.FC<{ onRefreshData?: () => void }> = ({ onRefreshData = () => {} }) => {
   const [days, setDays] = useState(30);
   const [stats, setStats] = useState<SiteStats | null>(null);
   const [err, setErr] = useState('');
@@ -372,6 +464,7 @@ const StatsTab: React.FC = () => {
   return (
     <div className="space-y-4">
       <BackupBox />
+      <TransferBox onDone={onRefreshData} />
       <MailSwitchBox />
       <div className="flex flex-wrap items-center gap-2">
         {[7, 30, 90].map((d) => (
@@ -1880,7 +1973,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
               ) : tab === 'weather' ? (
                 <WeatherTab />
               ) : (
-                <StatsTab />
+                <StatsTab onRefreshData={onRefreshData} />
               )}
             </div>
           </div>

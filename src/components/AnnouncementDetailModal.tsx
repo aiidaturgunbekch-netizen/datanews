@@ -1,5 +1,5 @@
 import { PaidNote } from './PaidBadge';
-import { EditButton } from './EditButton';
+import { EditButton, FeatureButton, useEdit } from './EditButton';
 import React, { useEffect, useRef, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
@@ -11,7 +11,7 @@ import { pickSideNews } from '../utils/timeline';
 import { rubricIdOf } from '../config/rubrics';
 import { getTranslation } from '../locales/translations';
 import { formatDate, formatDayMonthTime, formatWhen } from '../utils/dates';
-import { eventSource, groupedSources, hostOf, isGovTicket, SourceLink, sourceLabel, ticketLink } from '../utils/links';
+import { eventSource, groupedSources, hostOf, isGovTicket, SourceLink, sourceLabel, sourceTypeLabel, ticketLink } from '../utils/links';
 
 /** Подписи для истории исправлений */
 const CORR: Record<string, Record<Language, string>> = {
@@ -41,6 +41,8 @@ interface Props {
 
 const L = {
   when: { ru: 'Когда', kg: 'Качан', en: 'When' },
+  // для новостей и решений — дата самого события, отдельно от даты публикации на сайте
+  eventDate: { ru: 'Дата события', kg: 'Окуянын күнү', en: 'Event date' },
   where: { ru: 'Где', kg: 'Кайда', en: 'Where' },
   price: { ru: 'Стоимость', kg: 'Баасы', en: 'Price' },
   about: { ru: 'Подробности', kg: 'Кеңири маалымат', en: 'Details' },
@@ -203,6 +205,8 @@ const TICKETED = ['concerts', 'festivals', 'culture', 'cinema', 'sport', 'fairs'
 const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
 
 /** Афиша: только здесь бывает «Организатор»; у новостей, решений и предупреждений — только источник */
+/** Новости, решения и законы: в «Коротко» пишем «Дата события» — дата публикации стоит отдельно в строке над текстом */
+const NEWS_LIKE = ['news', 'tech', 'business', 'gov', 'state', 'laws', 'notices', 'education'];
 const AFISHA_CATS = ['concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'cinema', 'sport'];
 
 export const AnnouncementDetailModal: React.FC<Props> = ({
@@ -213,6 +217,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   allAnnouncements,
   editorView = false,
 }) => {
+  const editCtx = useEdit();
   // Меню «Поделиться» в верхней строке; Escape сначала закрывает меню, потом статью
   const [shareOpen, setShareOpen] = useState(false);
   const shareOpenRef = useRef(false);
@@ -268,7 +273,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   const groups = groupedSources(a);
   // Один главный источник: официальное сообщение → сайт ведомства → указанный источник (СМИ — только если больше ничего нет)
   const primary = groups.official.find((l) => l.label === 'official')?.href || groups.official[0]?.href || source;
-  const primaryLabel = primary && primary !== source ? hostOf(primary) : sourceLabel(a, lang);
+  const primaryLabel = (primary && sourceTypeLabel(primary, lang)) || (primary && primary !== source ? hostOf(primary) : sourceLabel(a, lang));
   const govTicket = tickets.url ? isGovTicket(tickets.url) : false;
   const LINK_META: Record<SourceLink['label'], { text: string; icon: string }> = {
     official: { text: L.official[lang], icon: 'verified' },
@@ -359,7 +364,10 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   // Организатор — только у событий (концерт, спектакль, ярмарка…); у новостей и предупреждений — источник
   const organizer = isAfisha ? a.eventDetails?.organizer?.trim() || '' : '';
   // «Фото: Фото: Кабар» → «Фото: Кабар»
-  const photoCredit = (a.imageCredit || '').replace(/^\s*(фото|сүрөт|photo)\s*:\s*/i, '');
+  const rawCredit = (a.imageCredit || '').replace(/^\s*(фото|сүрөт|photo)\s*:\s*/i, '');
+  // Служебные подписи («Иллюстрация DataNews — не фото события», «фото нет») читателю не показываем — только админу и редакции
+  const placeholderCredit = /иллюстрац|illustration|не фото|фото нет|нет фото|не загрузил|сүрөт жок/i.test(rawCredit) || Boolean(a.imageUrl?.startsWith('/illustrations/'));
+  const photoCredit = placeholderCredit && !(editorView || editCtx.canEdit(a)) ? '' : rawCredit;
 
   /** Одна строка блока «Коротко» */
   const Fact = ({ icon, label, children, wide = false }: { icon: string; label: string; children: React.ReactNode; wide?: boolean }) => (
@@ -396,6 +404,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           </button>
           {/* для админа и сотрудника редакции — сразу «Исправить» */}
           <EditButton item={a} lang={lang} className="ml-auto !text-sm !px-3 !py-1.5" />
+          <FeatureButton item={a} lang={lang} className="!text-sm !px-3 !py-1.5" />
           <div className="relative" ref={shareBoxRef}>
             <button
               type="button"
@@ -492,7 +501,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
             {L.brief[lang]}
           </h2>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
-            <Fact icon="event" label={L.when[lang]}>
+            <Fact icon="event" label={(NEWS_LIKE.includes(a.category) ? L.eventDate : L.when)[lang]}>
               {whenText}
             </Fact>
             {/* «Где»: только известное — адрес или площадка, ниже территория; без адреса — одна территория */}

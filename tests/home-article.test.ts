@@ -18,40 +18,40 @@ const { ShareMenu } = await import('../src/components/ShareMenu');
 const NOW = Date.parse('2026-10-27T06:00:00Z'); // 27 октября, 12:00 по Бишкеку
 const pool = A.filter((a) => !isAlert(a) && isFresh(a, new Date(NOW)));
 const rub = (a: { category: any }) => rubricIdOf(a.category);
-const pick = (seed: number) => pickTopStories(pool, seed, rub, NOW);
+const pick = (reads: Record<string, number> = {}) => pickTopStories(pool, reads, rub, NOW);
 
 describe('«Главное» на главной', () => {
   it('три разные публикации из разных рубрик', () => {
     assert.ok(pool.length >= 3, 'на сайте достаточно актуальных материалов');
-    for (const seed of [1, 2, 3, 42, 777]) {
-      const top = pick(seed);
-      assert.equal(top.length, 3);
-      assert.equal(new Set(top.map((a) => a.id)).size, 3, 'без повторов');
-      assert.equal(new Set(top.map(rub)).size, 3, 'разные рубрики');
-    }
+    const top = pick();
+    assert.equal(top.length, 3);
+    assert.equal(new Set(top.map((a) => a.id)).size, 3, 'без повторов');
+    assert.equal(new Set(top.map(rub)).size, 3, 'разные рубрики');
   });
 
-  it('в пределах одного посещения состав постоянный, между посещениями может меняться', () => {
-    assert.deepEqual(pick(12345).map((a) => a.id), pick(12345).map((a) => a.id));
-    const variants = new Set(Array.from({ length: 40 }, (_, i) => pick(i + 1).map((a) => a.id).join()));
-    assert.ok(variants.size > 1, `разных составов: ${variants.size}`);
-    const leads = new Set(Array.from({ length: 40 }, (_, i) => pick(i + 1)[0].id));
-    assert.ok(leads.size > 1, 'первое место не закреплено за одной публикацией');
+  it('порядок постоянный — не меняется при обновлении страницы', () => {
+    assert.deepEqual(pick().map((a) => a.id), pick().map((a) => a.id));
   });
 
-  it('в ротацию идут только сильные кандидаты, не любые публикации', () => {
-    const best = Math.max(...pool.map((a) => homeScore(a, NOW)).filter((s) => s < 100));
-    for (let i = 1; i <= 40; i++) {
-      // первое место — всегда из сильных кандидатов (не ниже 40% лучшей оценки)
-      assert.ok(homeScore(pick(i)[0], NOW) >= best * 0.4);
-    }
+  it('закреплённое редакцией — первым, пока не истёк срок', () => {
+    const last = pool[pool.length - 1];
+    const pinned = { ...last, featuredUntil: '2026-10-28T12:00' };
+    const top = pickTopStories(pool.map((a) => (a.id === last.id ? pinned : a)), {}, rub, NOW);
+    assert.equal(top[0].id, last.id);
+    const expired = { ...last, featuredUntil: '2026-10-26T12:00' };
+    assert.notEqual(pickTopStories(pool.map((a) => (a.id === last.id ? expired : a)), {}, rub, NOW)[0].id, last.id);
+  });
+
+  it('часто читаемое поднимается выше', () => {
+    const outsider = pool.find((a) => !pick().some((t) => t.id === a.id) && !pick().some((t) => rub(t) === rub(a)))!;
+    if (outsider) assert.ok(pick({ [outsider.id]: 50 }).some((a) => a.id === outsider.id));
   });
 
   it('срочное остаётся наверху; мало материалов — показываем доступные', () => {
     const urgent = { ...pool[5], id: 'urgent-x', isUrgentTicker: true };
-    for (const seed of [1, 2, 3]) assert.equal(pickTopStories([...pool, urgent], seed, rub, NOW)[0].id, 'urgent-x');
-    assert.equal(pickTopStories(pool.slice(0, 2), 1, rub, NOW).length, 2);
-    assert.deepEqual(pickTopStories([], 1, rub, NOW), []);
+    assert.equal(pickTopStories([...pool, urgent], {}, rub, NOW)[0].id, 'urgent-x');
+    assert.equal(pickTopStories(pool.slice(0, 2), {}, rub, NOW).length, 2);
+    assert.deepEqual(pickTopStories([], {}, rub, NOW), []);
   });
 });
 

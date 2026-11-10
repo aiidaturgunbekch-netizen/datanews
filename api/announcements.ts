@@ -275,6 +275,24 @@ export default handler(async (req) => {
       return json({ item: next });
     }
 
+    // «Главное»: закрепить материал наверху главной (администратор или сотрудник редакции); hours — на сколько часов (по умолчанию 24)
+    if (body.action === 'feature' || body.action === 'unfeature') {
+      if (session.role !== 'admin' && !(await editorOf(session.sub))) throw new HttpError('forbidden', 403);
+      const base = current || INITIAL_ANNOUNCEMENTS.find((a) => a.id === id) || null;
+      if (!base) throw new HttpError('not_found', 404);
+      if (body.action === 'feature' && base.moderationStatus && base.moderationStatus !== 'approved') throw new HttpError('not_published', 409, 'Сначала одобрите материал');
+      const hours = Math.min(Math.max(Number((body as { hours?: number }).hours) || 24, 1), 24 * 14);
+      const until = body.action === 'feature' ? kgNowLocal(Date.now() + hours * 3600_000) : undefined;
+      const next = withHistory(
+        { ...base, featuredUntil: until },
+        session.role === 'admin' ? 'admin' : 'author',
+        'edited',
+        body.action === 'feature' ? `Закреплено в «Главном» до ${until}` : 'Снято из «Главного»'
+      );
+      await saveAnnouncement(next);
+      return json({ item: next });
+    }
+
     // Модератор сверил всё с первоисточником: «Подтверждено по первоисточнику», дата проверки и ссылка на билеты (если есть)
     if (body.action === 'verified') {
       await requireAdmin(req);

@@ -1,3 +1,4 @@
+import { useEdit } from './EditButton';
 import React, { useEffect, useState } from 'react';
 import { Announcement } from '../types';
 
@@ -67,6 +68,8 @@ export const EventImage: React.FC<{
   fill?: boolean;
 }> = ({ item, className = '', lang = 'ru', compact = false, natural = false, fill = false }) => {
   const [failed, setFailed] = useState(false);
+  // служебные подписи («Иллюстрация — фото нет», «Фото не загрузилось») видят только админ и редакция
+  const staff = useEdit().canEdit(item);
   // другое изображение (например, переход к соседнему событию в том же окне) — пробуем загрузить заново
   useEffect(() => {
     setFailed(false);
@@ -80,7 +83,7 @@ export const EventImage: React.FC<{
     return (
       <div className={`relative overflow-hidden bg-[#0d2459] ${className}`} role="img" aria-label={item.imageAlt || item.title[lang] || item.title.ru}>
         <img src={`/illustrations/${fallback}.svg`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90" />
-        {!compact && <ReasonTag text={REASON[item.imageUrl ? 'failed' : 'missing'][lang]} />}
+        {!compact && staff && <ReasonTag text={REASON[item.imageUrl ? 'failed' : 'missing'][lang]} />}
       </div>
     );
   }
@@ -115,7 +118,7 @@ export const EventImage: React.FC<{
           className={`absolute inset-0 w-full h-full ${cover ? 'object-cover' : 'object-contain'}`}
         />
         {/* Настоящее фото — чистое, без подписей поверх; автор и лицензия фото — в «Первоисточниках» статьи */}
-        {!compact && isIllustration && <ReasonTag text={REASON.illustration[lang]} />}
+        {!compact && staff && isIllustration && <ReasonTag text={REASON.illustration[lang]} />}
       </div>
     );
   }
@@ -127,7 +130,7 @@ export const EventImage: React.FC<{
       aria-label={item.title.ru}
     >
       <span className="material-symbols-outlined text-white/85 text-[48px]">{style.icon}</span>
-      {!compact && <ReasonTag text={REASON[item.imageUrl ? 'failed' : 'missing'][lang]} />}
+      {!compact && staff && <ReasonTag text={REASON[item.imageUrl ? 'failed' : 'missing'][lang]} />}
     </div>
   );
 };

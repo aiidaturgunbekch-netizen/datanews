@@ -24,12 +24,30 @@ const TICKET_HOSTS = ['kassir.kg', 'ticket.kg', 'ticketon.kg', 'tickets.kg', 'bi
 /** Государственный билетный сервис GovTicket */
 export const isGovTicket = (url: string) => /(^|\.)ticket\.gov\.kg$/.test(hostOf(url));
 
+const STATE_AGENCY_HOSTS = ['kabar.kg'];
+const isHost = (host: string, list: string[]) => list.some((h) => host === h || host.endsWith(`.${h}`));
+
+/**
+ * Честная подпись типа источника: госинформагентство «Кабар» — это СМИ (государственное), а не сообщение ведомства;
+ * билетный сервис — продавец билетов, а не организатор. null — подпись не нужна.
+ */
+export const sourceTypeLabel = (url: string, lang: 'ru' | 'kg' | 'en'): string | null => {
+  const host = hostOf(url);
+  if (!host) return null;
+  if (isHost(host, STATE_AGENCY_HOSTS))
+    return { ru: 'Госинформагентство «Кабар»', kg: '«Кабар» мамлекеттик маалымат агенттиги', en: 'Kabar state news agency' }[lang];
+  if (isHost(host, TICKET_HOSTS)) return { ru: `Билетный сервис ${host}`, kg: `Билет кызматы ${host}`, en: `Ticket service ${host}` }[lang];
+  return null;
+};
+
 /** Что за источник указан в eventSourceUrl: явное поле или по адресу (сайты *.gov.kg — официальные) */
 export const sourceKindOf = (a: Announcement): SourceKind => {
-  if (a.sourceKind) return a.sourceKind;
   const host = hostOf(eventSource(a));
+  // агентство и билетные сервисы не выдаём за официальный источник, даже если так указано в пакете
+  if (isHost(host, STATE_AGENCY_HOSTS)) return 'media';
+  if (isHost(host, TICKET_HOSTS)) return 'ticket';
+  if (a.sourceKind) return a.sourceKind;
   if (/(^|\.)gov\.kg$/.test(host)) return 'official';
-  if (TICKET_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) return 'ticket';
   if (a.publishedByGov) return 'official';
   return 'media';
 };

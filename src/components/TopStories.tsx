@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { EditButton } from './EditButton';
+import { EditButton, FeatureButton } from './EditButton';
 import { Announcement, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { formatWhen } from '../utils/dates';
@@ -95,7 +95,10 @@ export const TopStories: React.FC<{
   const EditWrap: React.FC<{ a: Announcement; className?: string; children: React.ReactNode }> = ({ a, className = '', children }) => (
     <div className={`relative min-w-0 ${className}`}>
       {children}
-      <EditButton item={a} lang={lang} className={`absolute left-3 z-20 ${isPaid(a) && !isPin(a) ? 'top-11' : 'top-3'}`} />
+      <div className={`absolute left-3 z-20 flex gap-1 ${isPaid(a) && !isPin(a) ? 'top-11' : 'top-3'}`}>
+        <EditButton item={a} lang={lang} />
+        <FeatureButton item={a} lang={lang} />
+      </div>
     </div>
   );
 

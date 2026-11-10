@@ -1,4 +1,5 @@
 import { downloadXlsx } from '../utils/xlsx';
+import { MODERATION_REMINDER, confirmApproveWithoutKg, missingKg } from '../utils/translation';
 import { splitLead } from '../utils/lead';
 import React, { useEffect, useMemo, useState } from 'react';
 import { BatchImport, untranslatedForClaude } from './admin/BatchImport';
@@ -1210,6 +1211,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                         ? {
                             label: 'Сохранить и одобрить',
                             onSubmit: async (item) => {
+                              if (!confirmApproveWithoutKg(item as Parameters<typeof confirmApproveWithoutKg>[0])) return;
                               await api.updateAnnouncement(editing.id, item);
                               await api.moderateAnnouncement(editing.id, 'approve');
                               closeEditor();
@@ -1393,11 +1395,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                               {a.submittedBy.organization ? ` (${a.submittedBy.organization})` : ''} • {a.submittedBy.email} • {a.submittedBy.phone}
                             </div>
                           )}
+                          {/* Напоминание редактору и предупреждение о переводе — перед кнопкой «Одобрить» */}
+                          <p className="text-xs text-gray-600" data-mod-reminder>
+                            <span className="material-symbols-outlined text-[14px] align-[-2px] mr-1" aria-hidden="true">fact_check</span>
+                            {MODERATION_REMINDER}
+                            {missingKg(a).length > 0 && (
+                              <span className="ml-2 font-bold text-amber-700" data-no-kg>
+                                Нет перевода на кыргызский: {missingKg(a).join(', ')}
+                              </span>
+                            )}
+                          </p>
                           <div className="flex flex-wrap gap-2 pt-1">
                             {/* Тестовый материал сервер не даст одобрить; кнопку не показываем, чтобы не было лишней ошибки */}
                             {!a.testMaterial && (
                               <button
-                                onClick={() => act(() => api.moderateAnnouncement(a.id, 'approve'), `Одобрено и опубликовано на сайте: «${a.title.ru}»`)}
+                                onClick={() => confirmApproveWithoutKg(a) && act(() => api.moderateAnnouncement(a.id, 'approve'), `Одобрено и опубликовано на сайте: «${a.title.ru}»`)}
                                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold inline-flex items-center gap-1"
                               >
                                 <span className="material-symbols-outlined text-[18px]">check</span>Одобрить

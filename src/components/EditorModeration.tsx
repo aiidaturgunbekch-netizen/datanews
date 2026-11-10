@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { MODERATION_REMINDER, confirmApproveWithoutKg, missingKg } from '../utils/translation';
 import type { Announcement, Language } from '../types';
 import * as api from '../services/api';
 import { getTranslation } from '../locales/translations';
@@ -44,6 +45,7 @@ export const EditorModeration: React.FC<{ lang: Language; onEdit: (a: Announceme
   }, []);
 
   const approve = async (a: Announcement) => {
+    if (!confirmApproveWithoutKg(a)) return;
     setBusy(a.id);
     setResult((r) => ({ ...r, [a.id]: {} }));
     try {
@@ -93,6 +95,10 @@ export const EditorModeration: React.FC<{ lang: Language; onEdit: (a: Announceme
                       </a>
                     </>
                   )}
+                </p>
+                <p className="text-[11px] text-gray-600" data-mod-reminder>
+                  {MODERATION_REMINDER}
+                  {missingKg(a).length > 0 && <span className="ml-1 font-bold text-amber-700" data-no-kg>Нет перевода на кыргызский: {missingKg(a).join(', ')}</span>}
                 </p>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button

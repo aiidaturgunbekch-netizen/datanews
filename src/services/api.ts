@@ -148,6 +148,9 @@ export const fetchPendingForEditor = () => request<{ items: Announcement[] }>('a
 
 export const moderateAnnouncement = (id: string, action: 'approve' | 'reject' | 'restore' | 'withdraw', note?: string) =>
   post<{ item: Announcement }>('announcements', { id, action, note }, 'PATCH').then((r) => r.item);
+/** Закрепить в «Главном» на N часов (по умолчанию 24) или снять — для администратора и редактора */
+export const featureAnnouncement = (id: string, on: boolean, hours = 24) =>
+  post<{ item: Announcement }>('announcements', { id, action: on ? 'feature' : 'unfeature', hours }, 'PATCH').then((r) => r.item);
 
 /** Отметить, что публикация сверена с первоисточником сегодня (администратор) */
 /** Сверено с первоисточником: подтверждение, дата проверки и ссылка на билеты — одной кнопкой */

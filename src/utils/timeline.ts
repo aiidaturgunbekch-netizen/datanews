@@ -75,47 +75,36 @@ export const homeScore = (a: Announcement, now = Date.now()): number => {
   return s;
 };
 
-/** Число 0…1 из строки (FNV-1a): одинаковое для одной и той же пары «посещение + публикация» */
-const unitHash = (s: string) => {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0) / 4294967296;
-};
 
 /**
- * Три материала для «Главного» на главной.
- *  - Кандидаты — самые актуальные по homeScore (срочность, близость даты, свежесть, значимость, проверка);
- *    в ротацию идут только сильные кандидаты (до 8 лучших, не ниже 40% лучшей оценки), а не любые публикации.
- *  - Срочное (бегущая строка, высокая опасность) всегда остаётся наверху и не ротируется.
- *  - Внутри сильных кандидатов порядок перемешивается по `seed` — номеру посещения (оценка × 0,5…1,5, поэтому
- *    более актуальные выигрывают чаще, но первое место не закреплено за одной публикацией): после обновления страницы
- *    состав может смениться, а пока страница открыта, он не меняется (seed один на посещение).
- *  - Не больше одного материала из рубрики, пока есть материалы других рубрик; без повторов.
+ * «Главное» — три материала наверху главной. Порядок постоянный (не случайный, одинаковый у всех читателей):
+ *  1) закреплённые редакцией («В Главное», пока не истёк срок) — сначала последние закреплённые;
+ *  2) срочное (аварийные предупреждения и «бегущая строка»);
+ *  3) остальное по оценке: близость даты, свежесть, значимость + прочтения читателей (самое читаемое поднимается выше).
+ * Автоматически — по одному материалу на рубрику, чтобы «Главное» не состояло из трёх концертов; закреплённые — без этого ограничения.
  */
-export const pickTopStories = <T extends Announcement>(pool: T[], seed: number, rubricOf: (a: T) => string, now = Date.now(), count = 3): T[] => {
-  const scored = pool.map((a) => ({ a, s: homeScore(a, now) })).sort((x, y) => y.s - x.s);
-  if (scored.length === 0) return [];
-  const urgent = scored.filter((x) => x.s >= 100);
-  const best = scored.find((x) => x.s < 100)?.s ?? 0;
-  const rotating = scored
-    .filter((x) => x.s < 100 && x.s >= best * 0.4)
-    .slice(0, 8)
-    .map((x) => ({ ...x, k: x.s * (0.5 + unitHash(`${seed}:${x.a.id}`)) }))
-    .sort((x, y) => y.k - x.k);
-  const inRotation = new Set(rotating.map((x) => x.a.id));
-  const order = [...urgent, ...rotating, ...scored.filter((x) => x.s < 100 && !inRotation.has(x.a.id))].map((x) => x.a);
-  const picked: T[] = [];
-  const used = new Set<string>();
-  for (const a of order) {
+export const pickTopStories = <T extends Announcement>(
+  pool: T[],
+  reads: Record<string, number>,
+  rubricOf: (a: T) => string,
+  now = Date.now(),
+  count = 3
+): T[] => {
+  const nowLocal = new Date(now + 6 * 3600_000).toISOString().slice(0, 16);
+  const featured = pool
+    .filter((a) => a.featuredUntil && a.featuredUntil > nowLocal)
+    .sort((x, y) => (y.featuredUntil || '').localeCompare(x.featuredUntil || ''));
+  const score = (a: T) => homeScore(a, now) + Math.min(30, (reads[a.id] || 0) * 2);
+  const rest = pool.filter((a) => !featured.includes(a)).sort((x, y) => score(y) - score(x) || x.id.localeCompare(y.id));
+  const picked: T[] = featured.slice(0, count);
+  const used = new Set(picked.map(rubricOf));
+  for (const a of rest) {
     if (picked.length >= count) break;
     if (used.has(rubricOf(a))) continue;
     used.add(rubricOf(a));
     picked.push(a);
   }
-  for (const a of order) {
+  for (const a of rest) {
     if (picked.length >= count) break;
     if (!picked.includes(a)) picked.push(a);
   }

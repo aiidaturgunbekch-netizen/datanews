@@ -58,6 +58,7 @@ export const translations = {
     news: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' },
     about: { ru: 'О проекте', kg: 'Долбоор жөнүндө', en: 'About' },
     rules: { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' },
+    editorial: { ru: 'Редакция', kg: 'Редакция', en: 'Editorial team' },
     contacts: { ru: 'Контакты', kg: 'Байланыштар', en: 'Contacts' },
   },
 

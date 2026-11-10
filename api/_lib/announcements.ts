@@ -195,6 +195,8 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     history: base?.history,
     reportsCount: base?.reportsCount,
     publishedByGov: base?.publishedByGov,
+    // «Главное» закрепляет редакция отдельным действием — из формы не меняется
+    featuredUntil: base?.featuredUntil,
     isDemo: false,
   };
 };

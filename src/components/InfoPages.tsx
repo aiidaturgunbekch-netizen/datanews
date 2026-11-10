@@ -1,15 +1,17 @@
 import React, { useEffect } from 'react';
 import { Language, ViewMode } from '../types';
 import { ContactButtons } from './ContactButtons';
+import { EDITORIAL } from '../config/site';
 
 /** Публичные информационные страницы. «Источники информации» и «Политика конфиденциальности» из интерфейса убраны */
-export type InfoView = 'about' | 'rules' | 'contacts';
+export type InfoView = 'about' | 'rules' | 'contacts' | 'editorial';
 type L3 = Record<Language, string>;
 
 const TITLES: Record<InfoView, L3> = {
   about: { ru: 'О проекте', kg: 'Долбоор жөнүндө', en: 'About' },
   rules: { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' },
   contacts: { ru: 'Связаться с DataNews', kg: 'DataNews менен байланышуу', en: 'Contact DataNews' },
+  editorial: { ru: 'Редакция', kg: 'Редакция', en: 'Editorial team' },
 };
 
 const P: React.FC<{ children: React.ReactNode }> = ({ children }) => <p className="text-sm text-gray-700 leading-relaxed">{children}</p>;
@@ -138,12 +140,106 @@ const RULES: Record<Language, React.ReactNode> = {
   ),
 };
 
+/** «Редакция»: выходные данные, как исправляем ошибки, возрастная маркировка. Имена — только из настроек сайта */
+const ED: Record<Language, { rows: [keyof typeof EDITORIAL, string][]; fix: string; fixList: string[]; age: string; ageText: string; contact: string; sources: string; sourcesText: string }> = {
+  ru: {
+    rows: [
+      ['founder', 'Учредитель'],
+      ['chiefEditor', 'Главный редактор'],
+      ['registration', 'Регистрация СМИ'],
+      ['address', 'Адрес редакции'],
+    ],
+    sources: 'Откуда новости',
+    sourcesText:
+      'Мы публикуем сведения из официальных источников: сайтов государственных органов, служб и организаторов. У каждого материала указан первоисточник и дата. Материалы по тарифам помечены «Партнёрский материал», реклама — «Реклама».',
+    fix: 'Исправление ошибок',
+    fixList: [
+      'Нашли ошибку в дате, времени, месте или тексте — напишите нам, укажите ссылку на материал.',
+      'Проверяем по первоисточнику и исправляем как можно быстрее, обычно в тот же день.',
+      'Существенные исправления видны в истории изменений материала.',
+      'По обоснованной жалобе материал может быть снят.',
+    ],
+    age: 'Возрастная маркировка',
+    ageText: '16+. Сайт не предназначен для распространения информации, запрещённой для детей.',
+    contact: 'Связаться с редакцией:',
+  },
+  kg: {
+    rows: [
+      ['founder', 'Негиздөөчү'],
+      ['chiefEditor', 'Башкы редактор'],
+      ['registration', 'ЖМК катталуусу'],
+      ['address', 'Редакциянын дареги'],
+    ],
+    sources: 'Жаңылыктар кайдан',
+    sourcesText:
+      'Биз расмий булактардагы маалыматтарды жарыялайбыз: мамлекеттик органдардын, кызматтардын жана уюштуруучулардын сайттарынан. Ар бир материалда баштапкы булагы жана датасы көрсөтүлөт. Тариф боюнча материалдар «Өнөктөштүк материал», жарнама — «Жарнама» деп белгиленет.',
+    fix: 'Каталарды оңдоо',
+    fixList: [
+      'Датада, убакытта, жерде же текстте ката таптыңызбы — бизге жазыңыз, материалдын шилтемесин көрсөтүңүз.',
+      'Баштапкы булак боюнча текшерип, мүмкүн болушунча тез, адатта ошол эле күнү оңдойбуз.',
+      'Маанилүү оңдоолор материалдын өзгөртүүлөр тарыхында көрүнөт.',
+      'Негиздүү даттануу боюнча материал алынышы мүмкүн.',
+    ],
+    age: 'Курак белгиси',
+    ageText: '16+. Сайт балдар үчүн тыюу салынган маалыматты таратууга арналган эмес.',
+    contact: 'Редакция менен байланышуу:',
+  },
+  en: {
+    rows: [
+      ['founder', 'Founder'],
+      ['chiefEditor', 'Editor-in-chief'],
+      ['registration', 'Media registration'],
+      ['address', 'Editorial address'],
+    ],
+    sources: 'Where the news comes from',
+    sourcesText:
+      'We publish information from official sources: websites of government bodies, services and organizers. Every item shows its original source and date. Plan-based posts are marked "Partner content", ads are marked "Ad".',
+    fix: 'Corrections',
+    fixList: [
+      'Found a mistake in a date, time, place or text? Write to us with a link to the item.',
+      'We check it against the original source and fix it as soon as possible, usually the same day.',
+      'Significant corrections are visible in the item’s change history.',
+      'An item may be taken down after a justified report.',
+    ],
+    age: 'Age rating',
+    ageText: '16+. The site is not intended for distributing information prohibited for children.',
+    contact: 'Contact the editors:',
+  },
+};
+
+const Editorial: React.FC<{ lang: Language }> = ({ lang }) => {
+  const d = ED[lang];
+  const filled = d.rows.filter(([k]) => EDITORIAL[k].trim());
+  return (
+    <>
+      {filled.length > 0 && (
+        <dl className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-x-4 gap-y-1.5 text-sm" data-imprint>
+          {filled.map(([k, label]) => (
+            <React.Fragment key={k}>
+              <dt className="text-gray-500">{label}</dt>
+              <dd className="font-semibold text-[#0f1b33]">{EDITORIAL[k]}</dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      )}
+      <H>{d.sources}</H>
+      <P>{d.sourcesText}</P>
+      <H>{d.fix}</H>
+      <UL items={d.fixList} />
+      <H>{d.age}</H>
+      <P>{d.ageText}</P>
+      <P>{d.contact}</P>
+      <ContactButtons lang={lang} />
+    </>
+  );
+};
+
 export const InfoPage: React.FC<{ view: InfoView; lang: Language; onNavigate: (v: ViewMode) => void }> = ({ view, lang, onNavigate }) => {
   useEffect(() => {
     document.title = `${TITLES[view][lang]} — DataNews Kyrgyzstan`;
     window.scrollTo(0, 0);
   }, [view, lang]);
-  const tabs: InfoView[] = ['about', 'rules', 'contacts'];
+  const tabs: InfoView[] = ['about', 'rules', 'editorial', 'contacts'];
   return (
     <div className="w-full max-w-[960px] mx-auto px-4 md:px-6 py-8">
       <button onClick={() => onNavigate('home')} className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4">
@@ -166,6 +262,7 @@ export const InfoPage: React.FC<{ view: InfoView; lang: Language; onNavigate: (v
       <div className="space-y-3">
         {view === 'about' && ABOUT[lang]}
         {view === 'rules' && RULES[lang]}
+        {view === 'editorial' && <Editorial lang={lang} />}
         {view === 'contacts' && (
           <>
             <P>

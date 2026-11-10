@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { confirmApproveWithoutKg } from '../utils/translation';
 import { Announcement, Language, PlanId, PlanUsage, PublicUser } from '../types';
 import * as api from '../services/api';
 import { normalizePlan, PAYMENT_DETAILS, PLAN_IDS, PLANS, planTerms, planUnit } from '../config/site';
@@ -690,6 +691,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogi
                         ? {
                             label: lang === 'kg' ? 'Сактоо жана жактыруу' : lang === 'en' ? 'Save and approve' : 'Сохранить и одобрить',
                             onSubmit: async (item) => {
+                              if (!confirmApproveWithoutKg(item as Parameters<typeof confirmApproveWithoutKg>[0])) return;
                               await api.updateAnnouncement(editing.id, item);
                               await api.moderateAnnouncement(editing.id, 'approve');
                               setNotice(

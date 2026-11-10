@@ -47,7 +47,7 @@ import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel'
 import { EmergencyBox, HydrometLine, WeatherCard } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
 import { freshOrder, isFresh } from './utils/statusUtils';
-import { rubricIdOf, rubricOf } from './config/rubrics';
+import { RUBRICS, rubricIdOf, rubricOf } from './config/rubrics';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -121,6 +121,12 @@ export default function App() {
   const [allAnnouncements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
   // Сайт показывает только публикации со своим текстом на выбранном языке — русский и кыргызский не смешиваются
   const announcements = useMemo(() => allAnnouncements.filter((a) => visibleIn(a, currentLanguage)), [allAnnouncements, currentLanguage]);
+  // Пустые разделы не показываем в меню: читатель не должен открывать пустую страницу
+  const rubricCounts = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const r of RUBRICS) out[r.id] = announcements.filter((a) => r.categories.includes(a.category)).length;
+    return out;
+  }, [announcements]);
 
   // Роль: гость / зарегистрированный пользователь / администратор
   const [role, setRole] = useState<api.Role>(() => api.getSession()?.role || 'guest');
@@ -283,6 +289,13 @@ export default function App() {
         if (role === 'admin') setIsAdminOpen(true);
         else setAccountMode('cabinet');
       },
+      // «В Главное»: закрепить на 24 часа / снять — администратор и редакция (сервер проверяет то же)
+      canFeature: () => role === 'admin' || isEditorUser,
+      feature: async (a: Announcement, on: boolean) => {
+        const item = await api.featureAnnouncement(a.id, on);
+        setAnnouncements((list) => list.map((x) => (x.id === item.id ? { ...x, featuredUntil: item.featuredUntil } : x)));
+        refreshData();
+      },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [role, isEditorUser]
@@ -342,14 +355,17 @@ export default function App() {
     [announcements, selectedCity]
   );
   const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
-  // «Главное»: три актуальных материала из разных рубрик (не предупреждения: у них свой блок рядом).
-  // Отбор — pickTopStories: сильные кандидаты по homeScore, по одному на рубрику; состав может смениться
-  // после обновления страницы (homeSeed — один на посещение), но не меняется, пока страница открыта.
+  // «Главное»: три материала — сначала закреплённые редакцией, затем срочное, затем по оценке и прочтениям.
+  // Порядок постоянный у всех читателей (без случайности).
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => kgDateStr());
-  const [homeSeed] = useState(() => Math.floor(Math.random() * 1e9));
+  // «Самое читаемое»: реальные прочтения карточек за 7 дней
+  const [popularReads, setPopularReads] = useState<Record<string, number>>({});
+  useEffect(() => {
+    fetchPopular().then(setPopularReads);
+  }, []);
   const topStories = useMemo(
-    () => pickTopStories(eventsList.filter((a) => isFresh(a)).sort(freshOrder), homeSeed, (a) => rubricIdOf(a.category)),
-    [eventsList, homeSeed]
+    () => pickTopStories(eventsList.filter((a) => isFresh(a)).sort(freshOrder), popularReads, (a) => rubricIdOf(a.category)),
+    [eventsList, popularReads]
   );
   // Главная история — первая редакционная (не партнёрская) из отобранных
   // Закреплённая платная новость (формат P) — на последнем месте рядом с главной (не вместо главной)
@@ -378,10 +394,6 @@ export default function App() {
     return feedList.filter((a) => !shown.has(a.id));
   }, [feedList, upcomingPool]);
   // «Самое читаемое»: реальные прочтения карточек за 7 дней; пока их нет — «Скоро» (ближайшие по дате)
-  const [popularReads, setPopularReads] = useState<Record<string, number>>({});
-  useEffect(() => {
-    fetchPopular().then(setPopularReads);
-  }, []);
   useEffect(() => {
     if (activeNoticeDetail && role !== 'admin') trackRead(activeNoticeDetail.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -503,6 +515,7 @@ export default function App() {
         onOpenSections={() => setSectionsOpen(true)}
         activeRubric={activeRubric}
         onSelectRubric={selectRubric}
+        rubricCounts={rubricCounts}
         /* Рекламная бегущая строка (формат T) — под меню на всех страницах, только при идущих кампаниях */
         ticker={<AdTicker lang={currentLanguage} />}
       />
@@ -643,33 +656,26 @@ export default function App() {
                           afterLead={
                             <>
                               <AdSlot format="A" lang={currentLanguage} className="mt-6" />
-                              {/* Погода на сегодня и завтра — ежедневная рубрика, на видном месте сразу под главными новостями */}
-                              <WeatherCard lang={currentLanguage} city={selectedCity} className="mt-6" />
+                              {/* Предупреждения — сразу под главными новостями: самое важное для безопасности читателя */}
+                              <div className="mt-6">
+                                {alertsList.length > 0 ? (
+                                  <MainAlerts
+                                    lang={currentLanguage}
+                                    alerts={alertsList}
+                                    city={selectedCity}
+                                    onOpen={setActiveNoticeDetail}
+                                    onOpenAll={() => setCurrentView('alerts')}
+                                  />
+                                ) : (
+                                  <NoAlertsLine lang={currentLanguage} city={selectedCity} onOpenAll={() => setCurrentView('alerts')} />
+                                )}
+                              </div>
                             </>
                           }
                         />
                       </div>
-                      {/* До 1280 px — под «Главным» во всю ширину, а не узкой колонкой сбоку */}
-                      {/* Предупреждения и небольшой календарь: на широком экране — справа друг под другом,
-                          на экране поуже — рядом (предупреждения слева, календарь справа), а не во всю ширину */}
-                      <div className="xl:col-span-4 min-w-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 xl:grid-cols-1 gap-6 lg:gap-10 xl:gap-6 items-start">
-                        {/* Заметный блок — только когда есть действующие предупреждения; иначе одна строка-статус */}
-                        {/* шире — предупреждения (как лента ниже), уже — календарь (как «Самое читаемое» ниже) */}
-                        <div className="min-w-0 lg:col-span-8 xl:col-span-1">
-                        {alertsList.length > 0 ? (
-                          <MainAlerts
-                            lang={currentLanguage}
-                            alerts={alertsList}
-                            city={selectedCity}
-                            onOpen={setActiveNoticeDetail}
-                            onOpenAll={() => setCurrentView('alerts')}
-                          />
-                        ) : (
-                          <NoAlertsLine lang={currentLanguage} city={selectedCity} onOpenAll={() => setCurrentView('alerts')} />
-                        )}
-                        </div>
-                        {/* Небольшой календарь — сбоку, рядом с предупреждениями; ширина та же, что у «Самого читаемого» */}
-                        <div className="min-w-0 lg:col-span-4 xl:col-span-1">
+                      {/* Небольшой календарь — справа от «Главного»; до 1280 px — под ним во всю ширину */}
+                      <div className="xl:col-span-4 min-w-0">
                         <InteractiveCalendar
                           currentLanguage={currentLanguage}
                           announcements={announcements}
@@ -679,7 +685,6 @@ export default function App() {
                           maxItems={3}
                           onShowAll={() => setCurrentView('calendar')}
                         />
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -727,6 +732,13 @@ export default function App() {
                 </section>
 
                 <TheatreSchedule lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
+
+                {/* Погода — последним окошком главной (отдельный раздел «Погода» есть в меню) */}
+                <section id="home-weather" className="w-full dn-section border-t border-line [&:not(:has([data-weather-card]))]:hidden">
+                  <div className="dn-container">
+                    <WeatherCard lang={currentLanguage} city={selectedCity} />
+                  </div>
+                </section>
               </>
             )}
           </div>
@@ -840,7 +852,7 @@ export default function App() {
         )}
 
         {/* О проекте, правила, контакты */}
-        {(['about', 'rules', 'contacts'] as const).includes(currentView as InfoView) && (
+        {(['about', 'rules', 'contacts', 'editorial'] as const).includes(currentView as InfoView) && (
           <InfoPage view={currentView as InfoView} lang={currentLanguage} onNavigate={setCurrentView} />
         )}
       </Suspense>

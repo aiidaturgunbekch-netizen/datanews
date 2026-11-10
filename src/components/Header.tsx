@@ -25,6 +25,8 @@ interface HeaderProps {
   /** Выбранная рубрика строки навигации (null — главная без фильтра) */
   activeRubric: string | null;
   onSelectRubric: (id: string | null) => void;
+  /** Сколько материалов в каждой рубрике: пустые разделы в меню не показываем (кроме «Погоды») */
+  rubricCounts?: Record<string, number>;
   /** Рекламная бегущая строка — нижней полосой шапки (высота шапки учитывает её) */
   ticker?: React.ReactNode;
 }
@@ -46,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSections,
   activeRubric,
   onSelectRubric,
+  rubricCounts,
   ticker,
 }) => {
   const { t } = getTranslation(currentLanguage);
@@ -281,7 +284,7 @@ export const Header: React.FC<HeaderProps> = ({
               { key: 'alerts', label: t('nav.alerts'), active: currentView === 'alerts', onClick: () => { onSelectRubric(null); onViewChange('alerts'); } },
               // Города — публикации по городам и областям (страница с картой и вкладками мест)
               { key: 'cities', label: t('nav.cities'), active: currentView === 'cities', onClick: () => { onSelectRubric(null); onViewChange('cities'); } },
-              ...NAV_RUBRICS.map((r) => ({ key: r.id, label: r.label[currentLanguage], active: currentView === 'home' && activeRubric === r.id, onClick: () => onSelectRubric(r.id) })),
+              ...NAV_RUBRICS.filter((r) => r.id === 'weather' || r.id === activeRubric || !rubricCounts || (rubricCounts[r.id] || 0) > 0).map((r) => ({ key: r.id, label: r.label[currentLanguage], active: currentView === 'home' && activeRubric === r.id, onClick: () => onSelectRubric(r.id) })),
             ].map((item) => (
               <li key={item.key} className="flex h-11 lg:h-10">
                 <button

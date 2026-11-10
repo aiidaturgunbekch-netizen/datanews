@@ -209,6 +209,8 @@ export interface Announcement {
   geo?: { lat: number; lng: number };
   /** Когда редакция последний раз проверила информацию (ISO, время Бишкека) */
   lastCheckedAt?: string;
+  /** Закреплена редакцией в «Главном» до этого времени (местное время Бишкека, YYYY-MM-DDTHH:mm) */
+  featuredUntil?: string;
   /**
    * Откуда запись: 'manual' — внесена редакцией вручную по источнику, 'user' — прислал организатор через кабинет,
    * 'auto' — зарезервировано для будущего автоматического сбора (сейчас не используется).
@@ -381,7 +383,7 @@ export interface SiteStats {
   outboundDays?: { date: string; instagram: number; whatsapp: number; telegram: number }[];
 }
 
-export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'advertising' | 'admin' | 'about' | 'rules' | 'contacts';
+export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'advertising' | 'admin' | 'about' | 'rules' | 'contacts' | 'editorial';
 
 /**
  * Письмо из редакционной почты (dn:mail). Это входящий материал, а не публикация:

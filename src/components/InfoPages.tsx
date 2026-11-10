@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Language, ViewMode } from '../types';
 import { ContactButtons } from './ContactButtons';
-import { EDITORIAL } from '../config/site';
+import { EDITORIAL, EDITORIAL_PAGE_VISIBLE } from '../config/site';
 
 /** Публичные информационные страницы. «Источники информации» и «Политика конфиденциальности» из интерфейса убраны */
 export type InfoView = 'about' | 'rules' | 'contacts' | 'editorial';
@@ -239,7 +239,7 @@ export const InfoPage: React.FC<{ view: InfoView; lang: Language; onNavigate: (v
     document.title = `${TITLES[view][lang]} — DataNews Kyrgyzstan`;
     window.scrollTo(0, 0);
   }, [view, lang]);
-  const tabs: InfoView[] = ['about', 'rules', 'editorial', 'contacts'];
+  const tabs: InfoView[] = EDITORIAL_PAGE_VISIBLE ? ['about', 'rules', 'editorial', 'contacts'] : ['about', 'rules', 'contacts'];
   return (
     <div className="w-full max-w-[960px] mx-auto px-4 md:px-6 py-8">
       <button onClick={() => onNavigate('home')} className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4">
@@ -262,7 +262,7 @@ export const InfoPage: React.FC<{ view: InfoView; lang: Language; onNavigate: (v
       <div className="space-y-3">
         {view === 'about' && ABOUT[lang]}
         {view === 'rules' && RULES[lang]}
-        {view === 'editorial' && <Editorial lang={lang} />}
+        {view === 'editorial' && EDITORIAL_PAGE_VISIBLE && <Editorial lang={lang} />}
         {view === 'contacts' && (
           <>
             <P>

@@ -1,4 +1,5 @@
 import { SocialLinks } from './ContactButtons';
+import { EDITORIAL_PAGE_VISIBLE } from '../config/site';
 import React from 'react';
 import type { Language, ViewMode } from '../types';
 import { getTranslation } from '../locales/translations';
@@ -58,7 +59,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigat
   const about: Link[] = [
     { label: t('footer.about'), onClick: nav('about') },
     { label: t('footer.rules'), onClick: nav('rules') },
-    { label: t('footer.editorial'), onClick: nav('editorial') },
+    ...(EDITORIAL_PAGE_VISIBLE ? [{ label: t('footer.editorial'), onClick: nav('editorial') }] : []),
   ];
 
   return (

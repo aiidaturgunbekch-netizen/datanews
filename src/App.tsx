@@ -48,6 +48,7 @@ import { EmergencyBox, HydrometLine, WeatherCard } from './components/WeatherSaf
 import { TheatreVenues } from './components/TheatreVenues';
 import { freshOrder, isFresh } from './utils/statusUtils';
 import { RUBRICS, rubricIdOf, rubricOf } from './config/rubrics';
+import { EDITORIAL_PAGE_VISIBLE } from './config/site';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -852,7 +853,7 @@ export default function App() {
         )}
 
         {/* О проекте, правила, контакты */}
-        {(['about', 'rules', 'contacts', 'editorial'] as const).includes(currentView as InfoView) && (
+        {(['about', 'rules', 'contacts', ...(EDITORIAL_PAGE_VISIBLE ? ['editorial'] : [])] as string[]).includes(currentView as InfoView) && (
           <InfoPage view={currentView as InfoView} lang={currentLanguage} onNavigate={setCurrentView} />
         )}
       </Suspense>

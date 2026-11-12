@@ -23,6 +23,7 @@ const read = () => {
       VAPID_SUBJECT: process.env.VAPID_SUBJECT,
       MAIL_INGEST_SECRET: process.env.MAIL_INGEST_SECRET,
       MAIL_INGEST_ENABLED: process.env.MAIL_INGEST_ENABLED,
+      COLLECTOR_SECRET: process.env.COLLECTOR_SECRET,
       VERCEL_ENV: process.env.VERCEL_ENV,
       VERCEL_GIT_COMMIT_REF: process.env.VERCEL_GIT_COMMIT_REF,
       VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA,
@@ -83,6 +84,7 @@ export const env = (
     | 'VAPID_PRIVATE_KEY'
     | 'VAPID_SUBJECT'
     | 'MAIL_INGEST_SECRET'
+    | 'COLLECTOR_SECRET'
     | 'MAIL_INGEST_ENABLED'
     | 'VERCEL_ENV'
     | 'VERCEL_GIT_COMMIT_REF'

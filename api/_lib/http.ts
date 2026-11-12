@@ -89,7 +89,7 @@ const hmac = async (data: string) => {
   return b64url(new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(data))));
 };
 
-const safeEqual = (a: string, b: string) => {
+export const safeEqual = (a: string, b: string) => {
   if (a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);

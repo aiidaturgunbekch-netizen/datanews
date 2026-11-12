@@ -12,10 +12,15 @@
  *   GET  ?mail=settings          — состояние приёма: выключатель, окружение, задан ли секрет (без значения; только администратор)
  *   POST ?mail=settings { enabled } — выключатель «Приём почты» (только администратор; на Production включить нельзя)
  *
+ * Сборщики новостей (api/_lib/collector.ts), ключ — заголовок Authorization: Bearer:
+ *   POST ?collector=batch { text, title? } — пакет DATANEWS-BATCH: новости черновиками в «Модерацию», погода — прогноз
+ *   GET  ?collector=recent&days=3          — что уже есть на сайте и новые письма редакции (чтобы не повторяться)
+ *
  * Приём работает только в Preview-сборках (и локально); на Production он отключён независимо от секретов.
  */
 import { handler, HttpError, json, rateLimit, readBody, requireAdmin } from './_lib/http';
 import { getStatuses, SOURCES } from './_lib/sources';
+import { collectorBatch, collectorRecent, verifyCollector } from './_lib/collector';
 import { getMailAttachment, ingestMail, listMail, mailAction, MailAction, mailStatus, setMailSettings, verifyIngestRequest } from './_lib/mail';
 
 export const config = { runtime: 'edge' };
@@ -23,7 +28,20 @@ export const config = { runtime: 'edge' };
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
 export default handler(async (req) => {
-  const mail = new URL(req.url).searchParams.get('mail');
+  const params = new URL(req.url).searchParams;
+  const mail = params.get('mail');
+  const collector = params.get('collector');
+
+  if (collector === 'batch') {
+    if (req.method !== 'POST') throw new HttpError('method_not_allowed', 405);
+    await verifyCollector(req);
+    return json(await collectorBatch(await readBody<{ text?: unknown; title?: unknown }>(req, 2_300_000)), 200, NO_STORE);
+  }
+  if (collector === 'recent') {
+    await verifyCollector(req);
+    return json(await collectorRecent(Number(params.get('days')) || 3), 200, NO_STORE);
+  }
+  if (collector) throw new HttpError('not_found', 404);
 
   if (mail === 'ingest') {
     if (req.method !== 'POST') throw new HttpError('method_not_allowed', 405);

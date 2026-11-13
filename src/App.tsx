@@ -676,15 +676,7 @@ export default function App() {
                   </div>
                 </section>
 
-                {/* Что предстоит: сегодня, завтра, ближайшие дни — без повторов из «Главного» */}
-                <UpcomingDays
-                  lang={currentLanguage}
-                  items={upcomingPool}
-                  onOpen={setActiveNoticeDetail}
-                  onOpenCalendar={() => setCurrentView('calendar')}
-                />
-
-                {/* Лента (без повторов из «Главного»), сбоку — календарь и экстренные службы */}
+                {/* Лента «Афиша и новости» (без повторов из «Главного»), сбоку — «Самое читаемое» и экстренные службы */}
                 <section id="events-feed" className="w-full dn-section bg-wash border-t border-line scroll-mt-[calc(var(--header-h,136px)+1rem)]">
                   <div className="dn-container">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
@@ -699,7 +691,7 @@ export default function App() {
                       </div>
                       <aside className="lg:col-span-4 min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
                         {/* «Самое читаемое» — небольшое окошко рядом с лентой, над экстренными службами */}
-                        {/* только по настоящим прочтениям; ближайшие даты уже есть выше */}
+                        {/* только по настоящим прочтениям; ближайшие даты — отдельным блоком ниже */}
                         {sideNews.mode === 'popular' && (
                           <PopularNews
                             lang={currentLanguage}
@@ -716,6 +708,14 @@ export default function App() {
                     </div>
                   </div>
                 </section>
+
+                {/* Что предстоит: сегодня, завтра, ближайшие дни — после ленты, без повторов из «Главного» */}
+                <UpcomingDays
+                  lang={currentLanguage}
+                  items={upcomingPool}
+                  onOpen={setActiveNoticeDetail}
+                  onOpenCalendar={() => setCurrentView('calendar')}
+                />
 
                 <TheatreSchedule lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
 

@@ -311,12 +311,12 @@ export default function App() {
    * Один общий фильтр для счётчиков и списков (город, дата, поиск) — чтобы число на чипе категории
    * всегда совпадало с тем, что открывается по нажатию. Завершённые предупреждения не показываются.
    */
-  const matchesScope = (item: Announcement, ignoreCategory = false, withArchive = false) => {
-    // в поиске — и завершённые предупреждения (они попадают в свёрнутый «Архив» результатов)
+  const matchesScope = (item: Announcement, ignoreCategory = false, withArchive = false, ignoreCity = false) => {
+    // в поиске и на страницах разделов — и завершённые предупреждения (они попадают в свёрнутый «Архив»)
     if (!withArchive && !isListed(item)) return false;
     // Город: публикации «Весь Кыргызстан» (city = 'all') видны в любом городе
     const city = normalizeCity(item.city);
-    if (selectedCity !== 'all' && city !== selectedCity && city !== 'all') return false;
+    if (!ignoreCity && selectedCity !== 'all' && city !== selectedCity && city !== 'all') return false;
     if (!ignoreCategory && selectedCategory !== 'all' && item.category !== selectedCategory) return false;
 
     // Даты считаются по календарю Бишкека
@@ -408,11 +408,25 @@ export default function App() {
     return { mode: 'soon' as const, items: soon.slice(0, 5) };
   }, [eventsList, topStories, popularReads]);
   const rubric = rubricOf(activeRubric);
+  // Страница раздела: актуальное сверху, прошедшее (в том числе завершённые отключения) — в «Архиве» ниже, ничего не теряется
   const rubricItems = useMemo(
-    () => (rubric ? announcements.filter((a) => matchesScope(a, true) && rubric.categories.includes(a.category)) : []),
+    () => (rubric ? announcements.filter((a) => matchesScope(a, true, true) && rubric.categories.includes(a.category)) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [announcements, rubric, selectedCity, dateFilter, searchQuery]
   );
+  // Раздел из панели «Разделы» — тоже с архивом
+  const categoryItems = useMemo(
+    () => (selectedCategory !== 'all' ? announcements.filter((a) => matchesScope(a, false, true)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [announcements, selectedCity, selectedCategory, dateFilter, searchQuery]
+  );
+  // Сколько материалов раздела есть в других городах и областях — чтобы читатель знал, что они не пропали
+  const elsewhereCount = useMemo(() => {
+    if (selectedCity === 'all' || (!rubric && selectedCategory === 'all')) return 0;
+    const inSection = (a: Announcement) => (rubric ? rubric.categories.includes(a.category) : a.category === selectedCategory);
+    return announcements.filter((a) => inSection(a) && matchesScope(a, Boolean(rubric), true, true)).length - (rubric ? rubricItems.length : categoryItems.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [announcements, rubric, selectedCategory, selectedCity, rubricItems, categoryItems, dateFilter, searchQuery]);
   // Поиск относится к текущей странице: при переходе в раздел или на другую страницу он сбрасывается,
   // иначе забытое в строке слово («аба») прячет все новости раздела
   useEffect(() => {
@@ -574,6 +588,8 @@ export default function App() {
                 title={rubric.label[currentLanguage]}
                 adRubric={rubric.id}
                 items={rubricItems}
+                elsewhere={elsewhereCount}
+                onAllCities={() => setSelectedCity('all')}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => selectRubric(null)}
                 extra={
@@ -595,7 +611,9 @@ export default function App() {
                 lang={currentLanguage}
                 category={selectedCategory}
                 adRubric={rubricIdOf(selectedCategory)}
-                items={filteredAnnouncements}
+                items={categoryItems}
+                elsewhere={elsewhereCount}
+                onAllCities={() => setSelectedCity('all')}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}
                 extra={
@@ -761,7 +779,9 @@ export default function App() {
                 lang={currentLanguage}
                 category={selectedCategory}
                 adRubric={rubricIdOf(selectedCategory)}
-                items={filteredAnnouncements}
+                items={categoryItems}
+                elsewhere={elsewhereCount}
+                onAllCities={() => setSelectedCity('all')}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}
                 extra={

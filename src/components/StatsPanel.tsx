@@ -293,7 +293,11 @@ export const CategoryResults: React.FC<{
   emptyText?: string | null;
   /** Поисковый запрос: список уже отсортирован по похожести (порядок не меняем), найденные слова — жирным */
   query?: string;
-}> = ({ lang, category, items, onOpen, onReset, extra, title, adRubric, emptyText, query }) => {
+  /** Сколько материалов раздела есть в других городах и областях (не попали из-за выбранного города) */
+  elsewhere?: number;
+  /** Показать все города */
+  onAllCities?: () => void;
+}> = ({ lang, category, items, onOpen, onReset, extra, title, adRubric, emptyText, query, elsewhere = 0, onAllCities }) => {
   const { t } = getTranslation(lang);
   // Прошедшее — в архив (свёрнут), сверху только актуальное
   // Раздел новостей (ИИ и IT, бизнес): всё сразу, новые сверху — без архива (новость читают и через неделю, и через месяц)
@@ -304,19 +308,33 @@ export const CategoryResults: React.FC<{
     sorted.sort((a, b) => freshOrder(a, b));
     archived.sort((a, b) => byStart(b, a));
   }
-  // в поиске прошедшее тоже показываем сразу (ниже актуального) — читатель ищет всё, что есть на сайте
-  const [showArchive, setShowArchive] = useState(Boolean(query));
+  // в поиске прошедшее тоже показываем сразу (ниже актуального) — читатель ищет всё, что есть на сайте;
+  // если актуального нет, архив тоже открыт сразу — страница раздела не выглядит пустой
+  const onlyArchive = sorted.length === 0 && archived.length > 0;
+  const [showArchive, setShowArchive] = useState(Boolean(query) || onlyArchive);
   useEffect(() => {
-    if (query) setShowArchive(true);
-  }, [query]);
+    if (query || onlyArchive) setShowArchive(true);
+  }, [query, onlyArchive]);
   const archiveLabel = query ? { ru: 'Прошедшие', kg: 'Өткөндөр', en: 'Past' } : { ru: 'Архив', kg: 'Архив', en: 'Archive' };
-  const total = query ? items.length : sorted.length;
+  // в заголовке — все материалы раздела (актуальные и архив), чтобы число совпадало с тем, что видно на странице
+  const total = items.length;
   const empty = {
     ru: 'Пока нет опубликованных материалов в этом разделе',
     kg: 'Бул бөлүмдө азырынча жарыяланган материалдар жок',
     en: 'Nothing has been published in this section yet',
   };
   const home = { ru: 'Главная', kg: 'Башкы бет', en: 'Home' };
+  const noCurrent = {
+    ru: 'Сейчас актуальных публикаций нет — прошедшие ниже, в архиве.',
+    kg: 'Азыр актуалдуу жарыялар жок — өткөндөрү төмөндө, архивде.',
+    en: 'Nothing current right now — past posts are in the archive below.',
+  };
+  const elsewhereText = {
+    ru: `Ещё ${elsewhere} — в других городах и областях.`,
+    kg: `Дагы ${elsewhere} — башка шаарларда жана облустарда.`,
+    en: `${elsewhere} more in other cities and regions.`,
+  };
+  const showAll = { ru: 'Показать все города', kg: 'Бардык шаарларды көрсөтүү', en: 'Show all cities' };
   const goHome = () => {
     onReset();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -337,8 +355,17 @@ export const CategoryResults: React.FC<{
         </h2>
         {extra && <div className="mb-4">{extra}</div>}
         {adRubric && <AdSlot format="D" rubric={adRubric} lang={lang} className="mb-5" />}
+        {elsewhere > 0 && onAllCities && !query && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+            <span>{elsewhereText[lang]}</span>
+            <button type="button" onClick={onAllCities} className="font-bold text-[#12327A] hover:underline">
+              {showAll[lang]}
+            </button>
+          </div>
+        )}
+        {onlyArchive && !query && <div className="py-4 px-4 text-sm text-gray-600 bg-[#f8fafc] rounded-2xl">{noCurrent[lang]}</div>}
         {sorted.length === 0 ? (
-          total > 0 ? null : emptyText === null || extra ? null : <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{emptyText || empty[lang]}</div>
+          total > 0 || onlyArchive ? null : emptyText === null || extra ? null : <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{emptyText || empty[lang]}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {sorted.map((a) => (

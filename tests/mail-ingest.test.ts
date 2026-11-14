@@ -245,6 +245,46 @@ describe('повторы и дубли', () => {
   });
 });
 
+describe('служебные письма сервисов', () => {
+  before(async () => {
+    await setSwitch(true);
+  });
+
+  for (const from of ['Upstash <support@upstash.com>', 'ccTLD KG <support@cctld.kg>', 'CCTLD <notification@cctld.kg>', 'Google <no-reply@accounts.google.com>', 'Shop <noreply@shop.example.com>']) {
+    it(`${from} — сразу в «Отклонённые», публикация не создаётся`, async () => {
+      const before = await annCount();
+      const l = letter({ from, subject: `Welcome ${Math.random()}`, text: `Служебное уведомление ${Math.random()}` });
+      const r = await send(await signed(l));
+      assert.equal(r.body.result, 'stored');
+      assert.equal(r.body.status, 'rejected');
+      const item = await getItem(l.messageId);
+      assert.ok(item.history.some((h: { action: string }) => h.action === 'auto_rejected'));
+      assert.equal(await annCount(), before);
+    });
+  }
+
+  it('письма читателей и госорганов остаются в «Новых»', async () => {
+    for (const from of ['Читатель <reader@gmail.com>', 'Пресс-служба <press@example.gov.kg>', 'Мэрия <noreply@bishkek.gov.kg>']) {
+      const l = letter({ from });
+      assert.equal((await send(await signed(l))).body.status, 'new', from);
+    }
+  });
+
+  it('отклонённое автоматически можно вернуть в новые', async () => {
+    const l = letter({ from: 'Upstash <support@upstash.com>', text: `Уведомление ${Math.random()}` });
+    await send(await signed(l));
+    const r = await sources(
+      new Request(`${BASE}?mail=action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${admin}` },
+        body: JSON.stringify({ id: l.messageId, action: 'reopen' }),
+      })
+    );
+    assert.equal(r.status, 200);
+    assert.equal((await getItem(l.messageId)).status, 'new');
+  });
+});
+
 describe('содержание письма', () => {
   it('письмо без даты — дата не придумывается, дата получения не становится датой события', async () => {
     const l = letter({ subject: 'Информационное сообщение', text: 'Уважаемые жители! Подробности будут сообщены дополнительно.' });

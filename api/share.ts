@@ -6,6 +6,8 @@
  */
 import type { Language } from '../src/types';
 import { esc, injectArticle, loadForPages, standalonePage } from './_lib/articlePage';
+import { injectSection, standaloneSection } from './_lib/sectionPage';
+import { rubricOf } from '../src/config/rubrics';
 
 export const config = { runtime: 'edge' };
 
@@ -32,6 +34,17 @@ export default async function share(req: Request): Promise<Response> {
   const langParam = url.searchParams.get('lang');
   const lang: Language = langParam === 'kg' || langParam === 'en' ? langParam : 'ru';
   const origin = `${url.protocol}//${url.host}`;
+
+  // /r/<рубрика> — страница раздела со списком материалов (для поиска «погода», «отключение воды» и т. п.)
+  const rubricId = url.searchParams.get('rubric');
+  if (rubricId !== null) {
+    const r = rubricOf(rubricId.replace(/[^\w-]/g, ''));
+    if (!r) return Response.redirect(`${origin}/`, 302);
+    const all = await loadForPages();
+    const shell = await loadShell(req, origin);
+    const page = shell ? injectSection(shell, r, all, lang, origin) : null;
+    return html(page || standaloneSection(r, all, lang, origin), 200);
+  }
 
   const a = (await loadForPages()).find((x) => x.id === id);
   if (!a) {

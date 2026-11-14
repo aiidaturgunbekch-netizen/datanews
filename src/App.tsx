@@ -106,7 +106,8 @@ export default function App() {
   // Ссылка из push-уведомления на раздел — /?r=<рубрика>: раздел открывается сразу
   const [activeRubric, setActiveRubric] = useState<string | null>(() => {
     try {
-      const r = new URLSearchParams(window.location.search).get('r');
+      // Страница раздела /r/<рубрика> (её находят в поиске) или старая ссылка /?r=<рубрика>
+      const r = window.location.pathname.match(/^\/r\/([\w-]+)\/?$/)?.[1] || new URLSearchParams(window.location.search).get('r');
       return r && rubricOf(r) ? r : null;
     } catch {
       return null;
@@ -408,6 +409,17 @@ export default function App() {
     return { mode: 'soon' as const, items: soon.slice(0, 5) };
   }, [eventsList, topStories, popularReads]);
   const rubric = rubricOf(activeRubric);
+  // Адрес раздела: /r/<рубрика> — его можно отправить и найти в поиске; на главной — «/». Адрес статьи (/n/…) не трогаем
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (/^\/n\//.test(path)) return;
+    const want = activeRubric ? `/r/${activeRubric}` : '/';
+    if (path === want || (!activeRubric && !/^\/r\//.test(path))) return;
+    const params = new URLSearchParams(window.location.search);
+    params.delete('r');
+    const q = params.toString();
+    history.replaceState(null, '', want + (q ? `?${q}` : '') + window.location.hash);
+  }, [activeRubric]);
   // Страница раздела: актуальное сверху, прошедшее (в том числе завершённые отключения) — в «Архиве» ниже, ничего не теряется
   const rubricItems = useMemo(
     () => (rubric ? announcements.filter((a) => matchesScope(a, true, true) && rubric.categories.includes(a.category)) : []),

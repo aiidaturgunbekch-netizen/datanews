@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/n/:id", "destination": "/api/share?id=:id" },
+    { "source": "/r/:rubric", "destination": "/api/share?rubric=:rubric" },
     { "source": "/sitemap.xml", "destination": "/api/sitemap" }
   ],
   "headers": [

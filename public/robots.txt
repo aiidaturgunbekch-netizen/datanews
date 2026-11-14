@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-# Карта сайта: https://<ваш-домен>/sitemap.xml — впишите адрес после подключения домена
+Sitemap: https://datanews.kg/sitemap.xml

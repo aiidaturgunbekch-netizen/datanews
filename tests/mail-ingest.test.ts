@@ -122,17 +122,19 @@ describe('выключатель «Приём почты» и только Previ
     assert.equal((await send(await signed(l))).body.result, 'stored', 'после включения письмо принимается');
   });
 
-  it('на Production приём отключён даже при заданном секрете и включённом выключателе', async () => {
+  it('на Production приём закрыт, пока администратор не включит его в панели', async () => {
     process.env.VERCEL_ENV = 'production';
     try {
+      assert.equal((await setSwitch(false)).status, 200);
       const l = letter();
       const r = await send(await signed(l));
       assert.equal(r.status, 503);
-      assert.equal(r.body.error, 'mail_production_disabled');
+      assert.equal(r.body.error, 'mail_paused');
       assert.equal(await cmd('HGET', MAIL_KEY, l.messageId), null);
-      assert.equal((await setSwitch(true)).status, 403, 'включить на Production нельзя');
+      assert.equal((await setSwitch(true)).status, 200, 'на Production выключатель включается из панели');
+      assert.equal((await send(await signed(l))).body.result, 'stored');
       const st = await (await sources(new Request(`${BASE}?mail=settings`, { headers: { Authorization: `Bearer ${admin}` } }))).json();
-      assert.equal(st.productionBlocked, true);
+      assert.equal(st.productionBlocked, false);
     } finally {
       delete process.env.VERCEL_ENV;
     }

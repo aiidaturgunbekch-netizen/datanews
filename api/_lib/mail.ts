@@ -74,7 +74,6 @@ export const getMailSettings = async (): Promise<MailSettings> => {
 };
 
 export const setMailSettings = async (enabled: boolean): Promise<MailSettings> => {
-  if (enabled && deployEnv() === 'production') throw new HttpError('mail_production_disabled', 403, 'На основном сайте приём почты отключён');
   const v: MailSettings = { enabled, at: kgNowLocal() };
   await cmd('SET', MAIL_SETTINGS_KEY, JSON.stringify(v));
   return v;
@@ -104,7 +103,8 @@ export const mailStatus = async () => {
     ...(await getMailSettings()),
     environment: deployEnv(),
     build: buildInfo(),
-    productionBlocked: deployEnv() === 'production',
+    // С запуском основного сайта приём на Production разрешён; управляет им выключатель в панели (по умолчанию выключен)
+    productionBlocked: false,
     secretState: state,
     secretConfigured: state === 'ok',
     envSwitchOff: env('MAIL_INGEST_ENABLED') === '0',
@@ -116,7 +116,6 @@ export const mailStatus = async () => {
  * Отказ — до чтения тела и проверки подписи; письмо остаётся в ящике и уйдёт, когда приём включат.
  */
 export const assertIngestOpen = async () => {
-  if (deployEnv() === 'production') throw new HttpError('mail_production_disabled', 503, 'На основном сайте приём почты отключён');
   if (env('MAIL_INGEST_ENABLED') === '0') throw new HttpError('mail_disabled', 503, 'Приём писем выключен (MAIL_INGEST_ENABLED=0)');
   if (!(await getMailSettings()).enabled) throw new HttpError('mail_paused', 503, 'Приём почты выключен в панели администратора');
 };

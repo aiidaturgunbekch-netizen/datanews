@@ -84,10 +84,15 @@ describe('приём пакетов от сборщиков', () => {
     assert.ok(Array.isArray(j.mail));
   });
 
-  it('на Production приём закрыт, как и приём почты', async () => {
+  it('на Production приём открыт только выключателем «Приём почты» в панели', async () => {
     process.env.VERCEL_ENV = 'production';
+    const toggle = (enabled: boolean) =>
+      sources(new Request('http://localhost/api/sources?mail=settings', { method: 'POST', headers: { Authorization: `Bearer ${admin}` }, body: JSON.stringify({ enabled }) }));
     try {
-      assert.equal((await post(SECRET, { text: batchText.replace('Токтогула', 'Ахунбаева') })).status, 503);
+      await toggle(false);
+      assert.equal((await post(SECRET, { text: batchText.replace('Токтогула', 'Ахунбаева') })).status, 503, 'выключено — пакет не принимается');
+      await toggle(true);
+      assert.equal((await post(SECRET, { text: batchText.replace('Токтогула', 'Ахунбаева') })).status, 200, 'включено в панели — принимается');
     } finally {
       delete process.env.VERCEL_ENV;
     }

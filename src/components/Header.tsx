@@ -122,8 +122,9 @@ export const Header: React.FC<HeaderProps> = ({
               {t('nav.forOrg')}
             </button>
             <span className="max-[20em]:hidden w-px h-4 bg-white/15" aria-hidden="true" />
+            {/* Кыргызский — первым: государственный язык; русский по умолчанию остаётся, пока не решим иначе */}
             <div className="flex items-center gap-1" role="group" aria-label={currentLanguage === 'kg' ? 'Тил' : currentLanguage === 'en' ? 'Language' : 'Язык'}>
-              {(['ru', 'kg', 'en'] as Language[]).map((lang) => (
+              {(['kg', 'ru', 'en'] as Language[]).map((lang) => (
                 <button
                   key={lang}
                   onClick={() => onLanguageChange(lang)}

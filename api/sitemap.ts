@@ -1,5 +1,6 @@
-/** /sitemap.xml (через vercel.json) — главная и страница каждой опубликованной новости; работает и без базы */
+/** /sitemap.xml (через vercel.json) — главная, страницы разделов и страница каждой опубликованной новости; работает и без базы */
 import { loadForPages } from './_lib/articlePage';
+import { RUBRICS } from '../src/config/rubrics';
 
 export const config = { runtime: 'edge' };
 
@@ -9,6 +10,8 @@ export default async function sitemap(req: Request): Promise<Response> {
   const items = await loadForPages();
   const urls = [
     `<url><loc>${origin}/</loc><changefreq>hourly</changefreq></url>`,
+    // Страницы разделов: «Погода», «Отключения», «Дороги»… — по ним ищут чаще всего
+    ...RUBRICS.map((r) => `<url><loc>${origin}/r/${r.id}</loc><changefreq>hourly</changefreq></url>`),
     ...items.map((a) => `<url><loc>${origin}/n/${encodeURIComponent(a.id)}</loc><lastmod>${(a.updatedAt || a.publishedAt || '').slice(0, 10)}</lastmod></url>`),
   ];
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`, {

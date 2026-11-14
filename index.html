@@ -22,6 +22,34 @@
     <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
     <meta name="theme-color" content="#041E52" />
     <link rel="icon" type="image/png" sizes="64x64" href="/brand/favicon-64.png" />
+    <meta name="application-name" content="DataNews Кыргызстан" />
+    <!-- Название сайта для Google и Яндекса: варианты написания, по которым ищут сайт («Датаньюс», «DataNews KG»…) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://datanews.kg/#website",
+            "url": "https://datanews.kg/",
+            "name": "DataNews Кыргызстан",
+            "alternateName": ["DataNews KG", "DataNews Kyrgyzstan", "datanews.kg", "ДатаНьюс", "Датаньюс КГ", "Дата Ньюс Кыргызстан"],
+            "inLanguage": ["ky", "ru", "en"],
+            "publisher": { "@id": "https://datanews.kg/#organization" }
+          },
+          {
+            "@type": "NewsMediaOrganization",
+            "@id": "https://datanews.kg/#organization",
+            "name": "DataNews Кыргызстан",
+            "alternateName": ["DataNews KG", "DataNews Kyrgyzstan", "ДатаНьюс"],
+            "url": "https://datanews.kg/",
+            "logo": { "@type": "ImageObject", "url": "https://datanews.kg/icon-512.png", "width": 512, "height": 512 },
+            "areaServed": { "@type": "Country", "name": "Kyrgyzstan" },
+            "sameAs": ["https://www.instagram.com/data.news.kg/"]
+          }
+        ]
+      }
+    </script>
   </head>
   <body class="min-h-full bg-[#F5F7FB] text-[#0f1b33] antialiased">
     <div id="root"></div>

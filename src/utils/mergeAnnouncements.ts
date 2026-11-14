@@ -30,7 +30,18 @@ export const mergeAnnouncements = (server: Announcement[], hidden: string[] = []
     const at = later(a.lastCheckedAt, checked[a.id]);
     byId.set(a.id, at && at !== a.lastCheckedAt ? { ...a, lastCheckedAt: at } : a);
   });
-  server.forEach((a) => byId.set(a.id, a));
+  // Правленая копия встроенной новости, где кыргызский текст случайно заменён копией русского (старая ошибка сохранения):
+  // возвращаем кыргызский перевод из исходной новости, чтобы она не пропадала из кыргызской версии
+  server.forEach((a) => {
+    const orig = byId.get(a.id);
+    if (orig && a.description?.kg && a.description.kg === a.description.ru && orig.description.kg && orig.description.kg !== orig.description.ru) {
+      const fix = (k: 'title' | 'summary' | 'description' | 'location') =>
+        a[k] && a[k].kg === a[k].ru && orig[k]?.kg ? { ...a[k], kg: orig[k].kg } : a[k];
+      byId.set(a.id, { ...a, title: fix('title'), summary: fix('summary'), description: fix('description'), location: fix('location') });
+      return;
+    }
+    byId.set(a.id, a);
+  });
   hidden.forEach((id) => byId.delete(id));
   return [...byId.values()];
 };

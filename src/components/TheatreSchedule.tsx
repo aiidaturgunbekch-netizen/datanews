@@ -5,6 +5,7 @@ import { kgDateStr } from '../utils/time';
 import { isFresh } from '../utils/statusUtils';
 import { ticketLink } from '../utils/links';
 import { getTranslation } from '../locales/translations';
+import { placeText } from '../utils/place';
 
 const L = {
   title: { ru: 'Театры: график спектаклей', kg: 'Театрлар: спектаклдердин графиги', en: 'Theatres: performance schedule' },
@@ -44,7 +45,7 @@ export const TheatreSchedule: React.FC<{ lang: Language; announcements: Announce
 
   return (
     <section className="w-full py-8 bg-white border-t border-gray-100" aria-labelledby="theatre-title">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+      <div className="dn-container">
         <div className="flex items-center gap-2 mb-1">
           <span className="material-symbols-outlined text-fuchsia-600 text-[24px]">theaters</span>
           <h2 id="theatre-title" className="text-xl sm:text-2xl font-bold text-[#0f1b33]">
@@ -65,7 +66,7 @@ export const TheatreSchedule: React.FC<{ lang: Language; announcements: Announce
                       <button onClick={() => onOpen(a)} className="flex-1 min-w-[180px] text-left">
                         <span className="block text-sm font-bold text-[#0f1b33] hover:underline">{a.title[lang] || a.title.ru}</span>
                         <span className="block text-xs text-gray-500">
-                          {a.location[lang] || a.location.ru} • {t(`cities.${a.city}`)}
+                          {[placeText(a, lang), t(`cities.${a.city}`)].filter(Boolean).join(' • ')}
                           {a.timeTBA ? ` • ${L.time[lang]}` : ''}
                         </span>
                       </button>

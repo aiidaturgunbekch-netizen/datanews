@@ -262,9 +262,9 @@ export const answer = (input: BotInput, source: Announcement[], official: Offici
       return reply({
         answer: tr(
           {
-            ru: `Редакция DataNews:\n• WhatsApp: ${CONTACTS.phone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: тот же номер ${CONTACTS.phone} (найдите по номеру в Telegram)\nНе экстренная служба: при опасности звоните 112.`,
-            kg: `DataNews редакциясы:\n• WhatsApp: ${CONTACTS.phone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: ошол эле номер ${CONTACTS.phone} (Telegram'дан номер боюнча табыңыз)\nШашылыш кызмат эмес: коркунучта 112ге чалыңыз.`,
-            en: `DataNews editors:\n• WhatsApp: ${CONTACTS.phone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: same number ${CONTACTS.phone} (search by number in Telegram)\nNot an emergency service: in danger call 112.`,
+            ru: `Редакция DataNews:\n• WhatsApp: ${CONTACTS.whatsappPhone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: ${CONTACTS.telegramPhone} (найдите по номеру в Telegram)\nНе экстренная служба: при опасности звоните 112.`,
+            kg: `DataNews редакциясы:\n• WhatsApp: ${CONTACTS.whatsappPhone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: ${CONTACTS.telegramPhone} (Telegram'дан номер боюнча табыңыз)\nШашылыш кызмат эмес: коркунучта 112ге чалыңыз.`,
+            en: `DataNews editors:\n• WhatsApp: ${CONTACTS.whatsappPhone}\n• Instagram: ${CONTACTS.instagramHandle}\n• Telegram: ${CONTACTS.telegramPhone} (search by number in Telegram)\nNot an emergency service: in danger call 112.`,
           },
           lang
         ),
@@ -331,9 +331,9 @@ export const answer = (input: BotInput, source: Announcement[], official: Offici
         const v = fc.regions[id as CityId]!;
         return `• ${t(`cities.${id}`)}: ${tr({ ru: 'ночью', kg: 'түнкүсүн', en: 'night' }, lang)} ${sign(v.nightFrom)}…${sign(v.nightTo)}, ${tr({ ru: 'днём', kg: 'күндүз', en: 'day' }, lang)} ${sign(v.dayFrom)}…${sign(v.dayTo)} °C`;
       });
-      links.unshift({ label: `${tr({ ru: 'Источник', kg: 'Булак', en: 'Source' }, lang)}: ${fc.sourceName}`, href: fc.sourceUrl });
+      links.unshift({ label: `${tr({ ru: 'Источник', kg: 'Булагы', en: 'Source' }, lang)}: ${fc.sourceName}`, href: fc.sourceUrl });
       return reply({
-        answer: `${tr({ ru: 'Официальный прогноз', kg: 'Расмий божомол', en: 'Official forecast' }, lang)} (${fc.sourceName}) — ${formatDayMonth(fc.date, lang)}:\n${rows.join('\n')}${fc.text ? `\n${fc.text}` : ''}${fc.updatedAt ? `\n${tr({ ru: 'Обновлено', kg: 'Жаңыланды', en: 'Updated' }, lang)}: ${formatDayMonthTime(kgNowLocal(Date.parse(fc.updatedAt)), lang)}` : ''}`,
+        answer: `${tr({ ru: 'Официальный прогноз', kg: 'Расмий божомол', en: 'Official forecast' }, lang)} (${fc.sourceName}) — ${formatDayMonth(fc.date, lang)}:\n${rows.join('\n')}${fc.text ? `\n${fc.text}` : ''}${fc.updatedAt ? `\n${tr({ ru: 'Обновлено', kg: 'Жаңыртылды', en: 'Updated' }, lang)}: ${formatDayMonthTime(kgNowLocal(Date.parse(fc.updatedAt)), lang)}` : ''}`,
         links,
         actions: follow(lang, 'storm', 'passes'),
       });

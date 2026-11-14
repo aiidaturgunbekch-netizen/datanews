@@ -7,18 +7,19 @@ import { Announcement, Language } from '../types';
  */
 export const isPaid = (a: Announcement) => a.dataOrigin === 'user' && !a.publishedByGov;
 
-const LABEL: Record<Language, string> = { ru: 'Платное размещение', kg: 'Акылуу жайгаштыруу', en: 'Paid placement' };
+// Коммерческое размещение явно отличается от редакционных материалов (не маскируется под новость)
+const LABEL: Record<Language, string> = { ru: 'Партнёрский материал', kg: 'Өнөктөштүк материал', en: 'Partner content' };
 const HINT: Record<Language, string> = {
-  ru: 'Публикация организатора по тарифу DataNews. Прошла модерацию; за сведения отвечает организатор.',
-  kg: 'Уюштуруучунун DataNews тарифи боюнча жарыясы. Модерациядан өткөн; маалымат үчүн уюштуруучу жооп берет.',
-  en: 'Organiser’s post under a DataNews plan. Moderated; the organiser is responsible for the details.',
+  ru: 'Платное размещение организатора по тарифу DataNews. Прошло модерацию; за сведения отвечает организатор, а не редакция.',
+  kg: 'Уюштуруучунун DataNews тарифи боюнча акылуу жайгаштыруусу. Модерациядан өткөн; маалымат үчүн редакция эмес, уюштуруучу жооп берет.',
+  en: 'Paid placement by the organiser under a DataNews plan. Moderated; the organiser, not the editors, is responsible for the details.',
 };
 
 export const PaidBadge: React.FC<{ item: Announcement; lang: Language; className?: string }> = ({ item, lang, className = '' }) =>
   isPaid(item) ? (
     <span
       title={HINT[lang]}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-900 text-[10.5px] font-bold uppercase tracking-wide ${className}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border border-partner/25 bg-partner-wash text-partner text-[10.5px] font-bold uppercase tracking-wide ${className}`}
     >
       <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
         sell
@@ -29,7 +30,7 @@ export const PaidBadge: React.FC<{ item: Announcement; lang: Language; className
 
 export const PaidNote: React.FC<{ item: Announcement; lang: Language }> = ({ item, lang }) =>
   isPaid(item) ? (
-    <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+    <div className="p-3 rounded-xl bg-partner-wash border border-partner/25 text-xs text-partner flex items-start gap-2">
       <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
         sell
       </span>

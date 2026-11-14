@@ -4,6 +4,7 @@ import type { Announcement, CategoryId, CityId, UrgencyType } from '../types';
 import { parsePlaces } from '../lib/botEngine';
 import { DISTRICTS, inDistrict } from '../config/districts';
 import { kgDateStr } from './time';
+import { detectLang } from './lang';
 
 const MONTH_STEMS = ['январ', 'феврал', 'март', 'апрел', 'ма[йяе]', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр'];
 const MONTH_RE = MONTH_STEMS.join('|');
@@ -13,9 +14,12 @@ const CATEGORY_RULES: [RegExp, CategoryId][] = [
   [/постановлени|указ(?![а-я]*тел)|распоряжени|кабинет[а-я]* министров|жогорку кенеш/, 'state'],
   [/водоснабж|водопровод|подач[а-я]* (холодной |горячей )?вод|без воды|отключени[а-я]* (холодной |горячей )?вод/, 'water'],
   [/электроэнерги|электроснабж|отключени[а-я]* (электричества|света)|без света/, 'electricity'],
-  [/перевал|автодорог|трасс|дорожн|движени[а-я]* (транспорта|автомобил)|перекрыти/, 'roads'],
+  [/перевал|автодорог|трасс|дорожн|движени[а-я]* (транспорта|автомобил)|перекрыти|общественн[а-я]* транспорт|автобусн[а-я]* маршрут|маршрут[а-я]* №|троллейбус/, 'roads'],
   [/заморозк|снегопад|сел[ья]|лавин|сильн[а-я]* ветер|гроз|ливн|метел|гололед|паводк|землетрясени|аномальн[а-я]* жар/, 'hazard'],
   [/ремонт/, 'repairs'],
+  // Отопление (в т. ч. по-кыргызски «жылуулук», «жылытуу») — коммунальные работы
+  [/отоплени|теплоснабж|жылуулук|жылытуу/, 'repairs'],
+  [/спартакиад|соревновани|турнир|чемпионат|первенств|мелдеш|спорт/, 'sport'],
 ];
 
 const PLANNED: CategoryId[] = ['water', 'electricity', 'roads', 'repairs'];
@@ -30,10 +34,13 @@ export interface ImportResult {
   missing: string[];
 }
 
-/** Все даты из текста: «17 октября», «17–18 октября», «с 17 по 18 октября», «17.10.2026» */
+/**
+ * Все даты из текста: «17 октября», «17–18 октября», «с 17 по 18 октября», «17.10.2026»,
+ * по-кыргызски — «29-октябрында», «29-октябрь», «2026-жылдын 29-октябрында» (число и месяц через дефис)
+ */
 const findDates = (s: string, year: number): string[] => {
   const out: string[] = [];
-  const re = new RegExp(`(\\d{1,2})(?:\\s*(?:[-–—]|по|до)\\s*(\\d{1,2}))?\\s+(${MONTH_RE})`, 'g');
+  const re = new RegExp(`(\\d{1,2})(?:\\s*(?:[-–—]|по|до)\\s*(\\d{1,2}))?(?:\\s+|-)(${MONTH_RE})`, 'g');
   for (const m of s.matchAll(re)) {
     const mi = MONTH_STEMS.findIndex((x) => new RegExp(`^${x}`).test(m[3]));
     if (mi < 0) continue;
@@ -45,13 +52,22 @@ const findDates = (s: string, year: number): string[] => {
   return [...new Set(out)].sort();
 };
 
-/** Время «09:00», «9.30» (не часть даты 17.10.2026) */
+/** Время «09:00», «9.30», в том числе в конце предложения («в 10:00.»), но не часть даты 17.10.2026 */
 const findTimes = (s: string): string[] =>
-  [...s.matchAll(/(?<![\d.])([01]?\d|2[0-3])[:.]([0-5]\d)(?![.\d])/g)].map((m) => `${pad(m[1])}:${m[2]}`);
+  [...s.matchAll(/(?<![\d.])([01]?\d|2[0-3])[:.]([0-5]\d)(?!\d|\.\d)/g)].map((m) => `${pad(m[1])}:${m[2]}`);
 
 export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today = kgDateStr()): ImportResult => {
-  const raw = text.replace(/\r/g, '').trim();
-  const s = raw.toLowerCase().replace(/ё/g, 'е');
+  // Строка-штамп публикации источника («03.11.2026 18:34» отдельной строкой) — не часть новости: убираем из текста
+  const raw = text
+    .replace(/\r/g, '')
+    .replace(/^\s*\d{1,2}\.\d{1,2}\.20\d\d,?\s+\d{1,2}:\d{2}\s*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  // Строка-штамп публикации источника («03.11.2026 18:34» отдельной строкой) — это не дата события: в разбор дат не берём
+  const s = raw
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/^\s*\d{1,2}\.\d{1,2}\.20\d\d,?\s+\d{1,2}:\d{2}\s*$/gm, '');
   const found: string[] = [];
   const missing: string[] = [];
   const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -62,7 +78,8 @@ export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today
   const body = first.length <= 160 ? lines.slice(1).join('\n') : raw;
   const summary = (body.split(/(?<=[.!?])\s/)[0] || '').slice(0, 300);
 
-  const yearInText = s.match(/\b(20\d\d)\s*(?:г|год)/);
+  // «2026 г.», «2026 года», по-кыргызски «2026-жылдын», «2026-ж.»
+  const yearInText = s.match(/\b(20\d\d)\s*(?:г|год|-?\s*ж)/);
   const year = yearInText ? Number(yearInText[1]) : Number(today.slice(0, 4));
   const dates = findDates(s, year);
   const times = findTimes(s);
@@ -80,15 +97,19 @@ export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today
   // Адрес — первая строка с улицей, микрорайоном или селом
   const locLine = lines.find((l) => /(ул\.|улиц|пр\.|проспект|мкр|микрорайон|ж\/м|по адресу|\bс\.\s|\bсело\b)/i.test(l));
 
+  // Текст кладётся только в поле своего языка (кыргызский — в KG, русский — в RU): перевод добавляет редакция
+  const textLang = detectLang(raw);
+  const inLang = (v: string) => ({ ru: textLang === 'ru' ? v : '', kg: textLang === 'kg' ? v : '', en: '' });
   const draft: Partial<Announcement> = {
-    title: { ru: title, kg: title, en: title },
-    summary: { ru: summary, kg: summary, en: summary },
-    description: { ru: raw, kg: raw, en: raw },
+    title: inLang(title),
+    summary: inLang(summary),
+    description: inLang(raw),
     eventSourceUrl: sourceUrl.trim() || undefined,
     sourceName: sourceName.trim() || undefined,
     eventDetails: sourceName.trim() ? { organizer: sourceName.trim() } : undefined,
   };
-  if (title) found.push('заголовок');
+  if (title) found.push(`заголовок и текст (${textLang === 'kg' ? 'на кыргызском' : 'на русском'})`);
+  missing.push(textLang === 'kg' ? 'перевод на русский' : 'перевод на кыргызский');
 
   if (dates.length) {
     const startT = times[0] || '00:00';
@@ -111,7 +132,7 @@ export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today
   if (city) {
     draft.city = city;
     found.push(city === 'all' ? 'несколько областей' : 'город / область');
-  } else missing.push('город / область');
+  } else missing.push('область (если указана в источнике)');
   if (districtHits.length === 1) {
     draft.district = districtHits[0].d.ru;
     found.push(`район: ${districtHits[0].d.ru}`);
@@ -120,7 +141,7 @@ export const parseNotice = (text: string, sourceUrl = '', sourceName = '', today
   if (locLine) {
     draft.location = { ru: locLine.slice(0, 300), kg: locLine.slice(0, 300), en: locLine.slice(0, 300) };
     found.push('адрес');
-  } else missing.push('место / адрес');
+  } else missing.push('место (если указано в источнике)');
 
   if (!sourceName.trim()) missing.push('организация');
   if (!sourceUrl.trim()) missing.push('ссылка на первоисточник');

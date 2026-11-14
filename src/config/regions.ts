@@ -18,6 +18,10 @@ export const CATEGORY_IDS: Exclude<CategoryId, 'all'>[] = [
   'education',
   'state',
   'laws',
+  'news',
+  'business',
+  'tech',
+  'notices',
 ];
 
 /**
@@ -35,6 +39,19 @@ export const PLACE_IDS: Exclude<CityId, 'karakol'>[] = [
   'talas',
   'naryn',
   'batken',
+];
+
+/**
+ * Порядок мест в разделе «Предупреждения» (фильтр и подписка на уведомления):
+ * «Весь Кыргызстан», затем Чуйская и Ошская области (в них входят г. Бишкек и г. Ош), затем сами города, затем остальные области.
+ */
+export const ALERT_PLACE_IDS: Exclude<CityId, 'karakol'>[] = [
+  'all',
+  'chui',
+  'osh_region',
+  'bishkek',
+  'osh',
+  ...PLACE_IDS.filter((id) => !['all', 'chui', 'osh_region', 'bishkek', 'osh'].includes(id)),
 ];
 
 /** Старые значения → новые */

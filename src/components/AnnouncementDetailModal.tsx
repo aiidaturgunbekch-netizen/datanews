@@ -1,13 +1,18 @@
 import { PaidNote } from './PaidBadge';
-import React, { useEffect, useState } from 'react';
+import { CatLabel } from './CatLabel';
+import { EditButton, FeatureButton, useEdit } from './EditButton';
+import React, { useEffect, useRef, useState } from 'react';
 import { Announcement, Language } from '../types';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { EventImage } from './EventImage';
+import { AdSlot } from './AdSlot';
+import { BrandBadge } from './BrandLogo';
+import { SHARE_ARTICLE_TITLE, SHARE_TITLE, ShareMenu } from './ShareMenu';
+import { pickSideNews } from '../utils/timeline';
+import { rubricIdOf } from '../config/rubrics';
 import { getTranslation } from '../locales/translations';
 import { formatDate, formatDayMonthTime, formatWhen } from '../utils/dates';
-import { eventSource, groupedSources, hostOf, isGovTicket, SourceLink, ticketLink } from '../utils/links';
-import * as api from '../services/api';
-import { Report } from '../types';
+import { eventSource, groupedSources, hostOf, isGovTicket, SourceLink, sourceLabel, sourceTypeLabel, ticketLink } from '../utils/links';
 
 /** Подписи для истории исправлений */
 const CORR: Record<string, Record<Language, string>> = {
@@ -23,6 +28,7 @@ const CORR: Record<string, Record<Language, string>> = {
 };
 import { isExpired } from '../utils/urgency';
 import { kgDateStr, kgTs } from '../utils/time';
+import { hasAddress, placeText } from '../utils/place';
 
 interface Props {
   announcement: Announcement;
@@ -30,14 +36,18 @@ interface Props {
   onClose: () => void;
   onSelectOtherNotice?: (a: Announcement) => void;
   allAnnouncements: Announcement[];
+  /** Редакция (админ/редактор): видит служебные пометки, читатель — нет */
+  editorView?: boolean;
 }
 
 const L = {
   when: { ru: 'Когда', kg: 'Качан', en: 'When' },
+  // для новостей и решений — дата самого события, отдельно от даты публикации на сайте
+  eventDate: { ru: 'Дата события', kg: 'Окуянын күнү', en: 'Event date' },
   where: { ru: 'Где', kg: 'Кайда', en: 'Where' },
   price: { ru: 'Стоимость', kg: 'Баасы', en: 'Price' },
   about: { ru: 'Подробности', kg: 'Кеңири маалымат', en: 'Details' },
-  source: { ru: 'Источник', kg: 'Булак', en: 'Source' },
+  source: { ru: 'Источник', kg: 'Булагы', en: 'Source' },
   openSource: { ru: 'Открыть источник', kg: 'Булакты ачуу', en: 'Open source' },
   map: { ru: 'Показать на карте', kg: 'Картадан көрсөтүү', en: 'Show on map' },
   ics: { ru: 'Добавить в календарь', kg: 'Календарга кошуу', en: 'Add to calendar' },
@@ -45,10 +55,15 @@ const L = {
   copied: { ru: 'Ссылка скопирована', kg: 'Шилтеме көчүрүлдү', en: 'Link copied' },
   verified: { ru: 'Проверено', kg: 'Текшерилген', en: 'Verified' },
   updated: { ru: 'Обновлено', kg: 'Жаңыртылды', en: 'Updated' },
-  nearby: { ru: 'Ещё в этом городе', kg: 'Дагы ушул шаарда', en: 'More in this city' },
+  related: { ru: 'Читайте также', kg: 'Дагы окуңуз', en: 'Read also' },
+  sideNews: { ru: 'Актуальные новости', kg: 'Актуалдуу жаңылыктар', en: 'Latest news' },
+  back: { ru: 'Назад', kg: 'Артка', en: 'Back' },
+  brief: { ru: 'Коротко', kg: 'Кыскача', en: 'At a glance' },
+  published: { ru: 'Опубликовано', kg: 'Жарыяланды', en: 'Published' },
+  document: { ru: 'Документ', kg: 'Документ', en: 'Document' },
   close: { ru: 'Закрыть', kg: 'Жабуу', en: 'Close' },
   until: { ru: 'до', kg: 'чейин', en: 'until' },
-  buy: { ru: 'Купить билет', kg: 'Билеттерди сатып алуу', en: 'Buy tickets' },
+  buy: { ru: 'Купить билет', kg: 'Билет сатып алуу', en: 'Buy tickets' },
   ticketUnverified: {
     ru: 'Ссылка на билеты от организатора пока не подтверждена',
     kg: 'Уюштуруучунун билет шилтемеси азырынча тастыктала элек',
@@ -56,21 +71,18 @@ const L = {
   },
   noTickets: {
     ru: 'Ссылка на покупку билетов пока не подтверждена',
-    kg: 'Билет сатып алуучу шилтеме азырынча тастыктала элек',
+    kg: 'Билет сатып алуу шилтемеси азырынча тастыктала элек',
     en: 'Ticket link not yet confirmed',
   },
   links: { ru: 'Первоисточники', kg: 'Түпкү булактар', en: 'Primary sources' },
+  photo: { ru: 'Фото', kg: 'Сүрөт', en: 'Photo' },
   eventSource: { ru: 'Источник информации', kg: 'Маалымат булагы', en: 'Information source' },
   artist: { ru: 'Официальный сайт артиста', kg: 'Артисттин расмий сайты', en: 'Artist’s official site' },
   organizer: { ru: 'Организатор', kg: 'Уюштуруучу', en: 'Organiser' },
   venue: { ru: 'Площадка', kg: 'Аянтча', en: 'Venue' },
+  join: { ru: 'Ссылка на участие', kg: 'Катышуу шилтемеси', en: 'Join link' },
   imageSource: { ru: 'Источник фото', kg: 'Сүрөттүн булагы', en: 'Photo source' },
-  needsCheck: { ru: 'Требует проверки', kg: 'Текшерүүнү талап кылат', en: 'Needs verification' },
-  originManual: { ru: 'Внесено вручную редакцией', kg: 'Редакция кол менен киргизген', en: 'Added manually by the editors' },
-  originUser: { ru: 'Публикация организатора, прошла модерацию', kg: 'Уюштуруучунун жарыясы, модерациядан өткөн', en: 'Organiser’s post, moderated' },
-  originAuto: { ru: 'Собрано автоматически', kg: 'Автоматтык түрдө чогултулган', en: 'Collected automatically' },
   // Дата последней сверки редакцией — не подтверждение события (подтверждение — отдельная отметка «Проверено»)
-  checkedAt: { ru: 'дата сверки редакцией', kg: 'редакция салыштырган күн', en: 'last reviewed by editors' },
   official: { ru: 'Официальный источник', kg: 'Расмий булак', en: 'Official source' },
   authority: { ru: 'Официальный сайт ведомства', kg: 'Мекеменин расмий сайты', en: 'Official website of the agency' },
   dangerLevel: { ru: 'Уровень опасности (по данным ведомства)', kg: 'Коркунучтун деңгээли (мекеменин маалыматы боюнча)', en: 'Danger level (per the agency)' },
@@ -113,24 +125,90 @@ const L = {
     kg: 'Уюмдун расмий жарыясы. Маалыматтын тактыгы үчүн уюм өзү жооп берет.',
     en: 'Official post by the organisation, which is responsible for the accuracy of the information.',
   },
-  report: { ru: 'Пожаловаться', kg: 'Даттануу', en: 'Report' },
-  reportTitle: { ru: 'Сообщить о проблеме с публикацией', kg: 'Жарыядагы көйгөй тууралуу билдирүү', en: 'Report a problem with this post' },
-  reportComment: { ru: 'Что не так? (необязательно)', kg: 'Эмне туура эмес? (милдеттүү эмес)', en: 'What is wrong? (optional)' },
-  reportContact: { ru: 'Ваш контакт для ответа (необязательно)', kg: 'Жооп үчүн байланышыңыз (милдеттүү эмес)', en: 'Your contact for a reply (optional)' },
-  reportSend: { ru: 'Отправить жалобу', kg: 'Даттанууну жөнөтүү', en: 'Send report' },
-  reportThanks: { ru: 'Спасибо! Администратор проверит публикацию.', kg: 'Рахмат! Администратор жарыяны текшерет.', en: 'Thank you! The administrator will review the post.' },
-  reportFail: { ru: 'Не удалось отправить жалобу. Попробуйте позже.', kg: 'Даттанууну жөнөтүү мүмкүн болгон жок. Кийинчерээк аракет кылыңыз.', en: 'Could not send the report. Please try later.' },
 };
 
-const REASONS: { id: Report['reason']; ru: string; kg: string; en: string }[] = [
-  { id: 'false', ru: 'Недостоверная информация', kg: 'Туура эмес маалымат', en: 'False information' },
-  { id: 'outdated', ru: 'Устаревшие сведения', kg: 'Эскирген маалымат', en: 'Outdated information' },
-  { id: 'offensive', ru: 'Оскорбительное содержание', kg: 'Кордогон мазмун', en: 'Offensive content' },
-  { id: 'spam', ru: 'Спам / реклама', kg: 'Спам / жарнама', en: 'Spam / advertising' },
-  { id: 'other', ru: 'Другое', kg: 'Башка', en: 'Other' },
-];
+/** Галерея: сетка миниатюр и просмотр крупно (стрелки ← →, Esc, свайп не нужен — кнопки «назад / вперёд») */
+const Gallery: React.FC<{ photos: string[]; alt: string; lang: Language }> = ({ photos, alt, lang }) => {
+  const [open, setOpen] = useState<number | null>(null);
+  const T = {
+    title: { ru: 'Фото', kg: 'Сүрөттөр', en: 'Photos' },
+    close: { ru: 'Закрыть', kg: 'Жабуу', en: 'Close' },
+    prev: { ru: 'Предыдущее фото', kg: 'Мурунку сүрөт', en: 'Previous photo' },
+    next: { ru: 'Следующее фото', kg: 'Кийинки сүрөт', en: 'Next photo' },
+  };
+  useEffect(() => {
+    if (open === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setOpen(null);
+      } else if (e.key === 'ArrowRight') setOpen((i) => (i === null ? i : (i + 1) % photos.length));
+      else if (e.key === 'ArrowLeft') setOpen((i) => (i === null ? i : (i - 1 + photos.length) % photos.length));
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [open, photos.length]);
+  return (
+    <section className="mt-4" aria-label={T.title[lang]} data-gallery>
+      <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        {photos.map((u, i) => (
+          <li key={u}>
+            <button type="button" onClick={() => setOpen(i)} className="block w-full overflow-hidden rounded-lg focus-visible:ring-2 focus-visible:ring-[#12327A]">
+              <img src={u} alt={`${alt} — ${i + 2}`} loading="lazy" className="w-full aspect-[4/3] object-cover bg-gray-100 hover:opacity-90 transition-opacity" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {open !== null && (
+        <div role="dialog" aria-modal="true" aria-label={T.title[lang]} className="fixed inset-0 z-[200] bg-black/85 flex items-center justify-center p-4" onClick={() => setOpen(null)}>
+          <img src={photos[open]} alt={`${alt} — ${open + 2}`} className="max-w-full max-h-[85vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+          <button type="button" onClick={() => setOpen(null)} aria-label={T.close[lang]} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-white text-2xl leading-none">
+            ×
+          </button>
+          {photos.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label={T.prev[lang]}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen((open - 1 + photos.length) % photos.length);
+                }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 text-white text-2xl"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label={T.next[lang]}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen((open + 1) % photos.length);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 text-white text-2xl"
+              >
+                ›
+              </button>
+              <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm tabular-nums">
+                {open + 1} / {photos.length}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
+
+/** Разделы, где бывают билеты: у остальных (новости, решения, предупреждения) блок «Купить билет» не показывается */
+const TICKETED = ['concerts', 'festivals', 'culture', 'cinema', 'sport', 'fairs', 'exhibitions'];
 
 const toIcsDate = (iso: string) => iso.replace(/[-:]/g, '').slice(0, 15);
+
+/** Афиша: только здесь бывает «Организатор»; у новостей, решений и предупреждений — только источник */
+/** Новости, решения и законы: в «Коротко» пишем «Дата события» — дата публикации стоит отдельно в строке над текстом */
+const NEWS_LIKE = ['news', 'tech', 'business', 'gov', 'state', 'laws', 'notices', 'education'];
+const AFISHA_CATS = ['concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'cinema', 'sport'];
 
 export const AnnouncementDetailModal: React.FC<Props> = ({
   announcement: a,
@@ -138,11 +216,38 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   onClose,
   onSelectOtherNotice,
   allAnnouncements,
+  editorView = false,
 }) => {
-  const [copied, setCopied] = useState(false);
+  const editCtx = useEdit();
+  // Меню «Поделиться» в верхней строке; Escape сначала закрывает меню, потом статью
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareOpenRef = useRef(false);
+  shareOpenRef.current = shareOpen;
+  // Нажатие в любом месте вне меню и кнопки закрывает меню. Слушаем документ: прозрачный слой «fixed inset-0»
+  // не работал — у верхней строки есть размытие фона (backdrop-filter), и слой ограничивался её высотой
+  const shareBoxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!shareOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (shareBoxRef.current && !shareBoxRef.current.contains(e.target as Node)) setShareOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [shareOpen]);
+  // Подтверждение после действия («Ссылка скопирована») — уже после закрытия меню
+  const [shareNote, setShareNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!shareNote) return;
+    const id = window.setTimeout(() => setShareNote(null), 6000);
+    return () => window.clearTimeout(id);
+  }, [shareNote]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (shareOpenRef.current) setShareOpen(false);
+      else onClose();
+    };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -156,13 +261,20 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
   const status = getAnnouncementDisplayStatus(a);
   const badge = getStatusBadgeConfig(status, lang);
   const isEvent = a.urgency === 'event';
-  const mapQuery = a.coordinates ? `${a.coordinates.lat},${a.coordinates.lng}` : encodeURIComponent(a.location.ru);
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+  // Ссылка на карту — только по известной точке или адресу; без них ссылки нет (не ищем «пустое» место)
+  const point = a.coordinates || a.geo;
+  const mapQuery = point ? `${point.lat},${point.lng}` : hasAddress(a) ? encodeURIComponent(a.location.ru) : '';
+  const mapUrl = mapQuery ? `https://www.google.com/maps/search/?api=1&query=${mapQuery}` : '';
+  const place = placeText(a, lang);
   const tickets = ticketLink(a);
   // Свободный вход — билеты не нужны, пометку «ссылка не подтверждена» не показываем
   const freeEntry = /свободный|бесплатн|акысыз|free/i.test(a.eventDetails?.priceText?.ru || '');
   const source = eventSource(a);
+  const isAfisha = AFISHA_CATS.includes(a.category);
   const groups = groupedSources(a);
+  // Один главный источник: официальное сообщение → сайт ведомства → указанный источник (СМИ — только если больше ничего нет)
+  const primary = groups.official.find((l) => l.label === 'official')?.href || groups.official[0]?.href || source;
+  const primaryLabel = (primary && sourceTypeLabel(primary, lang)) || (primary && primary !== source ? hostOf(primary) : sourceLabel(a, lang));
   const govTicket = tickets.url ? isGovTicket(tickets.url) : false;
   const LINK_META: Record<SourceLink['label'], { text: string; icon: string }> = {
     official: { text: L.official[lang], icon: 'verified' },
@@ -170,6 +282,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     organizer: { text: L.organizer[lang], icon: 'groups' },
     artist: { text: L.artist[lang], icon: 'star' },
     venue: { text: L.venue[lang], icon: 'stadium' },
+    join: { text: L.join[lang], icon: 'videocam' },
     media: { text: L.media[lang], icon: 'newspaper' },
     ticketPage: { text: L.ticketPage[lang], icon: 'confirmation_number' },
     additional: { text: L.additional[lang], icon: 'article' },
@@ -179,38 +292,41 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     {
       // только сайт ведомства (само сообщение там не найдено) — не называем это официальным источником
       title: groups.official.some((o) => o.label === 'official') ? L.official[lang] : L.authorityTitle[lang],
-      items: groups.official,
+      // ссылка на основной источник уже стоит в строке «Источник» под текстом — здесь не повторяем
+      items: groups.official.filter((l) => l.href !== primary),
     },
-    { title: L.organizer[lang], items: groups.organizer },
-    { title: L.additional[lang], items: groups.additional },
+    // у новостей и предупреждений «Организатора» нет — такая ссылка идёт в источники
+    { title: L.organizer[lang], items: isAfisha ? groups.organizer.filter((l) => l.href !== primary) : [] },
+    // ссылка «Источник фото» в списке источников не нужна: подпись автора фото — одной серой строкой под фотографией
+    // Частные СМИ не показываем и не рекламируем, если есть официальный первоисточник или организатор:
+    // текст переписан по первоисточнику. СМИ указываем, только если новость есть лишь у них (они — автор)
+    {
+      title: L.additional[lang],
+      items: [...(isAfisha ? [] : groups.organizer), ...groups.additional]
+        .filter((l) => l.href !== primary && l.href !== source)
+        .filter((l) => l.label !== 'image' && l.label !== 'media'),
+    },
   ].filter((x) => x.items.length > 0);
-  const [reportOpen, setReportOpen] = useState(false);
-  const corrections = (a.history || []).filter((h) => h.action === 'edited' && h.changes?.length).slice(-5);
-  const [reason, setReason] = useState<Report['reason']>('false');
-  const [comment, setComment] = useState('');
-  const [contact, setContact] = useState('');
-  const [reportState, setReportState] = useState<'' | 'sending' | 'ok' | 'fail'>('');
   useEffect(() => {
-    // при переходе к другому событию форма жалобы начинается заново
-    setReportOpen(false);
-    setReportState('');
-    setComment('');
+    // при переходе к другому событию меню «Поделиться» закрывается
+    setShareOpen(false);
   }, [a.id]);
-  const sendReport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setReportState('sending');
-    try {
-      await api.submitReport(a.id, reason, comment.trim() || undefined, contact.trim() || undefined);
-      setReportState('ok');
-    } catch {
-      setReportState('fail');
-    }
-  };
-  // Только ещё не завершившиеся, ближайшие по дате
-  const nearby = allAnnouncements
-    .filter((x) => x.id !== a.id && x.city === a.city && !isExpired(x))
-    .sort((x, y) => kgTs(x.startDate) - kgTs(y.startDate))
-    .slice(0, 3);
+  // «Читайте также»: только ещё не завершившиеся; сначала та же рубрика в том же городе, затем та же рубрика, затем тот же город
+  const rubric = rubricIdOf(a.category);
+  const relScore = (x: Announcement) => (rubricIdOf(x.category) === rubric ? 0 : 2) + (x.city === a.city ? 0 : 1);
+  const related = allAnnouncements
+    .filter((x) => x.id !== a.id && !isExpired(x) && (rubricIdOf(x.category) === rubric || x.city === a.city))
+    .sort((x, y) => relScore(x) - relScore(y) || kgTs(x.startDate) - kgTs(y.startDate))
+    .slice(0, 4);
+  // Сбоку — самые актуальные материалы разных рубрик, без текущего и без повторов «Читайте также»
+  const sideNews = pickSideNews(allAnnouncements, new Set([a.id, ...related.map((x) => x.id)]), (x) => rubricIdOf(x.category));
+
+  // Страница статьи прокручивается сама; при переходе к другой новости — в начало, фокус на саму страницу
+  const pageRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    pageRef.current?.scrollTo({ top: 0 });
+    pageRef.current?.focus({ preventScroll: true });
+  }, [a.id]);
 
   const whenText = formatWhen(a.startDate, a.endDate, lang, true, a.timeTBA, a.allDay);
 
@@ -223,7 +339,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
       `DTSTART:${toIcsDate(a.startDate)}00`,
       `DTEND:${toIcsDate(end)}00`,
       `SUMMARY:${a.title[lang]}`,
-      `LOCATION:${a.location[lang]}`,
+      ...(place ? [`LOCATION:${place}`] : []),
       `DESCRIPTION:${a.summary[lang]}`,
       'END:VEVENT', 'END:VCALENDAR',
     ].join('\r\n');
@@ -235,266 +351,350 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
     URL.revokeObjectURL(url);
   };
 
-  const share = async () => {
-    // Ссылка на саму публикацию DataNews — мессенджеры покажут заголовок, описание и картинку (api/share.ts)
-    const data = { title: a.title[lang], text: a.summary[lang], url: `${window.location.origin}/n/${a.id}` };
-    try {
-      if (navigator.share) {
-        await navigator.share(data);
-        return;
-      }
-      await navigator.clipboard.writeText(`${data.title}\n${data.url}`);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* пользователь отменил */
-    }
-  };
+  // Ссылка на саму публикацию DataNews — мессенджеры покажут заголовок, описание и картинку (api/share.ts)
+  const shareUrl = `${window.location.origin}/n/${a.id}${lang === 'ru' ? '' : `?lang=${lang}`}`;
 
-  const Row = ({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) => (
-    <div className="flex gap-3 py-3 border-b border-gray-100 last:border-0">
-      <span className="material-symbols-outlined text-[#12327A] mt-0.5">{icon}</span>
-      <div className="min-w-0">
-        <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{label}</div>
-        <div className="text-sm font-semibold text-[#0f1b33] break-words">{children}</div>
-      </div>
+  const cityLabel = t(`cities.${a.city === 'karakol' ? 'issykkul' : a.city}`);
+  const title = a.title[lang] || a.title.ru;
+  // вступление (главное) над фото и продолжение под фото — без повтора одного и того же текста
+  // вступление и текст — на одном языке: если текст на языке страницы есть, краткое берём только на нём же
+  const hasBody = Boolean(a.description[lang]?.trim());
+  // старые записи: русское краткое скопировано в другие языки — такое краткое не берём
+  // Над фото — только заголовок (тема); под фото — весь текст один раз (краткое — только если основного текста нет)
+  const body = (hasBody ? a.description[lang] : a.description.ru || a.summary[lang] || a.summary.ru || '').trim();
+  // Организатор — только у событий (концерт, спектакль, ярмарка…); у новостей и предупреждений — источник
+  const organizer = isAfisha ? a.eventDetails?.organizer?.trim() || '' : '';
+  // «Фото: Фото: Кабар» → «Фото: Кабар»
+  const rawCredit = (a.imageCredit || '').replace(/^\s*(фото|сүрөт|photo)\s*:\s*/i, '');
+  // Служебные подписи («Иллюстрация DataNews — не фото события», «фото нет») читателю не показываем — только админу и редакции
+  const placeholderCredit = /иллюстрац|illustration|не фото|фото нет|нет фото|не загрузил|сүрөт жок/i.test(rawCredit) || Boolean(a.imageUrl?.startsWith('/illustrations/'));
+  const photoCredit = placeholderCredit && !(editorView || editCtx.canEdit(a)) ? '' : rawCredit;
+
+  /** Одна строка блока «Коротко» */
+  const Fact = ({ icon, label, children, wide = false }: { icon: string; label: string; children: React.ReactNode; wide?: boolean }) => (
+    <div className={`min-w-0 ${wide ? 'sm:col-span-2' : ''}`}>
+      <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+        <span className="material-symbols-outlined text-[16px] text-[#12327A]" aria-hidden="true">
+          {icon}
+        </span>
+        {label}
+      </dt>
+      <dd className="mt-1 text-[15px] leading-snug font-semibold text-[#0f1b33] [overflow-wrap:anywhere]">{children}</dd>
     </div>
   );
+  const SectionTitle = ({ children }: { children: React.ReactNode }) => (
+    <h2 className="font-serif text-xl font-bold text-[#0f1b33] mb-3">{children}</h2>
+  );
+  const btn = 'inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors';
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-[#0d2459]/60 backdrop-blur-sm p-0 sm:p-6"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={a.title[lang]}
-    >
-      <div
-        className="relative w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <EventImage item={a} lang={lang} showCredit className={`w-full sm:rounded-t-3xl rounded-t-3xl ${a.imageFit === "cover" ? "aspect-[16/9]" : "h-[58vh] max-h-[620px] min-h-[240px]"}`} />
-        {/* Шапка материала — сплошной цвет логотипа, без градиентов; бирюзовая линия — фирменная деталь */}
-        <div className={`px-6 pt-6 pb-5 text-white border-b-4 border-[#20C7B5] ${isEvent ? 'bg-[#12327A]' : 'bg-[#0d2459]'}`}>
+    <div ref={pageRef} tabIndex={-1} className="fixed inset-0 z-[100] bg-white overflow-y-auto overscroll-contain outline-none" role="dialog" aria-modal="true" aria-labelledby="article-title">
+      {/* Верхняя строка страницы статьи: назад, логотип, поделиться */}
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200">
+        <div className="max-w-[1240px] mx-auto px-4 md:px-6 h-14 flex items-center justify-between gap-3">
           <button
+            type="button"
             onClick={onClose}
-            aria-label={L.close[lang]}
-            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
+            className="inline-flex items-center gap-1 -ml-1 px-1 py-1 rounded-lg text-sm font-bold text-[#12327A] hover:underline focus-visible:ring-2 focus-visible:ring-[#12327A]"
           >
-            <span className="material-symbols-outlined">close</span>
+            <span className="material-symbols-outlined">arrow_back</span>
+            {L.back[lang]}
           </button>
-          <div className="flex flex-wrap items-center gap-2 mb-3 pr-10">
+          <button type="button" onClick={onClose} aria-label={L.close[lang]} className="hidden sm:block">
+            <BrandBadge height={24} />
+          </button>
+          {/* для админа и сотрудника редакции — сразу «Исправить» */}
+          <EditButton item={a} lang={lang} className="ml-auto !text-sm !px-3 !py-1.5" />
+          <FeatureButton item={a} lang={lang} className="!text-sm !px-3 !py-1.5" />
+          <div className="relative" ref={shareBoxRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setShareNote(null);
+                setShareOpen((v) => !v);
+              }}
+              aria-expanded={shareOpen}
+              aria-haspopup="true"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold text-[#12327A] hover:bg-[#eef2f9]"
+            >
+              <span className="material-symbols-outlined text-[18px]">share</span>
+              <span className="hidden min-[400px]:inline">{L.share[lang]}</span>
+            </button>
+            {shareOpen && (
+              <div className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl bg-white border border-gray-200 shadow-xl p-2 z-10">
+                <ShareMenu
+                  url={shareUrl}
+                  title={title}
+                  lang={lang}
+                  variant="menu"
+                  onDone={(text) => {
+                    setShareOpen(false);
+                    if (text) setShareNote(text);
+                  }}
+                />
+              </div>
+            )}
+            {shareNote && (
+              <p role="status" className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl bg-[#0f1b33] text-white text-xs font-semibold p-3 shadow-xl z-10">
+                {shareNote}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Компьютер: материал слева, «Актуальные новости» справа; телефон и планшет: блок — под материалом */}
+      <div className="mx-auto max-w-[1240px] px-4 md:px-6 pt-6 sm:pt-10 pb-16 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-12 xl:gap-16 lg:items-start">
+      <article className="min-w-0 max-w-[820px]">
+        {/* Рубрика и город */}
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#12327A]">
+          {t(`categories.${a.category}`)}
+          <span className="text-gray-400"> · </span>
+          <span className="text-gray-600">{cityLabel}</span>
+        </p>
+
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          {/* «Опубликовано» не повторяем — дата публикации есть под текстом */}
+          {status !== 'published' && (
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${badge.bg} ${badge.text}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
               {badge.label}
             </span>
-            {a.isVerified && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 text-[11px] font-bold">
-                <span className="material-symbols-outlined text-[14px]">verified</span>
-                {L.verified[lang]}
-              </span>
-            )}
-            {!a.isVerified && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-400/90 text-[#3b2a00] text-[11px] font-bold">
-                <span className="material-symbols-outlined text-[14px]">help</span>
-                {L.needsCheck[lang]}
-              </span>
-            )}
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold leading-tight [overflow-wrap:anywhere]">{a.title[lang]}</h2>
-          <p className="mt-2 text-sm text-white/85 leading-relaxed">{a.summary[lang]}</p>
-        </div>
-
-        <div className="px-6 py-4">
-          <Row icon="event" label={L.when[lang]}>{whenText}</Row>
-          <Row icon="location_on" label={L.where[lang]}>
-            {a.location[lang]}
-            {(a.locality || a.district) && (
-              <span className="block text-xs text-gray-500">{[a.locality, a.district].filter(Boolean).join(' • ')}</span>
-            )}
-            <span className="block text-xs text-gray-500">{t(`cities.${a.city === 'karakol' ? 'issykkul' : a.city}`)}</span>
-          </Row>
-          {a.dangerLevel && (
-            <Row icon="emergency_home" label={L.dangerLevel[lang]}>
-              <span
-                className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  a.dangerLevel === 'high' ? 'bg-red-600 text-white' : a.dangerLevel === 'warning' ? 'bg-amber-300 text-[#3b2a00]' : 'bg-gray-200 text-gray-800'
-                }`}
-              >
-                {L[`danger_${a.dangerLevel}` as const][lang]}
-              </span>
-            </Row>
           )}
-          {a.newsKind && <Row icon="label" label={L.kind[lang]}>{L[`kind_${a.newsKind}` as const][lang]}</Row>}
-          {a.publishedAt && <Row icon="history_edu" label={L.publishedOn[lang]}>{formatDayMonthTime(a.publishedAt, lang)}</Row>}
-          {a.legal && (
-            <div className="my-3 p-4 rounded-2xl bg-[#f6f8fd] border border-[#12327A]/10 space-y-2 text-sm">
-              {a.legal.docTitle && <div className="font-extrabold text-[#0f1b33]">{a.legal.docTitle[lang]}</div>}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                {a.legal.adoptedAt && (
-                  <div>
-                    <div className="text-gray-500">{L.adopted[lang]}</div>
-                    <b>{formatDate(a.legal.adoptedAt, lang)}</b>
-                  </div>
-                )}
-                {a.legal.officialPublishedAt && (
-                  <div>
-                    <div className="text-gray-500">{L.officialPub[lang]}</div>
-                    <b>{formatDate(a.legal.officialPublishedAt, lang)}</b>
-                  </div>
-                )}
-                <div>
-                  <div className="text-gray-500">{L.effective[lang]}</div>
-                  <b className={a.legal.effectiveFrom && a.legal.effectiveFrom > kgDateStr() ? 'text-amber-700' : ''}>
-                    {a.legal.effectiveFrom
-                      ? `${formatDate(a.legal.effectiveFrom, lang)}${a.legal.effectiveFrom > kgDateStr() ? ` — ${L.notYet[lang]}` : ''}`
-                      : L.notSet[lang]}
-                  </b>
-                </div>
-              </div>
-              {(['whatChanged', 'whoAffected', 'whatToDo', 'transitional'] as const).map((k) =>
-                a.legal?.[k] ? (
-                  <div key={k}>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{L[k][lang]}</div>
-                    <p className="text-gray-800">{a.legal[k]![lang]}</p>
-                  </div>
-                ) : null
-              )}
-              {a.legal.docUrl && (
-                <a href={a.legal.docUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#12327A] font-bold hover:underline">
-                  <span className="material-symbols-outlined text-[16px]">description</span>
-                  {L.docText[lang]} — {hostOf(a.legal.docUrl)}
-                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                </a>
-              )}
-            </div>
-          )}
-          {a.eventDetails?.priceText && (
-            <Row icon="confirmation_number" label={L.price[lang]}>{a.eventDetails.priceText[lang]}</Row>
-          )}
-          {a.eventDetails?.timeRange && (
-            <Row icon="schedule" label={lang === "en" ? "Time & age" : lang === "kg" ? "Убактысы жана жаш чеги" : "Время и возраст"}>{a.eventDetails.timeRange}</Row>
-          )}
-          {a.eventDetails?.organizer && (
-            <Row icon="groups" label={lang === 'en' ? 'Organizer' : lang === 'kg' ? 'Уюштуруучу' : 'Организатор'}>{a.eventDetails.organizer}</Row>
-          )}
-          {a.eventDetails?.contactPhone && (
-            <Row icon="call" label={lang === 'en' ? 'Phone' : lang === 'kg' ? 'Маалымат үчүн телефон' : 'Телефон для справок'}>
-              <a className="text-[#12327A] hover:underline" href={`tel:${a.eventDetails.contactPhone.replace(/[^\d+]/g, '')}`}>
-                {a.eventDetails.contactPhone}
-              </a>
-            </Row>
-          )}
-          {a.emergencyContacts && a.emergencyContacts.length > 0 && (
-            <Row icon="support_agent" label={lang === 'en' ? 'Hotlines' : lang === 'kg' ? 'Кайда чалуу керек' : 'Куда звонить'}>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {a.emergencyContacts.map((c) => (
-                  <a
-                    key={c.phone + c.name}
-                    href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#eef2f9] text-[#12327A] text-xs font-bold hover:bg-[#dbe1ff]"
-                  >
-                    {c.name}: {c.phone}
-                  </a>
-                ))}
-              </div>
-            </Row>
+          {/* Читателю — только положительная отметка; «Требует проверки» — служебная, видна редакции в панели */}
+          {a.isVerified && editorView && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#eef2f9] text-[#12327A] text-[11px] font-bold">
+              <span className="material-symbols-outlined text-[14px]">verified</span>
+              {L.verified[lang]}
+            </span>
           )}
         </div>
 
-        <div className="px-6 pb-2">
-          <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2">{L.about[lang]}</h3>
-          <p className="text-base text-[#2b3140] leading-7 whitespace-pre-line [overflow-wrap:anywhere]">{a.description[lang]}</p>
-        </div>
+        <h1 id="article-title" className="mt-4 font-serif text-[30px] sm:text-[42px] leading-[1.12] font-bold text-[#0f1b33] [overflow-wrap:anywhere]">
+          {title}
+        </h1>
 
-        <div className="px-6 py-5 flex flex-wrap gap-2">
-          {tickets.url && tickets.verified && (
-            <a
-              href={tickets.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#20C7B5] text-[#002f29] text-sm font-extrabold hover:bg-[#1bb3a2] transition-colors"
-            >
-              <span className="material-symbols-outlined text-[18px]">confirmation_number</span>
-              {L.buy[lang]}
-              <span className="text-[11px] font-semibold opacity-75">· {govTicket ? 'GovTicket' : hostOf(tickets.url)}</span>
-            </a>
-          )}
-          <a
-            href={mapUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#12327A] text-white text-sm font-bold hover:bg-[#0d2459] transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">map</span>
-            {L.map[lang]}
-          </a>
-          <button
-            onClick={downloadIcs}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold hover:bg-[#dbe1ff] transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">calendar_add_on</span>
-            {L.ics[lang]}
-          </button>
-          <button
-            onClick={share}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold hover:bg-[#dbe1ff] transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'share'}</span>
-            {copied ? L.copied[lang] : L.share[lang]}
-          </button>
-        </div>
+        <EventImage
+          item={a}
+          lang={lang}
+          natural
+          className={`mt-6 w-full rounded-xl ${a.imageFit === 'cover' ? 'aspect-[16/9]' : 'h-[52vh] max-h-[560px] min-h-[220px]'}`}
+        />
+        {/* Подпись автора фото — только когда её требует лицензия (например, Wikimedia Commons); фото от первоисточника — без подписи */}
+        {photoCredit && (
+          <p className="mt-1.5 text-[11px] text-gray-400" data-photo-credit>
+            {L.photo[lang]}: {photoCredit}
+          </p>
+        )}
+        {/* Галерея — дополнительные фото под главным; нажатие открывает фото крупно */}
+        {(a.gallery?.length || 0) > 0 && <Gallery photos={a.gallery!} alt={a.imageAlt || a.title[lang] || a.title.ru} lang={lang} />}
 
-        <div className="mx-6 mb-6 p-4 rounded-2xl bg-[#f8fafc] border border-gray-100 text-xs text-gray-600 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <span className="font-bold text-[#0f1b33]">{L.source[lang]}:</span> {a.sourceName}
-            <div className="text-gray-500 mt-0.5">
-              {L.updated[lang]}: {formatDayMonthTime(a.updatedAt, lang)}
-            </div>
-          </div>
-          {source && (
-            <a href={source} target="_blank" rel="noopener noreferrer" className="font-bold text-[#12327A] hover:underline inline-flex items-center gap-1">
-              {L.openSource[lang]}
-              <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-            </a>
-          )}
-        </div>
-
-        <div className="mx-6 mb-4 empty:hidden">
-          <PaidNote item={a} lang={lang} />
-        </div>
-
-        {a.publishedByGov && (
-          <div className="mx-6 mb-4 p-3 rounded-xl bg-[#eef2f9] text-xs text-[#0f1b33] flex items-start gap-2">
-            <span className="material-symbols-outlined text-[16px] text-[#12327A]">account_balance</span>
-            <span>{L.govPost[lang]}</span>
+        {/* Текст новости — сразу под фото, один раз */}
+        {body && (
+          <div className="mt-5 text-[17px] leading-[1.7] text-[#1f2937] whitespace-pre-line [overflow-wrap:anywhere]" data-article-body>
+            {body}
           </div>
         )}
 
+        {/* Коротко: главное одним взглядом — компактно */}
+        <section aria-labelledby="brief-title" className="mt-6 rounded-xl bg-[#f3f6fc] px-4 py-3 sm:px-5 sm:py-4">
+          <h2 id="brief-title" className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500 mb-2">
+            {L.brief[lang]}
+          </h2>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
+            <Fact icon="event" label={(NEWS_LIKE.includes(a.category) ? L.eventDate : L.when)[lang]}>
+              {whenText}
+            </Fact>
+            {/* «Где»: только известное — адрес или площадка, ниже территория; без адреса — одна территория */}
+            <Fact icon="location_on" label={L.where[lang]}>
+              {place || [a.locality, a.district, cityLabel].filter(Boolean).join(' • ')}
+              {place && !place.toLowerCase().includes(cityLabel.replace(/^г\.\s*|\s*ш\.$/g, '').toLowerCase()) && (
+                <span className="block text-xs font-normal text-gray-500 mt-0.5">{[a.locality, a.district, cityLabel].filter(Boolean).join(' • ')}</span>
+              )}
+            </Fact>
+            {a.dangerLevel && (
+              <Fact icon="emergency_home" label={L.dangerLevel[lang]}>
+                <span
+                  className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    a.dangerLevel === 'high' ? 'bg-red-600 text-white' : a.dangerLevel === 'warning' ? 'bg-amber-300 text-[#3b2a00]' : 'bg-gray-200 text-gray-800'
+                  }`}
+                >
+                  {L[`danger_${a.dangerLevel}` as const][lang]}
+                </span>
+              </Fact>
+            )}
+            {a.newsKind && (
+              <Fact icon="label" label={L.kind[lang]}>
+                {L[`kind_${a.newsKind}` as const][lang]}
+              </Fact>
+            )}
+            {a.legal?.whoAffected && (
+              <Fact icon="group" label={L.whoAffected[lang]} wide>
+                {a.legal.whoAffected[lang]}
+              </Fact>
+            )}
+            {a.legal?.whatToDo && (
+              <Fact icon="task_alt" label={L.whatToDo[lang]} wide>
+                {a.legal.whatToDo[lang]}
+              </Fact>
+            )}
+            {a.eventDetails?.priceText && (
+              <Fact icon="confirmation_number" label={L.price[lang]}>
+                {a.eventDetails.priceText[lang]}
+              </Fact>
+            )}
+            {a.eventDetails?.timeRange && !String(whenText).includes(a.eventDetails.timeRange.trim()) && (
+              <Fact icon="schedule" label={lang === 'en' ? 'Time & age' : lang === 'kg' ? 'Убактысы жана жаш чеги' : 'Время и возраст'}>
+                {a.eventDetails.timeRange}
+              </Fact>
+            )}
+            {organizer && (
+              <Fact icon="groups" label={L.organizer[lang]}>
+                {organizer}
+              </Fact>
+            )}
+            {a.eventDetails?.contactPhone && (
+              <Fact icon="call" label={lang === 'en' ? 'Phone' : lang === 'kg' ? 'Маалымат үчүн телефон' : 'Телефон для справок'}>
+                <a className="text-[#12327A] hover:underline" href={`tel:${a.eventDetails.contactPhone.replace(/[^\d+]/g, '')}`}>
+                  {a.eventDetails.contactPhone}
+                </a>
+              </Fact>
+            )}
+            {a.emergencyContacts && a.emergencyContacts.length > 0 && (
+              <Fact icon="support_agent" label={lang === 'en' ? 'Hotlines' : lang === 'kg' ? 'Кайда чалуу керек' : 'Куда звонить'} wide>
+                <span className="flex flex-wrap gap-2 mt-1">
+                  {a.emergencyContacts.map((c) => (
+                    <a
+                      key={c.phone + c.name}
+                      href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-[#12327A] text-xs font-bold hover:bg-[#dbe1ff]"
+                    >
+                      {c.name}: {c.phone}
+                    </a>
+                  ))}
+                </span>
+              </Fact>
+            )}
+          </dl>
+
+          <div className="mt-3 pt-3 border-t border-[#12327A]/10 flex flex-wrap gap-2">
+            {tickets.url && tickets.verified && (
+              <a href={tickets.url} target="_blank" rel="noopener noreferrer" className={`${btn} bg-[#20C7B5] text-[#002f29] font-extrabold hover:bg-[#1bb3a2]`}>
+                <span className="material-symbols-outlined text-[18px]">confirmation_number</span>
+                {L.buy[lang]}
+                <span className="text-[11px] font-semibold opacity-75">· {govTicket ? 'GovTicket' : hostOf(tickets.url)}</span>
+              </a>
+            )}
+            <button type="button" onClick={downloadIcs} className={`${btn} bg-[#12327A] text-white hover:bg-[#0d2459]`}>
+              <span className="material-symbols-outlined text-[18px]">calendar_add_on</span>
+              {L.ics[lang]}
+            </button>
+            {mapUrl && (
+              <a href={mapUrl} target="_blank" rel="noopener noreferrer" className={`${btn} bg-white text-[#12327A] hover:bg-[#dbe1ff]`}>
+                <span className="material-symbols-outlined text-[18px]">map</span>
+                {L.map[lang]}
+              </a>
+            )}
+          </div>
+        </section>
+
+        {/* Источник (единственное место, со ссылкой) и даты — мелко, после текста. Организатор — только в «Коротко» у афиши */}
+        <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-gray-400" data-article-meta>
+          {primaryLabel && primaryLabel !== organizer && (
+            <span>
+              {L.source[lang]}:{' '}
+              {primary ? (
+                <a href={primary} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] hover:underline">
+                  {primaryLabel}
+                </a>
+              ) : (
+                <b className="font-semibold text-gray-600">{primaryLabel}</b>
+              )}
+            </span>
+          )}
+          <span>
+            {L.published[lang]}: <time dateTime={a.publishedAt}>{formatDayMonthTime(a.publishedAt, lang)}</time>
+          </span>
+          {a.updatedAt && a.updatedAt !== a.publishedAt && (
+            <span>
+              {L.updated[lang]}: <time dateTime={a.updatedAt}>{formatDayMonthTime(a.updatedAt, lang)}</time>
+            </span>
+          )}
+        </p>
+
+
+        {a.legal && (
+          <section className="mt-10 pt-6 border-t border-gray-200">
+            <SectionTitle>{a.legal.docTitle ? a.legal.docTitle[lang] : L.document[lang]}</SectionTitle>
+            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              {a.legal.adoptedAt && (
+                <div>
+                  <dt className="text-gray-500">{L.adopted[lang]}</dt>
+                  <dd className="font-bold">{formatDate(a.legal.adoptedAt, lang)}</dd>
+                </div>
+              )}
+              {a.legal.officialPublishedAt && (
+                <div>
+                  <dt className="text-gray-500">{L.officialPub[lang]}</dt>
+                  <dd className="font-bold">{formatDate(a.legal.officialPublishedAt, lang)}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-gray-500">{L.effective[lang]}</dt>
+                <dd className={`font-bold ${a.legal.effectiveFrom && a.legal.effectiveFrom > kgDateStr() ? 'text-amber-700' : ''}`}>
+                  {a.legal.effectiveFrom
+                    ? `${formatDate(a.legal.effectiveFrom, lang)}${a.legal.effectiveFrom > kgDateStr() ? ` — ${L.notYet[lang]}` : ''}`
+                    : L.notSet[lang]}
+                </dd>
+              </div>
+            </dl>
+            {(['whatChanged', 'transitional'] as const).map((k) =>
+              a.legal?.[k] ? (
+                <div key={k} className="mt-4">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{L[k][lang]}</h3>
+                  <p className="mt-1 text-base leading-7 text-gray-800">{a.legal[k]![lang]}</p>
+                </div>
+              ) : null
+            )}
+            {a.legal.docUrl && (
+              <a href={a.legal.docUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1 text-sm text-[#12327A] font-bold hover:underline">
+                <span className="material-symbols-outlined text-[16px]">description</span>
+                {L.docText[lang]} — {hostOf(a.legal.docUrl)}
+                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+              </a>
+            )}
+          </section>
+        )}
+
+        <div className="mt-8 space-y-3 empty:hidden">
+          <PaidNote item={a} lang={lang} />
+          {a.publishedByGov && (
+            <p className="p-3 rounded-xl bg-[#eef2f9] text-sm text-[#0f1b33] flex items-start gap-2">
+              <span className="material-symbols-outlined text-[16px] text-[#12327A]">account_balance</span>
+              <span>{L.govPost[lang]}</span>
+            </p>
+          )}
+        </div>
+
         {/* Источники: официальный, организатор, билеты, дополнительный — отдельными ссылками */}
-        {(isEvent || sections.length > 0 || tickets.url) && (
-          <div className="mx-6 mb-6 space-y-3">
-            <h3 className="text-sm font-extrabold text-[#0f1b33]">{L.links[lang]}</h3>
-            {groups.mediaOnly && !isEvent && (
-              <p className="text-xs text-amber-900 bg-amber-50 rounded-xl p-2.5 flex gap-1.5">
+        {(sections.length > 0 || (tickets.url && tickets.verified) || (editorView && isEvent) || (groups.mediaOnly && groups.official.length === 0 && !isEvent)) && (
+          <section className="mt-5 pt-4 border-t border-gray-200 space-y-3">
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500">{L.links[lang]}</h2>
+            {groups.mediaOnly && groups.official.length === 0 && !isEvent && (
+              <p className="text-sm text-amber-900 bg-amber-50 rounded-xl p-3 flex gap-1.5">
                 <span className="material-symbols-outlined text-[16px]">info</span>
                 {L.mediaOnly[lang]}
               </p>
             )}
             {sections.map((sec) => (
               <div key={sec.title}>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">{sec.title}</div>
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">{sec.title}</h3>
                 <ul className="space-y-1 text-sm">
                   {sec.items.map((l) => (
                     <li key={l.href}>
-                      <a
-                        href={l.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[#12327A] font-semibold hover:underline break-all"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">{LINK_META[l.label].icon}</span>
-                        <span>{LINK_META[l.label].text}</span>
+                      <a href={l.href} target="_blank" rel="noopener noreferrer" className="inline-flex flex-wrap items-center gap-x-1.5 text-[#12327A] font-semibold hover:underline [overflow-wrap:anywhere]">
+                        <span className="material-symbols-outlined text-[16px]">{!isEvent && l.label === 'organizer' ? 'link' : LINK_META[l.label].icon}</span>
+                        <span>{!isEvent && l.label === 'organizer' ? L.source[lang] : LINK_META[l.label].text}</span>
                         <span className="text-gray-500 font-normal">— {hostOf(l.href)}</span>
                         <span className="material-symbols-outlined text-[14px]">open_in_new</span>
                       </a>
@@ -503,118 +703,102 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                 </ul>
               </div>
             ))}
-            {(tickets.url || (isEvent && !freeEntry)) && (
+            {/* «Купить билет» — только у событий с билетами (концерты, спорт, кино…); у новостей, решений и предупреждений блока нет */}
+            {((tickets.url && tickets.verified) || (editorView && (tickets.url || (isEvent && TICKETED.includes(a.category) && !freeEntry)))) && (
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">{L.ticketsTitle[lang]}</div>
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">{L.ticketsTitle[lang]}</h3>
                 <ul className="space-y-1 text-sm">
                   {tickets.url && tickets.verified && (
                     <li>
-                      <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[#12327A] font-semibold hover:underline break-all">
+                      <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="inline-flex flex-wrap items-center gap-x-1.5 text-[#12327A] font-semibold hover:underline [overflow-wrap:anywhere]">
                         <span className="material-symbols-outlined text-[16px]">confirmation_number</span>
                         <span>{govTicket ? L.govTicket[lang] : `${hostOf(tickets.url)} (${L.privateTicket[lang]})`}</span>
                         <span className="material-symbols-outlined text-[14px]">open_in_new</span>
                       </a>
                     </li>
                   )}
-                  {tickets.url && !tickets.verified && (
-                    <li className="flex flex-wrap items-center gap-1.5 text-gray-600">
+                  {/* Неподтверждённая ссылка и «ссылки нет» — служебное, видит только редакция */}
+                  {editorView && tickets.url && !tickets.verified && (
+                    <li className="flex flex-wrap items-center gap-1.5 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
                       <span className="material-symbols-outlined text-[16px] text-amber-600">help</span>
-                      <span>{L.ticketUnverified[lang]}:</span>
-                      <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="text-gray-600 underline break-all">
+                      <span>Для редакции — {L.ticketUnverified[lang]}:</span>
+                      <a href={tickets.url} target="_blank" rel="noopener noreferrer" className="underline break-all">
                         {hostOf(tickets.url)}
                       </a>
                     </li>
                   )}
-                  {!tickets.url && (
-                    <li className="flex items-center gap-1.5 text-gray-500">
+                  {editorView && !tickets.url && (
+                    <li className="flex items-center gap-1.5 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
                       <span className="material-symbols-outlined text-[16px]">info</span>
-                      <span>{L.noTickets[lang]}</span>
+                      <span>Для редакции — {L.noTickets[lang]}</span>
                     </li>
                   )}
                 </ul>
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {(a.dataOrigin || a.lastCheckedAt) && (
-          <p className="mx-6 mb-6 -mt-3 text-xs text-gray-500 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[14px]">fact_check</span>
-            <span>
-              {a.dataOrigin === 'auto' ? L.originAuto[lang] : a.dataOrigin === 'user' ? L.originUser[lang] : L.originManual[lang]}
-              {a.lastCheckedAt && ` • ${L.checkedAt[lang]} ${formatDayMonthTime(a.lastCheckedAt, lang)}`}
-            </span>
-          </p>
-        )}
+        {/* Поделиться новостью — в конце материала: ссылка именно на эту публикацию (/n/<id>) и её заголовок */}
+        <section aria-labelledby="share-title" className="mt-5 pt-4 border-t border-gray-200">
+          <h2 id="share-title" className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500 mb-2">
+            {SHARE_ARTICLE_TITLE[lang]}
+          </h2>
+          <ShareMenu url={shareUrl} title={title} lang={lang} />
+        </section>
 
-        {/* Публичная история существенных исправлений (без внутренних заметок) */}
-        {corrections.length > 0 && (
-          <div className="mx-6 mb-6 -mt-2 rounded-xl border border-gray-100 bg-[#f8fafc] p-3 text-xs text-gray-700">
-            <div className="font-bold text-[#0f1b33] flex items-center gap-1.5 mb-1">
-              <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
-                edit_note
-              </span>
-              {CORR.title[lang]}
-            </div>
-            <ul className="space-y-0.5">
-              {corrections.map((h, i) => (
-                <li key={i}>
-                  {formatDayMonthTime(h.at, lang)} — {CORR.changed[lang]}: {(h.changes || []).map((c) => CORR[c === 'title' ? 'title_' : c]?.[lang] || c).join(', ')}
+        {/* Читайте также: та же рубрика и тот же город */}
+        {related.length > 0 && onSelectOtherNotice && (
+          <section aria-labelledby="related-title" className="mt-12 pt-6 border-t-2 border-[#0f1b33]">
+            <h2 id="related-title" className="font-serif text-2xl font-bold text-[#0f1b33] mb-5">
+              {L.related[lang]}
+            </h2>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-6">
+              {related.map((n) => (
+                <li key={n.id}>
+                  <button type="button" onClick={() => onSelectOtherNotice(n)} className="group w-full text-left">
+                    <EventImage item={n} lang={lang} compact className="w-full aspect-[16/9] rounded-lg mb-3" />
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-[#12327A]"><CatLabel text={t(`categories.${n.category}`)} /></span>
+                    <span className="block mt-1 font-serif text-lg font-semibold leading-snug text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline underline-offset-2 line-clamp-3 [overflow-wrap:anywhere]">
+                      {n.title[lang] || n.title.ru}
+                    </span>
+                    <span className="block mt-1 text-xs text-gray-500">{formatWhen(n.startDate, n.endDate, lang, false, n.timeTBA, n.allDay)}</span>
+                  </button>
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         )}
+      </article>
 
-        <div className="mx-6 mb-6">
-          {!reportOpen ? (
-            <button onClick={() => setReportOpen(true)} className="text-xs font-bold text-gray-500 hover:text-red-700 inline-flex items-center gap-1">
-              <span className="material-symbols-outlined text-[16px]">flag</span>
-              {L.report[lang]}
-            </button>
-          ) : reportState === 'ok' ? (
-            <p className="text-xs font-bold text-emerald-700">{L.reportThanks[lang]}</p>
-          ) : (
-            <form onSubmit={sendReport} className="p-3 rounded-xl border border-gray-200 space-y-2 text-sm">
-              <div className="font-bold text-[#0f1b33]">{L.reportTitle[lang]}</div>
-              <select value={reason} onChange={(e) => setReason(e.target.value as Report['reason'])} className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm">
-                {REASONS.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r[lang]}
-                  </option>
-                ))}
-              </select>
-              <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={1000} rows={2} placeholder={L.reportComment[lang]} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" />
-              <input value={contact} onChange={(e) => setContact(e.target.value)} maxLength={120} placeholder={L.reportContact[lang]} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" />
-              {reportState === 'fail' && <p className="text-xs font-bold text-red-700">{L.reportFail[lang]}</p>}
-              <div className="flex gap-2">
-                <button disabled={reportState === 'sending'} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold disabled:opacity-60">
-                  {L.reportSend[lang]}
+      {/* Актуальные новости: другие опубликованные материалы, разные рубрики, без текущей и без повторов «Читайте также» */}
+      <div className="mt-12 lg:mt-0 lg:sticky lg:top-20 space-y-8 min-w-0">
+      {/* Рекламное место B — только при идущей кампании; на телефоне — под материалом, между блоками */}
+      <AdSlot format="B" lang={lang} />
+      {sideNews.length > 0 && onSelectOtherNotice && (
+        <aside aria-labelledby="side-news-title">
+          <h2 id="side-news-title" className="font-serif text-xl font-bold text-[#0f1b33] pb-2 mb-1 border-b-2 border-[#0f1b33]">
+            {L.sideNews[lang]}
+          </h2>
+          <ul className="divide-y divide-gray-200">
+            {sideNews.map((n) => (
+              <li key={n.id}>
+                <button type="button" onClick={() => onSelectOtherNotice(n)} className="group w-full text-left py-3.5 flex gap-3 items-start">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-[#12327A]"><CatLabel text={t(`categories.${n.category}`)} /></span>
+                    <span className="block mt-1 text-[15px] font-semibold leading-snug text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline underline-offset-2 line-clamp-3 [overflow-wrap:anywhere]">
+                      {n.title[lang] || n.title.ru}
+                    </span>
+                    <span className="block mt-1 text-xs text-gray-500">{formatWhen(n.startDate, n.endDate, lang, false, n.timeTBA, n.allDay)}</span>
+                  </span>
+                  {n.imageUrl && <EventImage item={n} lang={lang} compact className="w-24 h-[68px] rounded-lg shrink-0" />}
                 </button>
-                <button type="button" onClick={() => setReportOpen(false)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-bold">
-                  {L.close[lang]}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-
-        {nearby.length > 0 && onSelectOtherNotice && (
-          <div className="px-6 pb-6">
-            <h3 className="text-sm font-extrabold text-[#0f1b33] mb-2">{L.nearby[lang]}</h3>
-            <div className="space-y-2">
-              {nearby.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => onSelectOtherNotice(n)}
-                  className="w-full text-left p-3 rounded-xl border border-gray-100 hover:border-[#12327A]/30 hover:bg-[#f3f6fc] transition-colors text-sm font-semibold text-[#0f1b33]"
-                >
-                  {n.title[lang]}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
+      </div>
       </div>
     </div>
   );

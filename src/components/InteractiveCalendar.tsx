@@ -13,6 +13,10 @@ interface InteractiveCalendarProps {
   selectedDate: string; // 'YYYY-MM-DD'
   onSelectDate: (dateStr: string) => void;
   onSelectAnnouncement: (announcement: Announcement) => void;
+  /** Сколько событий выбранного дня показать (на главной — 3, чтобы колонка не была длиннее основной) */
+  maxItems?: number;
+  /** «Ещё N» — открыть полный календарь */
+  onShowAll?: () => void;
 }
 
 export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
@@ -21,6 +25,8 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   selectedDate,
   onSelectDate,
   onSelectAnnouncement,
+  maxItems = Infinity,
+  onShowAll,
 }) => {
   const { t } = getTranslation(currentLanguage);
 
@@ -28,6 +34,8 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   const now = new Date();
   const [currentYear, setCurrentYear] = useState(() => now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => now.getMonth()); // 9 = October
+  // На телефоне по умолчанию — компактная полоса ближайших 7 дней, весь месяц — по нажатию
+  const [expanded, setExpanded] = useState(false);
 
 
   const handlePrevMonth = () => {
@@ -95,8 +103,64 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   // Today string
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
+  const localStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const weekStrip = Array.from({ length: 7 }, (_, i) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + i));
+  const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+  /** Цветные точки дня: красная мигающая — срочное (0–3 дня), жёлтая — предупреждение позже, бирюзовая — событие */
+  const Dots = ({ dateStr, isSelected }: { dateStr: string; isSelected: boolean }) => {
+    const dayItems = itemsByDate[dateStr] || [];
+    const hasEmergency = dayItems.some((i) => alertLevel(i) === 'urgent');
+    const hasPlanned = dayItems.some((i) => alertLevel(i) === 'soon');
+    const hasEvent = dayItems.some((i) => !isAlert(i) && i.status !== 'cancelled');
+    return (
+      <span className="flex items-center gap-0.5 mt-0.5 h-1.5">
+        {hasEmergency && <span className={`w-1.5 h-1.5 rounded-full dn-urgent-blink ${isSelected ? 'bg-red-300' : 'bg-red-600'}`} />}
+        {hasPlanned && <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-200' : 'bg-amber-400'}`} />}
+        {hasEvent && <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-[#68f9e5]' : 'bg-[#20C7B5]'}`} />}
+      </span>
+    );
+  };
+  const toggleLabel = expanded
+    ? currentLanguage === 'kg' ? 'Жыйноо' : currentLanguage === 'en' ? 'Collapse' : 'Свернуть'
+    : currentLanguage === 'kg' ? 'Бүт ай' : currentLanguage === 'en' ? 'Whole month' : 'Весь месяц';
+
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
+      {/* Телефон: ближайшие 7 дней одной строкой */}
+      <div className={expanded ? 'hidden' : 'lg:hidden'}>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <span className="text-base font-bold text-[#0f1b33]">{t('views.calendar')}</span>
+          <button type="button" onClick={() => setExpanded(true)} aria-expanded={false} className="text-sm font-bold text-[#12327A] inline-flex items-center gap-0.5">
+            {toggleLabel}
+            <span className="material-symbols-outlined text-[18px]">expand_more</span>
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {weekStrip.map((d) => {
+            const dateStr = localStr(d);
+            const isSelected = selectedDate === dateStr;
+            const wk = WEEKDAY_KEYS[d.getDay()];
+            return (
+              <button
+                key={dateStr}
+                type="button"
+                onClick={() => onSelectDate(dateStr)}
+                aria-pressed={isSelected}
+                className={`py-1.5 rounded-xl font-bold flex flex-col items-center ${
+                  isSelected ? 'bg-[#12327A] text-white' : dateStr === todayStr ? 'bg-blue-50 text-[#12327A] ring-1 ring-[#20C7B5]' : 'text-[#0f1b33]'
+                }`}
+              >
+                <span className={`text-[10px] uppercase ${isSelected ? 'text-white/80' : wk === 'sat' || wk === 'sun' ? 'text-[#dc2626]' : 'text-gray-500'}`}>{t(`days.${wk}`)}</span>
+                <span className="text-sm">{d.getDate()}</span>
+                <Dots dateStr={dateStr} isSelected={isSelected} />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className={expanded ? '' : 'hidden lg:block'}>
       {/* Month Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -108,6 +172,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           </span>
         </div>
         <div className="flex items-center gap-1">
+          <button type="button" onClick={() => setExpanded(false)} className="lg:hidden mr-1 text-sm font-bold text-[#12327A] inline-flex items-center whitespace-nowrap" aria-expanded={true}>
+            {toggleLabel}
+            <span className="material-symbols-outlined text-[18px]">expand_less</span>
+          </button>
           <button
             type="button"
             onClick={handlePrevMonth}
@@ -129,7 +197,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
 
       {/* Weekday Names (Monday-start) */}
       <div
-        className="grid grid-cols-7 gap-1 text-center font-bold text-gray-500 mb-2 text-[11px] uppercase tracking-wider"
+        className="grid grid-cols-7 gap-1 text-center font-bold text-[#334155] mb-2 text-[11px] uppercase tracking-wider"
       >
         {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
           <span
@@ -143,14 +211,27 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-1 text-center text-xs mb-4">
+      <div className="grid grid-cols-7 gap-1 text-center text-sm mb-4">
         {/* Days from previous month */}
         {Array.from({ length: startOffset }).map((_, idx) => {
+          // Дни прошлого месяца тоже нажимаются: выбирают дату и листают календарь на тот месяц
           const prevDayNum = daysInPrevMonth - startOffset + idx + 1;
+          const py = currentMonth === 0 ? currentYear - 1 : currentYear;
+          const pm = currentMonth === 0 ? 12 : currentMonth;
+          const dateStr = `${py}-${String(pm).padStart(2, '0')}-${String(prevDayNum).padStart(2, '0')}`;
           return (
-            <span key={`prev-${idx}`} className="py-2 text-gray-300 font-medium select-none">
-              {prevDayNum}
-            </span>
+            <button
+              key={`prev-${idx}`}
+              type="button"
+              onClick={() => {
+                handlePrevMonth();
+                onSelectDate(dateStr);
+              }}
+              className="py-1.5 rounded-xl font-semibold flex flex-col items-center text-gray-500 hover:bg-[#eef2f9] transition-all"
+            >
+              <span>{prevDayNum}</span>
+              <Dots dateStr={dateStr} isSelected={false} />
+            </button>
           );
         })}
 
@@ -162,13 +243,6 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           const dateStr = `${currentYear}-${padMonth}-${padDay}`;
           const isSelected = selectedDate === dateStr;
           const isToday = todayStr === dateStr;
-          const dayItems = itemsByDate[dateStr] || [];
-
-          // Красная мигающая точка — срочное предупреждение (0–3 дня), жёлтая — предупреждение позже, бирюзовая — событие
-          const hasEmergency = dayItems.some((i) => alertLevel(i) === 'urgent');
-          const hasPlanned = dayItems.some((i) => alertLevel(i) === 'soon');
-          const hasEvent = dayItems.some((i) => !isAlert(i) && i.status !== 'cancelled');
-
           return (
             <button
               key={dateStr}
@@ -179,42 +253,19 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                   ? 'bg-[#12327A] text-white shadow-sm ring-2 ring-[#12327A]/20'
                   : isToday
                   ? 'bg-blue-50 text-[#12327A] ring-1 ring-[#20C7B5]'
-                  : 'text-gray-700 hover:bg-[#eef2f9]'
+                  : 'text-[#0f1b33] hover:bg-[#eef2f9]'
               }`}
             >
               <span>{dayNum}</span>
 
-              {/* Indicator Dots */}
-              <span className="flex items-center gap-0.5 mt-0.5 h-1.5">
-                {hasEmergency && (
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full dn-urgent-blink ${
-                      isSelected ? 'bg-red-300' : 'bg-red-600'
-                    }`}
-                  />
-                )}
-                {hasPlanned && (
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isSelected ? 'bg-amber-200' : 'bg-amber-400'
-                    }`}
-                  />
-                )}
-                {hasEvent && (
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isSelected ? 'bg-[#68f9e5]' : 'bg-[#20C7B5]'
-                    }`}
-                  />
-                )}
-              </span>
+              <Dots dateStr={dateStr} isSelected={isSelected} />
             </button>
           );
         })}
       </div>
 
       {/* Calendar Color Legend */}
-      <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-500 pt-3 border-t border-gray-100">
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-red-600" />
           <span>{t('views.legendEmergency')}</span>
@@ -229,8 +280,10 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
         </span>
       </div>
 
+      </div>
+
       {/* Selected Day Summary Box */}
-      <div className="p-3.5 rounded-xl bg-[#f8fafc] border border-gray-100">
+      <div className="mt-4 p-3.5 rounded-xl bg-[#f8fafc] border border-gray-100">
         <div className="flex items-center justify-between mb-2.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#12327A]">
             {t('views.selectedDate')}:{' '}
@@ -244,14 +297,14 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
         {selectedItems.length === 0 ? (
           <p className="text-xs text-gray-500 py-2 text-center">
             {currentLanguage === 'kg'
-              ? 'Бул күнгө катталган окуялар жок'
+              ? 'Бул күнгө азырынча жаңылык жок. Жаңылыктар күн сайын кошулат — кийинчерээк кайра караңыз.'
               : currentLanguage === 'en'
-              ? 'No registered notices on this date'
-              : 'На выбранную дату нет зарегистрированных событий'}
+              ? 'No news for this date yet. News is added every day — check back later.'
+              : 'На эту дату новостей пока нет. Новости добавляются каждый день — загляните позже.'}
           </p>
         ) : (
           <ul className="space-y-2">
-            {selectedItems.map((item) => {
+            {selectedItems.slice(0, maxItems).map((item) => {
               const displayStatus = getAnnouncementDisplayStatus(item);
               const statusCfg = getStatusBadgeConfig(displayStatus, currentLanguage);
 
@@ -279,8 +332,9 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                     <span className={`absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full ring-2 ring-white ${dotColor}`} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <p className="font-semibold text-[#0f1b33] leading-snug group-hover:text-[#12327A] truncate">
+                    {/* Название — не меньше 8rem; если места мало, метка статуса уходит на следующую строку (а не съедает название) */}
+                    <div className="flex flex-wrap items-start justify-between gap-x-1 gap-y-0.5 mb-1">
+                      <p className="flex-1 basis-[8rem] min-w-0 font-semibold text-[#0f1b33] leading-snug group-hover:text-[#12327A] line-clamp-2 [overflow-wrap:anywhere]">
                         {item.title[currentLanguage] || item.title.ru}
                       </p>
                       <span
@@ -289,7 +343,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                         {statusCfg.label}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-gray-500 text-[11px]">
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 text-gray-500 text-[11px]">
                       <span>
                         {formatTime(item.startDate)}
                         {item.district ? ` • ${item.district}` : ''}
@@ -303,6 +357,11 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
               );
             })}
           </ul>
+        )}
+        {selectedItems.length > maxItems && (
+          <button type="button" onClick={onShowAll} className="mt-2.5 text-xs font-bold text-[#12327A] hover:underline" data-calendar-more>
+            {currentLanguage === 'kg' ? `Дагы ${selectedItems.length - maxItems} — толук календарь` : currentLanguage === 'en' ? `${selectedItems.length - maxItems} more — full calendar` : `Ещё ${selectedItems.length - maxItems} — весь календарь`} →
+          </button>
         )}
       </div>
     </div>

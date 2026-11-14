@@ -1,10 +1,10 @@
-/* DataNews — service worker только для push-уведомлений о срочных предупреждениях.
-   Сигнал приходит без содержимого; текст берём с сайта (/api/push?last=1). Страницы не кэшируются. */
+/* DataNews — service worker только для push-уведомлений.
+   Сигнал приходит без содержимого; текст своего уведомления берём с сайта (/api/push?inbox=<id подписки>). Страницы не кэшируются. */
 const LANG = new URL(self.location.href).searchParams.get('lang') || 'ru';
 const FALLBACK = {
-  ru: { title: 'DataNews: срочное предупреждение', body: 'Откройте сайт, чтобы прочитать подробности' },
-  kg: { title: 'DataNews: шашылыш эскертүү', body: 'Толук маалымат үчүн сайтты ачыңыз' },
-  en: { title: 'DataNews: urgent warning', body: 'Open the site for details' },
+  ru: { title: 'DataNews', body: 'Откройте сайт, чтобы прочитать подробности' },
+  kg: { title: 'DataNews', body: 'Толук маалымат үчүн сайтты ачыңыз' },
+  en: { title: 'DataNews', body: 'Open the site for details' },
 };
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -15,8 +15,18 @@ self.addEventListener('push', (event) => {
     (async () => {
       let m = null;
       try {
-        const r = await fetch('/api/push?last=1', { cache: 'no-store' });
-        m = (await r.json()).message;
+        // Своё уведомление: по id подписки (хэш её адреса) — у каждого города и темы свой текст
+        const sub = await self.registration.pushManager.getSubscription();
+        if (sub) {
+          const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sub.endpoint)));
+          const id = Array.from(h.slice(0, 16), (b) => b.toString(16).padStart(2, '0')).join('');
+          const r = await fetch('/api/push?inbox=' + id, { cache: 'no-store' });
+          m = (await r.json()).message;
+        }
+        if (!m) {
+          const r = await fetch('/api/push?last=1', { cache: 'no-store' });
+          m = (await r.json()).message;
+        }
       } catch (e) {
         // без сети — общий текст, но уведомление всё равно показываем
       }

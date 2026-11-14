@@ -2,6 +2,10 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { PLACE_IDS } from '../config/regions';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
+import { placeText } from '../utils/place';
+import { isWeatherQuery, rankSearch, searchSnippet } from '../utils/search';
+import { Highlight } from './Highlight';
+import { WeatherCard } from './WeatherSafety';
 
 interface SearchModalProps {
   currentLanguage: Language;
@@ -29,29 +33,14 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const [selectedCat, setSelectedCat] = useState<CategoryId>('all');
   const [selectedCity, setSelectedCity] = useState<CityId>('all');
 
+  // самые похожие на запрос — сверху; «Весь Кыргызстан» виден в любом городе
   const filtered = useMemo(() => {
-    return announcements.filter((item) => {
+    const scoped = announcements.filter((item) => {
       if (selectedCat !== 'all' && item.category !== selectedCat) return false;
-      if (selectedCity !== 'all' && item.city !== selectedCity) return false;
-
-      if (!query.trim()) return true;
-      const q = query.toLowerCase();
-      const titleRu = item.title.ru.toLowerCase();
-      const titleKg = (item.title.kg || '').toLowerCase();
-      const titleEn = (item.title.en || '').toLowerCase();
-      const locRu = item.location.ru.toLowerCase();
-      const sumRu = item.summary.ru.toLowerCase();
-      const proto = item.protocolCode.toLowerCase();
-
-      return (
-        titleRu.includes(q) ||
-        titleKg.includes(q) ||
-        titleEn.includes(q) ||
-        locRu.includes(q) ||
-        sumRu.includes(q) ||
-        proto.includes(q)
-      );
+      if (selectedCity !== 'all' && item.city !== selectedCity && item.city !== 'all') return false;
+      return true;
     });
+    return query.trim() ? rankSearch(scoped, query) : scoped;
   }, [announcements, query, selectedCat, selectedCity]);
 
   return (
@@ -121,7 +110,10 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
         {/* Results List */}
         <div className="max-h-[60vh] overflow-y-auto p-4 space-y-2">
+          {/* «пог…», «аба…», «weather» — сразу официальный прогноз Кыргызгидромета */}
+          {isWeatherQuery(query) && <WeatherCard lang={currentLanguage} city={selectedCity} />}
           {filtered.length === 0 ? (
+            isWeatherQuery(query) ? null : (
             <div className="py-12 text-center text-gray-500">
               <span className="material-symbols-outlined text-4xl mb-2 text-gray-300">
                 search_off
@@ -134,6 +126,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                   : 'По вашему запросу ничего не найдено'}
               </p>
             </div>
+            )
           ) : (
             filtered.map((item) => (
               <div
@@ -149,19 +142,19 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 text-[#12327A]">
                       {t(`categories.${item.category}`)}
                     </span>
-                    <span className="text-[11px] font-mono text-gray-500">
-                      {item.protocolCode}
-                    </span>
                     <span className="text-[11px] text-gray-500">
                       • {t(`cities.${item.city}`)}
                     </span>
                   </div>
                   <h4 className="text-xs sm:text-sm font-bold text-[#0f1b33] group-hover:text-[#12327A] truncate">
-                    {item.title[currentLanguage] || item.title.ru}
+                    <Highlight text={item.title[currentLanguage] || item.title.ru} query={query} />
                   </h4>
-                  <p className="text-xs text-gray-500 truncate mt-0.5">
-                    {item.location[currentLanguage] || item.location.ru}
-                  </p>
+                  {query.trim() && searchSnippet(item.description?.[currentLanguage] || item.description?.ru || '', query) && (
+                    <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                      <Highlight text={searchSnippet(item.description?.[currentLanguage] || item.description?.ru || '', query)} query={query} />
+                    </p>
+                  )}
+                  {placeText(item, currentLanguage) && <p className="text-xs text-gray-500 truncate mt-0.5">{placeText(item, currentLanguage)}</p>}
                 </div>
 
                 <span className="material-symbols-outlined text-gray-500 group-hover:text-[#12327A] group-hover:translate-x-1 transition-all text-[18px] flex-shrink-0 mt-2">

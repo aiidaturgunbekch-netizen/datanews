@@ -9,6 +9,7 @@
  * Ничего не сохраняет: ни вопросы, ни IP (кроме временного счётчика защиты от перегрузки — 10 минут).
  */
 import type { Language } from '../src/types';
+import { visibleIn } from '../src/utils/lang';
 import type { BotIntent } from '../src/types/bot';
 import { BOT_INTENTS } from '../src/types/bot';
 import type { OfficialForecast } from '../src/config/weather';
@@ -31,7 +32,8 @@ export default handler(async (req) => {
   const intent = (BOT_INTENTS as string[]).includes(String(body.intent)) || body.intent === 'help' ? (body.intent as BotIntent) : undefined;
   if (!q && !intent) throw new HttpError('missing_field', 400, 'Задайте вопрос');
 
-  const all = await loadPublished();
+  // Только публикации со своим текстом на языке вопроса — как на сайте
+  const all = (await loadPublished()).filter((a) => visibleIn(a, lang));
   const raw = await cmd<string | null>('GET', 'dn:weather:official');
   const official = raw ? (JSON.parse(raw) as OfficialForecast) : null;
   return json(answer({ q, intent, lang }, all, official));

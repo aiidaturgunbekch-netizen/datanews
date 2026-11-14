@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
+import { visibleIn } from './utils/lang';
 import {
   Announcement,
   CategoryId,
@@ -14,7 +15,8 @@ import {
 import { INITIAL_ANNOUNCEMENTS } from './data/initialAnnouncements';
 import { mergeAnnouncements } from './utils/mergeAnnouncements';
 import * as api from './services/api';
-import { fetchPopular, trackRead, trackView } from './services/analytics';
+import { fetchPopular, outboundKind, outboundNetwork, trackOutbound, trackRead, trackView } from './services/analytics';
+import { CONTACTS, telegramUrl } from './config/contacts';
 import { addDaysStr, kgDateStr, kgTs } from './utils/time';
 import { alertLevel, isAlert, isExpired, isListed } from './utils/urgency';
 import { CATEGORY_IDS, normalizeCity, REGIONS } from './config/regions';
@@ -24,36 +26,62 @@ import { HeroFilter } from './components/HeroFilter';
 import { CategoryChips } from './components/CategoryChips';
 import { AlertsGrid } from './components/AlertsGrid';
 import { EventsFeed } from './components/EventsFeed';
-import { InteractiveCalendar } from './components/InteractiveCalendar';
 import { SectionsDrawer } from './components/SectionsDrawer';
-import { MainAlerts } from './components/MainAlerts';
+import { MainAlerts, NoAlertsLine } from './components/MainAlerts';
+import { AdSlot } from './components/AdSlot';
+import { AdTicker } from './components/AdTicker';
+import { useLiveAds } from './services/ads';
+import { byPriority } from './config/ads';
+import { isPaid } from './components/PaidBadge';
+import { pickTopStories } from './utils/timeline';
+import { isWeatherQuery, matchesSearch, rankSearch } from './utils/search';
 import { TopStories } from './components/TopStories';
 import { PopularNews } from './components/PopularNews';
+import { EditContext } from './components/EditButton';
+import { pickUpcoming, UpcomingDays } from './components/UpcomingDays';
 import { Footer } from './components/Footer';
 import { AnnouncementDetailModal } from './components/AnnouncementDetailModal';
-import { FullCalendarView } from './components/FullCalendarView';
-import { CitiesPage } from './components/CitiesPage';
-import { OrganizationsPage } from './components/OrganizationsPage';
-import { AdminPortal } from './components/AdminPortal';
 import { SearchModal } from './components/SearchModal';
-import { AccountPortal } from './components/AccountPortal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
-import { EmergencyBox, HydrometLine, WeatherSafety } from './components/WeatherSafety';
+import { EmergencyBox, HydrometLine, WeatherCard } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
 import { freshOrder, isFresh } from './utils/statusUtils';
-import { diversePick, importanceOf, rubricOf } from './config/rubrics';
+import { RUBRICS, rubricIdOf, rubricOf } from './config/rubrics';
+import { EDITORIAL_PAGE_VISIBLE } from './config/site';
 import { TheatreSchedule } from './components/TheatreSchedule';
 import { ChatWidget } from './components/ChatWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { InfoPage, InfoView } from './components/InfoPages';
+import { hashFor, Screen, screenFromHash } from './utils/route';
+
+// Редко нужные части грузятся только при открытии — читателю главной не приходится скачивать панель администратора и формы
+const FullCalendarView = lazy(() => import('./components/FullCalendarView').then((m) => ({ default: m.FullCalendarView })));
+const CitiesPage = lazy(() => import('./components/CitiesPage').then((m) => ({ default: m.CitiesPage })));
+const AdvertisingPage = lazy(() => import('./components/AdvertisingPage').then((m) => ({ default: m.AdvertisingPage })));
+const OrganizationsPage = lazy(() => import('./components/OrganizationsPage').then((m) => ({ default: m.OrganizationsPage })));
+const AdminPortal = lazy(() => import('./components/AdminPortal').then((m) => ({ default: m.AdminPortal })));
+const AccountPortal = lazy(() => import('./components/AccountPortal').then((m) => ({ default: m.AccountPortal })));
 
 
-const isAdminHash = () => window.location.hash.replace('#', '').toLowerCase() === 'admin';
+const screenNow = () => screenFromHash(window.location.hash);
+const isAdminHash = () => screenNow() === 'admin';
+/** Адрес без перезагрузки: #login / #cabinet / пусто (публичная главная) */
+const setScreenHash = (s: Screen) => {
+  if (screenNow() === s) return;
+  history.replaceState(null, '', window.location.pathname + window.location.search + hashFor(s));
+};
+const accountFromHash = (): null | 'cabinet' | 'login' => (screenNow() === 'login' ? 'login' : screenNow() === 'cabinet' ? 'cabinet' : null);
+/** id публикации из адреса: /n/<id> или старый вид /#/n/<id> */
+const articleIdFromUrl = () =>
+  window.location.pathname.match(/^\/n\/([\w-]+)\/?$/)?.[1] || window.location.hash.match(/^#\/n\/([\w-]+)/)?.[1] || null;
 
 
 export default function App() {
   // Multilingual State
   const [currentLanguage, setCurrentLanguage] = useState<Language>(() => {
+    // Ссылка на новость может задавать язык (?lang=kg) — так получатель видит ту же версию, что и отправитель
+    const fromUrl = new URLSearchParams(window.location.search).get('lang');
+    if (fromUrl === 'ru' || fromUrl === 'kg' || fromUrl === 'en') return fromUrl;
     return (localStorage.getItem('datanews_kg_lang') as Language) || 'ru';
   });
 
@@ -64,21 +92,41 @@ export default function App() {
 
   // Navigation View Mode
   const [currentView, setCurrentView] = useState<ViewMode>('home');
+  // Вкладка афиши при открытии: «Архив» — по ссылке «Архив» в подвале; на других страницах сбрасывается
+  const [feedStart, setFeedStart] = useState<'upcoming' | 'completed'>('upcoming');
+  useEffect(() => {
+    if (currentView !== 'events') setFeedStart('upcoming');
+  }, [currentView]);
 
   // Filters
   // Панель «Разделы» скрыта по умолчанию, открывается кнопкой в шапке
   const [sectionsOpen, setSectionsOpen] = useState(false);
   const closeSections = useCallback(() => setSectionsOpen(false), []);
   // Рубрика строки навигации (группа разделов); null — главная без фильтра
-  const [activeRubric, setActiveRubric] = useState<string | null>(null);
+  // Ссылка из push-уведомления на раздел — /?r=<рубрика>: раздел открывается сразу
+  const [activeRubric, setActiveRubric] = useState<string | null>(() => {
+    try {
+      const r = new URLSearchParams(window.location.search).get('r');
+      return r && rubricOf(r) ? r : null;
+    } catch {
+      return null;
+    }
+  });
   const [selectedCity, setSelectedCity] = useState<CityId>('bishkek');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
-  const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => kgDateStr());
 
   // Data Store: встроенные события показываются сразу, публикации с сервера догружаются
-  const [announcements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
+  const [allAnnouncements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
+  // Сайт показывает только публикации со своим текстом на выбранном языке — русский и кыргызский не смешиваются
+  const announcements = useMemo(() => allAnnouncements.filter((a) => visibleIn(a, currentLanguage)), [allAnnouncements, currentLanguage]);
+  // Пустые разделы не показываем в меню: читатель не должен открывать пустую страницу
+  const rubricCounts = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const r of RUBRICS) out[r.id] = announcements.filter((a) => r.categories.includes(a.category)).length;
+    return out;
+  }, [announcements]);
 
   // Роль: гость / зарегистрированный пользователь / администратор
   const [role, setRole] = useState<api.Role>(() => api.getSession()?.role || 'guest');
@@ -88,7 +136,12 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   // Панель управления открывается только по адресу сайта с #admin и только после входа админа
   const [isAdminOpen, setIsAdminOpen] = useState(isAdminHash);
-  const [accountMode, setAccountMode] = useState<null | 'cabinet' | 'publish'>(null);
+  // Личный кабинет: по кнопке «Войти» / «Кабинет» или по адресу #login / #cabinet (обычное открытие сайта — публичная главная)
+  const [accountMode, setAccountModeState] = useState<null | 'cabinet' | 'publish' | 'login'>(accountFromHash);
+  const setAccountMode = (m: null | 'cabinet' | 'publish' | 'login') => {
+    setAccountModeState(m);
+    setScreenHash(m === null ? 'home' : m === 'login' ? 'login' : 'cabinet');
+  };
   const [statsMode, setStatsMode] = useState<StatsMode | null>(null);
 
   const refreshData = () => {
@@ -115,7 +168,11 @@ export default function App() {
         .then((r) => setRole(r.role))
         .catch(() => {});
     }
-    const onHash = () => isAdminHash() && setIsAdminOpen(true);
+    const onHash = () => {
+      if (isAdminHash()) setIsAdminOpen(true);
+      const acc = accountFromHash();
+      if (acc) setAccountModeState((m) => m || acc);
+    };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
@@ -125,26 +182,65 @@ export default function App() {
     document.documentElement.lang = currentLanguage === 'kg' ? 'ky' : currentLanguage;
   }, [currentLanguage]);
 
-  // Отдельная ссылка на каждую публикацию: /#/n/<id> (короткая ссылка для мессенджеров — /n/<id>, см. api/share.ts)
+  // Постоянный адрес каждой публикации — /n/<id>: страницу с текстом новости для поисковиков отдаёт api/share.ts,
+  // а сайт по этому же адресу открывает статью. Старые ссылки /#/n/<id> тоже открываются и переписываются на новый адрес.
+  // Статья, открытая с сайта, добавляет шаг в историю: кнопка «Назад» телефона закрывает её, а не уводит с сайта
+  const articlePushed = useRef(false);
+  const shownArticle = useRef<string | null>(null);
   useEffect(() => {
-    const openFromHash = () => {
-      const m = window.location.hash.match(/^#\/n\/([\w-]+)/);
-      if (m) {
-        const found = announcements.find((a) => a.id === m[1]);
-        if (found) setActiveNoticeDetail(found);
+    const openFromUrl = (e?: Event) => {
+      const id = articleIdFromUrl();
+      if (id) {
+        const found = allAnnouncements.find((a) => a.id === id);
+        if (found) {
+          // Ссылка на публикацию, у которой пока нет текста на языке сайта: открываем на языке, где текст есть
+          if (!visibleIn(found, currentLanguage)) {
+            const other = (['ru', 'kg', 'en'] as Language[]).find((l) => visibleIn(found, l));
+            if (other) setCurrentLanguage(other);
+          }
+          setActiveNoticeDetail(found);
+        }
+      } else if (e) {
+        articlePushed.current = false;
+        setActiveNoticeDetail(null);
       }
     };
-    openFromHash();
-    window.addEventListener('hashchange', openFromHash);
-    return () => window.removeEventListener('hashchange', openFromHash);
-  }, [announcements]);
+    openFromUrl();
+    window.addEventListener('popstate', openFromUrl);
+    window.addEventListener('hashchange', openFromUrl);
+    return () => {
+      window.removeEventListener('popstate', openFromUrl);
+      window.removeEventListener('hashchange', openFromUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allAnnouncements]);
+  // Сменили язык, а у открытой публикации нет текста на новом языке — закрываем её (не показываем чужой язык)
   useEffect(() => {
-    const base = window.location.pathname + window.location.search;
+    if (activeNoticeDetail && !visibleIn(activeNoticeDetail, currentLanguage)) setActiveNoticeDetail(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLanguage]);
+  useEffect(() => {
+    const onArticleUrl = Boolean(articleIdFromUrl());
     if (activeNoticeDetail) {
-      if (window.location.hash !== `#/n/${activeNoticeDetail.id}`) history.replaceState(null, '', `${base}#/n/${activeNoticeDetail.id}`);
+      const target = `/n/${activeNoticeDetail.id}`;
+      if (window.location.pathname !== target || window.location.hash.startsWith('#/n/')) {
+        if (onArticleUrl) history.replaceState(null, '', target);
+        else {
+          history.pushState(null, '', target);
+          articlePushed.current = true;
+        }
+      }
+      shownArticle.current = activeNoticeDetail.id;
       document.title = `${activeNoticeDetail.title[currentLanguage]} — DataNews Kyrgyzstan`;
     } else {
-      if (window.location.hash.startsWith('#/n/')) history.replaceState(null, '', base);
+      // Адрес меняем, только когда статью закрыли (а не пока публикация из базы ещё загружается)
+      if (shownArticle.current && onArticleUrl) {
+        if (articlePushed.current) {
+          articlePushed.current = false;
+          history.back();
+        } else history.replaceState(null, '', '/');
+      }
+      shownArticle.current = null;
       if (currentView === 'home') document.title = 'DataNews Кыргызстан — Что, где и когда в Кыргызстане';
     }
   }, [activeNoticeDetail, currentLanguage, currentView]);
@@ -154,8 +250,59 @@ export default function App() {
     if (role !== 'admin') trackView(currentView, currentLanguage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView]);
+  // Переходы с сайта в Instagram, WhatsApp и Telegram — любой клик по такой ссылке на любой странице
+  // (подвал, кнопки связи, «Поделиться», страницы театров); клики администратора не считаются
+  useEffect(() => {
+    if (role === 'admin') return;
+    const own = [CONTACTS.whatsappUrl, CONTACTS.instagramUrl, telegramUrl(), CONTACTS.telegramPhoneUrl];
+    const onClick = (e: MouseEvent) => {
+      const link = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!link) return;
+      const net = outboundNetwork(link.href);
+      if (net) trackOutbound(net, outboundKind(link.href, own));
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [role]);
+
+  // «Исправить» на сайте: админ — любая публикация; сотрудник редакции — редакционные материалы своих разделов
+  const [isEditorUser, setIsEditorUser] = useState(false);
+  useEffect(() => {
+    if (role !== 'user') {
+      setIsEditorUser(false);
+      return;
+    }
+    api
+      .me()
+      .then((r) => setIsEditorUser(Boolean(r.usage?.editor)))
+      .catch(() => setIsEditorUser(false));
+  }, [role]);
+  const [editFromSite, setEditFromSite] = useState<Announcement | null>(null);
+  const editApi = useMemo(
+    () => ({
+      canEdit: (a: Announcement) =>
+        // сотрудник редакции — любой материал, кроме платных размещений (сервер проверяет то же)
+        role === 'admin' || (isEditorUser && !isPaid(a)),
+      edit: (a: Announcement) => {
+        setActiveNoticeDetail(null);
+        setEditFromSite(a);
+        if (role === 'admin') setIsAdminOpen(true);
+        else setAccountMode('cabinet');
+      },
+      // «В Главное»: закрепить на 24 часа / снять — администратор и редакция (сервер проверяет то же)
+      canFeature: () => role === 'admin' || isEditorUser,
+      feature: async (a: Announcement, on: boolean) => {
+        const item = await api.featureAnnouncement(a.id, on);
+        setAnnouncements((list) => list.map((x) => (x.id === item.id ? { ...x, featuredUntil: item.featuredUntil } : x)));
+        refreshData();
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [role, isEditorUser]
+  );
 
   const closeAdmin = () => {
+    setEditFromSite(null);
     setIsAdminOpen(false);
     if (isAdminHash()) history.replaceState(null, '', window.location.pathname + window.location.search);
   };
@@ -164,11 +311,12 @@ export default function App() {
    * Один общий фильтр для счётчиков и списков (город, дата, поиск) — чтобы число на чипе категории
    * всегда совпадало с тем, что открывается по нажатию. Завершённые предупреждения не показываются.
    */
-  const matchesScope = (item: Announcement, ignoreCategory = false) => {
-    if (!isListed(item)) return false;
+  const matchesScope = (item: Announcement, ignoreCategory = false, withArchive = false, ignoreCity = false) => {
+    // в поиске и на страницах разделов — и завершённые предупреждения (они попадают в свёрнутый «Архив»)
+    if (!withArchive && !isListed(item)) return false;
     // Город: публикации «Весь Кыргызстан» (city = 'all') видны в любом городе
     const city = normalizeCity(item.city);
-    if (selectedCity !== 'all' && city !== selectedCity && city !== 'all') return false;
+    if (!ignoreCity && selectedCity !== 'all' && city !== selectedCity && city !== 'all') return false;
     if (!ignoreCategory && selectedCategory !== 'all' && item.category !== selectedCategory) return false;
 
     // Даты считаются по календарю Бишкека
@@ -185,13 +333,7 @@ export default function App() {
     }
     if (dateFilter === 'week' && !overlaps(today, addDaysStr(today, 7))) return false;
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const hay = [item.title.ru, item.title.kg, item.title.en, item.location.ru, item.district, item.locality, item.protocolCode, item.summary.ru, item.description.ru, item.sourceName]
-        .join(' ')
-        .toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
+    if (searchQuery.trim() && !matchesSearch(item, searchQuery)) return false;
     return true;
   };
 
@@ -213,58 +355,90 @@ export default function App() {
     [announcements, selectedCity]
   );
   const eventsList = useMemo(() => filteredAnnouncements.filter((a) => !isAlert(a)), [filteredAnnouncements]);
-  // «Главное»: одна главная история и четыре важных — из актуального (не предупреждения: у них свой блок рядом).
-  // Порядок: срочная строка, затем значимость раздела (решения государства — выше досуга), затем свежесть;
-  // не больше двух материалов одной рубрики, чтобы серьёзное шло вперемешку с интересным
+  // «Главное»: три материала — сначала закреплённые редакцией, затем срочное, затем по оценке и прочтениям.
+  // Порядок постоянный у всех читателей (без случайности).
+  // «Самое читаемое»: реальные прочтения карточек за 7 дней
+  const [popularReads, setPopularReads] = useState<Record<string, number>>({});
+  useEffect(() => {
+    fetchPopular().then(setPopularReads);
+  }, []);
   const topStories = useMemo(
-    () =>
-      diversePick(
-        eventsList
-          .filter((a) => isFresh(a))
-          .sort(
-            (a, b) =>
-              Number(Boolean(b.isUrgentTicker)) - Number(Boolean(a.isUrgentTicker)) ||
-              importanceOf(a.category) - importanceOf(b.category) ||
-              freshOrder(a, b)
-          ),
-        5
-      ),
-    [eventsList]
+    () => pickTopStories(eventsList.filter((a) => isFresh(a)).sort(freshOrder), popularReads, (a) => rubricIdOf(a.category)),
+    [eventsList, popularReads]
   );
-  // Главной историей ставим материал с настоящей фотографией (из первых трёх по значимости), остальные — следом
+  // Главная история — первая редакционная (не партнёрская) из отобранных
+  // Закреплённая платная новость (формат P) — на последнем месте рядом с главной (не вместо главной)
+  const liveAds = useLiveAds();
+  const pinned = useMemo(() => {
+    const ad = liveAds.filter((x) => x.format === 'P' && x.annId).sort(byPriority).find((x) => announcements.some((a) => a.id === x.annId));
+    const ann = ad ? announcements.find((a) => a.id === ad.annId) : undefined;
+    return ad && ann ? { adId: ad.id, ann } : null;
+  }, [liveAds, announcements]);
   const topOrdered = useMemo(() => {
-    const hasPhoto = (a: Announcement) => Boolean(a.imageUrl) && !a.imageUrl!.startsWith('/illustrations/');
-    const i = topStories.slice(0, 3).findIndex(hasPhoto);
-    return i > 0 ? [topStories[i], ...topStories.filter((_, j) => j !== i)] : topStories;
-  }, [topStories]);
+    const lead = topStories.find((a) => !isPaid(a) && a.id !== pinned?.ann.id);
+    const rest = topStories.filter((a) => a.id !== lead?.id && a.id !== pinned?.ann.id);
+    const list = lead ? [lead, ...rest] : rest;
+    if (!pinned) return list;
+    return [...list.slice(0, 2), pinned.ann];
+  }, [topStories, pinned]);
   // Лента ниже не повторяет материалы из «Главного»
   const feedList = useMemo(() => {
     const top = new Set(topStories.map((a) => a.id));
     return eventsList.filter((a) => !top.has(a.id));
   }, [eventsList, topStories]);
+  // «Ближайшие даты» берут из ленты то, что предстоит; в самой ленте эти материалы не повторяются
+  const upcomingPool = useMemo(() => feedList.filter((a) => isFresh(a)), [feedList]);
+  const feedRest = useMemo(() => {
+    const shown = pickUpcoming(upcomingPool).shownIds;
+    return feedList.filter((a) => !shown.has(a.id));
+  }, [feedList, upcomingPool]);
   // «Самое читаемое»: реальные прочтения карточек за 7 дней; пока их нет — «Скоро» (ближайшие по дате)
-  const [popularReads, setPopularReads] = useState<Record<string, number>>({});
-  useEffect(() => {
-    fetchPopular().then(setPopularReads);
-  }, []);
   useEffect(() => {
     if (activeNoticeDetail && role !== 'admin') trackRead(activeNoticeDetail.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeNoticeDetail?.id]);
   const sideNews = useMemo(() => {
     const top = new Set(topStories.map((a) => a.id));
-    const pool = eventsList.filter((a) => isFresh(a) && !top.has(a.id));
-    const read = pool.filter((a) => (popularReads[a.id] || 0) > 0).sort((a, b) => popularReads[b.id] - popularReads[a.id]);
+    // часто читаемое остаётся в списке, даже если дата прошла (новость могут читать и через неделю)
+    const read = eventsList.filter((a) => !top.has(a.id) && a.status !== 'cancelled')
+      .filter((a) => (popularReads[a.id] || 0) > 0).sort((a, b) => popularReads[b.id] - popularReads[a.id]);
     if (read.length > 0) return { mode: 'popular' as const, items: read.slice(0, 5) };
     const now = Date.now();
-    const soon = pool.filter((a) => kgTs(a.startDate) >= now).sort((a, b) => kgTs(a.startDate) - kgTs(b.startDate));
+    const soon = eventsList.filter((a) => isFresh(a) && !top.has(a.id)).filter((a) => kgTs(a.startDate) >= now).sort((a, b) => kgTs(a.startDate) - kgTs(b.startDate));
     return { mode: 'soon' as const, items: soon.slice(0, 5) };
   }, [eventsList, topStories, popularReads]);
   const rubric = rubricOf(activeRubric);
+  // Страница раздела: актуальное сверху, прошедшее (в том числе завершённые отключения) — в «Архиве» ниже, ничего не теряется
   const rubricItems = useMemo(
-    () => (rubric ? announcements.filter((a) => matchesScope(a, true) && rubric.categories.includes(a.category)) : []),
+    () => (rubric ? announcements.filter((a) => matchesScope(a, true, true) && rubric.categories.includes(a.category)) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [announcements, rubric, selectedCity, dateFilter, searchQuery]
+  );
+  // Раздел из панели «Разделы» — тоже с архивом
+  const categoryItems = useMemo(
+    () => (selectedCategory !== 'all' ? announcements.filter((a) => matchesScope(a, false, true)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [announcements, selectedCity, selectedCategory, dateFilter, searchQuery]
+  );
+  // Сколько материалов раздела есть в других городах и областях — чтобы читатель знал, что они не пропали
+  const elsewhereCount = useMemo(() => {
+    if (selectedCity === 'all' || (!rubric && selectedCategory === 'all')) return 0;
+    const inSection = (a: Announcement) => (rubric ? rubric.categories.includes(a.category) : a.category === selectedCategory);
+    return announcements.filter((a) => inSection(a) && matchesScope(a, Boolean(rubric), true, true)).length - (rubric ? rubricItems.length : categoryItems.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [announcements, rubric, selectedCategory, selectedCity, rubricItems, categoryItems, dateFilter, searchQuery]);
+  // Поиск относится к текущей странице: при переходе в раздел или на другую страницу он сбрасывается,
+  // иначе забытое в строке слово («аба») прячет все новости раздела
+  useEffect(() => {
+    setSearchQuery('');
+  }, [currentView, activeRubric]);
+  const searching = searchQuery.trim().length > 0;
+  const weatherQuery = isWeatherQuery(searchQuery);
+  const searchItems = useMemo(
+    // самые похожие сверху (rankSearch), найденные слова выделяются в списке
+    () => (searching ? rankSearch(announcements.filter((a) => matchesScope(a, true, true)), searchQuery) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [announcements, searching, selectedCity, dateFilter, searchQuery]
   );
   const selectRubric = (id: string | null) => {
     setActiveRubric(id);
@@ -334,6 +508,7 @@ export default function App() {
   };
 
   return (
+    <EditContext.Provider value={editApi}>
     <div className="min-h-screen flex flex-col bg-[#F5F7FB] text-[#0f1b33]">
       {/* Fixed Header */}
       <Header
@@ -348,11 +523,14 @@ export default function App() {
         featuredNotice={featuredNotice}
         role={role}
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenAccount={() => setAccountMode('cabinet')}
+        onOpenAccount={() => setAccountMode(role === 'user' ? 'cabinet' : 'login')}
         onOpenPublish={() => (role === 'admin' ? setIsAdminOpen(true) : setAccountMode('publish'))}
         onOpenSections={() => setSectionsOpen(true)}
         activeRubric={activeRubric}
         onSelectRubric={selectRubric}
+        rubricCounts={rubricCounts}
+        /* Рекламная бегущая строка (формат T) — под меню на всех страницах, только при идущих кампаниях */
+        ticker={<AdTicker lang={currentLanguage} />}
       />
 
       <SectionsDrawer
@@ -375,6 +553,7 @@ export default function App() {
       {/* Main Content Area (padding-top accounts for header + urgent ticker) */}
       {/* Отступ сверху = высота шапки: служебная строка 36px + основная 56px + рубрики 44px */}
       <main className="flex-1 w-full pt-[var(--header-h,136px)]">
+      <Suspense fallback={<div className="min-h-[60vh]" />}>
         {/* VIEW: HOME */}
         {currentView === 'home' && (
           <div className="w-full flex flex-col">
@@ -407,14 +586,20 @@ export default function App() {
                 lang={currentLanguage}
                 category={rubric.categories[0]}
                 title={rubric.label[currentLanguage]}
+                adRubric={rubric.id}
                 items={rubricItems}
+                elsewhere={elsewhereCount}
+                onAllCities={() => setSelectedCity('all')}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => selectRubric(null)}
                 extra={
                   rubric.id === 'weather' ? (
-                    <HydrometLine lang={currentLanguage} />
+                    <div className="space-y-4">
+                      <WeatherCard lang={currentLanguage} city={selectedCity} />
+                      <HydrometLine lang={currentLanguage} />
+                    </div>
                   ) : rubric.id === 'culture' ? (
-                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
+                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} editorView={role === 'admin'} />
                   ) : undefined
                 }
               />
@@ -425,89 +610,139 @@ export default function App() {
               <CategoryResults
                 lang={currentLanguage}
                 category={selectedCategory}
-                items={filteredAnnouncements}
+                adRubric={rubricIdOf(selectedCategory)}
+                items={categoryItems}
+                elsewhere={elsewhereCount}
+                onAllCities={() => setSelectedCity('all')}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}
                 extra={
                   selectedCategory === 'hazard' ? (
-                    <HydrometLine lang={currentLanguage} />
+                    <div className="space-y-4">
+                      <WeatherCard lang={currentLanguage} city={selectedCity} />
+                      <HydrometLine lang={currentLanguage} />
+                    </div>
                   ) : selectedCategory === 'culture' || selectedCategory === 'concerts' ? (
-                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
+                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} editorView={role === 'admin'} />
                   ) : undefined
                 }
               />
             )}
 
-            {!rubric && selectedCategory === 'all' && (
+            {/* Поиск — отдельный список результатов (а не пустые блоки главной); о погоде — сверху прогноз */}
+            {!rubric && selectedCategory === 'all' && searching && (
+              <CategoryResults
+                lang={currentLanguage}
+                category="news"
+                title={`${currentLanguage === 'kg' ? 'Издөө' : currentLanguage === 'en' ? 'Search' : 'Поиск'}: «${searchQuery.trim()}»`}
+                items={searchItems}
+                query={searchQuery}
+                onOpen={setActiveNoticeDetail}
+                onReset={() => setSearchQuery('')}
+                extra={weatherQuery ? <WeatherCard lang={currentLanguage} city={selectedCity} /> : undefined}
+                emptyText={
+                  weatherQuery
+                    ? null
+                    : currentLanguage === 'kg'
+                    ? 'Бул сөз боюнча эч нерсе табылган жок. Башка сөз менен издеп көрүңүз.'
+                    : currentLanguage === 'en'
+                    ? 'Nothing found. Try another word.'
+                    : 'По этому запросу ничего не найдено. Попробуйте другое слово.'
+                }
+              />
+            )}
+
+            {!rubric && selectedCategory === 'all' && !searching && (
               <>
                 {/* Главное: одна главная история, важные рядом и действующие предупреждения */}
-                <section className="w-full bg-white pt-4 pb-10 sm:pt-5 sm:pb-12" aria-labelledby="top-stories-title">
-                  <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+                <section className="w-full bg-white pt-5 pb-10 sm:pt-6 sm:pb-12" aria-labelledby="top-stories-title">
+                  <div className="dn-container">
                     {/* Подпись над обеими колонками — верх главной фотографии и блока предупреждений на одной линии */}
-                    <h2 id="top-stories-title" className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 mb-3">
+                    <h2 id="top-stories-title" className="dn-kicker mb-3">
                       {currentLanguage === 'kg' ? 'Башкы жаңылыктар' : currentLanguage === 'en' ? 'Top stories' : 'Главное'}
                     </h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-                      <div className="lg:col-span-8 min-w-0">
-                        <TopStories lang={currentLanguage} stories={topOrdered} onOpen={setActiveNoticeDetail} hideTitle />
-                      </div>
-                      <div className="lg:col-span-4 min-w-0 space-y-6">
-                        <MainAlerts
+                    {/* Календарь на главной не дублируем — он есть в разделе «Календарь»; после предупреждений идут «Ближайшие даты» */}
+                    <div className="min-w-0">
+                        <TopStories
                           lang={currentLanguage}
-                          alerts={alertsList}
-                          city={selectedCity}
+                          stories={topOrdered}
+                          pinned={pinned}
                           onOpen={setActiveNoticeDetail}
-                          onOpenAll={() => setCurrentView('alerts')}
+                          hideTitle
+                          /* Рекламное место A — сразу под главной новостью, как в макете; только при действующей кампании */
+                          afterLead={
+                            <>
+                              <AdSlot format="A" lang={currentLanguage} className="mt-6" />
+                              {/* Предупреждения — сразу под главными новостями: самое важное для безопасности читателя */}
+                              <div className="mt-6">
+                                {alertsList.length > 0 ? (
+                                  <MainAlerts
+                                    lang={currentLanguage}
+                                    alerts={alertsList}
+                                    city={selectedCity}
+                                    onOpen={setActiveNoticeDetail}
+                                    onOpenAll={() => setCurrentView('alerts')}
+                                  />
+                                ) : (
+                                  <NoAlertsLine lang={currentLanguage} city={selectedCity} onOpenAll={() => setCurrentView('alerts')} />
+                                )}
+                              </div>
+                            </>
+                          }
                         />
-                        <InteractiveCalendar
-                          currentLanguage={currentLanguage}
-                          announcements={announcements}
-                          selectedDate={calendarSelectedDate}
-                          onSelectDate={setCalendarSelectedDate}
-                          onSelectAnnouncement={setActiveNoticeDetail}
-                        />
-                      </div>
                     </div>
                   </div>
                 </section>
 
-                {/* Официальный прогноз Кыргызгидромета (предупреждения — в блоке выше) */}
-                <WeatherSafety
-                  lang={currentLanguage}
-                  announcements={announcements}
-                  city={selectedCity}
-                  onOpen={setActiveNoticeDetail}
-                  showWarnings={false}
-                />
-
-                {/* Лента (без повторов из «Главного»), сбоку — календарь и экстренные службы */}
-                <section id="events-feed" className="w-full py-12 sm:py-16 bg-[#f6f8fd] border-t border-gray-200 scroll-mt-[calc(var(--header-h,136px)+1rem)]">
-                  <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+                {/* Лента «Афиша и новости» (без повторов из «Главного»), сбоку — «Самое читаемое» и экстренные службы */}
+                <section id="events-feed" className="w-full dn-section bg-wash border-t border-line scroll-mt-[calc(var(--header-h,136px)+1rem)]">
+                  <div className="dn-container">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                       <div className="lg:col-span-8 min-w-0">
                         <EventsFeed
                           currentLanguage={currentLanguage}
-                          events={feedList}
+                          events={feedRest}
                           city={selectedCity}
                           onSelectAnnouncement={setActiveNoticeDetail}
                           onOpenFullCalendar={() => setCurrentView('calendar')}
                         />
                       </div>
                       <aside className="lg:col-span-4 min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h,136px)+1rem)]">
-                        <PopularNews
-                          lang={currentLanguage}
-                          items={sideNews.items}
-                          mode={sideNews.mode}
-                          reads={popularReads}
-                          onOpen={setActiveNoticeDetail}
-                        />
+                        {/* «Самое читаемое» — небольшое окошко рядом с лентой, над экстренными службами */}
+                        {/* только по настоящим прочтениям; ближайшие даты — отдельным блоком ниже */}
+                        {sideNews.mode === 'popular' && (
+                          <PopularNews
+                            lang={currentLanguage}
+                            items={sideNews.items}
+                            mode={sideNews.mode}
+                            reads={popularReads}
+                            onOpen={setActiveNoticeDetail}
+                          />
+                        )}
+                        {/* Рекламное место B (правая колонка; на телефоне и планшете — под лентой, между блоками) */}
+                        <AdSlot format="B" lang={currentLanguage} className="lg:max-w-[360px]" />
                         <EmergencyBox lang={currentLanguage} />
                       </aside>
                     </div>
                   </div>
                 </section>
 
+                {/* Что предстоит: сегодня, завтра, ближайшие дни — после ленты, без повторов из «Главного» */}
+                <UpcomingDays
+                  lang={currentLanguage}
+                  items={upcomingPool}
+                  onOpen={setActiveNoticeDetail}
+                  onOpenCalendar={() => setCurrentView('calendar')}
+                />
+
                 <TheatreSchedule lang={currentLanguage} announcements={announcements} onOpen={setActiveNoticeDetail} />
+
+                {/* Погода — последним окошком главной (отдельный раздел «Погода» есть в меню) */}
+                <section id="home-weather" className="w-full dn-section border-t border-line [&:not(:has([data-weather-card]))]:hidden">
+                  <div className="dn-container">
+                    <WeatherCard lang={currentLanguage} city={selectedCity} />
+                  </div>
+                </section>
               </>
             )}
           </div>
@@ -525,7 +760,7 @@ export default function App() {
 
         {/* VIEW: ALERTS ONLY */}
         {currentView === 'alerts' && (
-          <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-8">
+          <div className="w-full dn-container py-8">
             <button
               onClick={() => setCurrentView('home')}
               className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4"
@@ -543,14 +778,20 @@ export default function App() {
               <CategoryResults
                 lang={currentLanguage}
                 category={selectedCategory}
-                items={filteredAnnouncements}
+                adRubric={rubricIdOf(selectedCategory)}
+                items={categoryItems}
+                elsewhere={elsewhereCount}
+                onAllCities={() => setSelectedCity('all')}
                 onOpen={setActiveNoticeDetail}
                 onReset={() => setSelectedCategory('all')}
                 extra={
                   selectedCategory === 'hazard' ? (
-                    <HydrometLine lang={currentLanguage} />
+                    <div className="space-y-4">
+                      <WeatherCard lang={currentLanguage} city={selectedCity} />
+                      <HydrometLine lang={currentLanguage} />
+                    </div>
                   ) : selectedCategory === 'culture' || selectedCategory === 'concerts' ? (
-                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} />
+                    <TheatreVenues lang={currentLanguage} items={announcements} onOpen={setActiveNoticeDetail} editorView={role === 'admin'} />
                   ) : undefined
                 }
               />
@@ -569,7 +810,7 @@ export default function App() {
 
         {/* VIEW: EVENTS ONLY (АФИША) */}
         {currentView === 'events' && (
-          <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-8">
+          <div className="w-full dn-container py-8">
             <button
               onClick={() => setCurrentView('home')}
               className="text-xs font-bold text-[#12327A] hover:underline flex items-center gap-1 mb-4"
@@ -578,6 +819,8 @@ export default function App() {
               <span>{currentLanguage === 'kg' ? 'Башкы бет' : currentLanguage === 'en' ? 'Home' : 'Главная'}</span>
             </button>
             <EventsFeed
+              key={feedStart}
+              initialStatus={feedStart}
               currentLanguage={currentLanguage}
               events={eventsList}
               city={selectedCity}
@@ -601,6 +844,9 @@ export default function App() {
           />
         )}
 
+        {/* VIEW: РЕКЛАМА — страница для рекламодателей */}
+        {currentView === 'advertising' && <AdvertisingPage lang={currentLanguage} onOpenContacts={() => setCurrentView('contacts')} />}
+
         {/* VIEW: ORGANIZATIONS & PRICING */}
         {(currentView === 'organizations' || currentView === 'pricing') && (
           <OrganizationsPage
@@ -611,14 +857,35 @@ export default function App() {
           />
         )}
 
-        {/* О проекте, источники, правила, конфиденциальность, контакты */}
-        {(['about', 'sources', 'privacy', 'rules', 'contacts'] as const).includes(currentView as InfoView) && (
+        {/* О проекте, правила, контакты */}
+        {(['about', 'rules', 'contacts', 'privacy', ...(EDITORIAL_PAGE_VISIBLE ? ['editorial'] : [])] as string[]).includes(currentView as InfoView) && (
           <InfoPage view={currentView as InfoView} lang={currentLanguage} onNavigate={setCurrentView} />
         )}
+      </Suspense>
       </main>
 
       {/* Footer */}
-      <Footer currentLanguage={currentLanguage} onNavigate={setCurrentView} onOpenAccount={() => setAccountMode('cabinet')} />
+      <Footer
+        currentLanguage={currentLanguage}
+        onNavigate={(v) => {
+          setCurrentView(v);
+          window.scrollTo({ top: 0 });
+        }}
+        onOpenAccount={() => setAccountMode(role === 'user' ? 'cabinet' : 'login')}
+        onOpenHome={() => {
+          setSelectedCategory('all');
+          selectRubric(null);
+        }}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenArchive={() => {
+          setActiveRubric(null);
+          setSelectedCategory('all');
+          setCurrentView('events');
+          setFeedStart('completed');
+          window.scrollTo({ top: 0 });
+        }}
+        onOpenNews={() => selectRubric('news')}
+      />
 
       {/* Ассистент DataNews AI — на всех страницах */}
       <ErrorBoundary
@@ -675,6 +942,7 @@ export default function App() {
           onClose={() => setActiveNoticeDetail(null)}
           onSelectOtherNotice={(ann) => setActiveNoticeDetail(ann)}
           allAnnouncements={announcements}
+          editorView={role === 'admin'}
         />
       )}
 
@@ -702,6 +970,7 @@ export default function App() {
         />
       )}
 
+      <Suspense fallback={null}>
       {/* 3. Панель управления — только для администратора */}
       {isAdminOpen && (
         <AdminPortal
@@ -709,6 +978,7 @@ export default function App() {
           onRefreshData={refreshData}
           onRoleChange={setRole}
           onClose={closeAdmin}
+          initialEdit={editFromSite}
         />
       )}
 
@@ -716,11 +986,20 @@ export default function App() {
       {accountMode && (
         <AccountPortal
           lang={currentLanguage}
-          initialTab={accountMode}
+          initialTab={accountMode === 'login' ? 'cabinet' : accountMode}
+          startWithLogin={accountMode === 'login'}
+          adminSession={role === 'admin'}
           onRoleChange={setRole}
-          onClose={() => setAccountMode(null)}
+          initialEdit={editFromSite}
+          onClose={() => {
+            if (editFromSite) refreshData();
+            setEditFromSite(null);
+            setAccountMode(null);
+          }}
         />
       )}
+      </Suspense>
     </div>
+    </EditContext.Provider>
   );
 }

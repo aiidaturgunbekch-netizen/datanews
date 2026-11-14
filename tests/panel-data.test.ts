@@ -153,7 +153,7 @@ describe('модерация и подтверждение достоверно�
       new Request('http://localhost/api/auth', {
         method: 'POST',
         headers: { 'x-forwarded-for': '127.0.0.3' },
-        body: JSON.stringify({ action: 'register', name: 'Тест', email: 'mod-test@example.com', phone: '+996555000001', organization: 'Тестовая организация', password: 'test-pass-123', plan: 'start', paymentRef: 'T-1' }),
+        body: JSON.stringify({ action: 'register', consent: true, name: 'Тест', email: 'mod-test@example.com', phone: '+996555000001', organization: 'Тестовая организация', password: 'test-pass-123', plan: 'start', paymentRef: 'T-1' }),
       })
     );
     userToken = (await reg.json()).token;

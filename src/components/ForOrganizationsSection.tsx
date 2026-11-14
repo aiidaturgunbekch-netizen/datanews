@@ -40,7 +40,7 @@ export const ForOrganizationsSection: React.FC<ForOrganizationsSectionProps> = (
 
   return (
     <section className="w-full py-12 lg:py-16 bg-[#e3e8f4]">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+      <div className="dn-container">
         <div className="bg-[#0d2459] text-white rounded-3xl p-6 sm:p-10 lg:p-12 relative overflow-hidden shadow-xl border border-white/10">
           {/* Subtle gradient shape */}
           <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-[#20C7B5]/15 to-transparent pointer-events-none" />

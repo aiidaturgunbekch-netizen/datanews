@@ -1,9 +1,11 @@
 import React from 'react';
+import { CatLabel } from './CatLabel';
 import { Announcement, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { formatWhen } from '../utils/dates';
 import { UrgencyBadge } from './UrgencyBadge';
 import { PushToggle } from './PushToggle';
+import { placeText } from '../utils/place';
 
 const T = {
   title: { ru: 'Предупреждения', kg: 'Эскертүүлөр', en: 'Warnings' },
@@ -62,14 +64,14 @@ export const MainAlerts: React.FC<{
                 <span className="mt-1 w-2 h-2 rounded-full bg-[#12327A] shrink-0" aria-hidden="true" />
                 <span className="flex-1 min-w-0">
                   <span className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-[#12327A]">{t(`categories.${a.category}`)}</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-[#12327A]"><CatLabel text={t(`categories.${a.category}`)} /></span>
                     <UrgencyBadge item={a} lang={lang} />
                   </span>
                   <span className="block font-bold text-[15px] leading-snug text-[#0f1b33] line-clamp-2 [overflow-wrap:anywhere]">
                     {a.title[lang] || a.title.ru}
                   </span>
                   <span className="block text-xs text-gray-500 mt-1 [overflow-wrap:anywhere]">
-                    {formatWhen(a.startDate, a.endDate, lang, false, a.timeTBA, a.allDay)} · {a.location[lang] || a.location.ru}
+                    {[formatWhen(a.startDate, a.endDate, lang, false, a.timeTBA, a.allDay), placeText(a, lang)].filter(Boolean).join(' · ')}
                   </span>
                 </span>
               </button>
@@ -88,5 +90,23 @@ export const MainAlerts: React.FC<{
         <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
       </button>
     </section>
+  );
+};
+
+/** Предупреждений нет — одна строка-статус вместо пустого блока (со ссылкой на архив) */
+export const NoAlertsLine: React.FC<{ lang: Language; city: CityId; onOpenAll: () => void }> = ({ lang, city, onOpenAll }) => {
+  const { t } = getTranslation(lang);
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink-soft">
+      <span className="material-symbols-outlined text-[18px] text-brand-teal-ink" aria-hidden="true">
+        check_circle
+      </span>
+      <span>
+        {T.none[lang]} <span className="text-meta">({t(`cities.${city}`)})</span>
+      </span>
+      <button type="button" onClick={onOpenAll} className="font-bold text-brand-blue hover:underline">
+        {T.all[lang]}
+      </button>
+    </p>
   );
 };

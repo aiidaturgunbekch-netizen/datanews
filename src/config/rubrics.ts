@@ -8,6 +8,10 @@ export interface Rubric {
   id: string;
   label: LocalizedString;
   categories: CategoryId[];
+  /** false — рубрика не показывается в строке меню (материалы доступны в общей ленте, через «Разделы», поиск и подвал) */
+  inNav?: boolean;
+  /** Сводная страница из разделов других рубрик (не «своя» рубрика материала — для разнообразия «Главного» не учитывается) */
+  aggregate?: boolean;
 }
 
 export const RUBRICS: Rubric[] = [
@@ -19,6 +23,8 @@ export const RUBRICS: Rubric[] = [
   },
   { id: 'roads', label: { ru: 'Дороги', kg: 'Жолдор', en: 'Roads' }, categories: ['roads'] },
   { id: 'state', label: { ru: 'Государство', kg: 'Мамлекет', en: 'Government' }, categories: ['gov', 'state', 'laws'] },
+  // «ИИ и IT-технологии» — заметно, в середине меню, сразу после «Государства»
+  { id: 'tech', label: { ru: 'ИИ и IT-технологии', kg: 'Жасалма интеллект жана IT-технологиялар', en: 'AI & IT Technologies' }, categories: ['tech'] },
   {
     id: 'culture',
     label: { ru: 'Культура и афиша', kg: 'Маданият жана афиша', en: 'Culture & events' },
@@ -26,12 +32,27 @@ export const RUBRICS: Rubric[] = [
   },
   { id: 'sport', label: { ru: 'Спорт', kg: 'Спорт', en: 'Sport' }, categories: ['sport'] },
   {
-    id: 'business',
+    id: 'expos',
     label: { ru: 'Выставки и ярмарки', kg: 'Көргөзмөлөр жана жарманкелер', en: 'Expos & fairs' },
     categories: ['exhibitions', 'fairs'],
   },
   { id: 'education', label: { ru: 'Образование', kg: 'Билим берүү', en: 'Education' }, categories: ['education'] },
+  // «Новости» и «Объявления» — часть общего потока главной; отдельными пунктами меню не показываются
+  // «Новости» — все опубликованные информационные материалы (тип «Новость»): редакционные новости,
+  // решения государства и законы, бизнес и ИИ/IT. Открывается из подвала; каждый материал в списке один раз
+  {
+    id: 'news',
+    label: { ru: 'Новости', kg: 'Жаңылыктар', en: 'News' },
+    categories: ['news', 'state', 'gov', 'laws', 'business', 'tech'],
+    inNav: false,
+    aggregate: true,
+  },
+  { id: 'business', label: { ru: 'Бизнес-новости', kg: 'Бизнес жаңылыктары', en: 'Business News' }, categories: ['business'] },
+  { id: 'notices', label: { ru: 'Объявления', kg: 'Жарыялар', en: 'Notices' }, categories: ['notices'], inNav: false },
 ];
+
+/** Рубрики строки меню в шапке */
+export const NAV_RUBRICS = RUBRICS.filter((r) => r.inNav !== false);
 
 export const rubricOf = (id: string | null | undefined) => RUBRICS.find((r) => r.id === id) || null;
 
@@ -44,6 +65,9 @@ const IMPORTANCE: Partial<Record<CategoryId, number>> = {
   gov: 0,
   laws: 0,
   hazard: 1,
+  news: 1,
+  business: 2,
+  tech: 2,
   roads: 1,
   water: 1,
   electricity: 1,
@@ -60,7 +84,7 @@ const IMPORTANCE: Partial<Record<CategoryId, number>> = {
 export const importanceOf = (category: CategoryId) => IMPORTANCE[category] ?? 3;
 
 /** Рубрика раздела (для разнообразия блока «Главное») */
-export const rubricIdOf = (category: CategoryId) => RUBRICS.find((r) => r.categories.includes(category))?.id || category;
+export const rubricIdOf = (category: CategoryId) => RUBRICS.find((r) => !r.aggregate && r.categories.includes(category))?.id || category;
 
 /**
  * Разнообразная подборка: идём по уже упорядоченному списку и берём не больше `perRubric` материалов одной рубрики;

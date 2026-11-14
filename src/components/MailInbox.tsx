@@ -1,0 +1,464 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type { Announcement, MailFlag, MailItem } from '../types';
+import * as api from '../services/api';
+import { formatKgDateTime } from '../utils/time';
+import { TEST_MARK_RE } from '../config/mailSenders';
+
+/**
+ * «Материалы из почты» — входящие письма редакционной почты (dn:mail).
+ * Письмо ничего не публикует: «Подготовить черновик» открывает обычную форму, черновик попадает в «Модерацию»,
+ * а на сайте материал появляется только после «Одобрить». «Подтверждено по первоисточнику» — отдельная отметка в форме.
+ */
+
+const FLAG_LABEL: Record<MailFlag, string> = {
+  needs_review: 'Требует проверки',
+  no_date: 'Нет даты',
+  no_place: 'Место не указано в источнике',
+  no_category: 'Раздел не определён',
+  no_city: 'Город не определён',
+  year_guessed: 'Год не указан в тексте',
+  wide_date_range: 'Даты далеко друг от друга — проверьте',
+  unknown_sender: 'Неизвестный отправитель',
+  auth_failed: 'Письмо не прошло проверку подлинности',
+  possible_correction: 'Возможно, исправление или перенос',
+  from_pdf: 'Данные из PDF — сверьте с оригиналом',
+  text_truncated: 'Текст обрезан (очень длинный)',
+  image_too_large: 'Есть фото, не сохранённое — откройте письмо',
+  attachment_skipped: 'Есть вложения, не обработанные — откройте письмо',
+};
+const WARN: MailFlag[] = ['auth_failed', 'possible_correction', 'wide_date_range', 'unknown_sender', 'year_guessed'];
+
+const STATUS_LABEL: Record<MailItem['status'], string> = {
+  new: 'Новое',
+  prepared: 'Черновик создан',
+  published: 'Опубликовано',
+  rejected: 'Отклонено',
+  duplicate: 'Дубль',
+};
+
+type Filter = 'new' | 'prepared' | 'closed' | 'all';
+
+export const MailInbox: React.FC<{
+  items: MailItem[] | null;
+  error: string;
+  /** Публикации сайта — чтобы показать, что стало с черновиком (на модерации / опубликован) */
+  announcements: Announcement[];
+  onReload: () => void;
+  /** photos — выбранные фото письма по порядку: первое — главное, остальные — галерея */
+  onPrepare: (item: MailItem, photos: string[]) => Promise<void>;
+  /** Поставить фото из письма в уже созданный черновик (черновик остаётся в «Модерации») */
+  onSetDraftPhoto?: (item: MailItem, photos: string[]) => Promise<void>;
+  onOpenModeration: () => void;
+}> = ({ items, error, announcements, onReload, onPrepare, onSetDraftPhoto, onOpenModeration }) => {
+  const [filter, setFilter] = useState<Filter>('new');
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [photos, setPhotos] = useState<Record<string, string | null>>({});
+  // Выбранные фото письма (ключи вложений); по умолчанию — все фото письма
+  const [chosen, setChosen] = useState<Record<string, string[]>>({});
+  const [itemMsg, setItemMsg] = useState<Record<string, string>>({});
+  // Главное фото выбирается отдельно (кнопка «Сделать главным»); без выбора — первое отмеченное
+  const [mainOf, setMainOf] = useState<Record<string, string>>({});
+  const mainKey = (m: MailItem) => {
+    const sel = m.attachments.filter((a) => a.kind === 'image' && a.storedKey && (chosen[m.id] || []).includes(a.storedKey)).map((a) => a.storedKey!);
+    return sel.includes(mainOf[m.id]) ? mainOf[m.id] : sel[0];
+  };
+  /** Выбранные фото: главное первым, затем остальные по порядку в письме */
+  const chosenPhotos = (m: MailItem) => {
+    const main = mainKey(m);
+    const keys = m.attachments.filter((a) => a.kind === 'image' && a.storedKey && (chosen[m.id] || []).includes(a.storedKey)).map((a) => a.storedKey!);
+    return [main, ...keys.filter((k) => k !== main)].map((k) => (k ? photos[k] : undefined)).filter((u): u is string => Boolean(u));
+  };
+
+  const counts = useMemo(() => {
+    const c = { new: 0, prepared: 0, closed: 0, all: items?.length || 0 };
+    (items || []).forEach((m) => {
+      if (m.status === 'new') c.new++;
+      else if (m.status === 'prepared' || m.status === 'published') c.prepared++;
+      else c.closed++;
+    });
+    return c;
+  }, [items]);
+  const shown = (items || []).filter((m) =>
+    filter === 'all' ? true : filter === 'new' ? m.status === 'new' : filter === 'prepared' ? m.status === 'prepared' || m.status === 'published' : m.status === 'rejected' || m.status === 'duplicate'
+  );
+
+  const act = async (id: string, fn: () => Promise<unknown>, ok: string | ((r: unknown) => string)) => {
+    setBusy(id);
+    setErr('');
+    setMsg('');
+    setItemMsg((x) => ({ ...x, [id]: '' }));
+    try {
+      const r = await fn();
+      const text = typeof ok === 'function' ? ok(r) : ok;
+      setMsg(text);
+      // сообщение и рядом с самим письмом — его видно, даже если список прокручен вниз
+      if (text) setItemMsg((x) => ({ ...x, [id]: text }));
+      onReload();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const loadPhoto = async (key: string) => {
+    try {
+      const url = await api.fetchMailAttachment(key);
+      setPhotos((p) => ({ ...p, [key]: url }));
+      return url;
+    } catch {
+      setPhotos((p) => ({ ...p, [key]: null }));
+      return null;
+    }
+  };
+
+  // Фото писем, которые ещё ждут черновика, показываются сразу и все уже выбраны для черновика
+  // (фото от первоисточника — для нашего сайта): первое — главное, остальные — галерея. Лишнее можно снять галочкой.
+  const requested = useRef(new Set<string>());
+  useEffect(() => {
+    for (const m of shown) {
+      if (m.status !== 'new' && m.status !== 'prepared') continue;
+      const keys = m.attachments.filter((a) => a.kind === 'image' && a.storedKey).map((a) => a.storedKey!);
+      keys.forEach((key) => {
+        if (requested.current.has(key)) return;
+        requested.current.add(key);
+        loadPhoto(key).then((url) => {
+          if (url) setChosen((c) => ((c[m.id] || []).includes(key) ? c : { ...c, [m.id]: [...(c[m.id] || []), key] }));
+        });
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown.map((m) => m.id).join(',')]);
+
+  const draftState = (m: MailItem) => {
+    const a = m.annId ? announcements.find((x) => x.id === m.annId) : undefined;
+    if (!m.annId) return null;
+    if (!a) return 'Черновик не найден (удалён?)';
+    if (a.moderationStatus === 'pending') return 'Черновик ждёт решения в «Модерации»';
+    if (a.moderationStatus === 'approved') return 'Опубликовано после «Одобрить»';
+    if (a.moderationStatus === 'rejected') return 'Черновик отклонён в «Модерации»';
+    return `Статус черновика: ${a.moderationStatus}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-extrabold text-[#0f1b33]">Материалы из почты</h2>
+      <p className="text-xs text-gray-600">
+        Письма из редакционной почты. Письмо само ничего не публикует: «Подготовить черновик» открывает форму, черновик сохраняется в «Модерацию», и на
+        сайте материал появится только после «Одобрить». Письмо с официального адреса — это «получено от организации», а не подтверждение:
+        «Подтверждено по первоисточнику» ставится в форме отдельно, после сверки.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {(
+          [
+            ['new', `Новые (${counts.new})`],
+            ['prepared', `С черновиком (${counts.prepared})`],
+            ['closed', `Отклонённые и дубли (${counts.closed})`],
+            ['all', `Все (${counts.all})`],
+          ] as [Filter, string][]
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setFilter(id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${filter === id ? 'bg-[#12327A] text-white' : 'bg-white border border-gray-200 text-gray-700'}`}
+          >
+            {label}
+          </button>
+        ))}
+        <button type="button" onClick={onReload} className="ml-auto text-xs font-bold text-[#12327A] hover:underline">
+          Обновить
+        </button>
+      </div>
+
+      {(error || err) && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">{error || err}</div>}
+      {msg && <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-semibold">{msg}</div>}
+
+      {!items ? (
+        !error && <div className="py-10 text-center text-gray-500">Загрузка писем…</div>
+      ) : shown.length === 0 ? (
+        <div className="py-12 text-center text-gray-500 bg-white rounded-2xl">Писем нет</div>
+      ) : (
+        shown.map((m) => {
+          const d = m.suggestion.draft;
+          const photosOf = m.attachments.filter((a) => a.kind === 'image' && a.storedKey);
+          const state = draftState(m);
+          // Пакет сборщика разобран сайтом сам — вручную с ним делать ничего не нужно, показываем только итог
+          const batch = m.history.find((h) => h.action === 'batch_imported');
+          if (batch)
+            return (
+              <article key={m.id} className="bg-white rounded-2xl border border-emerald-200 p-4 space-y-2" aria-label={m.subject || 'Пакет сборщика'} data-batch-mail>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
+                      task_alt
+                    </span>
+                    Пакет сборщика — принят автоматически
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-[#0f1b33] [overflow-wrap:anywhere]">{m.subject || '(без темы)'}</h3>
+                <p className="text-xs text-gray-600">Получено: {formatKgDateTime(m.receivedAt)}</p>
+                <p className="text-sm text-[#0f1b33]">
+                  <b>Итог:</b> {batch.note || 'разобран'}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Погода уже на сайте. Новости (если есть) — черновиками в{' '}
+                  <button type="button" onClick={onOpenModeration} className="font-bold text-[#12327A] underline">
+                    «Модерации»
+                  </button>
+                  . С этим письмом делать ничего не нужно: «Подготовить черновик» не нажимайте.
+                </p>
+              </article>
+            );
+          return (
+            <article key={m.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3" aria-label={m.subject || 'Письмо без темы'}>
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                <span className={`px-2 py-0.5 rounded-full ${m.status === 'new' ? 'bg-amber-100 text-[#5c3d00]' : 'bg-gray-100 text-gray-700'}`}>{STATUS_LABEL[m.status]}</span>
+                {TEST_MARK_RE.test(m.subject) && <span className="px-2 py-0.5 rounded-full bg-red-600 text-white">ТЕСТ — публиковать нельзя</span>}
+                {m.flags.map((f) => (
+                  <span key={f} className={`px-2 py-0.5 rounded-full ${WARN.includes(f) ? 'bg-red-50 text-red-800' : 'bg-[#eef2f9] text-[#12327A]'}`}>
+                    {FLAG_LABEL[f] || f}
+                  </span>
+                ))}
+              </div>
+
+              <h3 className="font-extrabold text-[#0f1b33] [overflow-wrap:anywhere]">{m.subject || '(без темы)'}</h3>
+
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-700">
+                <div>
+                  <dt className="inline text-gray-500">От: </dt>
+                  <dd className="inline [overflow-wrap:anywhere]">
+                    {m.from.name ? `${m.from.name} ` : ''}&lt;{m.from.address}&gt;
+                    {m.sender.known && <b className="text-emerald-700"> · {m.sender.orgName}</b>}
+                    {!m.sender.known && m.sender.govDomain && <span className="text-gray-500"> · домен .gov.kg</span>}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="inline text-gray-500">Получено: </dt>
+                  <dd className="inline">{formatKgDateTime(m.receivedAt)}</dd>
+                </div>
+                <div>
+                  <dt className="inline text-gray-500">Дата события (из текста): </dt>
+                  <dd className="inline">{d.startDate ? `${formatKgDateTime(d.startDate)}${d.endDate ? ` — ${formatKgDateTime(d.endDate)}` : ''}` : <b className="text-amber-800">не найдена</b>}</dd>
+                </div>
+                <div>
+                  <dt className="inline text-gray-500">Место (из текста): </dt>
+                  <dd className="inline [overflow-wrap:anywhere]">
+                    {d.location?.ru || <span className="text-amber-800">Место проведения не указано в источнике. Заполните, если это необходимо для публикации.</span>}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="inline text-gray-500">Подлинность письма: </dt>
+                  <dd className="inline">
+                    SPF {m.auth.spf || '—'} · DKIM {m.auth.dkim || '—'} · DMARC {m.auth.dmarc || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="inline text-gray-500">Вложения: </dt>
+                  <dd className="inline">{m.attachments.length ? m.attachments.map((a) => a.name).join(', ') : 'нет'}</dd>
+                </div>
+              </dl>
+
+              {m.suggestion.missing.length > 0 && (
+                <p className="text-xs p-2 rounded-lg bg-amber-50 text-[#5c3d00]">
+                  <b>Заполнить вручную:</b> {m.suggestion.missing.join(', ')}
+                </p>
+              )}
+              {m.duplicateOf && <p className="text-xs text-gray-600">Повтор письма {m.duplicateOf}.</p>}
+              {m.relatedIds.length > 0 && <p className="text-xs text-red-800">Похоже на прежние письма этого отправителя ({m.relatedIds.length}) — проверьте, не исправление ли это.</p>}
+              {state && (
+                <p className="text-xs font-semibold text-[#12327A]">
+                  {state}{' '}
+                  <button type="button" onClick={onOpenModeration} className="underline">
+                    Открыть «Модерацию»
+                  </button>
+                </p>
+              )}
+
+              {photosOf.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-gray-700">
+                    Фото из письма: «★ Главное фото» — сверху новости, остальные отмеченные — галерея под ним. Главным можно сделать любое фото, лишнее снимите галочкой.
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {photosOf.map((a) => {
+                      const key = a.storedKey!;
+                      const url = photos[key];
+                      return (
+                        <div key={key} className="w-40 text-xs space-y-1">
+                          {url ? (
+                            <img src={url} alt={a.name} className="w-40 h-28 object-cover rounded-lg border border-gray-200" />
+                          ) : url === null ? (
+                            <div className="w-40 h-28 rounded-lg bg-gray-100 flex items-center justify-center text-center p-2 text-gray-600">Копия удалена — фото в письме</div>
+                          ) : (
+                            <button type="button" onClick={() => loadPhoto(key)} className="w-40 h-28 rounded-lg bg-[#eef2f9] text-[#12327A] font-bold">
+                              Показать фото
+                            </button>
+                          )}
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              disabled={!url}
+                              checked={(chosen[m.id] || []).includes(key)}
+                              onChange={(e) =>
+                                setChosen((c) => ({
+                                  ...c,
+                                  [m.id]: e.target.checked ? [...(c[m.id] || []), key] : (c[m.id] || []).filter((k) => k !== key),
+                                }))
+                              }
+                            />
+                            <span className="truncate">{(chosen[m.id] || []).includes(key) ? 'Взять в новость' : 'Не брать'}</span>
+                          </label>
+                          {url && (chosen[m.id] || []).includes(key) &&
+                            (mainKey(m) === key ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#12327A] text-white font-bold" data-main-photo>
+                                ★ Главное фото
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setMainOf((x) => ({ ...x, [m.id]: key }))}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[#12327A] text-[#12327A] font-bold hover:bg-[#eef2f9]"
+                                data-make-main
+                              >
+                                ☆ Сделать главным
+                              </button>
+                            ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <button type="button" onClick={() => setOpen((o) => ({ ...o, [m.id]: !o[m.id] }))} className="text-xs font-bold text-[#12327A] hover:underline">
+                  {open[m.id] ? 'Скрыть текст письма' : 'Показать текст письма'}
+                </button>
+                {open[m.id] && (
+                  <div className="mt-2 space-y-2">
+                    <pre className="text-xs whitespace-pre-wrap [overflow-wrap:anywhere] font-sans bg-[#f8fafc] p-3 rounded-lg max-h-80 overflow-y-auto">{m.text || '(пустое письмо)'}</pre>
+                    {m.attachments
+                      .filter((a) => a.kind === 'pdf')
+                      .map((a) => (
+                        <div key={a.name} className="text-xs">
+                          <b>{a.name}</b> — {a.note}
+                          {a.text && <pre className="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] font-sans bg-[#fff8e6] p-3 rounded-lg max-h-60 overflow-y-auto">{a.text}</pre>}
+                        </div>
+                      ))}
+                    {m.links.length > 0 && (
+                      <div className="text-xs">
+                        <b>Ссылки из письма (не открывались автоматически):</b>
+                        <ul className="list-disc pl-5">
+                          {m.links.map((l) => (
+                            <li key={l} className="break-all">
+                              {l}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {itemMsg[m.id] && (
+                <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-semibold" role="status">
+                  {itemMsg[m.id]}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {onSetDraftPhoto && m.annId && announcements.some((x) => x.id === m.annId && x.moderationStatus === 'pending') && chosenPhotos(m).length > 0 && (
+                  <button
+                    type="button"
+                    disabled={busy === m.id}
+                    onClick={() =>
+                      act(
+                        m.id,
+                        () => onSetDraftPhoto(m, chosenPhotos(m)),
+                        `Фото поставлены в черновик: главное${chosenPhotos(m).length > 1 ? ` и ${chosenPhotos(m).length - 1} в галерею` : ''}. Черновик по-прежнему ждёт решения в «Модерации»`
+                      )
+                    }
+                    className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-bold disabled:opacity-60"
+                    data-set-draft-photo
+                  >
+                    Поставить выбранные фото в черновик
+                  </button>
+                )}
+                {(m.status === 'new' || (m.status === 'prepared' && !state)) && (
+                  <button
+                    type="button"
+                    disabled={busy === m.id}
+                    onClick={() => act(m.id, () => onPrepare(m, chosenPhotos(m)), '')}
+                    className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-bold disabled:opacity-60"
+                  >
+                    Подготовить черновик
+                  </button>
+                )}
+                {m.status === 'new' && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy === m.id}
+                      onClick={() => act(m.id, () => api.mailItemAction(m.id, 'reject'), 'Письмо отклонено — на сайте ничего не изменилось')}
+                      className="px-4 py-2 rounded-xl bg-red-50 text-red-700 text-sm font-bold disabled:opacity-60"
+                    >
+                      Отклонить
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy === m.id}
+                      onClick={() => act(m.id, () => api.mailItemAction(m.id, 'duplicate'), 'Помечено как дубль')}
+                      className="px-4 py-2 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold disabled:opacity-60"
+                    >
+                      Дубль
+                    </button>
+                  </>
+                )}
+                {(m.status === 'rejected' || m.status === 'duplicate') && (
+                  <button
+                    type="button"
+                    disabled={busy === m.id}
+                    onClick={() => act(m.id, () => api.mailItemAction(m.id, 'reopen'), 'Письмо возвращено в новые')}
+                    className="px-4 py-2 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold disabled:opacity-60"
+                  >
+                    Вернуть в новые
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={busy === m.id}
+                  title="Ещё раз найти в тексте письма дату, место, раздел и город — по текущим правилам помощника (письмо и черновик не меняются)"
+                  onClick={() =>
+                    act(
+                      m.id,
+                      () => api.mailItemAction(m.id, 'reparse'),
+                      (r) => {
+                        const x = r as MailItem;
+                        const f = x?.suggestion?.found || [];
+                        const miss = x?.suggestion?.missing || [];
+                        return `Разобрано заново. Найдено: ${f.length ? f.join(', ') : 'ничего нового'}${miss.length ? `. Заполнить вручную: ${miss.join(', ')}` : ''}`;
+                      }
+                    )
+                  }
+                  className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-bold disabled:opacity-60"
+                >
+                  Разобрать заново
+                </button>
+                {m.permalink && (
+                  <a href={m.permalink} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-[#12327A] text-sm font-bold">
+                    Открыть в Gmail
+                  </a>
+                )}
+              </div>
+            </article>
+          );
+        })
+      )}
+    </div>
+  );
+};

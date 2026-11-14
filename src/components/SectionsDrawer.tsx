@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { CategoryId, Language, ViewMode } from '../types';
 import { getTranslation } from '../locales/translations';
 import { CategoryChips } from './CategoryChips';
-import { Logo } from './Logo';
+import { BrandBadge } from './BrandLogo';
 
 interface SectionsDrawerProps {
   open: boolean;
@@ -60,7 +60,8 @@ export const SectionsDrawer: React.FC<SectionsDrawerProps> = ({
   const title = lang === 'kg' ? 'Бөлүмдөр' : lang === 'en' ? 'Sections' : 'Разделы';
 
   return (
-    <div className={`fixed inset-0 z-[60] ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open}>
+    // inert: у закрытого меню кнопки недоступны и для клавиши Tab, и для программ чтения с экрана
+    <div className={`fixed inset-0 z-[60] ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open} inert={!open}>
       <div
         className={`absolute inset-0 bg-[#0d2459]/40 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
@@ -74,7 +75,7 @@ export const SectionsDrawer: React.FC<SectionsDrawerProps> = ({
         }`}
       >
         <div className="h-16 shrink-0 px-4 flex items-center justify-between border-b border-gray-100">
-          <Logo className="h-9" lang={lang} />
+          <BrandBadge height={28} />
           <button
             ref={closeRef}
             onClick={onClose}

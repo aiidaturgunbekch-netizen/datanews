@@ -15,20 +15,21 @@
  * Публикация засчитывается в момент отправки (отклонённая модератором лимит не возвращает).
  * Правка уже отправленной публикации лимит не расходует.
  */
-import type { PlanId, PlanPeriod, PlanUsage } from '../../src/types';
+import type { CategoryId, PlanId, PlanPeriod, PlanUsage } from '../../src/types';
+import { allowedCategories, EDITORIAL_CATS, OFFICIAL_CATS } from '../../src/config/publishTypes';
 import { normalizePlan, PLANS } from '../../src/config/site';
 import { kgDateStr, addDaysStr } from '../../src/utils/time';
 import { cmd } from './kv';
 import { HttpError, randomId } from './http';
-import type { StoredUser } from './users';
+import { isEditor, StoredUser } from './users';
 
 const dayKey = (email: string, day = kgDateStr()) => `dn:quota:day:${email}:${day}`;
 const periodKey = (email: string, periodId: string) => `dn:quota:period:${email}:${periodId}`;
 
 const MESSAGES = {
   payment_required: 'Публикация доступна после подтверждения оплаты тарифа',
-  period_expired: 'Срок действия тарифа (30 дней) закончился — продлите его в личном кабинете',
-  pack_exhausted: 'Лимит публикаций в текущем 30-дневном периоде исчерпан. Новый лимит начнётся с продлением тарифа.',
+  period_expired: 'Срок действия тарифа завершён. Продлите тариф, чтобы размещать новые публикации.',
+  pack_exhausted: 'Лимит публикаций по вашему тарифу исчерпан. Выберите другой доступный тариф или дождитесь обновления лимита.',
   daily_limit_reached: 'По тарифу «Организатор» можно отправить не более одной новой публикации в день (по времени Кыргызстана). Попробуйте завтра.',
 } as const;
 
@@ -119,6 +120,11 @@ export async function getUsage(user: StoredUser): Promise<PlanUsage> {
     skipsModeration: Boolean(cur && plan === 'gov' && isGovVerified(user)),
   };
 
+  // Сотрудник редакции: бесплатно и без лимитов тарифа — публикация открыта без оплаченного периода.
+  // Статус оплаты и периоды при этом не меняются (это не оплата).
+  // active остаётся «есть оплаченный период» — у сотрудника его может не быть, и панель не должна показывать «Продлить»
+  if (isEditor(user)) return { ...usage, active: Boolean(cur), editor: true, skipsModeration: true, postLimit: null, postsLeft: null, dailyLimit: null };
+
   if (!cur) usage.reason = periodsOf(user).length ? 'period_expired' : 'payment_required';
   else if (p.postLimit !== null && postsUsed >= p.postLimit) usage.reason = 'pack_exhausted';
   else if (p.dailyLimit !== null && postedToday) {
@@ -141,6 +147,29 @@ export const checkPlanCategory = (plan: PlanId, category?: string) => {
   }
 };
 
+/**
+ * Раздел разрешён пользователю: тариф («Культура и театр» — только свой раздел) и роль
+ * (официальные разделы — «Государство и решения», «Гос. оповещения», «Законы», «Погода» — только подтверждённым госорганам).
+ * keepCategory — раздел уже сохранённой публикации: правка старой публикации в её разделе не запрещается.
+ */
+export const checkPublishCategory = (user: StoredUser, plan: PlanId, category: string, keepCategory?: string) => {
+  const editor = isEditor(user);
+  // Сотруднику редакции тариф разделы не ограничивает (остальные правила — ниже)
+  if (!editor) checkPlanCategory(plan, category);
+  if (category === keepCategory) return;
+  if (!allowedCategories({ plan, govVerified: isGovVerified(user), editor }).includes(category as CategoryId)) {
+    throw new HttpError(
+      'category_not_allowed',
+      403,
+      OFFICIAL_CATS.includes(category as CategoryId)
+        ? 'Этот раздел доступен только подтверждённым государственным органам'
+        : EDITORIAL_CATS.includes(category as CategoryId)
+          ? 'Раздел «Новости» доступен только сотрудникам редакции'
+          : 'Этот раздел недоступен для вашего тарифа'
+    );
+  }
+};
+
 export async function reservePost(user: StoredUser, category?: string): Promise<{ release: () => Promise<void>; periodId: string; usage: PlanUsage }> {
   const usage = await getUsage(user);
   const cur = currentPeriod(user);
@@ -149,7 +178,7 @@ export async function reservePost(user: StoredUser, category?: string): Promise<
     throw new HttpError(code, code === 'pack_exhausted' ? 403 : 402, MESSAGES[code]);
   }
   const p = PLANS[cur.plan];
-  checkPlanCategory(cur.plan, category);
+  checkPublishCategory(user, cur.plan, category || '');
   const undo: (() => Promise<unknown>)[] = [];
 
   if (p.dailyLimit !== null) {

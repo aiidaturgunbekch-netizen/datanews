@@ -63,7 +63,7 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
   }));
 
   return (
-    <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-8">
+    <div className="w-full dn-container py-8">
       {/* Back button */}
       <button
         onClick={onBackToHome}
@@ -74,13 +74,13 @@ export const OrganizationsPage: React.FC<OrganizationsPageProps> = ({
       </button>
 
       {/* Hero */}
-      <div className="bg-[#0d2459] text-white rounded-3xl p-8 sm:p-12 mb-12 shadow-xl border border-white/10 relative overflow-hidden">
+      <div className="bg-[#0d2459] text-white rounded-3xl p-5 min-[22.5em]:p-8 sm:p-12 mb-12 shadow-xl border border-white/10 relative overflow-hidden">
         <div className="max-w-3xl relative z-10">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-[#68f9e5] text-xs font-bold uppercase tracking-wider mb-3">
             <span className="material-symbols-outlined text-[16px]">verified</span>
             <span>{tx.badge[lang]}</span>
           </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4 text-white">
+          <h1 className="text-2xl min-[22.5em]:text-3xl sm:text-4xl font-extrabold tracking-tight mb-4 text-white [overflow-wrap:anywhere] hyphens-auto">
             {t('forOrg.title')}
           </h1>
           <p className="text-sm sm:text-base text-[#dbe1ff] leading-relaxed mb-6">

@@ -58,7 +58,7 @@ const T = {
     en: 'After paying, enter the transaction number or receipt code — the administrator will check it and enable posting.',
   },
   tabProfile: { ru: 'Профиль и оплата', kg: 'Профиль жана төлөм', en: 'Profile & payment' },
-  tabPublish: { ru: 'Добавить событие', kg: 'Иш-чара кошуу', en: 'Add event' },
+  tabPublish: { ru: 'Разместить', kg: 'Жайгаштыруу', en: 'Publish' },
   tabMine: { ru: 'Мои публикации', kg: 'Менин жарыяларым', en: 'My posts' },
   nameLabel: { ru: 'Имя', kg: 'Аты-жөнү', en: 'Name' },
   plan: { ru: 'Тариф', kg: 'Тариф', en: 'Plan' },
@@ -155,6 +155,11 @@ const T = {
     en: 'Thank you! The administrator will check the payment and enable posting.',
   },
   logout: { ru: 'Выйти', kg: 'Чыгуу', en: 'Log out' },
+  adminSessionNote: {
+    ru: 'Сейчас в этом браузере открыт вход администратора. Личный кабинет — это отдельная учётная запись пользователя: вход в кабинет завершит сеанс администратора в этом браузере.',
+    kg: 'Азыр бул браузерде администратор кирген. Жеке кабинет — колдонуучунун өзүнчө эсеби: кабинетке киргенде бул браузердеги администратордун сеансы бүтөт.',
+    en: 'You are signed in as administrator in this browser. The account area uses a separate user account: signing in there ends the administrator session in this browser.',
+  },
   lockedTitle: { ru: 'Публикация откроется после оплаты', kg: 'Жарыялоо төлөмдөн кийин ачылат', en: 'Posting opens after payment' },
   lockedStatus: { ru: 'Статус оплаты', kg: 'Төлөмдүн абалы', en: 'Payment status' },
   lockedHint: {
@@ -163,9 +168,9 @@ const T = {
     en: 'Go to “Profile & payment” to enter the payment number.',
   },
   moderationHint: {
-    ru: 'Событие появится на сайте только после проверки администратором. Указывайте точные дату, адрес и контакты.',
-    kg: 'Иш-чара администратор текшергенден кийин гана сайтта чыгат. Датаны, даректи жана байланыштарды так көрсөтүңүз.',
-    en: 'The event appears on the site only after the administrator reviews it. Give the exact date, address and contacts.',
+    ru: 'Публикация появится на сайте только после проверки редакцией.',
+    kg: 'Жарыя редакция текшергенден кийин гана сайтта чыгат.',
+    en: 'Your post appears on the site only after the editors review it.',
   },
   sendToModeration: { ru: 'Отправить на модерацию', kg: 'Модерацияга жөнөтүү', en: 'Send for moderation' },
   sentToModeration: {
@@ -239,12 +244,28 @@ const T = {
   fSummary: { ru: 'Кратко (1–2 предложения) *', kg: 'Кыскача (1–2 сүйлөм) *', en: 'Short summary (1–2 sentences) *' },
   fDescription: { ru: 'Подробное описание', kg: 'Толук сүрөттөмө', en: 'Full description' },
   fCategory: { ru: 'Категория', kg: 'Категория', en: 'Category' },
-  fCity: { ru: 'Город', kg: 'Шаар', en: 'City' },
-  fLocation: { ru: 'Адрес / место проведения *', kg: 'Дареги / өтүүчү жери *', en: 'Address / venue *' },
+  fCity: { ru: 'Область / город', kg: 'Облус / шаар', en: 'Region / city' },
+  fCityAll: { ru: 'Весь Кыргызстан (без привязки к области)', kg: 'Бүт Кыргызстан (облуска байланышсыз)', en: 'All of Kyrgyzstan (no specific region)' },
+  fLocation: { ru: 'Адрес / место (если известно из источника)', kg: 'Дареги / жери (булакта көрсөтүлсө)', en: 'Address / place (if stated in the source)' },
   fLocationPh: {
-    ru: 'Например: Филармония им. Т. Сатылганова, пр. Чуй, 253',
-    kg: 'Мисалы: Т. Сатылганов атн. филармония, Чүй пр., 253',
-    en: 'E.g. T. Satylganov Philharmonic, 253 Chui Ave',
+    ru: 'Адрес, улицы или участок дороги — только из источника',
+    kg: 'Дарек, көчөлөр же жолдун бөлүгү — булактан гана',
+    en: 'Address, streets or road section — from the source only',
+  },
+  fHintEvent: {
+    ru: 'Место проведения не указано в источнике. Заполните, если это необходимо для публикации. Для онлайн-мероприятия адрес не нужен — укажите «Онлайн» в поле «Площадка».',
+    kg: 'Өтүүчү жери булакта көрсөтүлгөн эмес. Жарыя үчүн керек болсо толтуруңуз. Онлайн иш-чарага дарек керек эмес — «Аянтча» талаасына «Онлайн» деп жазыңыз.',
+    en: 'The venue is not stated in the source. Fill it in if the post needs it. Online events need no address — write “Online” in the “Venue” field.',
+  },
+  fHintTerritory: {
+    ru: 'Территория не указана. Укажите затронутые районы, улицы или участок дороги, если они известны из источника.',
+    kg: 'Аймак көрсөтүлгөн эмес. Булакта белгилүү болсо, тийиштүү райондорду, көчөлөрдү же жолдун бөлүгүн көрсөтүңүз.',
+    en: 'No area given. Add the affected districts, streets or road section if the source names them.',
+  },
+  fHintNoRegion: {
+    ru: 'Область не выбрана: публикация относится ко всей стране и видна во всех регионах. Выберите область, если она указана в источнике.',
+    kg: 'Облус тандалган жок: жарыя бүт өлкөгө тиешелүү жана бардык аймактарда көрүнөт. Булакта көрсөтүлсө, облусту тандаңыз.',
+    en: 'No region chosen: the post applies to the whole country and is shown in every region. Pick a region if the source names one.',
   },
   fStart: { ru: 'Начало *', kg: 'Башталышы *', en: 'Starts *' },
   fEnd: { ru: 'Окончание', kg: 'Аякташы', en: 'Ends' },
@@ -277,9 +298,9 @@ const T = {
   fCancel: { ru: 'Отмена', kg: 'Жокко чыгаруу', en: 'Cancel' },
   fSaving: { ru: 'Сохранение…', kg: 'Сакталууда…', en: 'Saving…' },
   fRequired: {
-    ru: 'Заполните название, краткое описание, адрес и дату начала',
-    kg: 'Аталышын, кыскача сүрөттөмөнү, даректи жана башталыш датасын толтуруңуз',
-    en: 'Fill in the title, summary, address and start date',
+    ru: 'Заполните название, описание и дату',
+    kg: 'Аталышын, сүрөттөмөнү жана датасын толтуруңуз',
+    en: 'Fill in the title, description and date',
   },
   fEndBeforeStart: { ru: 'Дата окончания раньше даты начала', kg: 'Аяктоо датасы башталыш датасынан эрте', en: 'End date is before the start date' },
   fPhotoTooBig: { ru: 'Фото слишком большое, выберите другое', kg: 'Сүрөт өтө чоң, башкасын тандаңыз', en: 'Photo is too large, choose another one' },
@@ -292,7 +313,16 @@ export const ta = (key: AccountKey, lang: Language) => T[key][lang] || T[key].ru
 
 /** Сообщения об ошибках сервера по коду ответа */
 const ERRORS: Record<string, LocalizedString> = {
-  network: { ru: 'Нет связи с сервером', kg: 'Сервер менен байланыш жок', en: 'Cannot reach the server' },
+  network: {
+    ru: 'Нет связи с сервером: запрос не получил ответа. Проверьте интернет, обновите страницу и попробуйте снова.',
+    kg: 'Сервер менен байланыш жок: суроого жооп келген жок. Интернетти текшерип, баракты жаңылап, кайра аракет кылыңыз.',
+    en: 'Cannot reach the server: the request got no response. Check your connection, reload the page and try again.',
+  },
+  preview_auth: {
+    ru: 'Истёк вход в защищённый Preview Vercel. Обновите страницу (F5), при необходимости войдите в Vercel, и повторите действие.',
+    kg: 'Vercel Preview коргоосуна кирүү мөөнөтү бүттү. Баракты жаңылаңыз (F5), керек болсо Vercelге кириңиз жана аракетти кайталаңыз.',
+    en: 'Your sign-in to the protected Vercel Preview has expired. Reload the page (F5), sign in to Vercel if asked, and try again.',
+  },
   storage_not_configured: {
     ru: 'Сервер ещё не настроен. Попробуйте позже.',
     kg: 'Сервер азырынча орнотула элек. Кийинчерээк аракет кылыңыз.',
@@ -316,14 +346,29 @@ const ERRORS: Record<string, LocalizedString> = {
     en: 'Posting is available once your plan payment is confirmed',
   },
   period_expired: {
-    ru: 'Срок действия тарифа (30 дней) закончился — продлите его в разделе «Профиль и оплата»',
-    kg: 'Тарифтин мөөнөтү бүттү — аны «Профиль жана төлөм» бөлүмүндө узартыңыз',
-    en: 'Your plan has expired — renew it under “Profile & payment”',
+    ru: 'Срок действия тарифа завершён. Продлите тариф, чтобы размещать новые публикации',
+    kg: 'Тарифтин мөөнөтү бүттү. Жаңы жарыяларды жайгаштыруу үчүн тарифти узартыңыз',
+    en: 'Your plan has expired. Renew it to post new publications',
   },
   pack_exhausted: {
-    ru: 'Лимит публикаций в текущем 30-дневном периоде исчерпан. Новый лимит начнётся с продлением тарифа',
-    kg: 'Учурдагы 30 күндүк мезгилдеги жарыялардын чеги бүттү. Жаңы чек тариф узартылганда башталат',
-    en: 'You have used all posts for this 30-day period. A new limit starts when you renew',
+    ru: 'Лимит публикаций по вашему тарифу исчерпан. Выберите другой доступный тариф или дождитесь обновления лимита',
+    kg: 'Тарифиңиз боюнча жарыялардын чеги бүттү. Башка жеткиликтүү тарифти тандаңыз же чектин жаңыланышын күтүңүз',
+    en: 'You have used all posts allowed by your plan. Choose another available plan or wait for the limit to renew',
+  },
+  category_not_allowed: {
+    ru: 'Этот тип публикации недоступен для вашего тарифа или статуса',
+    kg: 'Жарыянын бул түрү тарифиңизге же статусуңузга жеткиликтүү эмес',
+    en: 'This type of post is not available for your plan or status',
+  },
+  category_not_in_plan: {
+    ru: 'Ваш тариф позволяет публиковать только в разделе «Театр и культура»',
+    kg: 'Тарифиңиз «Театр жана маданият» бөлүмүндө гана жарыялоого уруксат берет',
+    en: 'Your plan only allows posts in “Theatre & culture”',
+  },
+  profile_incomplete: {
+    ru: 'Укажите организацию или имя в профиле — один раз, а не в каждой публикации',
+    kg: 'Профилде уюмду же атыңызды бир жолу көрсөтүңүз',
+    en: 'Add your organisation or name to your profile once',
   },
   daily_limit_reached: {
     ru: 'По тарифу «Организатор» можно отправить не более одной новой публикации в день (по времени Кыргызстана). Попробуйте завтра.',

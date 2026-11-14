@@ -34,18 +34,24 @@ export const PopularNews: React.FC<{
       <ol className="divide-y divide-gray-100">
         {items.map((a, i) => (
           <li key={a.id}>
-            <button type="button" onClick={() => onOpen(a)} className="group w-full text-left flex items-start gap-3 py-3">
+            <button type="button" onClick={() => onOpen(a)} className="@container group w-full text-left flex items-start gap-3 py-3">
               <span className="w-5 shrink-0 pt-0.5 text-lg font-extrabold leading-none text-[#12327A] tabular-nums">{i + 1}</span>
               <span className="flex-1 min-w-0">
-                <span className="block text-sm font-bold leading-snug text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline underline-offset-2 line-clamp-3 [overflow-wrap:anywhere]">
+                <span className="block font-serif text-[15px] font-semibold leading-snug text-[#0f1b33] group-hover:text-[#12327A] group-hover:underline underline-offset-2 line-clamp-3 [overflow-wrap:anywhere]">
                   {a.title[lang] || a.title.ru}
                 </span>
                 <span className="block text-xs text-gray-500 mt-1">
                   {formatWhen(a.startDate, a.endDate, lang, false, a.timeTBA, a.allDay)}
-                  {mode === 'popular' && reads[a.id] ? ` · ${reads[a.id]} ${T.reads[lang]}` : ''}
+                  {mode === 'popular' && reads[a.id] ? (
+                    <span className="inline-flex items-center gap-0.5 ml-1.5 align-middle" title={T.reads[lang]}>
+                      · <span className="material-symbols-outlined text-[14px]" aria-hidden="true">visibility</span>
+                      <span className="sr-only">{T.reads[lang]}:</span>
+                      {reads[a.id]}
+                    </span>
+                  ) : null}
                 </span>
               </span>
-              <EventImage item={a} lang={lang} compact className="w-16 h-12 rounded-md shrink-0" />
+              <EventImage item={a} lang={lang} compact className="w-16 h-12 rounded-md shrink-0 @max-[16.5rem]:hidden" />
             </button>
           </li>
         ))}

@@ -1,6 +1,6 @@
 import type { OfficialForecast } from '../config/weather';
 import type { BotIntent, BotReply } from '../types/bot';
-import { Announcement, GovVerification, PaymentStatus, PlanId, PlanUsage, PublicUser, Report, SiteStats } from '../types';
+import { Announcement, GovVerification, MailItem, PaymentStatus, PlanId, PlanUsage, PublicUser, Report, SiteStats } from '../types';
 
 /**
  * Клиент серверных функций /api (Vercel). Токен входа хранится в браузере.
@@ -38,7 +38,18 @@ const setSession = (s: StoredSession | null) => {
   }
 };
 
-export const logout = () => setSession(null);
+/** Выход: браузер сразу забывает вход, а сервер закрывает прежние входы этой учётной записи */
+export const logout = async () => {
+  const s = getSession();
+  setSession(null);
+  if (s?.role === 'user') {
+    await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.token}` },
+      body: JSON.stringify({ action: 'logout' }),
+    }).catch(() => {});
+  }
+};
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const session = getSession();
@@ -46,17 +57,36 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (session) headers.Authorization = `Bearer ${session.token}`;
   let res: Response;
   try {
-    res = await fetch(`/api/${path}`, { ...init, headers: { ...headers, ...(init.headers as Record<string, string>) } });
+    // Наш API никогда не перенаправляет; перенаправление — это страница входа защиты Vercel (её распознаём ниже)
+    res = await fetch(`/api/${path}`, { ...init, redirect: 'manual', headers: { ...headers, ...(init.headers as Record<string, string>) } });
   } catch {
-    throw new ApiError('network', 0, 'Нет связи с сервером');
+    throw new ApiError('network', 0, NETWORK_MESSAGE);
   }
+  const fail = responseFailure(res);
+  if (fail) throw fail;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401 && session) setSession(null);
-    throw new ApiError(data.error || 'error', res.status, data.message || `Ошибка сервера (код ${res.status})`);
+    if (res.status === 401 && session && data.error) setSession(null);
+    throw new ApiError(data.error || 'error', res.status, data.message || nonJsonMessage(res));
   }
   return data as T;
 }
+
+const NETWORK_MESSAGE = 'Нет связи с сервером: запрос не получил ответа (нет интернета, сайт недоступен или запрос заблокирован браузером / расширением). Обновите страницу и попробуйте снова.';
+const PREVIEW_AUTH_MESSAGE =
+  'Запрос перенаправлен на страницу входа Vercel: истёк вход в защищённый Preview. Обновите страницу (F5), при необходимости войдите в Vercel, и повторите действие.';
+
+/** Ответ не от нашего API: перенаправление на вход Vercel (Preview под защитой) */
+const responseFailure = (res: Response): ApiError | null =>
+  res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400) ? new ApiError('preview_auth', res.status, PREVIEW_AUTH_MESSAGE) : null;
+
+/** Понятная причина, если сервер ответил не JSON (сбой платформы, защита Vercel) */
+const nonJsonMessage = (res: Response) => {
+  const vercelError = res.headers.get('x-vercel-error');
+  if (vercelError) return `Сбой платформы Vercel: ${vercelError} (код ${res.status}). Функция сайта не ответила — попробуйте ещё раз; если повторяется, это ошибка развёртывания.`;
+  if (res.status === 401 || res.status === 403) return `Доступ закрыт защитой Vercel Preview (код ${res.status}). Обновите страницу и войдите в Vercel.`;
+  return `Ошибка сервера (код ${res.status})`;
+};
 
 const post = <T>(path: string, body: unknown, method = 'POST') => request<T>(path, { method, body: JSON.stringify(body) });
 
@@ -69,6 +99,8 @@ export const adminLogin = async (password: string) => {
 };
 
 export interface RegisterInput {
+  /** согласие с Политикой конфиденциальности */
+  consent: boolean;
   name: string;
   email: string;
   phone: string;
@@ -103,13 +135,28 @@ export const fetchAllAnnouncements = () =>
 export const submitAnnouncement = (item: Record<string, unknown>, force = false) =>
   post<{ item: Announcement }>('announcements', { item, force }).then((r) => r.item);
 
+/** Черновик администратора (в т.ч. из письма): попадает в «Модерацию», на сайте не виден до «Одобрить» */
+export const submitDraft = (item: Record<string, unknown>, mailId?: string, force = false) =>
+  post<{ item: Announcement }>('announcements', { item, force, asDraft: true, mailId }).then((r) => r.item);
+
+/** Загрузить одно фото (администратор) — для галереи; возвращает ссылку /api/image?id=… */
+export const uploadImage = (data: string) => post<{ url: string }>('image', { data }).then((r) => r.url);
+
 export const updateAnnouncement = (id: string, item: Record<string, unknown>) =>
   post<{ item: Announcement }>('announcements', { id, item }, 'PATCH').then((r) => r.item);
 
+/** Очередь модерации для сотрудника редакции (без платных размещений) */
+export const fetchPendingForEditor = () => request<{ items: Announcement[] }>('announcements?scope=pending').then((r) => r.items);
+
 export const moderateAnnouncement = (id: string, action: 'approve' | 'reject' | 'restore' | 'withdraw', note?: string) =>
   post<{ item: Announcement }>('announcements', { id, action, note }, 'PATCH').then((r) => r.item);
+/** Закрепить в «Главном» на N часов (по умолчанию 24) или снять — для администратора и редактора */
+export const featureAnnouncement = (id: string, on: boolean, hours = 24) =>
+  post<{ item: Announcement }>('announcements', { id, action: on ? 'feature' : 'unfeature', hours }, 'PATCH').then((r) => r.item);
 
 /** Отметить, что публикация сверена с первоисточником сегодня (администратор) */
+/** Сверено с первоисточником: подтверждение, дата проверки и ссылка на билеты — одной кнопкой */
+export const markVerified = (id: string) => post<{ item: Announcement }>('announcements', { id, action: 'verified' }, 'PATCH').then((r) => r.item);
 export const markChecked = (id: string) => post<{ item: Announcement }>('announcements', { id, action: 'checked' }, 'PATCH').then((r) => r.item);
 
 /** Снять свою публикацию с сайта (автор) */
@@ -137,7 +184,62 @@ export const setPaymentStatus = (email: string, paymentStatus: PaymentStatus, pl
 export const setGovStatus = (email: string, gov: 'verify' | 'reject' | 'revoke', note?: string) =>
   post<{ user: AdminUser }>('users', { email, gov, note }, 'PATCH').then((r) => r.user);
 
+/** Учётная запись для сотрудника / помощника: обычный пользователь, только личный кабинет */
+export const createUserAccount = (u: { name: string; email: string; phone: string; organization: string; password: string; plan: PlanId; editor?: boolean }) =>
+  post<{ user: AdminUser }>('users', u).then((r) => r.user);
+/** Сотрудник редакции: назначить / отозвать (только администратор) */
+export const setEditor = (email: string, editor: 'grant' | 'revoke') => post<{ user: AdminUser }>('users', { email, editor }, 'PATCH').then((r) => r.user);
+export const setUserPassword = (email: string, password: string) => post<{ user: AdminUser }>('users', { email, password }, 'PATCH').then((r) => r.user);
+
 export const fetchStats = (days: number) => request<SiteStats>(`stats?days=${days}`);
+
+/** Состояние приёма редакционной почты (без значений секретов) */
+export interface MailIngestStatus {
+  enabled: boolean;
+  at?: string;
+  environment: 'production' | 'preview' | 'local';
+  productionBlocked: boolean;
+  /** ok — задан; missing — не задан в этой сборке; too_short — задан, но короче 32 символов */
+  secretState: 'ok' | 'missing' | 'too_short';
+  secretConfigured: boolean;
+  build: { environment: 'production' | 'preview' | 'local'; branch?: string; commit?: string };
+  envSwitchOff: boolean;
+}
+export const fetchMailStatus = () => request<MailIngestStatus>('sources?mail=settings');
+export const fetchMailList = () => request<{ items: MailItem[] }>('sources?mail=list').then((r) => r.items);
+export const fetchMailAttachment = (key: string) =>
+  request<{ dataUrl: string }>(`sources?mail=att&key=${encodeURIComponent(key)}`).then((r) => r.dataUrl);
+export const mailItemAction = (id: string, action: 'reject' | 'duplicate' | 'reopen' | 'reparse' | 'prepared' | 'published', extra: { annId?: string; duplicateOf?: string; note?: string } = {}) =>
+  post<{ item: MailItem }>('sources?mail=action', { id, action, ...extra }).then((r) => r.item);
+export const setMailEnabled = (enabled: boolean) => post<MailIngestStatus>('sources?mail=settings', { enabled });
+
+/** Перенос публикаций из резервной копии (только админ): одна часть за запрос */
+export const transferPart = (part: 'items' | 'images' | 'hidden' | 'checked' | 'weather', entries: unknown) =>
+  post<{ added: number; skipped: number; rejected: number }>('stats?transfer=1', { part, entries });
+
+/** Резервная копия данных (только админ): скачивается файлом JSON */
+export const downloadBackup = async (withImages: boolean) => {
+  const session = getSession();
+  const res = await fetch(`/api/stats?backup=1${withImages ? '&images=1' : ''}`, {
+    redirect: 'manual',
+    headers: session ? { Authorization: `Bearer ${session.token}` } : {},
+  }).catch(() => {
+    throw new ApiError('network', 0, NETWORK_MESSAGE);
+  });
+  const fail = responseFailure(res);
+  if (fail) throw fail;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError(data.error || 'error', res.status, data.message || nonJsonMessage(res));
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || 'datanews-backup.json';
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 
 // ---------- погода и источники ----------
 export interface WeatherResponse {
@@ -154,6 +256,8 @@ export interface WeatherResponse {
   status: { lastAttemptAt?: string; lastSuccessAt?: string; lastError?: string } | null;
   /** Официальный прогноз Кыргызгидромета, внесённый редакцией (только на сегодня и позже) */
   official?: OfficialForecast | null;
+  /** Официальные прогнозы по дням: сегодня, завтра… */
+  officialDays?: OfficialForecast[];
   refreshAfterHours: number;
   staleAfterHours: number;
 }
@@ -200,11 +304,54 @@ export const compressImage = (file: File, maxSide = 1400, quality = 0.82): Promi
 export const askBot = (input: { q?: string; intent?: BotIntent }, lang: string) => post<BotReply>('assistant', { ...input, lang });
 
 // ---------- push-уведомления ----------
+export interface PushLogEntry {
+  id: string;
+  at: string;
+  kind: 'alert' | 'custom';
+  annId?: string;
+  city: string;
+  topic: string;
+  title: { ru: string; kg: string; en: string };
+  body: { ru: string; kg: string; en: string };
+  url: string;
+  status: 'sending' | 'done';
+  total: number;
+  sent: number;
+  removed: number;
+  failed: number;
+  errors: Record<string, number>;
+}
 export interface PushStats {
   configured: boolean;
+  keys: { publicKey: boolean; privateKey: boolean; subject: boolean };
   total: number;
+  active: number;
+  invalid: number;
+  new7: number;
+  new30: number;
   byCity: Record<string, number>;
+  byLang: Record<string, number>;
+  byTopic: Record<string, number>;
+  sentTotal: number;
+  failedTotal: number;
   last: { id: string; at: string; title: { ru: string } } | null;
 }
 export const pushStats = () => request<PushStats>('push?stats=1');
+export const pushAudience = (city: string, topic: string) =>
+  request<{ count: number }>(`push?audience=1&city=${encodeURIComponent(city)}&topic=${encodeURIComponent(topic)}`).then((r) => r.count);
+export const pushLog = () => request<{ entries: PushLogEntry[] }>('push?log=1').then((r) => r.entries);
+export const sendCustomPush = (custom: { title: Record<string, string>; body: Record<string, string>; url: string; city: string; topic: string }) =>
+  post<PushLogEntry>('push', { custom }, 'PATCH');
 export const sendPushFor = (annId: string) => post<{ sent: number; removed: number; failed: number; total: number }>('push', { annId }, 'PATCH');
+
+// ---------- реклама (панель администратора) ----------
+export interface AdStatsView {
+  views: number;
+  clicks: number;
+  ctr: number | null;
+  days: { day: string; views: number; clicks: number }[];
+}
+export type AdminCampaign = import('../config/ads').AdCampaign & { stats: AdStatsView };
+export const adsAdmin = () =>
+  request<{ formats: Record<import('../config/ads').AdFormatId, import('../config/ads').AdFormat>; campaigns: AdminCampaign[] }>('stats?ads=1');
+export const adsPost = <T = { campaign: AdminCampaign | null }>(body: Record<string, unknown>) => post<T>('stats?ads=1', body);

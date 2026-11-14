@@ -1,0 +1,42 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+const { splitLead } = await import('../src/utils/lead');
+
+const KG =
+  'Ичүүчү суунун берилиши турак үйлөрдө, мектептерде, бала бакчаларда, ооруканаларда жана ишканаларда токтотулат: 10-кичи райондо — № 16–25 үйлөр. Себеби — «Бишкектеплоэнерго» тыгынды тазалайт. Суу алдын ала камдап коюңуз.';
+
+describe('вступление и продолжение статьи без повтора', () => {
+  it('краткое = обрезанное начало текста: наверху первое предложение, под фото — со второго', () => {
+    const r = splitLead(KG.slice(0, 150) + '…', KG);
+    assert.ok(r.lead.endsWith('№ 16–25 үйлөр.'));
+    assert.ok(r.rest.startsWith('Себеби'));
+    assert.equal(`${r.lead} ${r.rest}`, KG, 'ничего не потеряно и не повторено');
+  });
+  it('краткое написано отдельно — оба как есть', () => {
+    const r = splitLead('Отдельное короткое вступление.', 'Совсем другой основной текст новости.');
+    assert.deepEqual(r, { lead: 'Отдельное короткое вступление.', rest: 'Совсем другой основной текст новости.' });
+  });
+  it('текст из одного предложения — только наверху, без повтора внизу', () => {
+    const one = 'В Бишкеке 10 ноября отключат воду в 9 и 10 микрорайонах с 10:00 до 19:00.';
+    assert.deepEqual(splitLead(one, one), { lead: one, rest: '' });
+  });
+  it('сокращения («ул.», «г.») не режут предложение', () => {
+    const t = 'Концерт пройдёт в филармонии на ул. Чуй, 251 в 18:00, вход по билетам. Билеты продаются на сайте.';
+    const r = splitLead(t, t);
+    assert.equal(r.rest, 'Билеты продаются на сайте.');
+  });
+});
+
+describe('правленая копия встроенной новости с испорченным кыргызским текстом', () => {
+  it('кыргызский перевод возвращается из исходной новости', async () => {
+    const { mergeAnnouncements } = await import('../src/utils/mergeAnnouncements');
+    const { INITIAL_ANNOUNCEMENTS } = await import('../src/data/initialAnnouncements');
+    const { hasLangText } = await import('../src/utils/lang');
+    const orig = INITIAL_ANNOUNCEMENTS.find((a) => a.id === 'ann-dec31-short-day-2026')!;
+    const broken = { ...orig, title: { ...orig.title, kg: orig.title.ru }, description: { ...orig.description, kg: orig.description.ru } };
+    assert.ok(!hasLangText(broken, 'kg'));
+    const fixed = mergeAnnouncements([broken]).find((a) => a.id === orig.id)!;
+    assert.equal(fixed.description.kg, orig.description.kg);
+    assert.ok(hasLangText(fixed, 'kg'));
+  });
+});

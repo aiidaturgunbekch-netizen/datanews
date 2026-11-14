@@ -51,9 +51,14 @@ const vapidJwt = async (endpoint: string, subject: string) => {
 };
 
 export type PushResult = 'ok' | 'gone' | 'failed';
+/** Результат одной отправки: code — HTTP-код сервиса доставки или 'network' (без адресов и содержимого) */
+export interface PushOutcome {
+  result: PushResult;
+  code?: string;
+}
 
 /** Один сигнал подписчику. 404/410 — подписка больше не действует, её нужно удалить */
-export const sendPush = async (endpoint: string, subject: string): Promise<PushResult> => {
+export const sendPush = async (endpoint: string, subject: string): Promise<PushOutcome> => {
   try {
     const r = await fetch(endpoint, {
       method: 'POST',
@@ -64,12 +69,12 @@ export const sendPush = async (endpoint: string, subject: string): Promise<PushR
         'Content-Length': '0',
       },
     });
-    if (r.status === 404 || r.status === 410) return 'gone';
+    if (r.status === 404 || r.status === 410) return { result: 'gone', code: String(r.status) };
     if (!r.ok) console.error('[push]', r.status, await r.text().catch(() => ''));
-    return r.ok ? 'ok' : 'failed';
+    return r.ok ? { result: 'ok' } : { result: 'failed', code: String(r.status) };
   } catch (e) {
     console.error('[push]', e);
-    return 'failed';
+    return { result: 'failed', code: 'network' };
   }
 };
 

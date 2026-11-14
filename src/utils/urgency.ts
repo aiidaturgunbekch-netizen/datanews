@@ -8,11 +8,18 @@ const ALERT_CATEGORIES = ['water', 'electricity', 'roads', 'repairs', 'hazard'];
 export const isAlert = (a: Announcement) =>
   a.urgency === 'emergency' || a.urgency === 'planned' || ALERT_CATEGORIES.includes(a.category);
 
-/** Время окончания: endDate, а если его нет — конец дня начала (для предупреждений) или +4 часа (для событий) */
+/** Объявление без срока действия видно неделю после размещения (как новость) */
+const NOTICE_DAYS = 7;
+
+/**
+ * Время окончания: endDate, а если его нет — конец дня начала (для предупреждений), +4 часа (для событий)
+ * или неделя после размещения (для объявлений).
+ */
 export const endTs = (a: Announcement) => {
   const end = a.endDate && a.endDate.length === 10 ? kgTs(`${a.endDate}T23:59`) : kgTs(a.endDate);
   if (!isNaN(end)) return end;
   const start = kgTs(a.startDate);
+  if (a.category === 'notices') return start + NOTICE_DAYS * 86400_000;
   return isAlert(a) || a.timeTBA || a.allDay ? kgTs(`${a.startDate.slice(0, 10)}T23:59`) : start + 4 * 3600_000;
 };
 

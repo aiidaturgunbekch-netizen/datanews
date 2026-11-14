@@ -1,11 +1,21 @@
+import { downloadXlsx } from '../utils/xlsx';
+import { chunkEntries, planTransfer, type TransferPlan } from '../utils/transfer';
+import { MODERATION_REMINDER, confirmApproveWithoutKg, missingKg } from '../utils/translation';
+import { splitLead } from '../utils/lead';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Announcement, HistoryEntry, Language, PaymentStatus, Report, SiteStats } from '../types';
+import { BatchImport, untranslatedForClaude } from './admin/BatchImport';
+import { missingLangs } from '../utils/lang';
+import { Announcement, HistoryEntry, Language, MailItem, PaymentStatus, PlanId, Report, SiteStats } from '../types';
 import * as api from '../services/api';
 import { mergeAnnouncements } from '../utils/mergeAnnouncements';
-import { normalizePlan, PLANS } from '../config/site';
+import { normalizePlan, PLAN_IDS, PLANS } from '../config/site';
 import { AnnouncementForm, CATEGORY_OPTIONS, CITY_OPTIONS, inputCls } from './AnnouncementForm';
 import { EventImage } from './EventImage';
+import { MailInbox } from './MailInbox';
+import { PushPanel } from './admin/PushPanel';
+import { AdsPanel } from './admin/AdsPanel';
 import { eventSource, ticketLink } from '../utils/links';
+import { placeText } from '../utils/place';
 import { historyLabel, MODERATION_BADGE, PAYMENT_BADGE } from './AccountPortal';
 import { isAlert, isExpired } from '../utils/urgency';
 import { addDaysStr, formatKgDateTime, kgDateStr, kgTs } from '../utils/time';
@@ -20,6 +30,8 @@ interface AdminPortalProps {
   onRefreshData: () => void;
   onRoleChange: (role: api.Role) => void;
   onClose: () => void;
+  /** Открыть сразу форму правки этой публикации (кнопка «Исправить» на сайте); после сохранения — назад на сайт */
+  initialEdit?: Announcement | null;
 }
 
 const HISTORY_BY: Record<HistoryEntry['by'], string> = { admin: 'администратор', author: 'автор', reader: 'читатель', system: 'система' };
@@ -93,7 +105,7 @@ const ReportsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
   );
 };
 
-type Tab = 'moderation' | 'review' | 'posts' | 'push' | 'users' | 'reports' | 'weather' | 'stats';
+type Tab = 'moderation' | 'mail' | 'review' | 'posts' | 'push' | 'ads' | 'users' | 'reports' | 'weather' | 'stats';
 
 /** Дата и время по Бишкеку в одном формате для всей панели */
 const fmt = formatKgDateTime;
@@ -236,7 +248,206 @@ const placeRu = (key: string) => {
   return city ? `${CITY_RU[city] || city}, ${c}` : c;
 };
 
-const StatsTab: React.FC = () => {
+/** Резервная копия: публикации, жалобы, прогноз, учётные записи (без паролей); фото — отдельным файлом */
+const BackupBox: React.FC = () => {
+  const [state, setState] = useState<'' | 'busy' | 'ok' | string>('');
+  const run = async (withImages: boolean) => {
+    setState('busy');
+    try {
+      await api.downloadBackup(withImages);
+      setState('ok');
+    } catch (e) {
+      setState((e as Error).message || 'Не удалось скачать копию');
+    }
+  };
+  return (
+    <div className="p-4 rounded-2xl bg-white border border-gray-200 text-sm">
+      <div className="font-bold text-[#0f1b33]">Резервная копия данных</div>
+      <p className="text-xs text-gray-600 mt-1">
+        Файл JSON: публикации и правки, скрытые и сверенные публикации, жалобы, официальный прогноз, письма редакционной почты, учётные записи организаций. Пароли в копию не
+        входят. Храните файл в надёжном месте — в нём есть контакты пользователей.
+      </p>
+      <div className="flex flex-wrap gap-2 mt-3">
+        <button disabled={state === 'busy'} onClick={() => run(false)} className="px-3 py-1.5 rounded-lg bg-[#12327A] text-white text-xs font-bold disabled:opacity-60">
+          Скачать копию
+        </button>
+        <button disabled={state === 'busy'} onClick={() => run(true)} className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-[#12327A] text-xs font-bold disabled:opacity-60">
+          Скачать копию с фото (больше)
+        </button>
+      </div>
+      {state === 'busy' && <p className="text-xs text-gray-500 mt-2">Готовим файл…</p>}
+      {state === 'ok' && <p className="text-xs text-emerald-700 font-semibold mt-2">Файл скачан.</p>}
+      {state && state !== 'busy' && state !== 'ok' && <p className="text-xs text-red-700 font-semibold mt-2">{state}</p>}
+    </div>
+  );
+};
+
+/**
+ * «Перенос публикаций»: из файла резервной копии (скачанной «с фото» на другом сайте, например в Preview)
+ * в базу этого сайта. Только настоящие одобренные публикации — с прежними датами, фото и историей.
+ * Уже существующее не перезаписывается, повторный перенос не создаёт дублей.
+ */
+const TransferBox: React.FC<{ onDone: () => void }> = ({ onDone }) => {
+  const [plan, setPlan] = useState<TransferPlan | null>(null);
+  const [state, setState] = useState<'' | 'busy' | string>('');
+  const [log, setLog] = useState<string[]>([]);
+  const pick = async (file: File | undefined) => {
+    setPlan(null);
+    setLog([]);
+    setState('');
+    if (!file) return;
+    try {
+      setPlan(planTransfer(JSON.parse(await file.text())));
+    } catch (e) {
+      setState((e as Error).message || 'Не удалось прочитать файл');
+    }
+  };
+  const run = async () => {
+    if (!plan) return;
+    setState('busy');
+    const lines: string[] = [];
+    try {
+      const sum = { added: 0, skipped: 0, rejected: 0 };
+      const send = async (part: 'items' | 'images' | 'hidden' | 'checked', entries: Record<string, string>, label: string) => {
+        const s = { added: 0, skipped: 0, rejected: 0 };
+        for (const chunk of chunkEntries(entries)) {
+          const r = await api.transferPart(part, chunk);
+          s.added += r.added;
+          s.skipped += r.skipped;
+          s.rejected += r.rejected;
+        }
+        if (part === 'items') Object.assign(sum, s);
+        lines.push(`${label}: добавлено ${s.added}, уже были ${s.skipped}${s.rejected ? `, не подошло ${s.rejected}` : ''}`);
+        setLog([...lines]);
+      };
+      // сначала фото — чтобы публикации сразу появились с картинками
+      await send('images', plan.images, 'Фото');
+      await send('items', plan.items, 'Публикации');
+      await send('hidden', plan.hidden, 'Скрытые встроенные');
+      await send('checked', plan.checked, 'Сверенные встроенные');
+      const w = await api.transferPart('weather', plan.weather);
+      lines.push(`Прогноз погоды: добавлено ${w.added}, уже был ${w.skipped}`);
+      setLog([...lines]);
+      setState(`Готово: перенесено публикаций — ${sum.added}.`);
+      onDone();
+    } catch (e) {
+      setState((e as Error).message || 'Перенос прерван — можно запустить снова, дублей не будет');
+    }
+  };
+  const n = plan ? Object.keys(plan.items).length : 0;
+  return (
+    <div className="p-4 rounded-2xl bg-white border border-gray-200 text-sm" data-transfer-box>
+      <div className="font-bold text-[#0f1b33]">Перенос публикаций</div>
+      <p className="text-xs text-gray-600 mt-1">
+        Из файла резервной копии другого сайта (например, Preview: «Скачать копию с фото»). Переносятся только одобренные публикации — с прежними датами события и публикации,
+        фото, переводами и историей. Тестовые, черновики, отклонённые, учётные записи и статистика не переносятся. Уже существующее не перезаписывается — повторный перенос
+        безопасен.
+      </p>
+      <input type="file" accept="application/json,.json" className="mt-3 block text-xs" onChange={(e) => pick(e.target.files?.[0])} data-transfer-file />
+      {plan && (
+        <div className="mt-3 p-3 rounded-xl bg-[#f8fafc] text-xs text-gray-700 space-y-1" data-transfer-plan>
+          <div>
+            В файле публикаций: <b>{plan.total}</b>. Будет перенесено: <b>{n}</b>, не подходит (тест, черновик, отклонено, снято): {plan.excluded}.
+          </div>
+          <div>Фото к ним: {Object.keys(plan.images).length}.</div>
+          {plan.missingImages > 0 && (
+            <div className="text-amber-700 font-semibold">
+              В файле нет {plan.missingImages} фото — похоже, копия скачана без фото. Скачайте «Скачать копию с фото», иначе у этих публикаций будет заставка.
+            </div>
+          )}
+          <button disabled={state === 'busy' || n === 0} onClick={run} className="mt-2 px-3 py-1.5 rounded-lg bg-[#12327A] text-white text-xs font-bold disabled:opacity-60">
+            Перенести {n}
+          </button>
+        </div>
+      )}
+      {log.length > 0 && (
+        <ul className="mt-2 text-xs text-gray-700 list-disc ml-5" data-transfer-log>
+          {log.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
+      )}
+      {state === 'busy' && <p className="text-xs text-gray-500 mt-2">Переносим…</p>}
+      {state && state !== 'busy' && <p className={`text-xs font-semibold mt-2 ${state.startsWith('Готово') ? 'text-emerald-700' : 'text-red-700'}`}>{state}</p>}
+    </div>
+  );
+};
+
+/**
+ * Выключатель приёма редакционной почты (Google Apps Script → входящие письма).
+ * Выключен — новые письма не принимаются (остаются в почтовом ящике). Публикации, модерацию и другие разделы не затрагивает.
+ */
+const MailSwitchBox: React.FC = () => {
+  const [st, setSt] = useState<api.MailIngestStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    api.fetchMailStatus().then(setSt).catch((e: Error) => setErr(e.message));
+  }, []);
+  const toggle = async () => {
+    if (!st) return;
+    setBusy(true);
+    setErr('');
+    try {
+      setSt(await api.setMailEnabled(!st.enabled));
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const on = Boolean(st?.enabled) && !st?.productionBlocked && !st?.envSwitchOff;
+  return (
+    <div className="p-4 rounded-2xl bg-white border border-gray-200 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="font-bold text-[#0f1b33]">
+            Приём почты:{' '}
+            <span className={on ? 'text-emerald-700' : 'text-gray-600'}>{st ? (on ? 'включён' : 'выключен') : '…'}</span>
+          </div>
+          <p className="text-xs text-gray-600 mt-1">
+            Письма из редакционной почты попадают только во входящие материалы и ничего не публикуют. Когда приём выключен, новые письма не
+            принимаются и остаются в почтовом ящике.
+          </p>
+        </div>
+        {st && !st.productionBlocked && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={st.enabled}
+            disabled={busy}
+            onClick={toggle}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-60 ${st.enabled ? 'bg-white border border-gray-300 text-[#0f1b33]' : 'bg-[#12327A] text-white'}`}
+          >
+            {st.enabled ? 'Выключить приём' : 'Включить приём'}
+          </button>
+        )}
+      </div>
+      {st?.productionBlocked && <p className="text-xs font-semibold text-gray-700 mt-2">На основном сайте приём почты отключён — он работает только в Preview.</p>}
+      {st && !st.productionBlocked && (
+        <p className={`text-xs font-semibold mt-2 ${st.secretState === 'ok' ? 'text-emerald-700' : 'text-amber-800'}`}>
+          {st.secretState === 'ok'
+            ? 'Секрет подписи MAIL_INGEST_SECRET задан.'
+            : st.secretState === 'too_short'
+              ? 'Секрет подписи MAIL_INGEST_SECRET задан, но короче 32 символов — письма приниматься не будут.'
+              : 'Секрет подписи MAIL_INGEST_SECRET не задан в этой сборке — письма приниматься не будут.'}
+        </p>
+      )}
+      {st?.build && (
+        <p className="text-xs text-gray-500 mt-1">
+          Сборка: {st.build.environment === 'production' ? 'Production' : st.build.environment === 'preview' ? 'Preview' : 'локальный запуск'}
+          {st.build.branch ? ` · ветка ${st.build.branch}` : ''}
+          {st.build.commit ? ` · коммит ${st.build.commit}` : ''}
+        </p>
+      )}
+      {st?.envSwitchOff && <p className="text-xs font-semibold text-amber-800 mt-2">В Vercel задано MAIL_INGEST_ENABLED=0 — приём выключен независимо от этого выключателя.</p>}
+      {st?.at && <p className="text-xs text-gray-500 mt-2">Последнее изменение: {formatKgDateTime(st.at)}</p>}
+      {err && <p className="text-xs font-semibold text-red-700 mt-2">{err}</p>}
+    </div>
+  );
+};
+
+const StatsTab: React.FC<{ onRefreshData?: () => void }> = ({ onRefreshData = () => {} }) => {
   const [days, setDays] = useState(30);
   const [stats, setStats] = useState<SiteStats | null>(null);
   const [err, setErr] = useState('');
@@ -252,6 +463,9 @@ const StatsTab: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      <BackupBox />
+      <TransferBox onDone={onRefreshData} />
+      <MailSwitchBox />
       <div className="flex flex-wrap items-center gap-2">
         {[7, 30, 90].map((d) => (
           <button
@@ -262,7 +476,54 @@ const StatsTab: React.FC = () => {
             {d} дней
           </button>
         ))}
-        <button onClick={() => setShowTable((v) => !v)} className="ml-auto text-xs font-bold text-[#12327A] hover:underline">
+        {stats && (
+          <button
+            type="button"
+            onClick={() => {
+              const top = (items: { key: string; count: number }[], labels?: Record<string, string>) => items.map((i) => [labels?.[i.key] || i.key, i.count]);
+              downloadXlsx(`DataNews-statistika-${days}d-${new Date().toISOString().slice(0, 10)}`, [
+                {
+                  name: 'Итого',
+                  rows: [
+                    ['Показатель', 'Значение'],
+                    ['Посетителей сегодня', stats.totals.todayVisitors],
+                    ['Просмотров сегодня', stats.totals.todayViews],
+                    [`Посетителей за ${days} дн.`, stats.totals.visitors],
+                    [`Просмотров за ${days} дн.`, stats.totals.views],
+                  ],
+                },
+                { name: 'По дням', rows: [['Дата', 'Просмотры', 'Посетители'], ...stats.days.map((d) => [new Date(d.date).toLocaleDateString('ru-RU'), d.views, d.visitors])] },
+                { name: 'Разделы', rows: [['Раздел', 'Просмотры'], ...top(stats.topPages, PAGE_LABELS)] },
+                { name: 'Откуда приходят', rows: [['Источник', 'Посетители'], ...top(stats.topReferrers)] },
+                { name: 'Города', rows: [['Город', 'Посетители'], ...stats.cities.map((i) => [placeRu(i.key), i.count])] },
+                { name: 'Устройства', rows: [['Устройство', 'Посетители'], ...top(stats.devices)] },
+                {
+                  name: 'Переходы в соцсети',
+                  rows: [
+                    ['Соцсеть', 'Цель', 'Переходы'],
+                    ...(stats.outbound || []).map((o) => [OUT_NET[o.network] || o.network, OUT_KIND[o.kind] || o.kind, o.count]),
+                  ],
+                },
+                {
+                  name: 'Соцсети по дням',
+                  rows: [
+                    ['Дата', 'Instagram', 'WhatsApp', 'Telegram'],
+                    ...(stats.outboundDays || []).map((d) => [new Date(d.date).toLocaleDateString('ru-RU'), d.instagram, d.whatsapp, d.telegram]),
+                  ],
+                },
+                { name: 'Язык', rows: [['Язык', 'Посетители'], ...top(stats.languages, { ru: 'Русский', kg: 'Кыргызский', en: 'Английский', other: 'Другой' })] },
+              ]);
+            }}
+            className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold"
+            data-export-stats
+          >
+            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+              download
+            </span>
+            Скачать в Excel
+          </button>
+        )}
+        <button onClick={() => setShowTable((v) => !v)} className={`${stats ? '' : 'ml-auto '}text-xs font-bold text-[#12327A] hover:underline`}>
           {showTable ? 'Скрыть таблицу' : 'Показать таблицей'}
         </button>
       </div>
@@ -278,6 +539,7 @@ const StatsTab: React.FC = () => {
             <StatTile label={`Просмотров за ${days} дн.`} value={stats.totals.views} />
           </div>
           <DailyChart days={stats.days} />
+          <OutboundBox stats={stats} days={days} />
           {showTable && (
             <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
               <table className="w-full text-sm">
@@ -313,6 +575,57 @@ const StatsTab: React.FC = () => {
         </>
       )}
     </div>
+  );
+};
+
+// ─────────────── Переходы с сайта в соцсети ───────────────
+const OUT_NET: Record<string, string> = { instagram: 'Instagram', whatsapp: 'WhatsApp', telegram: 'Telegram' };
+const OUT_KIND: Record<string, string> = {
+  contact: 'Написать / подписаться на DataNews',
+  share: 'Поделиться новостью',
+  other: 'Страница организатора, театра или источника',
+};
+const OutboundBox: React.FC<{ stats: SiteStats; days: number }> = ({ stats, days }) => {
+  const list = stats.outbound || [];
+  const total = list.reduce((n, o) => n + o.count, 0);
+  const byNet = (n: string) => list.filter((o) => o.network === n);
+  return (
+    <section className="rounded-2xl border border-gray-100 bg-white p-4 space-y-3" data-outbound-stats>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-extrabold text-[#0f1b33]">Переходы с сайта в соцсети</h3>
+        <span className="text-xs text-gray-500">
+          за {days} дн. · всего {total}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {(['instagram', 'whatsapp', 'telegram'] as const).map((n) => {
+          const rows = byNet(n);
+          const sum = rows.reduce((x, o) => x + o.count, 0);
+          return (
+            <div key={n} className="rounded-xl bg-[#f6f8fd] p-3">
+              <p className="text-xs font-bold text-gray-500">{OUT_NET[n]}</p>
+              <p className="text-2xl font-extrabold text-[#12327A] tabular-nums">{sum}</p>
+              {rows.length > 0 ? (
+                <ul className="mt-1 space-y-0.5 text-xs text-gray-700">
+                  {rows.map((o) => (
+                    <li key={o.kind} className="flex justify-between gap-2">
+                      <span>{OUT_KIND[o.kind] || o.kind}</span>
+                      <b className="tabular-nums">{o.count}</b>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-gray-500">Пока нет переходов</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-xs text-gray-500">
+        Считается каждое нажатие на ссылку Instagram, WhatsApp или Telegram на сайте: кнопки связи с редакцией, «Поделиться», страницы театров и организаторов. Ваши
+        клики как администратора не считаются. Переход по рекламе считается отдельно, в разделе «Реклама».
+      </p>
+    </section>
   );
 };
 
@@ -481,154 +794,70 @@ const WeatherTab: React.FC = () => {
   );
 };
 
-// ─────────────────────────── Push-уведомления ───────────────────────────
-const b64url = (buf: ArrayBuffer | Uint8Array) => {
-  let s = '';
-  new Uint8Array(buf).forEach((b) => (s += String.fromCharCode(b)));
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-};
-
-const PushPanel: React.FC<{ items: Announcement[]; onTotal: (n: number) => void }> = ({ items, onTotal }) => {
-  const [stats, setStats] = useState<api.PushStats | null>(null);
-  const [keys, setKeys] = useState<{ pub: string; priv: string } | null>(null);
-  const [msg, setMsg] = useState('');
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState('');
-  const load = () =>
-    api
-      .pushStats()
-      .then((r) => {
-        setStats(r);
-        onTotal(r.total); // после рассылки недействующие подписки удаляются — счётчик в меню обновляется
-      })
-      .catch((e: Error) => setErr(e.message));
-  useEffect(() => {
-    load();
-  }, []);
-
-  // Ключи создаются здесь, в браузере, и никуда не отправляются — их копируют в переменные Vercel
-  const generate = async () => {
-    const pair = (await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
-    const raw = await crypto.subtle.exportKey('raw', pair.publicKey);
-    const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
-    setKeys({ pub: b64url(raw), priv: jwk.d || '' });
-  };
-
-  const active = items.filter((a) => isAlert(a) && !isExpired(a) && (a.moderationStatus || 'approved') === 'approved');
-  const send = async (a: Announcement) => {
-    if (!window.confirm(`Отправить push-уведомление подписчикам (${cityLabel(a.city)}):\n«${a.title.ru}»?`)) return;
-    setBusy(a.id);
-    setErr('');
-    setMsg('');
-    try {
-      const r = await api.sendPushFor(a.id);
-      setMsg(`Отправлено: ${r.sent} из ${r.total}${r.removed ? `, удалено недействующих подписок: ${r.removed}` : ''}${r.failed ? `, ошибок: ${r.failed}` : ''}`);
-      load();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy('');
-    }
-  };
-
-  const copyBtn = (v: string) => (
-    <button type="button" onClick={() => navigator.clipboard?.writeText(v)} className="px-2 py-1 rounded-lg bg-white border border-gray-200 text-xs font-bold">
-      Копировать
-    </button>
-  );
-
+// ─────────────────────────── Панель ───────────────────────────
+/**
+ * Учётная запись для сотрудника или помощника: обычный пользователь — входит только в личный кабинет
+ * («Войти» на сайте), размещает публикации на модерацию в пределах тарифа. Панель управления, пользователи,
+ * тарифы, оплата и модерация ему недоступны (проверяет сервер). Создание бесплатное: «Не оплачено», без платного периода.
+ */
+const StaffAccountBox: React.FC<{
+  onCreate: (u: { name: string; email: string; phone: string; organization: string; password: string; plan: PlanId; editor: boolean }) => void;
+}> = ({ onCreate }) => {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ name: '', email: '', phone: '', organization: '', password: '', plan: 'start' as PlanId, editor: false });
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   return (
-    <div className="space-y-4">
-      {msg && <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-semibold">{msg}</div>}
-      {err && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">{err}</div>}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 text-sm space-y-1">
-        <div className="font-extrabold text-[#0f1b33]">Состояние</div>
-        {stats ? (
-          <>
-            <div>{stats.configured ? '✅ Ключи для уведомлений (VAPID) подключены — кнопка подписки видна посетителям в разделе «Предупреждения».' : '⚠️ Ключи для уведомлений (VAPID) не заданы — уведомления выключены, кнопка подписки на сайте скрыта.'}</div>
-            <div>
-              Подписчиков: <b>{stats.total}</b>
-              {Object.keys(stats.byCity).length > 0 && ` (${Object.entries(stats.byCity).map(([c, n]) => `${cityLabel(c)}: ${n}`).join(', ')})`}
-            </div>
-            {stats.last && (
-              <div className="text-gray-500">
-                Последнее уведомление: {fmt(stats.last.at)} — «{stats.last.title.ru}»
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="text-gray-500">Загрузка…</div>
-        )}
-      </div>
-
-      {stats?.configured && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
-          <div className="font-extrabold text-[#0f1b33] text-sm">Отправить по действующему предупреждению</div>
-          <p className="text-xs text-gray-500">Уведомление получат подписчики города / области предупреждения и подписчики «Весь Кыргызстан». Отправляйте только срочное.</p>
-          {active.length === 0 ? (
-            <p className="text-sm text-gray-500">Действующих предупреждений нет.</p>
-          ) : (
-            active.map((a) => (
-              <div key={a.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-xl border border-gray-100">
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-sm text-[#0f1b33] truncate">{a.title.ru}</div>
-                  <div className="text-[11px] text-gray-500">
-                    {catLabel(a.category)} • {cityLabel(a.city)} • {fmt(a.startDate)}
-                  </div>
-                </div>
-                <button
-                  onClick={() => send(a)}
-                  disabled={busy === a.id}
-                  className="self-end sm:self-auto px-3 py-2 rounded-xl bg-[#dc2626] text-white text-xs font-extrabold inline-flex items-center gap-1 disabled:opacity-60"
-                >
-                  <span className="material-symbols-outlined text-[18px]">campaign</span>
-                  {busy === a.id ? 'Отправка…' : 'Отправить push'}
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2 text-sm">
-        <div className="font-extrabold text-[#0f1b33]">{stats?.configured ? 'Новые ключи (если нужно заменить)' : 'Как включить уведомления'}</div>
-        <ol className="list-decimal pl-5 space-y-1 text-gray-700">
-          <li>Нажмите «Создать ключи» — пара ключей создаётся прямо в этом браузере и никуда не отправляется.</li>
-          <li>
-            Откройте сайт Vercel → проект datanews → «Settings» (настройки) → «Environment Variables» (переменные окружения). Добавьте две переменные: <code>VAPID_PUBLIC_KEY</code> и <code>VAPID_PRIVATE_KEY</code> — значения ниже. Для проверки отметьте только «Preview» (тестовая версия сайта); «Production» (основной сайт) — когда решите запускать.
-          </li>
-          <li>Необязательно: переменная <code>VAPID_SUBJECT</code> — адрес сайта (https://…) или ваша почта в виде mailto:адрес. Если её нет, берётся адрес сайта.</li>
-          <li>Пересоберите сайт: «Deployments» (сборки) → у последней сборки «…» → «Redeploy» (пересобрать). После этого кнопка «Уведомлять о срочном» появится в разделе «Предупреждения».</li>
-        </ol>
-        <p className="text-xs text-red-700">Закрытый ключ никому не пересылайте и не храните в коде — только в настройках Vercel. При замене ключей старые подписки перестанут работать.</p>
-        <button onClick={generate} className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-extrabold">
-          Создать ключи
-        </button>
-        {keys && (
-          <div className="space-y-2">
-            <div>
-              <div className="text-[11px] font-bold uppercase text-gray-500">VAPID_PUBLIC_KEY</div>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 min-w-0 break-all text-xs bg-gray-50 p-2 rounded-lg">{keys.pub}</code>
-                {copyBtn(keys.pub)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] font-bold uppercase text-gray-500">VAPID_PRIVATE_KEY (секретный)</div>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 min-w-0 break-all text-xs bg-gray-50 p-2 rounded-lg">{keys.priv}</code>
-                {copyBtn(keys.priv)}
-              </div>
-            </div>
+    <div className="bg-white rounded-2xl border border-gray-100 p-4">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="font-bold text-[#12327A] text-sm inline-flex items-center gap-1">
+        <span className="material-symbols-outlined text-[18px]">person_add</span>Учётная запись для сотрудника
+      </button>
+      {open && (
+        <form
+          className="mt-3 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onCreate(f);
+            setF({ ...f, email: '', password: '' });
+          }}
+        >
+          <p className="text-xs text-gray-600">
+            Отдельная учётная запись для каждого человека. Сотрудник входит кнопкой «Войти» на сайте — только в личный кабинет, без доступа к панели.
+            <b> Создание учётной записи бесплатное:</b> статус — «Не оплачено», платный период автоматически не начинается, деньги не списываются.
+            Без оплаченного периода сотрудник может войти в кабинет и работать со своими публикациями, но не может отправлять новые на размещение.
+            «Подтвердить оплату (30 дней)» нажимайте только после фактически полученной оплаты. Статус госоргана не присваивается.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input className={inputCls} placeholder="Имя сотрудника" value={f.name} onChange={set('name')} required />
+            <input className={inputCls} placeholder="Организация (от чьего имени публикации)" value={f.organization} onChange={set('organization')} required />
+            <input className={inputCls} type="email" placeholder="E-mail для входа" value={f.email} onChange={set('email')} required />
+            <input className={inputCls} type="tel" placeholder="Телефон" value={f.phone} onChange={set('phone')} required />
+            <input className={inputCls} type="text" autoComplete="new-password" placeholder="Пароль (не короче 6 символов)" value={f.password} onChange={set('password')} minLength={6} required />
+            <select className={inputCls} value={f.plan} onChange={set('plan')} aria-label="Тариф">
+              {PLAN_IDS.filter((id) => !PLANS[id].govOnly).map((id) => (
+                <option key={id} value={id}>
+                  {PLANS[id].name.ru}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
-      </div>
+          <label className="flex items-start gap-2 text-sm text-[#0f1b33]">
+            <input type="checkbox" className="mt-1" checked={f.editor} onChange={(e) => setF({ ...f, editor: e.target.checked })} />
+            <span>
+              <b>Сотрудник редакции</b>
+              <span className="block text-xs text-gray-600">
+                Публикует бесплатно и сразу, без предварительной модерации, в обычных разделах и «Новостях»; правит и снимает только свои материалы.
+                Оплата не отмечается, тариф не действует. Официальные разделы и «Погода» ему закрыты. Права можно отозвать в карточке.
+              </span>
+            </span>
+          </label>
+          <button className="px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-bold">Создать учётную запись</button>
+        </form>
+      )}
     </div>
   );
 };
 
-// ─────────────────────────── Панель ───────────────────────────
-export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleChange, onClose }) => {
+export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleChange, onClose, initialEdit }) => {
   const [isAdmin, setIsAdmin] = useState(api.getSession()?.role === 'admin');
   const [password, setPassword] = useState('');
   const [loginErr, setLoginErr] = useState('');
@@ -639,8 +868,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   const [hidden, setHidden] = useState<string[]>([]);
   const [checked, setChecked] = useState<Record<string, string>>({});
   const [users, setUsers] = useState<api.AdminUser[]>([]);
+  // Ошибка загрузки списка пользователей — показывается во вкладке, а не скрывается
+  const [usersErr, setUsersErr] = useState('');
   const [pushTotal, setPushTotal] = useState<number | null>(null);
-  const [editing, setEditing] = useState<Announcement | null | 'new'>(null);
+  const [editing, setEditing] = useState<Announcement | null | 'new'>(initialEdit || null);
+  // карточка в «Модерации», к которой вернуться после правки (подсветка и прокрутка)
+  const [focusId, setFocusId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
@@ -676,8 +909,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
       });
     api
       .fetchUsers()
-      .then(setUsers)
-      .catch(() => {});
+      .then((u) => {
+        setUsers(u);
+        setUsersErr('');
+      })
+      .catch((e: api.ApiError) => setUsersErr(`Список пользователей не загрузился: ${e.message}`));
+    loadMail();
     api
       .pushStats()
       .then((r) => setPushTotal(r.total))
@@ -699,8 +936,111 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   }, [isAdmin, tab]);
   const [historyOf, setHistoryOf] = useState<string | null>(null);
 
+  // Редакционная почта: письма (dn:mail) и черновик из письма — сохраняется в «Модерацию», на сайте только после «Одобрить»
+  const [mailItems, setMailItems] = useState<MailItem[] | null>(null);
+  const [mailErr, setMailErr] = useState('');
+  const [fromMail, setFromMail] = useState<MailItem | null>(null);
+  const [mailImage, setMailImage] = useState('');
+  const loadMail = () =>
+    api
+      .fetchMailList()
+      .then((items) => {
+        setMailItems(items);
+        setMailErr('');
+      })
+      .catch((e: Error) => setMailErr(e.message));
+  /** Фото из письма уменьшается так же, как при загрузке в форме (лимит хранилища ~950 КБ) */
+  const shrinkMailPhoto = async (dataUrl: string) => {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], 'mail-photo', { type: blob.type });
+    for (const [side, q] of [[1600, 0.85], [1280, 0.8], [1024, 0.75]] as const) {
+      const out = await api.compressImage(file, side, q);
+      if (out.length <= 900_000) return out;
+    }
+    return '';
+  };
+  /** Дополнительные фото письма — уменьшить и загрузить по одному (так запрос не превышает лимит), ответ — ссылки галереи */
+  const uploadMailGallery = async (list: string[]) => {
+    const urls: string[] = [];
+    for (const p of list.slice(0, 8)) {
+      const small = await shrinkMailPhoto(p);
+      if (small) urls.push(await api.uploadImage(small));
+    }
+    return urls;
+  };
+  const prepareFromMail = async (m: MailItem, photos: string[]) => {
+    const image = photos[0] ? await shrinkMailPhoto(photos[0]) : '';
+    const gallery = photos.length > 1 ? await uploadMailGallery(photos.slice(1)) : [];
+    // Разбор текста заново — текущими правилами помощника (письма, пришедшие раньше, тоже получают кыргызские даты и т. п.);
+    // если по новым правилам найдено меньше, остаётся сохранённое предложение
+    const pdfText = m.attachments.map((x) => x.text || '').filter(Boolean).join('\n');
+    const day = (m.receivedAt || '').slice(0, 10) || undefined;
+    const again = parseNotice(`${m.subject}\n${m.text}`, '', m.sender.orgName || '', day);
+    const withPdf = !again.draft.startDate && pdfText ? parseNotice(`${m.subject}\n${m.text}\n${pdfText}`, '', m.sender.orgName || '', day) : again;
+    const fresh = withPdf.draft.startDate ? withPdf : again;
+    const best = fresh.found.length >= m.suggestion.found.length ? fresh : m.suggestion;
+    setImported({
+      // Только то, что найдено в письме; источник — известная организация, если адрес есть в списке отправителей
+      draft: { ...best.draft, sourceName: m.sender.orgName || undefined, gallery },
+      found: best.found,
+      missing: best.missing,
+    });
+    setFromMail(m);
+    setMailImage(image);
+    setEditing('new');
+  };
+  // Фото из письма — в уже созданный черновик: отправляется весь черновик с новым фото (остальное не меняется, статус «на модерации» сохраняется)
+  const setDraftPhotoFromMail = async (m: MailItem, photos: string[]) => {
+    const draft = serverItems.find((x) => x.id === m.annId);
+    if (!draft) throw new Error('Черновик не найден — обновите список');
+    const image = await shrinkMailPhoto(photos[0]);
+    if (!image) throw new Error('Фото слишком большое — загрузите его в черновике вручную');
+    const gallery = await uploadMailGallery(photos.slice(1));
+    await api.updateAnnouncement(draft.id, { ...draft, imageUrl: '', imageData: image, imageCredit: undefined, imageSourceUrl: undefined, gallery });
+    load();
+  };
+  // вернулись из правки черновика — прокрутить к нему (подсветка гаснет через 6 секунд или после «Одобрить»)
+  useEffect(() => {
+    if (!focusId || editing) return;
+    const t = window.setTimeout(() => document.getElementById(`mod-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    const t2 = window.setTimeout(() => setFocusId(null), 6000);
+    return () => {
+      window.clearTimeout(t);
+      window.clearTimeout(t2);
+    };
+  }, [focusId, editing]);
+  // правка, открытая с сайта: как только загрузится полная версия из базы — подставляем её (в публичной нет служебных полей)
+  useEffect(() => {
+    if (!initialEdit) return;
+    const full = serverItems.find((x) => x.id === initialEdit.id);
+    if (full) setEditing((e) => (e && e !== 'new' && e.id === full.id && e !== full ? full : e));
+  }, [serverItems, initialEdit]);
+  const closeEditor = () => {
+    // открыто кнопкой «Исправить» на сайте — возвращаемся на сайт
+    if (initialEdit) {
+      onClose();
+      return;
+    }
+    setEditing(null);
+    setImported(null);
+    setFromMail(null);
+    setMailImage('');
+  };
+
   // Импорт из официального сообщения: текст + ссылка → черновик в форме, публикует редактор
   const [importOpen, setImportOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [verifiedNow, setVerifiedNow] = useState<Record<string, 'busy' | 'done'>>({});
+  const copyUntranslated = async () => {
+    const text = untranslatedForClaude(serverItems);
+    if (!text) return setMsg('Все публикации переведены — копировать нечего');
+    try {
+      await navigator.clipboard.writeText(text);
+      setMsg(`Скопировано новостей без перевода: ${serverItems.filter((a) => missingLangs(a).length && a.moderationStatus !== 'rejected').length}. Вставьте это в чат Claude — он пришлёт пакет переводов.`);
+    } catch {
+      window.prompt('Скопируйте текст и вставьте в чат Claude:', text);
+    }
+  };
   const [importText, setImportText] = useState('');
   const [importUrl, setImportUrl] = useState('');
   const [importSource, setImportSource] = useState('');
@@ -717,7 +1057,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
         summary: { ru: '', kg: '', en: '' },
         description: { ru: '', kg: '', en: '' },
         location: { ru: '', kg: '', en: '' },
-        city: 'bishkek',
+        // область не найдена в тексте — без привязки к области, не выдуманный город
+        city: 'all',
         category: 'gov',
         startDate: '',
         ...imported.draft,
@@ -747,6 +1088,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
     try {
       await fn();
       setMsg(okMsg);
+      // сообщение об успехе не висит над следующими действиями
+      window.setTimeout(() => setMsg((m) => (m === okMsg ? '' : m)), 8000);
       load();
       onRefreshData();
     } catch (e) {
@@ -798,9 +1141,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   type Badge = { value: number; attention: boolean; title: string } | null;
   const tabs: [Tab, string, string, Badge][] = [
     ['moderation', 'Модерация', 'fact_check', { value: pending.length, attention: pending.length > 0, title: `Ожидают модерации: ${pending.length}` }],
+    [
+      'mail',
+      'Материалы из почты',
+      'mail',
+      mailItems === null
+        ? null
+        : { value: mailItems.filter((m) => m.status === 'new').length, attention: mailItems.some((m) => m.status === 'new'), title: `Новых писем: ${mailItems.filter((m) => m.status === 'new').length}` },
+    ],
     ['review', 'Сверка с источниками', 'rule', { value: toReview.length, attention: toReview.length > 0, title: `Нужно сверить с источником: ${toReview.length}` }],
     ['posts', 'Публикации', 'article', { value: merged.length, attention: false, title: `Всего публикаций: ${merged.length}` }],
     ['push', 'Уведомления', 'notifications', pushTotal === null ? null : { value: pushTotal, attention: false, title: `Подписчиков на уведомления: ${pushTotal}` }],
+    ['ads', 'Реклама', 'campaign', null],
     [
       'users',
       'Пользователи',
@@ -817,12 +1169,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
   return (
     <div className="fixed inset-0 z-[120] bg-[#0d2459]/70 backdrop-blur-sm flex items-stretch sm:items-center justify-center sm:p-6" role="dialog" aria-modal="true" aria-label="Панель управления">
       <div className="relative w-full sm:max-w-6xl h-full sm:h-[92vh] bg-[#F5F7FB] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden">
-        <div className="bg-[#0d2459] text-white px-5 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#20C7B5]">admin_panel_settings</span>
-            <span className="font-extrabold">Панель управления DataNews</span>
+        <div className="bg-[#0d2459] text-white px-3 min-[22.5em]:px-5 py-3 flex items-center justify-between gap-2 min-[22.5em]:gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="material-symbols-outlined text-[#20C7B5] shrink-0">admin_panel_settings</span>
+            <span className="font-extrabold leading-tight min-w-0">Панель управления DataNews</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {isAdmin && (
               <button onClick={logout} className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold">
                 Выйти
@@ -858,15 +1210,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
             </form>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col sm:flex-row min-h-0">
-            {/* На телефоне — сетка в две колонки, чтобы все пункты и счётчики были видны без прокрутки вбок */}
-            <nav className="sm:w-64 shrink-0 bg-white border-b sm:border-b-0 sm:border-r border-gray-100 p-2 grid grid-cols-2 sm:flex sm:flex-col gap-1 sm:overflow-y-auto">
+          // На телефоне прокручивается вся панель (меню + содержимое), чтобы меню не занимало экран постоянно
+          <div className="flex-1 flex flex-col sm:flex-row min-h-0 max-sm:overflow-y-auto">
+            {/* На телефоне — сетка (две колонки, на самых узких экранах одна), чтобы все пункты и счётчики были видны без прокрутки вбок
+                и название пункта не наезжало на счётчик */}
+            <nav className="sm:w-64 shrink-0 bg-white border-b sm:border-b-0 sm:border-r border-gray-100 p-2 grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] sm:flex sm:flex-col gap-1 sm:overflow-y-auto">
               {tabs.map(([id, label, icon, badge]) => (
                 <button
                   key={id}
                   onClick={() => {
                     setTab(id);
-                    setEditing(null);
+                    closeEditor();
                     setMsg('');
                   }}
                   title={badge?.title}
@@ -875,7 +1229,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                   }`}
                 >
                   <span className="material-symbols-outlined text-[18px] shrink-0">{icon}</span>
-                  <span className="flex-1 min-w-0 text-left leading-tight">{label}</span>
+                  <span className="flex-1 min-w-0 text-left leading-tight [overflow-wrap:anywhere]">{label}</span>
                   {badge && (
                     <span
                       aria-label={badge.title}
@@ -894,13 +1248,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
               ))}
             </nav>
 
-            <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4">
+            <div className="flex-1 min-w-0 max-sm:flex-none sm:overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4">
               {msg && <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-semibold">{msg}</div>}
               {err && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">{err}</div>}
 
               {editing ? (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100">
-                  <h3 className="font-extrabold text-[#0f1b33] mb-4">{editing === 'new' ? (imported ? 'Черновик из сообщения' : 'Новая публикация') : 'Редактирование'}</h3>
+                  <h3 className="font-extrabold text-[#0f1b33] mb-4">{editing === 'new' ? (fromMail ? 'Черновик из письма' : imported ? 'Черновик из сообщения' : 'Новая публикация') : 'Редактирование'}</h3>
+                  {editing === 'new' && fromMail && (
+                    <div className="mb-4 p-3 rounded-xl bg-amber-50 text-[#5c3d00] text-xs space-y-1">
+                      <div>
+                        <b>Письмо:</b> «{fromMail.subject || 'без темы'}» от {fromMail.from.address}, получено {fmt(fromMail.receivedAt)}.
+                      </div>
+                      <div>
+                        Сохранение создаст <b>черновик в «Модерации»</b> — на сайте он не появится, пока вы не нажмёте «Одобрить». «Подтверждено по
+                        первоисточнику» отмечайте только после сверки с первоисточником.
+                      </div>
+                      {(!fromMail.suggestion.draft.category || !fromMail.suggestion.draft.city) && (
+                        <div>
+                          <b>Раздел и/или область в письме не найдены.</b> Проверьте раздел; область выберите, только если она указана в источнике
+                          (иначе остаётся «Весь Кыргызстан — без привязки к области»).
+                        </div>
+                      )}
+                      {mailImage && <div>Фото из письма уменьшено для сайта. Укажите автора фото, если он известен.</div>}
+                    </div>
+                  )}
                   {editing === 'new' && imported && (
                     <div className="mb-4 p-3 rounded-xl bg-sky-50 text-sky-900 text-xs space-y-1">
                       <div>
@@ -916,14 +1288,51 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                   )}
                   <AnnouncementForm
                     mode="admin"
-                    key={editing === 'new' ? `new-${imported ? 'import' : 'blank'}` : editing.id}
+                    key={editing === 'new' ? `new-${fromMail ? `mail-${fromMail.id}` : imported ? 'import' : 'blank'}` : editing.id}
                     initial={editing === 'new' ? importDraft : editing}
-                    submitLabel={editing === 'new' ? 'Опубликовать' : 'Сохранить'}
+                    initialImageData={editing === 'new' && fromMail ? mailImage || undefined : undefined}
+                    // Черновик из письма можно сохранить на одном языке; публикация и правка — с русским и кыргызским текстом
+                    requireBothLangs={!(editing === 'new' && fromMail)}
+                    submitLabel={editing === 'new' ? (fromMail ? 'Сохранить черновик в «Модерацию»' : 'Опубликовать') : 'Сохранить'}
                     onCancel={() => {
-                      setEditing(null);
-                      setImported(null);
+                      if (editing !== 'new' && editing?.moderationStatus === 'pending') setFocusId(editing.id);
+                      closeEditor();
                     }}
+                    // черновик из «Модерации»: исправить и сразу опубликовать, не ища его потом в списке
+                    secondarySubmit={
+                      editing !== 'new' && editing.moderationStatus === 'pending' && !editing.testMaterial
+                        ? {
+                            label: 'Сохранить и одобрить',
+                            onSubmit: async (item) => {
+                              if (!confirmApproveWithoutKg(item as Parameters<typeof confirmApproveWithoutKg>[0])) return;
+                              await api.updateAnnouncement(editing.id, item);
+                              await api.moderateAnnouncement(editing.id, 'approve');
+                              closeEditor();
+                              setMsg(`Исправлено, одобрено и опубликовано на сайте: «${String((item.title as { ru?: string })?.ru || editing.title.ru)}»`);
+                              load();
+                              onRefreshData();
+                            },
+                          }
+                        : undefined
+                    }
                     onSubmit={async (item) => {
+                      if (editing === 'new' && fromMail) {
+                        // Черновик из письма: только в «Модерацию», без публикации
+                        let saved: Announcement;
+                        try {
+                          saved = await api.submitDraft(item, fromMail.id);
+                        } catch (e) {
+                          if ((e as api.ApiError).code === 'duplicate' && window.confirm(`${(e as Error).message}\n\nВсё равно сохранить черновик?`)) {
+                            saved = await api.submitDraft(item, fromMail.id, true);
+                          } else throw e;
+                        }
+                        await api.mailItemAction(fromMail.id, 'prepared', { annId: saved.id });
+                        closeEditor();
+                        setMsg('Черновик сохранён в «Модерацию». На сайте его нет, пока вы не нажмёте «Одобрить».');
+                        load();
+                        loadMail();
+                        return;
+                      }
                       if (editing === 'new') {
                         try {
                           await api.submitAnnouncement(item);
@@ -936,17 +1345,53 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                       }
                       else if (serverItems.some((s) => s.id === editing.id)) await api.updateAnnouncement(editing.id, item);
                       else await api.submitAnnouncement({ ...item, id: editing.id }); // правка встроенного события
-                      setEditing(null);
-                      setImported(null);
+                      // после правки черновика — назад к этой же карточке в «Модерации», с подсветкой
+                      if (editing !== 'new' && editing.moderationStatus === 'pending') setFocusId(editing.id);
+                      closeEditor();
                       setMsg('Сохранено');
                       load();
                       onRefreshData();
                     }}
                   />
                 </div>
+              ) : tab === 'mail' ? (
+                <MailInbox
+                  items={mailItems}
+                  error={mailErr}
+                  announcements={serverItems}
+                  onReload={loadMail}
+                  onPrepare={prepareFromMail}
+                  onSetDraftPhoto={setDraftPhotoFromMail}
+                  onOpenModeration={() => setTab('moderation')}
+                />
               ) : tab === 'moderation' ? (
                 <>
-                  <h2 className="text-xl font-extrabold text-[#0f1b33]">Ожидают модерации: {pending.length}</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-xl font-extrabold text-[#0f1b33]">Ожидают модерации: {pending.length}</h2>
+                    <button
+                      type="button"
+                      onClick={() => setBatchOpen((v) => !v)}
+                      className="ml-auto px-4 py-2 rounded-xl bg-[#12327A] text-white text-sm font-extrabold inline-flex items-center gap-1"
+                      data-open-batch
+                    >
+                      <span className="material-symbols-outlined text-[18px]">playlist_add</span>Вставить пакет новостей
+                    </button>
+                  </div>
+                  {batchOpen && (
+                    <BatchImport
+                      serverItems={serverItems}
+                      loadMailItems={async () => {
+                        const items = await api.fetchMailList();
+                        setMailItems(items);
+                        return items;
+                      }}
+                      shrinkPhoto={shrinkMailPhoto}
+                      onDone={() => {
+                        load();
+                        loadMail();
+                      }}
+                    />
+                  )}
                   <p className="text-xs text-gray-600">
                     «Одобрить» — разрешить публикацию после модерации. Достоверность это не подтверждает: публикация попадёт в «Сверку с источниками»,
                     а отметку «Подтверждено по первоисточнику» ставит редактор в форме после сверки.
@@ -955,19 +1400,75 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     <div className="py-12 text-center text-gray-500 bg-white rounded-2xl">Новых публикаций нет 🎉</div>
                   ) : (
                     pending.map((a) => (
-                      <div key={a.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col md:flex-row">
+                      <div
+                        key={a.id}
+                        id={`mod-${a.id}`}
+                        className={`bg-white rounded-2xl border overflow-hidden flex flex-col md:flex-row scroll-mt-4 transition-shadow ${
+                          focusId === a.id ? 'border-emerald-500 ring-4 ring-emerald-200' : 'border-gray-100'
+                        }`}
+                      >
                         <EventImage item={a} className="md:w-64 h-40 md:h-auto flex-shrink-0" />
                         <div className="p-4 flex-1 min-w-0 space-y-2">
                           <div className="flex flex-wrap gap-2 text-[11px] font-bold">
                             <span className="px-2 py-0.5 rounded-full bg-[#d0f7f2] text-[#004d44]">{catLabel(a.category)}</span>
                             <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{cityLabel(a.city)}</span>
+                            {a.testMaterial && <span className="px-2 py-0.5 rounded-full bg-red-600 text-white">ТЕСТ — публикация запрещена</span>}
+                            {/* Редактор уже открывал «Исправить» и сохранил — видно, что материал проверен и его можно одобрить */}
+                            {(a.history || []).some((h) => h.action === 'edited' && h.by === 'admin') && (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 inline-flex items-center gap-1" data-edited-badge>
+                                <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
+                                  edit_note
+                                </span>
+                                Исправлено
+                              </span>
+                            )}
+                            {missingLangs(a).length > 0 && (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" title="Пока нет текста на этом языке, в этой версии сайта новость не показывается. «Исправить» → добавьте текст.">
+                                Нет перевода: {missingLangs(a).join(', ')}
+                              </span>
+                            )}
                           </div>
                           <h3 className="font-extrabold text-[#0f1b33]">{a.title.ru}</h3>
-                          <p className="text-sm text-gray-700">{a.summary.ru}</p>
-                          {a.description.ru !== a.summary.ru && <p className="text-xs text-gray-600 whitespace-pre-line">{a.description.ru}</p>}
+                          {/* полный текст один раз; краткое — только если написано отдельно, а не обрезанное начало текста */}
+                          {(() => {
+                            const { lead, rest } = splitLead(a.summary.ru, a.description.ru);
+                            return (
+                              <p className="text-sm text-gray-700 whitespace-pre-line">
+                                <b className="font-semibold">{lead}</b>
+                                {rest ? ` ${rest}` : ''}
+                              </p>
+                            );
+                          })()}
+                          {/* Ссылки на источник и билеты — проверить одним нажатием (в новой вкладке) */}
+                          {(() => {
+                            const links = [
+                              ['Источник', a.eventSourceUrl],
+                              ['Сайт ведомства', a.authorityUrl],
+                              ['Доп. источник', a.additionalSourceUrl],
+                              ['Организатор', a.organizerUrl],
+                              ['Билеты', a.ticketUrl || a.eventDetails?.ticketUrl],
+                            ].filter((x): x is [string, string] => typeof x[1] === 'string' && /^https?:\/\//.test(x[1]));
+                            return links.length ? (
+                              <div className="flex flex-wrap gap-2 text-xs" data-mod-links>
+                                {links.map(([label, href]) => (
+                                  <a
+                                    key={label + href}
+                                    href={href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#12327A]/30 text-[#12327A] font-bold hover:bg-[#eef2f9]"
+                                  >
+                                    {label}: {(() => { try { return new URL(href).hostname.replace(/^www\./, ''); } catch { return href; } })()}
+                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span>
+                                  </a>
+                                ))}
+                              </div>
+                            ) : null;
+                          })()}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-gray-700">
                             <div>📅 {fmt(a.startDate)}{a.endDate ? ` — ${fmt(a.endDate)}` : ''}</div>
-                            <div>📍 {a.location.ru}</div>
+                            {placeText(a) && <div>📍 {placeText(a)}</div>}
+                            {(a.locality || a.district) && <div>🗺 {[a.locality, a.district].filter(Boolean).join(', ')}</div>}
                             {a.eventDetails?.priceText && <div>🎫 {a.eventDetails.priceText.ru}</div>}
                             {a.eventDetails?.contactPhone && <div>☎ {a.eventDetails.contactPhone}</div>}
                             {ticketLink(a).url && (
@@ -987,18 +1488,37 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                               {a.submittedBy.organization ? ` (${a.submittedBy.organization})` : ''} • {a.submittedBy.email} • {a.submittedBy.phone}
                             </div>
                           )}
+                          {/* Напоминание редактору и предупреждение о переводе — перед кнопкой «Одобрить» */}
+                          <p className="text-xs text-gray-600" data-mod-reminder>
+                            <span className="material-symbols-outlined text-[14px] align-[-2px] mr-1" aria-hidden="true">fact_check</span>
+                            {MODERATION_REMINDER}
+                            {missingKg(a).length > 0 && (
+                              <span className="ml-2 font-bold text-amber-700" data-no-kg>
+                                Нет перевода на кыргызский: {missingKg(a).join(', ')}
+                              </span>
+                            )}
+                          </p>
                           <div className="flex flex-wrap gap-2 pt-1">
-                            <button
-                              onClick={() => act(() => api.moderateAnnouncement(a.id, 'approve'), 'Опубликовано на сайте')}
-                              className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold inline-flex items-center gap-1"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">check</span>Одобрить
-                            </button>
+                            {/* Тестовый материал сервер не даст одобрить; кнопку не показываем, чтобы не было лишней ошибки */}
+                            {!a.testMaterial && (
+                              <button
+                                onClick={() => confirmApproveWithoutKg(a) && act(() => api.moderateAnnouncement(a.id, 'approve'), `Одобрено и опубликовано на сайте: «${a.title.ru}»`)}
+                                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold inline-flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[18px]">check</span>Одобрить
+                              </button>
+                            )}
                             <button onClick={() => reject(a)} className="px-4 py-2 rounded-xl bg-red-50 text-red-700 text-sm font-bold inline-flex items-center gap-1">
                               <span className="material-symbols-outlined text-[18px]">close</span>Отклонить
                             </button>
-                            <button onClick={() => setEditing(a)} className="px-4 py-2 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold">
-                              Исправить
+                            <button
+                              onClick={() => {
+                                setMsg('');
+                                setEditing(a);
+                              }}
+                              className="px-4 py-2 rounded-xl bg-[#eef2f9] text-[#12327A] text-sm font-bold"
+                            >
+                              {(a.history || []).some((h) => h.action === 'edited' && h.by === 'admin') ? 'Исправить ещё' : 'Исправить'}
                             </button>
                           </div>
                         </div>
@@ -1009,7 +1529,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
               ) : tab === 'review' ? (
                 <>
                   <p className="text-xs text-gray-500">
-                    Действующие публикации, которые давно не сверялись с первоисточником или где не хватает данных. Сначала — самые давно проверенные. «Проверено сегодня» обновляет только дату проверки; недостающие поля заполняются через «Редактировать».
+                    Действующие публикации, которые давно не сверялись с первоисточником или где не хватает данных. Сначала — самые давно проверенные. «Сверено с первоисточником» — вы сверили дату, место и билеты: публикация получает отметку «Подтверждено» и уходит из списка. Недостающие поля (ссылка, документ) заполняются через «Редактировать».
                   </p>
                   {toReview.length === 0 ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center text-sm text-gray-500">Всё проверено — список пуст.</div>
@@ -1044,12 +1564,38 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                               <button onClick={() => setEditing(a)} className="p-2 rounded-lg hover:bg-gray-100 text-[#12327A]" title="Редактировать">
                                 <span className="material-symbols-outlined text-[20px]">edit</span>
                               </button>
-                              <button
-                                onClick={() => act(() => api.markChecked(a.id), `Отмечено как проверенное: «${a.title.ru}»`)}
-                                className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-extrabold inline-flex items-center gap-1 hover:bg-emerald-100"
-                              >
-                                <span className="material-symbols-outlined text-[18px]">task_alt</span>Проверено сегодня
-                              </button>
+                              {verifiedNow[a.id] ? (
+                                <span className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-extrabold inline-flex items-center gap-1" role="status" data-verified-done>
+                                  <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                                  {verifiedNow[a.id] === 'busy' ? 'Сохраняю…' : 'Сверено — убрано из списка'}
+                                </span>
+                              ) : (
+                                <button
+                                  title="Я сверила дату, место и билеты с первоисточником: ставит «Подтверждено по первоисточнику» и дату проверки, публикация уходит из этого списка"
+                                  onClick={async () => {
+                                    setVerifiedNow((v) => ({ ...v, [a.id]: 'busy' }));
+                                    try {
+                                      await api.markVerified(a.id);
+                                      setVerifiedNow((v) => ({ ...v, [a.id]: 'done' }));
+                                      setTimeout(() => {
+                                        load();
+                                        onRefreshData();
+                                      }, 1200);
+                                    } catch (e) {
+                                      setVerifiedNow((v) => {
+                                        const n = { ...v };
+                                        delete n[a.id];
+                                        return n;
+                                      });
+                                      setErr(`Не сохранено: ${(e as Error).message}`);
+                                    }
+                                  }}
+                                  className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-extrabold inline-flex items-center gap-1 hover:bg-emerald-100"
+                                  data-verify-btn
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">task_alt</span>Сверено с первоисточником
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -1059,6 +1605,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                 </>
               ) : tab === 'push' ? (
                 <PushPanel items={merged} onTotal={setPushTotal} />
+              ) : tab === 'ads' ? (
+                <AdsPanel />
               ) : tab === 'posts' ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
@@ -1067,8 +1615,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                       Без настоящего фото: {allPosts.filter((a) => !a.imageUrl || a.imageUrl.startsWith('/illustrations/')).length}
                     </span>
                     <button
-                      onClick={() => setImportOpen((v) => !v)}
+                      onClick={copyUntranslated}
+                      title="Скопировать список публикаций без перевода — для Claude"
                       className="ml-auto px-4 py-2 rounded-xl bg-white border border-gray-200 text-[#12327A] text-sm font-extrabold inline-flex items-center gap-1"
+                      data-copy-untranslated
+                    >
+                      <span className="material-symbols-outlined text-[18px]">translate</span>Скопировать для Claude: без перевода (
+                      {serverItems.filter((a) => missingLangs(a).length && a.moderationStatus !== 'rejected').length})
+                    </button>
+                    <button
+                      onClick={() => setImportOpen((v) => !v)}
+                      className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-[#12327A] text-sm font-extrabold inline-flex items-center gap-1"
                     >
                       <span className="material-symbols-outlined text-[18px]">content_paste</span>Импорт из сообщения
                     </button>
@@ -1104,15 +1661,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                     {allPosts.map((a) => {
                       const b = MODERATION_BADGE[a.moderationStatus || 'approved'];
                       return (
-                        <div key={a.id} className="bg-white rounded-2xl border border-gray-100 p-3 flex gap-3 items-center">
+                        <div key={a.id} className="bg-white rounded-2xl border border-gray-100 p-3 flex flex-wrap gap-3 items-center">
                           <EventImage item={a} className="w-20 h-14 rounded-xl flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
+                          {/* Текст — не уже 12rem: на узком экране кнопки действий переносятся на строку ниже, а не сжимают текст */}
+                          <div className="flex-1 min-w-[min(12rem,100%)]">
                             <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
                               <span className={`px-2 py-0.5 rounded-full ${b.cls}`}>{b.label}</span>
                               {a.publishedByGov && <span className="px-2 py-0.5 rounded-full bg-[#e6ecf8] text-[#12327A]">Госорган, без премодерации</span>}
+                              {a.dataOrigin === 'manual' && a.submittedBy && (
+                                <span className="px-2 py-0.5 rounded-full bg-[#12327A] text-white">Редакция · сотрудник {a.submittedBy.name}</span>
+                              )}
                               {!isExpired(a) && (!a.lastCheckedAt || Date.now() - kgTs(a.lastCheckedAt) > STALE_MS) && (
                                 <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800" title="Действующая публикация давно не проверялась: сверьте с первоисточником и обновите дату проверки (кнопка «Редактировать» → «Сохранить»)">
                                   Перепроверить{a.lastCheckedAt ? ` (проверено ${fmt(a.lastCheckedAt)})` : ''}
+                                </span>
+                              )}
+                              {missingLangs(a).length > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" title="Пока нет текста на этом языке, в этой версии сайта новость не показывается">
+                                  Нет перевода: {missingLangs(a).join(', ')}
                                 </span>
                               )}
                               {(!a.imageUrl || a.imageUrl.startsWith('/illustrations/')) && (
@@ -1174,8 +1740,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                 </>
               ) : tab === 'users' ? (
                 <>
+                  <StaffAccountBox
+                    onCreate={(u) =>
+                      act(
+                        () =>
+                          api.createUserAccount(u).catch((e: api.ApiError) => {
+                            throw new Error(`Учётная запись не создана: ${e.message}`);
+                          }),
+                        u.editor
+                          ? `Учётная запись сотрудника редакции ${u.email} создана: публикует бесплатно и сразу. Оплата не отмечена. Передайте e-mail и пароль лично.`
+                          : `Учётная запись ${u.email} создана бесплатно: статус «Не оплачено», платный период не начат. Передайте сотруднику e-mail и пароль.`
+                      )
+                    }
+                  />
                   <h2 className="text-xl font-extrabold text-[#0f1b33]">Зарегистрированные пользователи: {users.length}</h2>
-                  {users.length === 0 ? (
+                  {usersErr && (
+                    <div role="alert" className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">
+                      {usersErr}
+                    </div>
+                  )}
+                  {usersErr ? null : users.length === 0 ? (
                     <div className="py-12 text-center text-gray-500 bg-white rounded-2xl">Пока никто не зарегистрировался</div>
                   ) : (
                     <div className="space-y-2">
@@ -1184,7 +1768,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                         const plan = PLANS[normalizePlan(u.plan)];
                         const us = u.usage;
                         const setPay = (s: PaymentStatus, m: string) => act(() => api.setPaymentStatus(u.email, s), m);
+                        const resetPassword = () => {
+                          const pw = window.prompt(`Новый пароль для ${u.email} (не короче 6 символов). Передайте его владельцу учётной записи лично.`);
+                          if (pw) act(() => api.setUserPassword(u.email, pw), 'Пароль изменён');
+                        };
                         const govOk = u.govStatus === 'verified';
+                        const editorOn = Boolean(u.editor && !u.editor.revokedAt);
+                        const toggleEditor = () =>
+                          window.confirm(
+                            editorOn
+                              ? `Отозвать права сотрудника редакции у ${u.name}? Со следующего запроса — обычные правила: оплата и модерация. Опубликованное останется на сайте.`
+                              : `Назначить ${u.name} сотрудником редакции? Он будет публиковать бесплатно и сразу, без предварительной модерации, и отвечать за достоверность.`
+                          ) &&
+                          act(() => api.setEditor(u.email, editorOn ? 'revoke' : 'grant'), editorOn ? 'Права сотрудника редакции отозваны' : 'Назначен сотрудником редакции');
                         return (
                           <div key={u.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
                             <div className="flex flex-col md:flex-row md:items-start gap-3">
@@ -1193,9 +1789,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                   {u.name} {u.organization && <span className="font-normal text-gray-500">— {u.organization}</span>}
                                 </div>
                                 <div className="text-gray-600 text-xs">
-                                  {u.email} • {u.phone} • с {fmt(u.createdAt)}
+                                  {u.email} • {u.phone} • с {fmt(u.createdAt)} •{' '}
+                                  <button type="button" onClick={resetPassword} className="font-bold text-[#12327A] hover:underline">
+                                    Новый пароль
+                                  </button>
                                 </div>
                                 <div className="text-xs mt-1 flex flex-wrap gap-2 items-center">
+                                  {editorOn && <span className="px-2 py-0.5 rounded-full font-bold bg-[#12327A] text-white">Сотрудник редакции</span>}
                                   <span className={`px-2 py-0.5 rounded-full font-bold ${pb.cls}`}>{pb.label}</span>
                                   <span>
                                     Выбран тариф: <b>{plan.name.ru}</b>, {plan.priceSom.toLocaleString('ru-RU')} сом / 30 дней
@@ -1225,6 +1825,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {u.paymentStatus === 'pending' || !us?.active ? (
+                                  <>
                                   <button
                                     onClick={() =>
                                       plan.govOnly && !govOk
@@ -1235,6 +1836,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                   >
                                     Подтвердить оплату (30 дней)
                                   </button>
+                                  <span className="text-[11px] text-gray-500 self-center">только после фактически полученной оплаты</span>
+                                  </>
                                 ) : (
                                   <button
                                     onClick={() =>
@@ -1260,6 +1863,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
                                   </button>
                                 )}
                               </div>
+                            </div>
+                            {/* Права сотрудника редакции — отдельно от оплаты: назначение и отзыв не меняют статус оплаты и тариф */}
+                            <div className={`text-xs rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-2 ${editorOn ? 'bg-[#eef2f9]' : 'bg-[#f8fafc]'}`}>
+                              <div className="flex-1 text-gray-700">
+                                <div className="font-bold text-[#0f1b33]">
+                                  Права сотрудника редакции:{' '}
+                                  {editorOn
+                                    ? `назначены ${fmt(u.editor!.since)}`
+                                    : u.editor?.revokedAt
+                                      ? `отозваны ${fmt(u.editor.revokedAt)}`
+                                      : 'не назначены'}
+                                </div>
+                                {editorOn
+                                  ? 'Публикует бесплатно и сразу, без предварительной модерации. Оплата для этого не нужна и не отмечается.'
+                                  : 'Обычный пользователь: оплата тарифа и модерация.'}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={toggleEditor}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${editorOn ? 'bg-red-50 text-red-700' : 'bg-[#12327A] text-white'}`}
+                              >
+                                {editorOn ? 'Отозвать права сотрудника редакции' : 'Назначить сотрудником редакции'}
+                              </button>
                             </div>
                             {(u.govStatus && u.govStatus !== 'none') || plan.govOnly ? (
                               <div className={`text-xs rounded-xl p-3 ${govOk ? 'bg-emerald-50' : u.govStatus === 'pending' ? 'bg-amber-50' : 'bg-[#f8fafc]'}`}>
@@ -1347,7 +1973,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onRefreshData, onRoleC
               ) : tab === 'weather' ? (
                 <WeatherTab />
               ) : (
-                <StatsTab />
+                <StatsTab onRefreshData={onRefreshData} />
               )}
             </div>
           </div>

@@ -17,7 +17,15 @@ export type CategoryId =
   | 'gov'
   | 'hazard'
   | 'state'
-  | 'laws';
+  | 'laws'
+  /** Объявления организаций и частных лиц (размещение из личного кабинета) */
+  | 'notices'
+  /** Редакционные новости — публикуют только сотрудники редакции и администратор */
+  | 'news'
+  /** Бизнес-новости: предпринимательство, компании, экономика — редакционный раздел, как «Новости» */
+  | 'business'
+  /** ИИ и IT-технологии: нейросети, технологии, цифровые продукты — редакционный раздел, как «Новости» */
+  | 'tech';
 
 /**
  * Где действует публикация. Бишкек и Ош — города республиканского значения, отдельно от областей;
@@ -143,6 +151,8 @@ export interface Announcement {
   imageAlt?: string;
   /** Автор / лицензия изображения */
   imageCredit?: string;
+  /** Дополнительные фото (галерея под главным фото): ссылки /api/image?id=… или https://…, до 8 */
+  gallery?: string[];
   /**
    * Как вписывать изображение: 'contain' (по умолчанию) — целиком, без обрезки, с размытым фоном;
    * 'cover' — заполнить рамку (подходит для широких баннеров без важных деталей по краям).
@@ -177,6 +187,11 @@ export interface Announcement {
 
   /** Модерация: публикации пользователей видны только после одобрения админом */
   moderationStatus?: ModerationStatus;
+  /**
+   * Тестовый материал (например, черновик из письма «TEST DataNews»). Ставит только сервер;
+   * такой материал нельзя одобрить и он никогда не попадает на сайт.
+   */
+  testMaterial?: boolean;
   moderationNote?: string;
   submittedBy?: {
     userId: string;
@@ -194,6 +209,8 @@ export interface Announcement {
   geo?: { lat: number; lng: number };
   /** Когда редакция последний раз проверила информацию (ISO, время Бишкека) */
   lastCheckedAt?: string;
+  /** Закреплена редакцией в «Главном» до этого времени (местное время Бишкека, YYYY-MM-DDTHH:mm) */
+  featuredUntil?: string;
   /**
    * Откуда запись: 'manual' — внесена редакцией вручную по источнику, 'user' — прислал организатор через кабинет,
    * 'auto' — зарезервировано для будущего автоматического сбора (сейчас не используется).
@@ -313,6 +330,12 @@ export interface PublicUser {
   /** Статус государственного аккаунта: публикует без предварительной модерации только 'verified' */
   govStatus?: GovStatus;
   gov?: GovVerification;
+  /**
+   * Сотрудник редакции: бесплатно и без предварительной модерации публикует в обычных разделах и «Новостях».
+   * Назначает и отзывает только администратор (раздел «Пользователи»). Это не тариф, не оплата и не статус госоргана.
+   * Действует, пока нет revokedAt.
+   */
+  editor?: { since: string; revokedAt?: string };
   createdAt: string;
 }
 
@@ -331,8 +354,10 @@ export interface PlanUsage {
   postsUsed: number;
   /** Осталось публикаций в текущем периоде (null — без лимита) */
   postsLeft: number | null;
-  /** Публикации подтверждённого госоргана выходят без предварительной модерации */
+  /** Публикации подтверждённого госоргана или сотрудника редакции выходят без предварительной модерации */
   skipsModeration: boolean;
+  /** Сотрудник редакции: оплата и лимиты тарифа не применяются (это не оплата) */
+  editor?: boolean;
   dailyLimit: number | null;
   postedToday: boolean;
   /** Дата по Бишкеку, когда снова можно публиковать (при дневном лимите) */
@@ -353,6 +378,72 @@ export interface SiteStats {
   devices: { key: string; count: number }[];
   languages: { key: string; count: number }[];
   cities: { key: string; count: number }[];
+  /** Переходы с сайта в соцсети за период: сеть, цель (contact — написать/подписаться на DataNews, share — поделиться, other — организатор/источник) */
+  outbound?: { network: string; kind: string; count: number }[];
+  outboundDays?: { date: string; instagram: number; whatsapp: number; telegram: number }[];
 }
 
-export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'admin' | 'about' | 'sources' | 'privacy' | 'rules' | 'contacts';
+export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'advertising' | 'admin' | 'about' | 'rules' | 'contacts' | 'editorial' | 'privacy';
+
+/**
+ * Письмо из редакционной почты (dn:mail). Это входящий материал, а не публикация:
+ * из него редактор готовит публикацию в обычной форме; само письмо ничего не публикует.
+ */
+export type MailStatus = 'new' | 'prepared' | 'published' | 'rejected' | 'duplicate';
+
+export type MailFlag =
+  | 'needs_review'
+  | 'no_date'
+  | 'no_place'
+  | 'no_category'
+  | 'no_city'
+  | 'year_guessed'
+  | 'wide_date_range'
+  | 'unknown_sender'
+  | 'auth_failed'
+  | 'possible_correction'
+  | 'from_pdf'
+  | 'text_truncated'
+  | 'image_too_large'
+  | 'attachment_skipped';
+
+export interface MailAttachment {
+  name: string;
+  mimeType: string;
+  size: number;
+  kind: 'image' | 'pdf' | 'other';
+  /** Ключ временной копии фото (dn:mail:att:…), если фото сохранено */
+  storedKey?: string;
+  /** Текст, извлечённый из PDF (сам PDF не хранится) */
+  text?: string;
+  note?: string;
+}
+
+export interface MailItem {
+  /** Идентификатор письма Gmail */
+  id: string;
+  threadId?: string;
+  /** Заголовок Message-ID письма */
+  rfcMessageId?: string;
+  fingerprint: string;
+  from: { raw: string; name?: string; address: string; domain: string };
+  subject: string;
+  /** Когда письмо пришло — не дата события */
+  receivedAt: string;
+  ingestedAt: string;
+  permalink?: string;
+  text: string;
+  links: string[];
+  auth: { spf?: string; dkim?: string; dmarc?: string };
+  attachments: MailAttachment[];
+  sender: { known: boolean; orgName?: string; orgType?: string; govDomain: boolean };
+  /** Что помощник импорта нашёл в тексте письма — предложение для формы, не публикация */
+  suggestion: { draft: Partial<Announcement>; found: string[]; missing: string[]; fromPdf: boolean };
+  flags: MailFlag[];
+  relatedIds: string[];
+  duplicateOf?: string;
+  status: MailStatus;
+  /** Публикация, подготовленная из письма (её создаёт и публикует редактор обычной формой) */
+  annId?: string;
+  history: { at: string; action: string; note?: string }[];
+}

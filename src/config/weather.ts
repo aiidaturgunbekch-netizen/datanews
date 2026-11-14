@@ -93,8 +93,10 @@ export interface OfficialForecast {
   date: string;
   sourceName: string;
   sourceUrl: string;
-  /** Общий текст: осадки, ветер (как в сводке) */
+  /** Общий текст: осадки, ветер (как в сводке) — русский (старые записи) */
   text?: string;
+  /** Тот же текст на каждом языке сайта: языки не смешиваются */
+  texts?: Partial<Record<'ru' | 'kg' | 'en', string>>;
   regions: Partial<Record<CityId, { nightFrom: number; nightTo: number; dayFrom: number; dayTo: number }>>;
   updatedAt?: string;
 }
@@ -119,3 +121,14 @@ export const EMERGENCY_NUMBERS: { phone: string; name: LocalizedString }[] = [
   { phone: '102', name: { ru: 'Милиция', kg: 'Милиция', en: 'Police' } },
   { phone: '103', name: { ru: 'Скорая помощь', kg: 'Тез жардам', en: 'Ambulance' } },
 ];
+
+/** Текст прогноза на языке страницы: кыргызский — только свой, английский — свой или русский */
+export const forecastText = (f: OfficialForecast, lang: 'ru' | 'kg' | 'en') =>
+  lang === 'kg' ? f.texts?.kg || '' : lang === 'en' ? f.texts?.en || f.texts?.ru || f.text || '' : f.texts?.ru || f.text || '';
+
+/** Прогнозы на сегодня и позже, по дате; запись с той же датой — самая новая */
+export const upcomingForecasts = (list: OfficialForecast[], today: string) => {
+  const byDate = new Map<string, OfficialForecast>();
+  for (const f of list) if (f && f.date >= today && (!byDate.has(f.date) || (f.updatedAt || '') > (byDate.get(f.date)!.updatedAt || ''))) byDate.set(f.date, f);
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+};

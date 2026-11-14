@@ -1,20 +1,31 @@
 import React, { useEffect, useState } from 'react';
+import { PrivacyText } from './InfoPages';
+import { confirmApproveWithoutKg } from '../utils/translation';
 import { Announcement, Language, PlanId, PlanUsage, PublicUser } from '../types';
 import * as api from '../services/api';
 import { normalizePlan, PAYMENT_DETAILS, PLAN_IDS, PLANS, planTerms, planUnit } from '../config/site';
 import { AccountKey, errorText, ta } from '../locales/account';
 import { formatDate, formatDayMonth, formatDayMonthTime } from '../utils/dates';
-import { AnnouncementForm, inputCls } from './AnnouncementForm';
+import { inputCls } from './AnnouncementForm';
+import { SimplePublishForm } from './SimplePublishForm';
+import { EditorModeration } from './EditorModeration';
+import { PublishKey, tp } from '../locales/publish';
 import { EventImage } from './EventImage';
 
 interface Props {
   lang: Language;
   initialTab: 'cabinet' | 'publish';
+  /** Открыт вход (#login): сначала форма входа, а не регистрации */
+  startWithLogin?: boolean;
+  /** В этом браузере сейчас сеанс администратора — вход в кабинет его завершит */
+  adminSession?: boolean;
   onRoleChange: (role: api.Role) => void;
   onClose: () => void;
+  /** Сотрудник редакции нажал «Исправить» на сайте — сразу форма правки этого материала, после сохранения — назад на сайт */
+  initialEdit?: Announcement | null;
 }
 
-type Tab = 'cabinet' | 'publish' | 'mine';
+type Tab = 'cabinet' | 'publish' | 'mine' | 'moderation';
 
 export const MODERATION_BADGE: Record<string, { label: string; key: AccountKey; cls: string; icon: string }> = {
   pending: { label: 'На модерации', key: 'modPending', cls: 'bg-amber-100 text-amber-800', icon: 'hourglass_top' },
@@ -204,15 +215,19 @@ const GovBlock: React.FC<{ lang: Language; user: PublicUser; onUser: (u: PublicU
   );
 };
 
-export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange, onClose }) => {
+export const AccountPortal: React.FC<Props> = ({ lang, initialTab, startWithLogin, adminSession, onRoleChange, onClose, initialEdit }) => {
   const tr = (k: AccountKey) => ta(k, lang);
   const [user, setUser] = useState<PublicUser | null>(null);
   const [usage, setUsage] = useState<PlanUsage | null>(null);
   const [loading, setLoading] = useState(Boolean(api.getSession()));
-  const [authTab, setAuthTab] = useState<'login' | 'register'>('register');
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [consent, setConsent] = useState(false);
+  const [authTab, setAuthTab] = useState<'login' | 'register'>(startWithLogin || adminSession ? 'login' : 'register');
+  const [tab, setTab] = useState<Tab>(initialEdit ? 'mine' : initialTab);
   const [mine, setMine] = useState<Announcement[]>([]);
-  const [editing, setEditing] = useState<Announcement | null>(null);
+  const [editing, setEditing] = useState<Announcement | null>(initialEdit || null);
+  // откуда открыта правка (чтобы вернуться в «Модерацию») и сколько там ждёт
+  const [editFrom, setEditFrom] = useState<Tab | null>(null);
+  const [modCount, setModCount] = useState(0);
   const [notice, setNotice] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -287,7 +302,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
     setPassword('');
     loadMine();
     const us = await refreshUsage();
-    setTab(canPublishNow(u, us) ? initialTab : 'cabinet');
+    setTab(initialEdit ? 'mine' : canPublishNow(u, us) ? initialTab : 'cabinet');
   };
 
   const logout = () => {
@@ -298,6 +313,21 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
   };
 
   const pendingCount = mine.filter((m) => m.moderationStatus === 'pending').length;
+  // «Мои публикации»: фильтр по статусу модерации
+  const [mineFilter, setMineFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'withdrawn'>('all');
+  const statusOf = (a: Announcement) => a.moderationStatus || 'pending';
+  const MINE_FILTERS: [typeof mineFilter, PublishKey][] = [
+    ['all', 'filterAll'],
+    ['pending', 'filterPending'],
+    ['approved', 'filterApproved'],
+    ['rejected', 'filterRejected'],
+    ['withdrawn', 'filterWithdrawn'],
+  ];
+  const mineShown = mine.filter((a) => mineFilter === 'all' || statusOf(a) === mineFilter);
+  /** Сотрудник редакции — решает сервер (назначает администратор); это не оплата */
+  const isEditorUser = Boolean(usage?.editor);
+  /** От чьего имени публикация: из профиля (официальное название госоргана — только после подтверждения) */
+  const authorName = user ? (user.govStatus === 'verified' && user.gov?.orgName) || user.organization || user.name : '';
 
   return (
     <div
@@ -330,6 +360,15 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
           ) : !user ? (
             /* ───────── Гость: регистрация / вход ───────── */
             <div className="space-y-5">
+              {adminSession && (
+                <div className="p-3 rounded-xl bg-amber-50 text-amber-900 text-sm">{tr('adminSessionNote')}</div>
+              )}
+              {/* Ошибка входа или регистрации (например, «Неверный e-mail или пароль») */}
+              {err && (
+                <div role="alert" className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">
+                  {err}
+                </div>
+              )}
               <div className="p-4 rounded-2xl bg-[#effdfb] border border-[#20C7B5]/30 text-sm text-[#0f1b33]">
                 <div className="font-extrabold mb-1">{tr('howTitle')}</div>
                 <ol className="list-decimal ml-5 space-y-0.5 text-gray-700">
@@ -376,7 +415,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                     e.preventDefault();
                     run(async () =>
                       afterAuth(
-                        await api.register({ name, email, phone, organization: org, password, plan, paymentRef: paymentRef.trim() || undefined })
+                        await api.register({ name, email, phone, organization: org, password, plan, paymentRef: paymentRef.trim() || undefined, consent })
                       )
                     );
                   }}
@@ -405,7 +444,26 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                     value={paymentRef}
                     onChange={(e) => setPaymentRef(e.target.value)}
                   />
-                  <button disabled={busy} className="w-full py-3 rounded-xl bg-[#20C7B5] text-[#002f29] font-extrabold disabled:opacity-60">
+                  {/* Согласие на обработку персональных данных — обязательно (закон КР «Об информации персонального характера») */}
+                  <label className="flex items-start gap-2 text-xs text-gray-700" data-consent>
+                    <input type="checkbox" className="mt-0.5" checked={consent} onChange={(e) => setConsent(e.target.checked)} required />
+                    <span>
+                      {lang === 'kg'
+                        ? 'Купуялык саясатын окудум жана жеке маалыматтарымды иштетүүгө макулмун.'
+                        : lang === 'en'
+                        ? 'I have read the Privacy policy and agree to the processing of my personal data.'
+                        : 'Я прочитал(а) Политику конфиденциальности и согласен(на) на обработку моих персональных данных.'}
+                    </span>
+                  </label>
+                  <details className="text-xs text-gray-600 -mt-2 ml-6">
+                    <summary className="cursor-pointer font-bold text-[#12327A]">
+                      {lang === 'kg' ? 'Купуялык саясатын ачуу' : lang === 'en' ? 'Read the Privacy policy' : 'Открыть Политику конфиденциальности'}
+                    </summary>
+                    <div className="mt-2 max-h-64 overflow-y-auto p-3 rounded-lg bg-[#f8fafc]">
+                      <PrivacyText lang={lang} />
+                    </div>
+                  </details>
+                  <button disabled={busy || !consent} className="w-full py-3 rounded-xl bg-[#20C7B5] text-[#002f29] font-extrabold disabled:opacity-60">
                     {busy ? tr('signingUp') : tr('signUp')}
                   </button>
                 </form>
@@ -417,9 +475,10 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
               <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-xl text-sm font-bold w-fit">
                 {(
                   [
-                    ['cabinet', tr('tabProfile')],
+                    ['cabinet', isEditorUser ? tp('profileTab', lang) : tr('tabProfile')],
                     ['publish', tr('tabPublish')],
                     ['mine', `${tr('tabMine')}${pendingCount ? ` (${pendingCount})` : ''}`],
+                    ...(isEditorUser ? [['moderation', `${lang === 'kg' ? 'Модерация' : lang === 'en' ? 'Moderation' : 'Модерация'}${modCount ? ` (${modCount})` : ''}`]] : []),
                   ] as [Tab, string][]
                 ).map(([t, label]) => (
                   <button
@@ -449,6 +508,16 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                       {user.organization && <div className="text-gray-600">{user.organization}</div>}
                       <div className="text-gray-600 mt-1">{user.phone}</div>
                     </div>
+                    {isEditorUser ? (
+                      // Сотрудник редакции: без тарифа и оплаты на экране (и без ложного «Оплачено»)
+                      <div className="p-4 rounded-2xl bg-[#effdfb] border border-[#20C7B5]/40">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#12327A] text-white">
+                          <span className="material-symbols-outlined text-[14px]">badge</span>
+                          {tp('editorBadge', lang)}
+                        </span>
+                        <p className="text-xs text-gray-700 mt-2">{tp('editorFree', lang)}</p>
+                      </div>
+                    ) : (
                     <div className="p-4 rounded-2xl bg-[#f8fafc] border border-gray-100">
                       <div className="text-xs text-gray-500">{tr('plan')}</div>
                       <div className="font-bold">
@@ -481,6 +550,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                         <div className="text-[11px] text-gray-500 mt-1">{tr('burnNote')}</div>
                       )}
                     </div>
+                    )}
                   </div>
 
                   {(normalizePlan(user.plan) === 'gov' || plan === 'gov' || (user.govStatus && user.govStatus !== 'none')) && (
@@ -494,7 +564,7 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                     />
                   )}
 
-                  {user.paymentStatus === 'pending' ? (
+                  {isEditorUser ? null : user.paymentStatus === 'pending' ? (
                     <div className="p-3 rounded-xl bg-amber-50 text-amber-900 text-xs font-semibold">{tr('paidThanks')}</div>
                   ) : usage?.active && !showRenew ? (
                     <button
@@ -584,15 +654,18 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                 ) : (
                   <>
                     <div className={`p-3 rounded-xl text-xs ${usage?.skipsModeration ? 'bg-amber-50 text-amber-900 font-semibold' : 'bg-[#eef2f9] text-gray-700'}`}>
-                      {usage?.skipsModeration ? tr('publishDirect') : tr('moderationHint')}
-                      {usage && <UsageLine lang={lang} usage={usage} />}
+                      {isEditorUser ? tp('editorFree', lang) : usage?.skipsModeration ? tr('publishDirect') : tr('moderationHint')}
+                      {usage && !isEditorUser && <UsageLine lang={lang} usage={usage} />}
                     </div>
-                    <AnnouncementForm
+                    <SimplePublishForm
                       lang={lang}
-                      mode="user"
-                      allowedCategories={PLANS[usage?.plan || normalizePlan(user.plan)].categories}
-                      defaultOrganizer={user.organization}
-                      submitLabel={usage?.skipsModeration ? tr('publishNow') : tr('sendToModeration')}
+                      plan={usage?.plan || normalizePlan(user.plan)}
+                      govVerified={user.govStatus === 'verified'}
+                      author={authorName}
+                      storageKey={`dn:publish-draft:${user.email}`}
+                      direct={Boolean(usage?.skipsModeration)}
+                      editor={isEditorUser}
+                      submitLabel={isEditorUser ? tp('publish', lang) : usage?.skipsModeration ? tr('publishNow') : tr('sendToModeration')}
                       onSubmit={async (item) => {
                         try {
                           await api.submitAnnouncement(item);
@@ -601,38 +674,108 @@ export const AccountPortal: React.FC<Props> = ({ lang, initialTab, onRoleChange,
                           await refreshUsage();
                         }
                         await loadMine();
+                        setMineFilter('all');
                         setTab('mine');
-                        setNotice(usage?.skipsModeration ? tr('publishedDirect') : tr('sentToModeration'));
+                        setNotice(tp(isEditorUser ? 'sentEditor' : usage?.skipsModeration ? 'sentDirect' : 'sent', lang));
                       }}
                     />
                   </>
                 ))}
 
+              {tab === 'moderation' && isEditorUser && (
+                <EditorModeration
+                  lang={lang}
+                  onCount={setModCount}
+                  onEdit={(a) => {
+                    setEditFrom('moderation');
+                    setEditing(a);
+                    setTab('mine');
+                  }}
+                />
+              )}
+
               {tab === 'mine' &&
                 (editing ? (
-                  <AnnouncementForm
+                  <SimplePublishForm
+                    key={editing.id}
                     lang={lang}
-                    mode="user"
+                    plan={usage?.plan || normalizePlan(user.plan)}
+                    govVerified={user.govStatus === 'verified'}
+                    author={authorName}
                     initial={editing}
-                    allowedCategories={PLANS[usage?.plan || normalizePlan(user.plan)].categories}
-                    submitLabel={editing.publishedByGov ? tr('publishNow') : tr('resubmit')}
-                    onCancel={() => setEditing(null)}
+                    direct={Boolean(editing.publishedByGov)}
+                    editor={isEditorUser}
+                    submitLabel={isEditorUser ? tp('publish', lang) : editing.publishedByGov ? tr('publishNow') : tr('resubmit')}
+                    // черновик из «Модерации»: исправить и сразу опубликовать
+                    secondarySubmit={
+                      editFrom === 'moderation' && editing.moderationStatus === 'pending'
+                        ? {
+                            label: lang === 'kg' ? 'Сактоо жана жактыруу' : lang === 'en' ? 'Save and approve' : 'Сохранить и одобрить',
+                            onSubmit: async (item) => {
+                              if (!confirmApproveWithoutKg(item as Parameters<typeof confirmApproveWithoutKg>[0])) return;
+                              await api.updateAnnouncement(editing.id, item);
+                              await api.moderateAnnouncement(editing.id, 'approve');
+                              setNotice(
+                                `${lang === 'kg' ? 'Оңдолуп, жактырылды жана жарыяланды' : lang === 'en' ? 'Edited, approved and published' : 'Исправлено, одобрено и опубликовано'}: «${editing.title[lang] || editing.title.ru}»`
+                              );
+                              setEditing(null);
+                              setTab('moderation');
+                              setEditFrom(null);
+                            },
+                          }
+                        : undefined
+                    }
+                    onCancel={() => {
+                      if (initialEdit) return onClose();
+                      setEditing(null);
+                      if (editFrom) {
+                        setTab(editFrom);
+                        setEditFrom(null);
+                      }
+                    }}
                     onSubmit={async (item) => {
                       await api.updateAnnouncement(editing.id, item);
+                      if (initialEdit) {
+                        onClose();
+                        return;
+                      }
                       await loadMine();
-                      setNotice(editing.publishedByGov ? tr('publishedDirect') : tr('resubmitted'));
+                      setNotice(isEditorUser ? tp('sentEditor', lang) : editing.publishedByGov ? tr('publishedDirect') : tr('resubmitted'));
                       setEditing(null);
+                      // исправляли черновик из «Модерации» — возвращаемся туда (метка «Исправлено»)
+                      if (editFrom) {
+                        setTab(editFrom);
+                        setEditFrom(null);
+                      }
                     }}
                   />
                 ) : mine.length === 0 ? (
                   <div className="py-10 text-center text-gray-500 text-sm">{tr('nothingYet')}</div>
                 ) : (
                   <div className="space-y-3">
-                    {[...mine]
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label={tr('tabMine')}>
+                      {MINE_FILTERS.map(([f, k]) => {
+                        const n = f === 'all' ? mine.length : mine.filter((a) => statusOf(a) === f).length;
+                        return (
+                          <button
+                            key={f}
+                            type="button"
+                            aria-pressed={mineFilter === f}
+                            onClick={() => setMineFilter(f)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${mineFilter === f ? 'bg-[#12327A] text-white' : 'bg-white border border-gray-200 text-gray-700'}`}
+                          >
+                            {tp(k, lang)} ({n})
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {mineShown.length === 0 && <div className="py-6 text-center text-gray-500 text-sm">{tp('filterEmpty', lang)}</div>}
+                    {[...mineShown]
                       .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
                       .map((a) => {
                         const b = MODERATION_BADGE[a.moderationStatus || 'pending'];
-                        const canEdit = a.publishedByGov ? a.moderationStatus !== 'withdrawn' : a.moderationStatus !== 'approved' && a.moderationStatus !== 'withdrawn';
+                        // Сотрудник редакции и госорган правят своё и после публикации (правка сразу на сайте)
+                        const canEdit = a.publishedByGov || isEditorUser ? a.moderationStatus !== 'withdrawn' : a.moderationStatus !== 'approved' && a.moderationStatus !== 'withdrawn';
                         return (
                           <div key={a.id} className="p-3 rounded-2xl border border-gray-100">
                             <div className="flex gap-3">

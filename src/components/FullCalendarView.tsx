@@ -7,6 +7,7 @@ import { alertLevel } from '../utils/urgency';
 import { formatDateLong, formatMonthYear, formatTime } from '../utils/dates';
 import { getAnnouncementDisplayStatus, getStatusBadgeConfig } from '../utils/statusUtils';
 import { recordsLabel } from '../utils/plural';
+import { placeText } from '../utils/place';
 
 interface FullCalendarViewProps {
   currentLanguage: Language;
@@ -75,7 +76,7 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
   const selectedDateObj = new Date(sy, (sm || 1) - 1, sd || 1);
 
   return (
-    <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-8">
+    <div className="w-full dn-container py-8">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -130,14 +131,14 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
 
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
           <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
             {t('search.whereLabel')}
           </span>
           <select
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value as CityId)}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#20C7B5]"
+            className="min-w-0 max-w-full px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#20C7B5]"
           >
             {PLACE_IDS.map((id) => (
               <option key={id} value={id}>
@@ -147,14 +148,14 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
           </select>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
           <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
             {t('search.whatLabel')}
           </span>
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value as CategoryId)}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#20C7B5]"
+            className="min-w-0 max-w-full px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#20C7B5]"
           >
             <option value="all">{t('categories.all')}</option>
             <option value="roads">{t('categories.roads')}</option>
@@ -172,10 +173,10 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
       {/* Main Calendar Matrix Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: 8 cols monthly grid */}
-        <div className="lg:col-span-8 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm">
+        <div className="lg:col-span-8 bg-white p-3 sm:p-5 rounded-3xl border border-gray-200 shadow-sm">
           {/* Weekday Header */}
           <div
-            className="grid grid-cols-7 gap-2 text-center font-extrabold text-gray-500 mb-3 text-xs uppercase tracking-wider"
+            className="grid grid-cols-7 gap-1 sm:gap-2 text-center font-extrabold text-[#334155] mb-3 text-xs uppercase tracking-wider"
           >
             {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((d) => (
               <span
@@ -189,10 +190,11 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
           </div>
 
           {/* Month Days */}
-          <div className="grid grid-cols-7 gap-2">
+          {/* На телефоне ячейка — число и точки событий (без счётчика и названий: им не хватает места) */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {/* Blank offset tiles for previous month */}
             {Array.from({ length: startOffset }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[88px] rounded-xl bg-gray-50/50 p-2 border border-dashed border-gray-100" />
+              <div key={`empty-${i}`} className="min-h-[3.25rem] sm:min-h-[88px] rounded-xl bg-gray-50/50 p-2 border border-dashed border-gray-100" />
             ))}
 
             {/* Current Month Days */}
@@ -208,13 +210,14 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                 <div
                   key={dateStr}
                   onClick={() => setSelectedDateStr(dateStr)}
-                  className={`min-h-[88px] rounded-xl p-2 border transition-all cursor-pointer flex flex-col justify-between ${
+                  aria-label={`${dayNum}${items.length ? ` — ${items.length}` : ''}`}
+                  className={`min-w-0 min-h-[3.25rem] sm:min-h-[88px] rounded-xl p-1 sm:p-2 border transition-all cursor-pointer flex flex-col max-sm:items-center justify-start sm:justify-between gap-1 ${
                     isSelected
                       ? 'border-[#12327A] bg-[#12327A]/5 shadow-sm ring-2 ring-[#12327A]/20'
                       : 'border-gray-100 bg-white hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-center sm:justify-between sm:mb-1">
                     <span
                       className={`text-xs font-extrabold rounded-md w-6 h-6 flex items-center justify-center ${
                         isSelected
@@ -224,16 +227,11 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                     >
                       {dayNum}
                     </span>
-                    {items.length > 0 && (
-                      <span className="text-[10px] font-bold text-gray-500">
-                        {items.length}
-                      </span>
-                    )}
                   </div>
 
                   {/* Micro list of item titles */}
-                  <div className="space-y-1 overflow-hidden">
-                    {items.slice(0, 2).map((item) => {
+                  <div className="max-sm:flex max-sm:flex-wrap max-sm:justify-center max-sm:gap-0.5 sm:space-y-1 overflow-hidden">
+                    {items.slice(0, 3).map((item, idx) => {
                       const displayStatus = getAnnouncementDisplayStatus(item);
                       const bgDot =
                         displayStatus === 'completed'
@@ -251,10 +249,10 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                       return (
                         <div
                           key={item.id}
-                          className="flex items-center gap-1 text-[10px] text-gray-600 truncate"
+                          className={`flex items-center gap-1 text-[10px] text-[#334155] truncate ${idx === 2 ? 'sm:hidden' : ''}`}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${bgDot} flex-shrink-0`} />
-                          <span className="truncate">
+                          <span className="truncate max-sm:hidden">
                             {item.title[currentLanguage] || item.title.ru}
                           </span>
                         </div>
@@ -288,10 +286,10 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
               <span className="material-symbols-outlined text-3xl mb-1">calendar_today</span>
               <p className="text-xs">
                 {currentLanguage === 'kg'
-                  ? 'Бул күнгө жазуулар табылган жок'
+                  ? 'Бул күнгө азырынча жаңылык жок. Жаңылыктар күн сайын кошулат — кийинчерээк кайра караңыз.'
                   : currentLanguage === 'en'
-                  ? 'No records for this date'
-                  : 'На эту дату записей не найдено'}
+                  ? 'No news for this date yet. News is added every day — check back later.'
+                  : 'На эту дату новостей пока нет. Новости добавляются каждый день — загляните позже.'}
               </p>
             </div>
           ) : (
@@ -326,10 +324,12 @@ export const FullCalendarView: React.FC<FullCalendarViewProps> = ({
                     <h4 className="text-xs font-bold text-[#0f1b33] group-hover:text-[#12327A] transition-colors line-clamp-2 mb-1">
                       {item.title[currentLanguage] || item.title.ru}
                     </h4>
-                    <p className="text-[11px] text-gray-500 truncate flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">location_on</span>
-                      <span>{item.location[currentLanguage] || item.location.ru}</span>
-                    </p>
+                    {placeText(item, currentLanguage) && (
+                      <p className="text-[11px] text-gray-500 truncate flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">location_on</span>
+                        <span>{placeText(item, currentLanguage)}</span>
+                      </p>
+                    )}
                     </div>
                   </div>
                 );

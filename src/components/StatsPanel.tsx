@@ -1,4 +1,8 @@
+import { Highlight } from './Highlight';
+import { EditButton, useEdit } from './EditButton';
+import { searchSnippet } from '../utils/search';
 import React, { useEffect, useMemo, useState } from 'react';
+import { AdSlot } from './AdSlot';
 import { Announcement, CategoryId, CityId, Language } from '../types';
 import { getTranslation } from '../locales/translations';
 import { CATEGORY_IDS, REGIONS } from '../config/regions';
@@ -8,8 +12,9 @@ import { PaidBadge } from './PaidBadge';
 import { formatWhen, MONTHS } from '../utils/dates';
 import { alertLevel, isListed } from '../utils/urgency';
 import { addDaysStr, kgDateStr, kgTs } from '../utils/time';
-import { freshOrder, isFresh } from '../utils/statusUtils';
+import { ARTICLE_CATEGORIES, freshOrder, isFresh } from '../utils/statusUtils';
 import { ruPlural } from '../utils/plural';
+import { placeText } from '../utils/place';
 
 export type StatsMode = 'all' | 'alerts' | 'regions';
 
@@ -21,7 +26,7 @@ const T = {
   regionsTitle: { ru: 'Области Кыргызстана', kg: 'Кыргызстандын облустары', en: 'Regions of Kyrgyzstan' },
   category: { ru: 'Категория', kg: 'Категория', en: 'Category' },
   period: { ru: 'Период', kg: 'Мезгил', en: 'Period' },
-  any: { ru: 'Все', kg: 'Бардыгы', en: 'All' },
+  any: { ru: 'Все', kg: 'Баары', en: 'All' },
   today: { ru: 'Сегодня', kg: 'Бүгүн', en: 'Today' },
   week: { ru: 'Ближайшие 7 дней', kg: 'Жакынкы 7 күн', en: 'Next 7 days' },
   upcoming: { ru: 'Предстоящие', kg: 'Алдыдагылар', en: 'Upcoming' },
@@ -45,7 +50,7 @@ const T = {
   nationwide: { ru: 'Весь Кыргызстан', kg: 'Бүт Кыргызстан', en: 'All of Kyrgyzstan' },
   withNationwide: {
     ru: 'События области и общие для всей страны',
-    kg: 'Облустун жана бүт өлкөгө тиешелүү окуялар',
+    kg: 'Облуска жана бүт өлкөгө тиешелүү окуялар',
     en: 'Regional events plus nationwide ones',
   },
   posts: { ru: 'публикаций', kg: 'жарыя', en: 'posts' },
@@ -61,9 +66,12 @@ const postsLabel = (n: number, lang: Language) => {
   return `${n} ${ruPlural(n, 'публикация', 'публикации', 'публикаций')}`;
 };
 
-export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a: Announcement) => void }> = ({ item, lang, onOpen }) => {
+export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a: Announcement) => void; query?: string }> = ({ item, lang, onOpen, query }) => {
   const { t } = getTranslation(lang);
-  return (
+  // при поиске — отрывок текста с найденными словами
+  const snippet = query ? searchSnippet(item.description?.[lang] || item.description?.ru || item.summary?.[lang] || '', query) : '';
+  const { canEdit } = useEdit();
+  const row = (
     <button
       type="button"
       onClick={() => onOpen(item)}
@@ -79,12 +87,27 @@ export const ItemRow: React.FC<{ item: Announcement; lang: Language; onOpen: (a:
           <UrgencyBadge item={item} lang={lang} />
           <PaidBadge item={item} lang={lang} />
         </div>
-        <div className="font-bold text-sm text-[#0f1b33] leading-snug break-words">{item.title[lang] || item.title.ru}</div>
+        <div className="font-bold text-sm text-[#0f1b33] leading-snug break-words">
+          <Highlight text={item.title[lang] || item.title.ru} query={query} />
+        </div>
+        {snippet && (
+          <div className="text-xs text-gray-600 mt-0.5 break-words line-clamp-2">
+            <Highlight text={snippet} query={query} />
+          </div>
+        )}
         <div className="text-xs text-gray-500 mt-0.5 break-words">
-          {formatWhen(item.startDate, item.endDate, lang, false, item.timeTBA, item.allDay)} · {item.location[lang] || item.location.ru}
+          {[formatWhen(item.startDate, item.endDate, lang, false, item.timeTBA, item.allDay), placeText(item, lang)].filter(Boolean).join(' · ')}
         </div>
       </div>
     </button>
+  );
+  if (!canEdit(item)) return row;
+  // для редакции — «Исправить» прямо в списке (отдельная кнопка рядом, не внутри карточки)
+  return (
+    <div className="relative">
+      {row}
+      <EditButton item={item} lang={lang} className="absolute right-2 bottom-2" />
+    </div>
   );
 };
 
@@ -264,26 +287,61 @@ export const CategoryResults: React.FC<{
   extra?: React.ReactNode;
   /** Заголовок рубрики, объединяющей несколько разделов (иначе — название раздела) */
   title?: string;
-}> = ({ lang, category, items, onOpen, onReset, extra, title }) => {
+  /** Раздел для тематической рекламы D (показывается, только если для этого раздела есть идущая кампания) */
+  adRubric?: string;
+  /** Текст, если ничего нет (null — не показывать, например когда сверху уже есть прогноз погоды) */
+  emptyText?: string | null;
+  /** Поисковый запрос: список уже отсортирован по похожести (порядок не меняем), найденные слова — жирным */
+  query?: string;
+  /** Сколько материалов раздела есть в других городах и областях (не попали из-за выбранного города) */
+  elsewhere?: number;
+  /** Показать все города */
+  onAllCities?: () => void;
+}> = ({ lang, category, items, onOpen, onReset, extra, title, adRubric, emptyText, query, elsewhere = 0, onAllCities }) => {
   const { t } = getTranslation(lang);
   // Прошедшее — в архив (свёрнут), сверху только актуальное
-  const sorted = items.filter((a) => isFresh(a)).sort((a, b) => freshOrder(a, b));
-  const archived = items.filter((a) => !isFresh(a)).sort((a, b) => byStart(b, a));
-  const [showArchive, setShowArchive] = useState(false);
-  const archiveLabel = { ru: 'Архив', kg: 'Архив', en: 'Archive' };
+  // Раздел новостей (ИИ и IT, бизнес): всё сразу, новые сверху — без архива (новость читают и через неделю, и через месяц)
+  const articles = !query && items.length > 0 && items.every((a) => ARTICLE_CATEGORIES.includes(a.category) || a.category === 'state' || a.category === 'laws');
+  const sorted = articles ? [...items].sort((a, b) => kgTs(b.startDate) - kgTs(a.startDate)) : items.filter((a) => isFresh(a));
+  const archived = articles ? [] : items.filter((a) => !isFresh(a));
+  if (!query && !articles) {
+    sorted.sort((a, b) => freshOrder(a, b));
+    archived.sort((a, b) => byStart(b, a));
+  }
+  // в поиске прошедшее тоже показываем сразу (ниже актуального) — читатель ищет всё, что есть на сайте;
+  // если актуального нет, архив тоже открыт сразу — страница раздела не выглядит пустой
+  const onlyArchive = sorted.length === 0 && archived.length > 0;
+  const [showArchive, setShowArchive] = useState(Boolean(query) || onlyArchive);
+  useEffect(() => {
+    if (query || onlyArchive) setShowArchive(true);
+  }, [query, onlyArchive]);
+  const archiveLabel = query ? { ru: 'Прошедшие', kg: 'Өткөндөр', en: 'Past' } : { ru: 'Архив', kg: 'Архив', en: 'Archive' };
+  // в заголовке — все материалы раздела (актуальные и архив), чтобы число совпадало с тем, что видно на странице
+  const total = items.length;
   const empty = {
-    ru: 'Пока нет опубликованных событий в этой категории',
-    kg: 'Бул категорияда азырынча жарыяланган окуялар жок',
-    en: 'No published events in this category yet',
+    ru: 'Пока нет опубликованных материалов в этом разделе',
+    kg: 'Бул бөлүмдө азырынча жарыяланган материалдар жок',
+    en: 'Nothing has been published in this section yet',
   };
   const home = { ru: 'Главная', kg: 'Башкы бет', en: 'Home' };
+  const noCurrent = {
+    ru: 'Сейчас актуальных публикаций нет — прошедшие ниже, в архиве.',
+    kg: 'Азыр актуалдуу жарыялар жок — өткөндөрү төмөндө, архивде.',
+    en: 'Nothing current right now — past posts are in the archive below.',
+  };
+  const elsewhereText = {
+    ru: `Ещё ${elsewhere} — в других городах и областях.`,
+    kg: `Дагы ${elsewhere} — башка шаарларда жана облустарда.`,
+    en: `${elsewhere} more in other cities and regions.`,
+  };
+  const showAll = { ru: 'Показать все города', kg: 'Бардык шаарларды көрсөтүү', en: 'Show all cities' };
   const goHome = () => {
     onReset();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   return (
     <section id="category-results" className="w-full py-10 bg-white border-b border-gray-100 scroll-mt-[calc(var(--header-h,136px)+1rem)]">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+      <div className="dn-container">
         <button
           onClick={goHome}
           className="inline-flex items-center gap-1 mb-3 px-3 py-1.5 rounded-xl bg-[#f0f4fc] text-[#12327A] text-sm font-bold hover:bg-[#12327A] hover:text-white transition-colors"
@@ -292,15 +350,26 @@ export const CategoryResults: React.FC<{
           {home[lang]}
         </button>
         <h2 className="text-xl sm:text-2xl font-extrabold text-[#0f1b33] mb-3">
-          {title || t(`categories.${category}`)} <span className="text-gray-500 font-bold">· {sorted.length}</span>
+          {title || t(`categories.${category}`)}{' '}
+          {!(total === 0 && (emptyText === null || extra)) && <span className="text-gray-500 font-bold">· {total}</span>}
         </h2>
         {extra && <div className="mb-4">{extra}</div>}
+        {adRubric && <AdSlot format="D" rubric={adRubric} lang={lang} className="mb-5" />}
+        {elsewhere > 0 && onAllCities && !query && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+            <span>{elsewhereText[lang]}</span>
+            <button type="button" onClick={onAllCities} className="font-bold text-[#12327A] hover:underline">
+              {showAll[lang]}
+            </button>
+          </div>
+        )}
+        {onlyArchive && !query && <div className="py-4 px-4 text-sm text-gray-600 bg-[#f8fafc] rounded-2xl">{noCurrent[lang]}</div>}
         {sorted.length === 0 ? (
-          <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{empty[lang]}</div>
+          total > 0 || onlyArchive ? null : emptyText === null || extra ? null : <div className="py-10 text-center text-sm text-gray-500 bg-[#f8fafc] rounded-2xl">{emptyText || empty[lang]}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {sorted.map((a) => (
-              <ItemRow key={a.id} item={a} lang={lang} onOpen={onOpen} />
+              <ItemRow key={a.id} item={a} lang={lang} onOpen={onOpen} query={query} />
             ))}
           </div>
         )}
@@ -318,7 +387,7 @@ export const CategoryResults: React.FC<{
             {showArchive && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 opacity-80">
                 {archived.map((a) => (
-                  <ItemRow key={a.id} item={a} lang={lang} onOpen={onOpen} />
+                  <ItemRow key={a.id} item={a} lang={lang} onOpen={onOpen} query={query} />
                 ))}
               </div>
             )}

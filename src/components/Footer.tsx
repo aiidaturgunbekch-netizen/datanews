@@ -1,26 +1,35 @@
 import { SocialLinks } from './ContactButtons';
+import { EDITORIAL_PAGE_VISIBLE } from '../config/site';
 import React from 'react';
-import { Language, ViewMode } from '../types';
+import type { Language, ViewMode } from '../types';
 import { getTranslation } from '../locales/translations';
-import { Logo } from './Logo';
+import { BrandBadge } from './BrandLogo';
 
 interface FooterProps {
   currentLanguage: Language;
   onNavigate: (view: ViewMode) => void;
   onOpenAccount: () => void;
+  /** Главная без выбранной рубрики и раздела */
+  onOpenHome: () => void;
+  /** Поиск по всем публикациям (то же окно, что у значка поиска в шапке) */
+  onOpenSearch: () => void;
+  /** Афиша на вкладке «Архив» — прошедшие события и старые материалы */
+  onOpenArchive: () => void;
+  /** Рубрика «Новости» */
+  onOpenNews: () => void;
 }
 
-type Link = { label: Record<Language, string>; onClick: () => void };
+type Link = { label: string; onClick: () => void };
 
 /** Колонка ссылок подвала */
-const Column: React.FC<{ title: string; links: Link[]; lang: Language }> = ({ title, links, lang }) => (
+const Column: React.FC<{ title: string; links: Link[] }> = ({ title, links }) => (
   <div>
     <h4 className="text-[11px] font-bold text-[#0f1b33] mb-3 uppercase tracking-wider">{title}</h4>
     <ul className="space-y-2 text-[13px] leading-snug text-gray-600">
       {links.map((l) => (
-        <li key={l.label.ru}>
+        <li key={l.label}>
           <button type="button" onClick={l.onClick} className="hover:text-[#12327A] transition-colors text-left">
-            {l.label[lang]}
+            {l.label}
           </button>
         </li>
       ))}
@@ -28,54 +37,59 @@ const Column: React.FC<{ title: string; links: Link[]; lang: Language }> = ({ ti
   </div>
 );
 
-export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigate, onOpenAccount }) => {
+/**
+ * Подвал: короткая навигация (Главное, Поиск, Архив, Новости) — полный список разделов уже есть в строке рубрик и в «Разделах».
+ * Для организаций — одна ссылка «Реклама» (страница для рекламодателей) и личный кабинет; тарифы и оплата — в кабинете.
+ * Источники информации и политика конфиденциальности из публичного интерфейса убраны.
+ */
+export const Footer: React.FC<FooterProps> = ({ currentLanguage: lang, onNavigate, onOpenAccount, onOpenHome, onOpenSearch, onOpenArchive, onOpenNews }) => {
   const { t } = getTranslation(lang);
   const nav = (v: ViewMode) => () => onNavigate(v);
 
-  const sections: Link[] = [
-    { label: { ru: t('nav.calendar'), kg: t('nav.calendar'), en: t('nav.calendar') }, onClick: nav('calendar') },
-    { label: { ru: t('nav.alerts'), kg: t('nav.alerts'), en: t('nav.alerts') }, onClick: nav('alerts') },
-    { label: { ru: t('nav.events'), kg: t('nav.events'), en: t('nav.events') }, onClick: nav('events') },
-    { label: { ru: t('nav.cities'), kg: t('nav.cities'), en: t('nav.cities') }, onClick: nav('cities') },
+  const navigation: Link[] = [
+    { label: t('footer.main'), onClick: onOpenHome },
+    { label: t('footer.search'), onClick: onOpenSearch },
+    { label: t('footer.archive'), onClick: onOpenArchive },
+    { label: t('footer.news'), onClick: onOpenNews },
   ];
   const forOrg: Link[] = [
-    { label: { ru: 'Публикация объявлений', kg: 'Жарыяларды жайгаштыруу', en: 'Notice publication' }, onClick: nav('organizations') },
-    { label: { ru: 'Тарифы и подписка', kg: 'Тарифтер жана жазылуу', en: 'Pricing' }, onClick: nav('pricing') },
-    { label: { ru: 'Личный кабинет', kg: 'Жеке кабинет', en: 'My account' }, onClick: onOpenAccount },
+    { label: t('nav.advertising'), onClick: nav('advertising') },
+    { label: t('nav.account'), onClick: onOpenAccount },
   ];
   const about: Link[] = [
-    { label: { ru: 'О проекте', kg: 'Долбоор жөнүндө', en: 'About' }, onClick: nav('about') },
-    { label: { ru: 'Источники информации', kg: 'Маалымат булактары', en: 'Information sources' }, onClick: nav('sources') },
-    { label: { ru: 'Правила публикации', kg: 'Жарыялоо эрежелери', en: 'Publishing rules' }, onClick: nav('rules') },
-    { label: { ru: 'Политика конфиденциальности', kg: 'Купуялуулук саясаты', en: 'Privacy policy' }, onClick: nav('privacy') },
+    { label: t('footer.about'), onClick: nav('about') },
+    { label: t('footer.rules'), onClick: nav('rules') },
+    { label: t('footer.privacy'), onClick: nav('privacy') },
+    ...(EDITORIAL_PAGE_VISIBLE ? [{ label: t('footer.editorial'), onClick: nav('editorial') }] : []),
   ];
 
   return (
     <footer className="w-full bg-[#f1f4fa] border-t border-gray-200">
       {/* Снизу запас под плавающую кнопку чат-бота, чтобы она не закрывала текст */}
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 pt-10 pb-20">
+      <div className="dn-container pt-10 pb-20">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-12 gap-x-6 gap-y-8 lg:gap-8 mb-8">
           {/* Бренд */}
           <div className="col-span-2 sm:col-span-3 lg:col-span-4">
-            <Logo className="h-8 mb-3" lang={lang} />
+            {/* Логотип на его собственном фирменном фоне с просторными полями — не прижат к краям рамки */}
+            <BrandBadge height={46} className="mb-4 rounded-2xl" />
             <p className="text-[13px] font-semibold text-[#12327A] leading-snug max-w-xs">{t('motto')}</p>
             <p className="text-[13px] text-gray-600 leading-snug max-w-xs mt-1">{t('appSlogan')}</p>
           </div>
 
           <div className="lg:col-span-2">
-            <Column title={lang === 'kg' ? 'Бөлүмдөр' : lang === 'en' ? 'Sections' : 'Разделы'} links={sections} lang={lang} />
+            <Column title={t('footer.navTitle')} links={navigation} />
           </div>
           <div className="lg:col-span-2">
-            <Column title={t('nav.forOrg')} links={forOrg} lang={lang} />
+            <Column title={t('nav.forOrg')} links={forOrg} />
           </div>
           <div className="lg:col-span-2">
-            <Column title={lang === 'kg' ? 'Долбоор жөнүндө' : lang === 'en' ? 'About' : 'О проекте'} links={about} lang={lang} />
+            <Column title={t('footer.about')} links={about} />
           </div>
 
           {/* Контакты — только значки соцсетей */}
           <div className="lg:col-span-2">
             <h4 className="text-[11px] font-bold text-[#0f1b33] mb-3 uppercase tracking-wider">
-              {lang === 'kg' ? 'Байланыштар' : lang === 'en' ? 'Contacts' : 'Контакты'}
+              {t('footer.contacts')}
             </h4>
             <SocialLinks lang={lang} />
           </div>

@@ -65,7 +65,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
     return (
       <section className="w-full bg-white border-b border-gray-200">
         <h1 className="sr-only">{heading}</h1>
-        <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
+        <div className="dn-container py-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
           {/* Девиз на телефоне и планшете (на широких экранах он стоит в шапке рядом с логотипом) */}
           <p className="lg:hidden text-sm font-semibold text-[#12327A]">{t('motto')}</p>
           <form
@@ -74,9 +74,9 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
               e.preventDefault();
               onSearchSubmit();
             }}
-            className="flex-1 grid grid-cols-2 sm:grid-cols-12 gap-2"
+            className="flex-1 grid grid-cols-1 min-[18.75em]:grid-cols-2 sm:grid-cols-12 gap-2"
           >
-            <label className="col-span-2 sm:col-span-6 relative">
+            <label className="min-[18.75em]:col-span-2 sm:col-span-6 relative">
               <span className="sr-only">{t('search.whatLabel')}</span>
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[20px]" aria-hidden="true">
                 search
@@ -111,7 +111,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
             </label>
           </form>
           {/* Показатели — тихой строкой, каждый открывает список */}
-          <ul className="flex items-center gap-4 text-sm text-gray-600 shrink-0">
+          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 min-w-0">
             {statLine.map((m) => (
               <li key={m.mode}>
                 <button type="button" onClick={() => onOpenStats(m.mode)} className="hover:text-[#12327A] underline decoration-dotted underline-offset-4">
@@ -128,7 +128,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
   return (
     <section className="w-full relative bg-[#eef2f9] py-8 sm:py-14 lg:py-16 border-b border-gray-200">
 
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 relative z-10">
+      <div className="dn-container relative z-10">
         <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 sm:gap-8 mb-8 sm:mb-10">
           <div className="max-w-3xl">
             {/* Main Headline */}
@@ -145,7 +145,7 @@ export const HeroFilter: React.FC<HeroFilterProps> = ({
               <p className="text-lg sm:text-xl font-bold tracking-tight text-[#12327A]">
                 {currentLanguage === 'kg' ? (
                   <>
-                    <span>Датаны бил</span> <span className="text-[#20C7B5]">—</span> <span>күнүңдү пландаштыр</span>
+                    <span>Убакытты бил</span> <span className="text-[#20C7B5]">—</span> <span>күнүңдү планда!</span>
                   </>
                 ) : currentLanguage === 'en' ? (
                   <>

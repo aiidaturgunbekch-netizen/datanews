@@ -13,13 +13,13 @@ import { isFresh } from '../../src/utils/statusUtils';
 import { formatWhen } from '../../src/utils/dates';
 import { getTranslation } from '../../src/locales/translations';
 import { cmd, hvalsJson } from './kv';
-import { ANN_KEY, HIDDEN_KEY, publicView, splitChecked } from './announcements';
+import { ANN_KEY, HIDDEN_KEY, isPublicItem, publicView, splitChecked } from './announcements';
 import { mergeAnnouncements } from '../../src/utils/mergeAnnouncements';
 
 /** Все опубликованные материалы: встроенные + одобренные из базы (как на сайте) */
 export const loadPublished = async (): Promise<Announcement[]> => {
   const { items, checked } = await splitChecked(await hvalsJson<Announcement>(ANN_KEY));
-  const stored = items.filter((a) => !a.moderationStatus || a.moderationStatus === 'approved').map(publicView);
+  const stored = items.filter(isPublicItem).map(publicView);
   const hidden = ((await cmd<string[]>('HVALS', HIDDEN_KEY)) || []) as string[];
   return mergeAnnouncements(stored, hidden, checked);
 };
@@ -195,7 +195,7 @@ export const searchAnswer = (question: string, lang: Language, found: Announceme
   }
   if (/контакт|связ|whatsapp|ватсап|телеграм|telegram|инстаграм|instagram|байланыш|редакц|contact/.test(q)) {
     parts.push(
-      L3({ ru: `Связаться с DataNews: WhatsApp и Telegram ${CONTACTS.phone}, Instagram ${CONTACTS.instagramHandle}.`, kg: `DataNews менен байланыш: WhatsApp жана Telegram ${CONTACTS.phone}, Instagram ${CONTACTS.instagramHandle}.`, en: `Contact DataNews: WhatsApp and Telegram ${CONTACTS.phone}, Instagram ${CONTACTS.instagramHandle}.` }, lang)
+      L3({ ru: `Связаться с DataNews: WhatsApp ${CONTACTS.whatsappPhone}, Telegram ${CONTACTS.telegramPhone}, Instagram ${CONTACTS.instagramHandle}.`, kg: `DataNews менен байланыш: WhatsApp ${CONTACTS.whatsappPhone}, Telegram ${CONTACTS.telegramPhone}, Instagram ${CONTACTS.instagramHandle}.`, en: `Contact DataNews: WhatsApp ${CONTACTS.whatsappPhone}, Telegram ${CONTACTS.telegramPhone}, Instagram ${CONTACTS.instagramHandle}.` }, lang)
     );
   }
   if (/112|101|102|103|экстрен|скор|пожар|милиц|полиц|мчс|шашылыш|өрт|emergency|ambulance|police|fire/.test(q)) {

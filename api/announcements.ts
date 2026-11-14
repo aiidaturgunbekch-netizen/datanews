@@ -4,6 +4,8 @@
  *   GET ?scope=mine        публикации текущего пользователя (со статусом модерации и историей)
  *   GET ?scope=all         все публикации, включая ожидающие модерации (только админ)
  *   POST { item }          админ — публикует сразу;
+ *   POST { item, asDraft: true, mailId? } админ — черновик (в т.ч. из редакционной почты): статус «на модерации»,
+ *                          на сайте не виден, публикуется только кнопкой «Одобрить» в «Модерации»;
  *                          подтверждённый госорган с активным тарифом «Муниципалитет / госорган» — публикует сразу,
  *                            без предварительной модерации (сам отвечает за сведения);
  *                          остальные — отправляют на модерацию. Лимиты тарифа — api/_lib/quota.ts
@@ -16,46 +18,90 @@
  * Отсутствие предварительной модерации для госорганов не отменяет проверок: обязательные поля,
  * ограничение частоты (не более 10 публикаций в час), запрет дублей, жалобы и снятие материала.
  */
-import type { Announcement } from '../src/types';
+import type { Announcement, MailItem } from '../src/types';
 import { cmd, hgetJson, hvalsJson } from './_lib/kv';
 import { handler, HttpError, json, rateLimit, readBody, readSession, requireAdmin, requireUser } from './_lib/http';
-import { ANN_KEY, CHECKED_KEY, diffFields, HIDDEN_KEY, publicView, sanitize, saveAnnouncement, splitChecked, withHistory } from './_lib/announcements';
+import { ANN_KEY, CHECKED_KEY, diffFields, findDuplicate, HIDDEN_KEY, isPublicItem, publicView, sanitize, saveAnnouncement, splitChecked, withHistory } from './_lib/announcements';
+import { TEST_MARK_RE } from '../src/config/mailSenders';
+import { MAIL_KEY } from './_lib/mail';
 import { CHECK_NOTE, isCheckOnlyCopy } from '../src/utils/mergeAnnouncements';
-import { StoredUser, USERS_KEY } from './_lib/users';
-import { checkPlanCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
+import { isEditor, StoredUser, USERS_KEY } from './_lib/users';
+import { checkPublishCategory, currentPeriod, getUsage, isGovVerified, reservePost } from './_lib/quota';
+import { normalizePlan } from '../src/config/site';
 import { kgNowLocal } from '../src/utils/time';
 import { INITIAL_ANNOUNCEMENTS } from '../src/data/initialAnnouncements';
 
 export const config = { runtime: 'edge' };
 
-const norm = (t: string) => t.toLowerCase().replace(/[«»"'.,:;!?()—–-]/g, ' ').replace(/\s+/g, ' ').trim();
-/** Дубль: совпадает ссылка на первоисточник, либо совпадает дата и заголовки почти одинаковые (≥ 80% общих слов) */
-const findDuplicate = (a: Announcement, pool: Announcement[]) => {
-  const words = new Set(norm(a.title.ru).split(' ').filter((w) => w.length > 2));
-  return pool.find((b) => {
-    if (b.id === a.id) return false;
-    if (a.eventSourceUrl && b.eventSourceUrl && a.eventSourceUrl === b.eventSourceUrl) return true;
-    if (a.startDate.slice(0, 10) !== b.startDate.slice(0, 10)) return false;
-    const bw = norm(b.title.ru).split(' ').filter((w) => w.length > 2);
-    if (!bw.length || !words.size) return false;
-    const common = bw.filter((w) => words.has(w)).length;
-    return common / Math.max(bw.length, words.size) >= 0.8;
-  });
-};
+const isPublic = isPublicItem;
 
-const isPublic = (a: Announcement) => !a.moderationStatus || a.moderationStatus === 'approved';
+const ALERT_URGENCY_CATS = ['water', 'electricity', 'roads', 'repairs'];
 
-/** Поля, которые автор не может выставить себе сам */
+/**
+ * Поля, которые автор не может выставить себе сам: всё редакционное сбрасывается, что бы ни прислал запрос.
+ * Срочность определяется разделом (не «аварийная»), источник и организация — из профиля (см. ниже).
+ */
 const authorFields = (item: Record<string, unknown>) => ({
   ...item,
   isVerified: false,
   isUrgentTicker: false,
   ticketUrlVerified: false,
   status: 'scheduled',
+  urgency: ALERT_URGENCY_CATS.includes(String(item.category)) ? 'planned' : item.category === 'notices' ? 'regular' : 'event',
   imageFit: 'contain', // оригинальная афиша автора показывается целиком, без обрезки
+  imagePosition: undefined,
   sourceKind: undefined,
+  sourceName: undefined,
+  sourceOrgType: undefined,
+  protocolCode: undefined,
+  dangerLevel: undefined,
+  newsKind: undefined,
+  legal: undefined,
+  additionalSourceUrl: undefined,
+  authorityUrl: undefined,
   geo: undefined, // точку на карте ставит только редактор
+  gallery: undefined, // галерею добавляет только редакция (при правке автором прежняя сохраняется)
 });
+
+/** Редакционные поля, выставленные редакцией, при правке автором сохраняются (автор их не видит и не меняет) */
+const keepEditorial = (item: Announcement, current: Announcement): Announcement => ({
+  ...item,
+  urgency: current.urgency === 'emergency' ? current.urgency : item.urgency,
+  dangerLevel: current.dangerLevel,
+  newsKind: current.newsKind,
+  legal: current.legal,
+  additionalSourceUrl: current.additionalSourceUrl,
+  authorityUrl: current.authorityUrl,
+  sourceKind: current.sourceKind,
+  sourceName: current.sourceName,
+  sourceOrgType: current.sourceOrgType,
+  geo: current.geo,
+  imageFit: current.imageFit,
+  imagePosition: current.imagePosition,
+});
+
+/**
+ * «Подтверждено по первоисточнику» от сотрудника редакции — только его явная отметка (галочка в форме),
+ * никогда не ставится сама. Отмечено — ставим дату проверки; не прислано — остаётся как было.
+ */
+const withEditorCheck = (item: Announcement, raw: Record<string, unknown> | undefined, current: Announcement | null): Announcement => {
+  const v = raw?.isVerified;
+  if (typeof v !== 'boolean') return { ...item, isVerified: current?.isVerified ?? false, lastCheckedAt: current?.lastCheckedAt };
+  return { ...item, isVerified: v, lastCheckedAt: v ? item.updatedAt : current?.lastCheckedAt };
+};
+
+/** Кто размещает: организация из запроса, иначе из профиля (подтверждённый госорган — официальное название) */
+const organizerOf = (item: Announcement, user: StoredUser) =>
+  item.eventDetails?.organizer?.trim() || (isGovVerified(user) && user.gov?.orgName) || user.organization?.trim() || user.name?.trim() || '';
+
+/** Платное размещение пользователя (не госорган): его правят и одобряют только администратор */
+const isPaidItem = (a: Announcement) => a.dataOrigin === 'user' && !a.publishedByGov;
+
+/** Сотрудник редакции (действующий) — или null */
+const editorOf = async (sub: string) => {
+  const u = await hgetJson<StoredUser>(USERS_KEY, sub);
+  return isEditor(u) ? u : null;
+};
 
 export default handler(async (req) => {
   const url = new URL(req.url);
@@ -68,6 +114,13 @@ export default handler(async (req) => {
       const hidden = ((await cmd<string[]>('HVALS', HIDDEN_KEY)) || []) as string[];
       const { items, checked } = await splitChecked(all);
       return json({ items, hidden, checked });
+    }
+    // Очередь модерации для сотрудника редакции: черновики без платных размещений, без личных контактов авторов
+    if (scope === 'pending') {
+      const s = await requireUser(req);
+      if (s.role !== 'admin' && !(await editorOf(s.sub))) throw new HttpError('forbidden', 403);
+      const pending = all.filter((a) => a.moderationStatus === 'pending' && (s.role === 'admin' || !isPaidItem(a)));
+      return json({ items: pending.map((a) => ({ ...a, submittedBy: a.submittedBy ? { userId: a.submittedBy.userId, name: a.submittedBy.name, email: '', organization: a.submittedBy.organization } : undefined })) });
     }
     if (scope === 'mine') {
       const s = await requireUser(req);
@@ -85,7 +138,7 @@ export default handler(async (req) => {
   if (req.method === 'POST') {
     const session = await readSession(req);
     if (!session) throw new HttpError('unauthorized', 401, 'Войдите в личный кабинет');
-    const body = await readBody<{ item?: Record<string, unknown> }>(req);
+    const body = await readBody<{ item?: Record<string, unknown>; asDraft?: boolean; mailId?: string }>(req);
     if (!body.item) throw new HttpError('missing_item', 400);
 
     if (session.role === 'admin') {
@@ -99,12 +152,23 @@ export default handler(async (req) => {
         const dup = findDuplicate(item, [...(await hvalsJson<Announcement>(ANN_KEY)), ...INITIAL_ANNOUNCEMENTS]);
         if (dup) throw new HttpError('duplicate', 409, `Похожая публикация уже есть: «${dup.title.ru}» (${dup.startDate.slice(0, 10)})`);
       }
-      item.moderationStatus = 'approved';
+      // Черновик (например, из письма): только новая публикация, на сайт не попадает до «Одобрить»; дату сверки не ставим
+      const asDraft = body.asDraft === true && !base;
+      // Тестовое письмо («TEST DataNews») или пометка в самом тексте — материал тестовый: сервер не даст его опубликовать
+      const mailId = /^[A-Za-z0-9_-]{6,64}$/.test(String(body.mailId || '')) ? String(body.mailId) : '';
+      const mail = mailId ? await hgetJson<MailItem>(MAIL_KEY, mailId) : null;
+      if (!base && ((mail && TEST_MARK_RE.test(mail.subject)) || TEST_MARK_RE.test(`${item.title.ru}\n${item.description.ru}`))) item.testMaterial = true;
+      item.moderationStatus = asDraft ? 'pending' : 'approved';
       item.dataOrigin = item.dataOrigin || 'manual';
-      item.lastCheckedAt = item.updatedAt;
+      item.lastCheckedAt = asDraft ? undefined : item.updatedAt;
       // Правка существующей (в т.ч. встроенной) публикации — с перечнем существенных изменений
       const prev = existing || INITIAL_ANNOUNCEMENTS.find((a) => a.id === item.id) || null;
-      item = prev ? withHistory(item, 'admin', 'edited', undefined, diffFields(prev, item)) : withHistory(item, 'admin', 'published');
+      const mailNote = mailId ? `Черновик из редакционной почты (письмо ${mailId})${item.testMaterial ? ' — тестовое письмо, публикация запрещена' : ''}` : 'Черновик редакции';
+      item = asDraft
+        ? withHistory(item, 'admin', 'created', mailNote)
+        : prev
+          ? withHistory(item, 'admin', 'edited', undefined, diffFields(prev, item))
+          : withHistory(item, 'admin', 'published');
       await saveAnnouncement(item);
       return json({ item }, 201);
     }
@@ -119,12 +183,32 @@ export default handler(async (req) => {
     if (mineAll.some((a) => a.title.ru.trim().toLowerCase() === item.title.ru.trim().toLowerCase() && a.startDate === item.startDate && a.moderationStatus !== 'rejected')) {
       throw new HttpError('duplicate', 409, 'Такая публикация уже отправлена');
     }
-    // Кто размещает — организация или частное лицо (обязательно)
-    if (!item.eventDetails?.organizer?.trim()) throw new HttpError('missing_field', 400, 'Укажите организацию или частное лицо');
+    // Кто размещает — из профиля (вводить заново в каждой публикации не нужно)
+    const organizer = organizerOf(item, user);
+    if (!organizer) throw new HttpError('profile_incomplete', 400, 'Укажите организацию или имя в профиле');
+    item.eventDetails = { ...(item.eventDetails || {}), organizer };
+
+    if (isEditor(user)) {
+      // Сотрудник редакции: бесплатно, без лимитов тарифа и без предварительной модерации — сразу на сайте.
+      // Остаются: вход, частота (10 в час, выше), обязательные поля, разделы, проверка дублей по всему сайту.
+      checkPublishCategory(user, normalizePlan(user.plan), item.category);
+      const dup = findDuplicate(item, [...(await hvalsJson<Announcement>(ANN_KEY)), ...INITIAL_ANNOUNCEMENTS]);
+      if (dup) throw new HttpError('duplicate', 409, `Похожая публикация уже есть: «${dup.title.ru}» (${dup.startDate.slice(0, 10)})`);
+      item = withEditorCheck(item, body.item, null);
+      item.submittedBy = { userId: user.id, name: user.name, email: user.email, phone: user.phone, organization: user.organization };
+      item.sourceName = (isGovVerified(user) && user.gov?.orgName) || user.organization || user.name;
+      item.dataOrigin = 'manual'; // материал редакции: без метки «Платное размещение»
+      item.moderationStatus = 'approved';
+      item = withHistory(item, 'author', 'published', `Опубликовано сотрудником редакции без предварительной модерации: ${user.name} (${user.email})`);
+      await saveAnnouncement(item);
+      return json({ item, usage: await getUsage(user) }, 201);
+    }
+
     const { release, usage } = await reservePost(user, item.category);
 
     item.submittedBy = { userId: user.id, name: user.name, email: user.email, phone: user.phone, organization: user.organization };
-    item.sourceName = item.sourceName || user.gov?.orgName || user.organization || user.name;
+    // Источник — сам автор; официальное название госоргана — только после подтверждения статуса
+    item.sourceName = (isGovVerified(user) && user.gov?.orgName) || user.organization || user.name;
     item.dataOrigin = 'user';
     if (usage.skipsModeration) {
       // Подтверждённый госорган: без предварительной модерации, организация отвечает за сведения сама
@@ -154,6 +238,22 @@ export default handler(async (req) => {
     const current = await hgetJson<Announcement>(ANN_KEY, id);
     const note = String(body.note || '').slice(0, 500) || undefined;
 
+    // Сотрудник редакции может одобрить черновик (кроме платных размещений); отклонять и возвращать — только администратор
+    if (body.action === 'approve' && session.role !== 'admin') {
+      const ed = await editorOf(session.sub);
+      if (!ed) throw new HttpError('forbidden', 403);
+      if (!current) throw new HttpError('not_found', 404);
+      if (isPaidItem(current)) throw new HttpError('forbidden', 403, 'Платные размещения одобряет только администратор');
+      if (current.moderationStatus !== 'pending') throw new HttpError('not_pending', 409, 'Этот материал уже не ждёт модерации');
+      const next = withHistory(
+        { ...current, moderationStatus: 'approved', moderationNote: note, updatedAt: kgNowLocal() },
+        'author',
+        'approved',
+        `Одобрил сотрудник редакции: ${ed.name}`
+      );
+      await saveAnnouncement(next);
+      return json({ item: next });
+    }
     if (body.action === 'approve' || body.action === 'reject' || body.action === 'restore') {
       await requireAdmin(req);
       if (!current) throw new HttpError('not_found', 404);
@@ -173,6 +273,50 @@ export default handler(async (req) => {
       );
       await saveAnnouncement(next);
       return json({ item: next });
+    }
+
+    // «Главное»: закрепить материал наверху главной (администратор или сотрудник редакции); hours — на сколько часов (по умолчанию 24)
+    if (body.action === 'feature' || body.action === 'unfeature') {
+      if (session.role !== 'admin' && !(await editorOf(session.sub))) throw new HttpError('forbidden', 403);
+      const base = current || INITIAL_ANNOUNCEMENTS.find((a) => a.id === id) || null;
+      if (!base) throw new HttpError('not_found', 404);
+      if (body.action === 'feature' && base.moderationStatus && base.moderationStatus !== 'approved') throw new HttpError('not_published', 409, 'Сначала одобрите материал');
+      const hours = Math.min(Math.max(Number((body as { hours?: number }).hours) || 24, 1), 24 * 14);
+      const until = body.action === 'feature' ? kgNowLocal(Date.now() + hours * 3600_000) : undefined;
+      const next = withHistory(
+        { ...base, featuredUntil: until },
+        session.role === 'admin' ? 'admin' : 'author',
+        'edited',
+        body.action === 'feature' ? `Закреплено в «Главном» до ${until}` : 'Снято из «Главного»'
+      );
+      await saveAnnouncement(next);
+      return json({ item: next });
+    }
+
+    // Модератор сверил всё с первоисточником: «Подтверждено по первоисточнику», дата проверки и ссылка на билеты (если есть)
+    if (body.action === 'verified') {
+      await requireAdmin(req);
+      const now = kgNowLocal();
+      if (current && !isCheckOnlyCopy(current)) {
+        const hasTicket = Boolean(current.ticketUrl || current.eventDetails?.ticketUrl);
+        const next = withHistory(
+          {
+            ...current,
+            isVerified: true,
+            lastCheckedAt: now,
+            ...(hasTicket ? { ticketUrlVerified: true } : {}),
+          },
+          'admin',
+          'edited',
+          'Сверено с первоисточником'
+        );
+        await saveAnnouncement(next);
+        return json({ item: next });
+      }
+      const builtin = INITIAL_ANNOUNCEMENTS.find((a) => a.id === id);
+      if (!builtin) throw new HttpError('not_found', 404);
+      await cmd('HSET', CHECKED_KEY, id, now);
+      return json({ item: { ...builtin, lastCheckedAt: now } });
     }
 
     // Модератор сверил публикацию с первоисточником: обновляем только дату проверки
@@ -196,6 +340,8 @@ export default handler(async (req) => {
       if (!current) throw new HttpError('not_found', 404);
       const isAdmin = session.role === 'admin';
       if (!isAdmin && current.submittedBy?.email !== session.sub) throw new HttpError('forbidden', 403);
+      // сотрудник редакции материалы не снимает (даже свои) — это делает администратор
+      if (!isAdmin && (await editorOf(session.sub))) throw new HttpError('forbidden', 403, 'Снять материал с сайта может только администратор');
       const next = withHistory(
         { ...current, moderationStatus: 'withdrawn', moderationNote: note, updatedAt: kgNowLocal() },
         isAdmin ? 'admin' : 'author',
@@ -218,16 +364,60 @@ export default handler(async (req) => {
       return json({ item });
     }
 
-    if (!current || current.submittedBy?.email !== session.sub) throw new HttpError('forbidden', 403);
-    if (current.moderationStatus === 'withdrawn' && !current.publishedByGov) throw new HttpError('forbidden', 403);
-    await rateLimit(req, 'edit', 30, 3600, session.sub);
     const user = await hgetJson<StoredUser>(USERS_KEY, session.sub);
-    let item = await sanitize(authorFields(body.item), current);
-    // Тариф «Культура и театр»: правка не может перенести публикацию в другой раздел
-    const period = user ? currentPeriod(user) : undefined;
-    if (period) checkPlanCategory(period.plan, item.category);
+    const editor = isEditor(user);
+    // Сотрудник редакции может исправить любой материал сайта (не только свой), кроме платных размещений;
+    // встроенные материалы — тоже (сохраняется правленая копия). Раздел, статус и автор остаются прежними.
+    const base = current || (editor ? INITIAL_ANNOUNCEMENTS.find((a) => a.id === id) || null : null);
+    const own = Boolean(base && base.submittedBy?.email === session.sub);
+    // любой материал, кроме платных размещений (в том числе госорганов и официальных разделов) — исправить текст
+    const editorAny = Boolean(editor && base && !own && !isPaidItem(base));
+    if (!base || (!own && !editorAny)) throw new HttpError('forbidden', 403);
+    if (editorAny) {
+      await rateLimit(req, 'edit', 30, 3600, session.sub);
+      // Правка чужого материала — только текст (заголовок, кратко, текст, место); даты, раздел, автор, статус,
+      // источники и всё остальное остаются как были (форма сотрудника не знает всех полей, например «весь день»)
+      const edited = await sanitize(authorFields(body.item), base);
+      // меняем только те языки, которые сотрудник действительно прислал (не автокопию другого языка);
+      // пустой язык не стирает существующий перевод, а русский текст не попадает в кыргызский и наоборот
+      const rawItem = (body.item || {}) as Record<string, Record<string, unknown> | undefined>;
+      const merge = <T extends Announcement['title']>(was: T, now: T | undefined, field: string): T => {
+        const out = { ...was };
+        const sent = rawItem[field] && typeof rawItem[field] === 'object' ? rawItem[field]! : {};
+        for (const k of ['ru', 'kg', 'en'] as const) {
+          const v = typeof sent[k] === 'string' ? (sent[k] as string).trim() : '';
+          if (v && now?.[k]?.trim()) (out as unknown as Record<string, string>)[k] = now[k]!;
+        }
+        return out;
+      };
+      let item: Announcement = {
+        ...base,
+        title: merge(base.title, edited.title, 'title'),
+        summary: merge(base.summary, edited.summary, 'summary'),
+        description: merge(base.description, edited.description, 'description'),
+        location: merge(base.location, edited.location, 'location'),
+        moderationStatus: base.moderationStatus || 'approved',
+        updatedAt: kgNowLocal(),
+      };
+      item = withHistory(item, 'author', 'edited', `Правка сотрудника редакции: ${user!.name}`, diffFields(base, item));
+      await saveAnnouncement(item);
+      return json({ item });
+    }
+    if (!current) throw new HttpError('forbidden', 403);
+    if (current.moderationStatus === 'withdrawn' && !current.publishedByGov && !editor) throw new HttpError('forbidden', 403);
+    await rateLimit(req, 'edit', 30, 3600, session.sub);
+    let item = keepEditorial(await sanitize(authorFields(body.item), current), current);
+    // Раздел по тарифу и роли; старая публикация может остаться в своём разделе
+    if (user) checkPublishCategory(user, currentPeriod(user)?.plan || normalizePlan(user.plan), item.category, current.category);
+    if (user) item.eventDetails = { ...(item.eventDetails || {}), organizer: organizerOf(item, user) || current.eventDetails?.organizer };
     item.submittedBy = current.submittedBy;
-    if (current.publishedByGov && user && isGovVerified(user)) {
+    if (editor && user) {
+      // Сотрудник редакции правит своё: правка сразу на сайте (снятое остаётся снятым), в истории — что изменилось
+      item = withEditorCheck(item, body.item, current);
+      item.moderationStatus = current.moderationStatus === 'withdrawn' ? 'withdrawn' : 'approved';
+      item.moderationNote = undefined;
+      item = withHistory(item, 'author', 'edited', `Правка сотрудника редакции: ${user.name}`, diffFields(current, item));
+    } else if (current.publishedByGov && user && isGovVerified(user)) {
       // Госорган правит свою публикацию сам; правка сразу на сайте и попадает в историю
       item.moderationStatus = current.moderationStatus === 'withdrawn' ? 'withdrawn' : 'approved';
       item.sourceKind = 'official';

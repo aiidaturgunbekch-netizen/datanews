@@ -8,6 +8,9 @@ import { alertLevel } from '../utils/urgency';
 import { EventImage } from './EventImage';
 import { PaidBadge } from './PaidBadge';
 import { PushToggle } from './PushToggle';
+import { ALERT_PLACE_IDS } from '../config/regions';
+import { sourceLabel } from '../utils/links';
+import { placeText } from '../utils/place';
 
 interface AlertsGridProps {
   currentLanguage: Language;
@@ -121,15 +124,15 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
 
   return (
     <section className="w-full py-8 md:py-12 bg-white" id="alerts-feed">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+      <div className="dn-container">
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div>
+          <div className="min-w-0 max-w-full">
             <div className="flex items-center gap-2 mb-1">
               <span className="material-symbols-outlined text-[#dc2626] text-[24px]">
                 notification_important
               </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-[#0f1b33]">
+              <h2 className="min-w-0 text-xl sm:text-2xl font-bold text-[#0f1b33] [overflow-wrap:anywhere] hyphens-auto">
                 {t('sections.urgentAlertsTitle')}
               </h2>
             </div>
@@ -138,32 +141,25 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-col items-start sm:items-end gap-2">
-          {/* Geo Scope Toggle */}
-          <div className="inline-flex bg-gray-100 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => onCityFilterChange('bishkek')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                selectedCity === 'bishkek'
-                  ? 'bg-white text-[#12327A] shadow-sm'
-                  : 'text-gray-600 hover:text-black'
-              }`}
+          <div className="flex flex-col items-start sm:items-end gap-2 min-w-0 max-w-full">
+          {/* Город / область — весь список мест сайта (как в фильтре на главной) */}
+          <label className="inline-flex items-center gap-2 text-xs font-bold text-gray-600 max-w-full">
+            <span className="material-symbols-outlined text-[18px] text-[#12327A]" aria-hidden="true">
+              location_on
+            </span>
+            <span className="sr-only">{currentLanguage === 'kg' ? 'Шаар / облус' : currentLanguage === 'en' ? 'City / region' : 'Город / область'}</span>
+            <select
+              value={selectedCity === ('karakol' as CityId) ? 'issykkul' : selectedCity}
+              onChange={(e) => onCityFilterChange(e.target.value as CityId)}
+              className="min-w-0 max-w-full px-3 py-1.5 rounded-xl bg-gray-100 border border-transparent text-xs font-bold text-[#12327A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#12327A]"
             >
-              {t('cities.bishkek')}
-            </button>
-            <button
-              type="button"
-              onClick={() => onCityFilterChange('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                selectedCity === 'all'
-                  ? 'bg-white text-[#12327A] shadow-sm'
-                  : 'text-gray-600 hover:text-black'
-              }`}
-            >
-              {t('cities.all')}
-            </button>
-          </div>
+              {ALERT_PLACE_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {t(`cities.${id}`)}
+                </option>
+              ))}
+            </select>
+          </label>
           <PushToggle lang={currentLanguage} city={selectedCity} />
           </div>
         </div>
@@ -209,7 +205,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
 
               const title = ann.title[currentLanguage] || ann.title.ru;
               const summary = ann.summary[currentLanguage] || ann.summary.ru;
-              const location = ann.location[currentLanguage] || ann.location.ru;
+              const location = placeText(ann, currentLanguage);
 
               return (
                 <article
@@ -245,7 +241,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                       <PaidBadge item={ann} lang={currentLanguage} />
                       {updatedOn(ann) && displayStatus !== 'completed' && (
                         <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 text-[11px] font-bold" title={formatWhen(updatedOn(ann)!, undefined, currentLanguage)}>
-                          {L('Обновлено', 'Жаңыланды', 'Updated')}
+                          {L('Обновлено', 'Жаңыртылды', 'Updated')}
                         </span>
                       )}
 
@@ -284,12 +280,14 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                           {formatWhen(ann.startDate, ann.endDate, currentLanguage, false, ann.timeTBA, ann.allDay)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <span className="material-symbols-outlined text-gray-500 text-[18px] flex-shrink-0">
-                          location_on
-                        </span>
-                        <span className="truncate">{location}</span>
-                      </div>
+                      {location && (
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <span className="material-symbols-outlined text-gray-500 text-[18px] flex-shrink-0">
+                            location_on
+                          </span>
+                          <span className="truncate">{location}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -300,7 +298,7 @@ export const AlertsGrid: React.FC<AlertsGridProps> = ({
                         {orgTypeLabel(ann.sourceOrgType, currentLanguage)}
                       </span>
                       <span className="text-xs text-gray-500 truncate max-w-[140px]">
-                        {ann.sourceName}
+                        {sourceLabel(ann, currentLanguage)}
                       </span>
                     </div>
 

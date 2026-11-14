@@ -31,7 +31,7 @@ const toStringMap = (flat: unknown): Record<string, string> => {
 };
 export const IMG_KEY = 'dn:img'; // id → data:image/...;base64
 
-const CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs', 'concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education', 'gov', 'hazard', 'state', 'laws'];
+const CATEGORIES: CategoryId[] = ['water', 'electricity', 'roads', 'repairs', 'concerts', 'festivals', 'fairs', 'exhibitions', 'culture', 'sport', 'cinema', 'education', 'gov', 'hazard', 'state', 'laws', 'notices', 'news', 'business', 'tech'];
 const CITIES: CityId[] = ['all', 'bishkek', 'osh', 'chui', 'osh_region', 'issykkul', 'jalalabad', 'talas', 'naryn', 'batken'];
 const URGENCY: UrgencyType[] = ['emergency', 'planned', 'regular', 'event'];
 
@@ -39,9 +39,13 @@ const str = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 
 const loc = (v: unknown, max: number, required = false): LocalizedString => {
   const o = (v && typeof v === 'object' ? v : { ru: v }) as Record<string, unknown>;
-  const ru = str(o.ru, max);
-  if (required && !ru) throw new HttpError('missing_field', 400, 'Заполните обязательные поля');
-  return { ru, kg: str(o.kg, max) || ru, en: str(o.en, max) || ru };
+  // Пустой язык дополняется копией другого (так старый код всегда находит текст), но сайт копию за перевод не считает:
+  // русская и кыргызская версии показывают только свой язык (src/utils/lang.ts). Публикация может быть только на кыргызском.
+  const ownRu = str(o.ru, max);
+  const ownKg = str(o.kg, max);
+  if (required && !ownRu && !ownKg) throw new HttpError('missing_field', 400, 'Заполните обязательные поля');
+  const ru = ownRu || ownKg;
+  return { ru, kg: ownKg || ru, en: str(o.en, max) || ru };
 };
 
 const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) ? String(v) : undefined);
@@ -69,9 +73,10 @@ const sanitizeLegal = (r: Record<string, unknown>) => {
 const summaryOf = (summary: unknown, description: unknown) => {
   const s = loc(summary, 400);
   if (s.ru) return s;
-  const d = loc(description, 5000, true).ru;
-  const cut = d.length <= 300 ? d : `${d.slice(0, 300).replace(/\s+\S*$/, '')}…`;
-  return { ru: cut, kg: cut, en: cut };
+  // начало текста — на каждом языке своё (раньше русское копировалось в кыргызский и английский)
+  const d = loc(description, 5000, true);
+  const cut = (t: string) => (t.length <= 300 ? t : `${t.slice(0, 300).replace(/\s+\S*$/, '')}…`);
+  return { ru: cut(d.ru), kg: cut(d.kg || ''), en: cut(d.en || '') };
 };
 
 const isoLocal = (v: unknown, required: boolean) => {
@@ -88,6 +93,9 @@ const httpUrl = (v: unknown) => {
   const s = str(v, 600);
   return /^https?:\/\//i.test(s) || s.startsWith('/api/image?') || /^\/illustrations\/[a-z0-9-]+\.svg$/.test(s) ? s : '';
 };
+
+/** Сколько дополнительных фото может быть у публикации */
+export const GALLERY_MAX = 8;
 
 /** Сохраняет загруженное фото отдельно и возвращает ссылку /api/image?id=… */
 export const storeImage = async (dataUrl: string) => {
@@ -107,7 +115,8 @@ export const storeImage = async (dataUrl: string) => {
 export const sanitize = async (raw: Record<string, any>, base?: Announcement): Promise<Announcement> => {
   const category = CATEGORIES.includes(raw.category) ? (raw.category as CategoryId) : base?.category || 'concerts';
   const rawCity = raw.city === 'karakol' ? 'issykkul' : raw.city;
-  const city = CITIES.includes(rawCity) ? (rawCity as CityId) : base?.city === 'karakol' ? 'issykkul' : base?.city || 'bishkek';
+  // Область не указана — «Весь Кыргызстан» (без привязки к области), а не выдуманный город
+  const city = CITIES.includes(rawCity) ? (rawCity as CityId) : base?.city === 'karakol' ? 'issykkul' : base?.city || 'all';
   const urgency = URGENCY.includes(raw.urgency) ? (raw.urgency as UrgencyType) : base?.urgency || 'event';
   const now = kgNowLocal();
 
@@ -128,7 +137,8 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     city,
     district: str(raw.district, 120) || undefined,
     locality: str(raw.locality, 120) || undefined,
-    location: loc(raw.location, 300, true),
+    // Адрес необязателен: у новости госоргана или общего объявления его может не быть. Не подставляем выдуманный.
+    location: loc(raw.location, 300),
     startDate: isoLocal(raw.startDate, true),
     endDate: isoLocal(raw.endDate, false),
     urgency,
@@ -157,6 +167,13 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     },
     imageUrl,
     imageCredit: str(raw.imageCredit, 200) || undefined,
+    // Галерея: если поле не прислано (например, форма автора без галереи) — остаётся прежняя
+    gallery:
+      raw.gallery === undefined
+        ? base?.gallery
+        : Array.isArray(raw.gallery)
+        ? [...new Set((raw.gallery as unknown[]).map(httpUrl).filter(Boolean))].slice(0, GALLERY_MAX)
+        : undefined,
     imageSourceUrl: httpUrl(raw.imageSourceUrl) || undefined,
     imageAlt: str(raw.imageAlt, 300) || undefined,
     imageFit: raw.imageFit === 'cover' ? 'cover' : 'contain',
@@ -178,6 +195,8 @@ export const sanitize = async (raw: Record<string, any>, base?: Announcement): P
     history: base?.history,
     reportsCount: base?.reportsCount,
     publishedByGov: base?.publishedByGov,
+    // «Главное» закрепляет редакция отдельным действием — из формы не меняется
+    featuredUntil: base?.featuredUntil,
     isDemo: false,
   };
 };
@@ -191,7 +210,16 @@ const validGeo = (v: unknown): Announcement['geo'] | undefined => {
   return { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 };
 };
 
-export const saveAnnouncement = (a: Announcement) => hsetJson(ANN_KEY, a.id, a);
+export const TEST_MATERIAL_MESSAGE = 'Тестовый материал из почты — публикация запрещена';
+
+/** Видна ли публикация читателям: одобрена (или старая без модерации) и не тестовая */
+export const isPublicItem = (a: Announcement) => (!a.moderationStatus || a.moderationStatus === 'approved') && !a.testMaterial;
+
+/** Единая точка записи: тестовый материал нельзя сохранить опубликованным — ни «Одобрить», ни прямым запросом */
+export const saveAnnouncement = (a: Announcement) => {
+  if (a.testMaterial && (!a.moderationStatus || a.moderationStatus === 'approved')) throw new HttpError('test_material', 409, TEST_MATERIAL_MESSAGE);
+  return hsetJson(ANN_KEY, a.id, a);
+};
 
 /** Для публичной выдачи скрываем личные контакты автора */
 /**
@@ -225,3 +253,19 @@ export const withHistory = (a: Announcement, by: HistoryEntry['by'], action: His
   ...a,
   history: [...(a.history || []), { at: kgNowLocal(), by, action, ...(note ? { note: note.slice(0, 500) } : {}), ...(changes?.length ? { changes } : {}) }].slice(-50),
 });
+
+const norm = (t: string) => t.toLowerCase().replace(/[«»"'.,:;!?()—–-]/g, ' ').replace(/\s+/g, ' ').trim();
+/** Дубль: совпадает ссылка на первоисточник, либо совпадает дата и заголовки почти одинаковые (≥ 80% общих слов) */
+export const findDuplicate = (a: Announcement, pool: Announcement[]) => {
+  const words = new Set(norm(a.title.ru).split(' ').filter((w) => w.length > 2));
+  return pool.find((b) => {
+    if (b.id === a.id) return false;
+    if (a.eventSourceUrl && b.eventSourceUrl && a.eventSourceUrl === b.eventSourceUrl) return true;
+    if (a.startDate.slice(0, 10) !== b.startDate.slice(0, 10)) return false;
+    const bw = norm(b.title.ru).split(' ').filter((w) => w.length > 2);
+    if (!bw.length || !words.size) return false;
+    const common = bw.filter((w) => words.has(w)).length;
+    return common / Math.max(bw.length, words.size) >= 0.8;
+  });
+};
+

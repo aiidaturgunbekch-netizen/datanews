@@ -28,7 +28,7 @@ const T: Record<string, L3> = {
   send: { ru: 'Отправить', kg: 'Жөнөтүү', en: 'Send' },
   thinking: { ru: 'Ищу на сайте…', kg: 'Сайттан издеп жатам…', en: 'Searching the site…' },
   open_post: { ru: 'Открыть', kg: 'Ачуу', en: 'Open' },
-  source: { ru: 'Источник', kg: 'Булак', en: 'Source' },
+  source: { ru: 'Источник', kg: 'Булагы', en: 'Source' },
   ticket: { ru: 'Купить билет', kg: 'Билет сатып алуу', en: 'Buy ticket' },
   topics: { ru: 'Темы', kg: 'Темалар', en: 'Topics' },
   clear: { ru: 'Очистить', kg: 'Тазалоо', en: 'Clear' },
@@ -236,7 +236,7 @@ export const ChatWidget: React.FC<{
                                   {T.open_post[lang]}
                                 </button>
                               ) : (
-                                <a href={`/#/n/${it.id}`} className="text-[#12327A] hover:underline">
+                                <a href={`/n/${it.id}`} className="text-[#12327A] hover:underline">
                                   {T.open_post[lang]}
                                 </a>
                               )}

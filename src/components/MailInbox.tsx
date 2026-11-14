@@ -419,6 +419,11 @@ export const MailInbox: React.FC<{
                     </button>
                   </>
                 )}
+                {m.status === 'rejected' && m.history.some((h) => h.action === 'auto_rejected') && (
+                  <p className="w-full text-xs text-gray-600" data-auto-rejected>
+                    Служебное письмо сервиса — отклонено автоматически. Если это новость, нажмите «Вернуть в новые».
+                  </p>
+                )}
                 {(m.status === 'rejected' || m.status === 'duplicate') && (
                   <button
                     type="button"

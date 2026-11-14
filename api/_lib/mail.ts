@@ -13,7 +13,7 @@
 import { batchSummary, importBatch } from './batchIngest';
 import type { MailAttachment, MailFlag, MailItem } from '../../src/types';
 import { parseNotice } from '../../src/utils/importText';
-import { findKnownSender, isGovDomain } from '../../src/config/mailSenders';
+import { findKnownSender, isGovDomain, isServiceSender } from '../../src/config/mailSenders';
 import { kgNowLocal } from '../../src/utils/time';
 import { cmd, hgetJson, hvalsJson } from './kv';
 import { env } from './env';
@@ -336,6 +336,11 @@ export const ingestMail = async (raw: Record<string, unknown>) => {
     item.status = 'duplicate';
     item.duplicateOf = duplicateOf;
     item.history.push({ at: kgNowLocal(), action: 'duplicate', note: `Повтор письма ${duplicateOf}` });
+  }
+  // Служебное письмо сервиса (Google, Upstash, ccTLD, no-reply…) — сразу в «Отклонённые», не мешает в «Новых»
+  if (item.status === 'new' && raw.fromSelf !== true && isServiceSender(from.address)) {
+    item.status = 'rejected';
+    item.history.push({ at: kgNowLocal(), action: 'auto_rejected', note: 'Служебное письмо сервиса — отклонено автоматически' });
   }
   item.flags = flagsFor(item, extra);
 

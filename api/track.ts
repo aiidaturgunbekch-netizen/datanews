@@ -3,6 +3,7 @@
  * Хранит только агрегаты: число просмотров, уникальных посетителей (HyperLogLog),
  * разделы, источники переходов, тип устройства, язык и город (по IP от Vercel).
  *   POST { out, kind }    переход с сайта в Instagram / WhatsApp / Telegram (kind: contact | share | other)
+ *   POST { share, annId } нажатие «Поделиться» у публикации: сеть (wa, tg, fb, x, th, ig, copy, native)
  *   POST { annId }        прочтение публикации (открыта её карточка) — для блока «Самое читаемое»
  *   GET ?popular=1        самые читаемые публикации за 7 дней: [{ id, reads }] (без личных данных)
  *
@@ -21,7 +22,9 @@ export const config = { runtime: 'edge' };
 
 const PAGES = ['home', 'calendar', 'alerts', 'events', 'cities', 'organizations', 'pricing', 'advertising'];
 
-const BOT = /bot|crawl|spider|slurp|preview|headless|lighthouse|facebookexternalhit|telegrambot|whatsapp/i;
+// Роботы и служебные проверки (поисковики, превью ссылок, проверка страниц Google, скрипты) — не посетители
+const BOT = /bot|crawl|spider|slurp|preview|headless|lighthouse|facebookexternalhit|telegrambot|whatsapp|inspectiontool|googleother|google-read-aloud|pagespeed|gtmetrix|curl|wget|python|node-fetch|axios|go-http|java\/|okhttp|vercel/i;
+const SHARE_NETS = ['wa', 'tg', 'fb', 'x', 'th', 'ig', 'copy', 'native'];
 
 const clean = (v: unknown, max = 60) =>
   String(v ?? '')
@@ -60,7 +63,7 @@ export default handler(async (req) => {
   const ua = req.headers.get('user-agent') || '';
   if (BOT.test(ua)) return json({ ok: true, skipped: 'bot' });
 
-  const body = await readBody<{ path?: string; visitorId?: string; referrer?: string; lang?: string; annId?: string; adView?: string; out?: string; kind?: string }>(req, 4000);
+  const body = await readBody<{ path?: string; visitorId?: string; referrer?: string; lang?: string; annId?: string; adView?: string; out?: string; kind?: string; share?: string }>(req, 4000);
 
   // Не больше 120 просмотров в минуту с одного IP — защита статистики от накрутки
   const ip = (req.headers.get('x-forwarded-for') || 'local').split(',')[0].trim();
@@ -84,6 +87,20 @@ export default handler(async (req) => {
     await pipeline([
       ['HINCRBY', K.out(day), `${net}|${kind}`, 1],
       ['EXPIRE', K.out(day), STATS_TTL],
+    ]);
+    return json({ ok: true });
+  }
+
+  // «Поделиться» у конкретной публикации: какая новость и через какую сеть
+  if (body.share !== undefined) {
+    const net = SHARE_NETS.includes(String(body.share)) ? String(body.share) : '';
+    const id = String(body.annId ?? '');
+    if (!net) throw new HttpError('bad_network', 400);
+    if (!/^[\w-]{3,80}$/.test(id)) throw new HttpError('bad_id', 400);
+    const day = dayKey(new Date());
+    await pipeline([
+      ['HINCRBY', K.shares(day), `${id}|${net}`, 1],
+      ['EXPIRE', K.shares(day), STATS_TTL],
     ]);
     return json({ ok: true });
   }

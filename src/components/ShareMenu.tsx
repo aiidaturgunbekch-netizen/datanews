@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Language } from '../types';
 import { SOCIAL_ICONS } from './ContactButtons';
+import { trackShare } from '../services/analytics';
 
 const T = {
   title: { ru: 'Поделиться', kg: 'Бөлүшүү', en: 'Share' },
@@ -34,23 +35,30 @@ export const ShareMenu: React.FC<{
   url: string;
   title: string;
   lang: Language;
+  /** id публикации — для статистики «какой новостью и через какую сеть поделились» */
+  annId?: string;
   variant?: 'row' | 'menu';
   /** Действие выполнено (во всплывающем меню — закрыть его); text — подтверждение, которое показать уже после закрытия */
   onDone?: (text?: string) => void;
-}> = ({ url, title, lang, variant = 'row', onDone }) => {
+}> = ({ url, title, lang, annId, variant = 'row', onDone }) => {
+  const track = (net: Parameters<typeof trackShare>[1]) => annId && trackShare(annId, net);
+  // На компьютере WhatsApp открываем сразу в WhatsApp Web и всегда в ОДНОЙ и той же вкладке (имя окна «datanews-whatsapp»):
+  // вторая и третья новость не открывают новые вкладки и не просят снова войти. На телефоне wa.me открывает приложение.
+  const desktop = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
   const [note, setNote] = useState<{ text: string; manual?: boolean } | null>(null);
   const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const text = `${title} ${url}`;
   // Каждая ссылка передаёт адрес именно этой публикации (/n/<id>) и, где сервис позволяет, её заголовок
   const links: Record<'wa' | 'tg' | 'th' | 'fb' | 'x', string> = {
-    wa: `https://wa.me/?text=${encodeURIComponent(text)}`,
+    wa: desktop ? `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`,
     tg: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`,
     th: `https://www.threads.net/intent/post?text=${encodeURIComponent(text)}`,
     fb: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
     x: `https://x.com/intent/post?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`,
   };
 
-  const copy = async (okText: string) => {
+  const copy = async (okText: string, net: 'copy' | 'ig' = 'copy') => {
+    track(net);
     try {
       await navigator.clipboard.writeText(url);
       if (onDone) onDone(okText);
@@ -63,7 +71,8 @@ export const ShareMenu: React.FC<{
       setNote({ text: T.copyFail[lang], manual: true });
     }
   };
-  const nativeShare = async () => {
+  const nativeShare = async (net: 'native' | 'ig' = 'native') => {
+    track(net);
     try {
       await navigator.share({ title, url });
     } catch {
@@ -74,8 +83,8 @@ export const ShareMenu: React.FC<{
   // Instagram: на телефоне — системное меню (там есть Instagram, если он установлен), на компьютере — копия ссылки с подсказкой
   const instagram = () => {
     const phone = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
-    if (canNativeShare && phone) void nativeShare();
-    else void copy(T.igHint[lang]);
+    if (canNativeShare && phone) void nativeShare('ig');
+    else void copy(T.igHint[lang], 'ig');
   };
 
   const item =
@@ -100,7 +109,19 @@ export const ShareMenu: React.FC<{
               className={variant === 'row' ? iconItem : item}
               aria-label={variant === 'row' ? NAMES[net] : undefined}
               title={variant === 'row' ? NAMES[net] : undefined}
-              onClick={() => window.setTimeout(() => onDone?.(), 0)}
+              onClick={(e) => {
+                track(net);
+                // WhatsApp на компьютере — в одну и ту же вкладку WhatsApp Web (не открываем новую каждый раз)
+                if (net === 'wa' && desktop) {
+                  // связь с вкладкой не обрываем (opener): без неё браузер не находит уже открытую вкладку по имени
+                  const w = window.open(links.wa, 'datanews-whatsapp');
+                  if (w) {
+                    e.preventDefault();
+                    w.focus();
+                  }
+                }
+                window.setTimeout(() => onDone?.(), 0);
+              }}
             >
               <Icon net={net} />
               {variant === 'menu' && NAMES[net]}
@@ -126,7 +147,7 @@ export const ShareMenu: React.FC<{
         </li>
         {canNativeShare && (
           <li>
-            <button type="button" onClick={nativeShare} className={item}>
+            <button type="button" onClick={() => nativeShare()} className={item}>
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                 ios_share
               </span>

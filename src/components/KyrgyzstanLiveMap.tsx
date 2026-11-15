@@ -129,7 +129,9 @@ const KyrgyzstanLiveMap: React.FC<{
   announcements: Announcement[];
   onSelect: (id: CityId) => void;
   onOpen: (a: Announcement) => void;
-}> = ({ lang, announcements, onSelect, onOpen }) => {
+  /** Выбрана территория (кликом по карте или в списке) — страница «Города» переключает вкладку области */
+  onTerritory?: (id: CityId) => void;
+}> = ({ lang, announcements, onSelect, onOpen, onTerritory }) => {
   const { t } = getTranslation(lang);
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -371,9 +373,16 @@ const KyrgyzstanLiveMap: React.FC<{
     }
   };
 
+  // Карта и вкладки областей на странице «Города» показывают одну и ту же территорию
+  useEffect(() => {
+    if (terr) onTerritory?.(CITY_IDS[terr][0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [terr]);
+
   // ── Публикации выбранной территории (без привязки к выдуманным координатам) ──
   const scope = useMemo(() => {
-    const fresh = announcements.filter((a) => a && a.title && a.location && isFresh(a)).sort((a, b) => freshOrder(a, b));
+    // Все актуальные публикации территории — и те, где место не указано (иначе новость области «пропадает» с карты)
+    const fresh = announcements.filter((a) => a && a.title && isFresh(a)).sort((a, b) => freshOrder(a, b));
     const text = (a: Announcement) => `${a.district || ''} ${a.locality || ''} ${a.location?.ru || ''} ${a.title?.ru || ''}`.toLowerCase().replace(/ё/g, 'е');
     if (place) {
       const s = stem(place.name);

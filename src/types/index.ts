@@ -381,6 +381,8 @@ export interface SiteStats {
   /** Переходы с сайта в соцсети за период: сеть, цель (contact — написать/подписаться на DataNews, share — поделиться, other — организатор/источник) */
   outbound?: { network: string; kind: string; count: number }[];
   outboundDays?: { date: string; instagram: number; whatsapp: number; telegram: number }[];
+  /** «Поделиться» по публикациям за период: сеть (wa, tg, fb, x, th, ig, copy, native) → число нажатий */
+  shares?: { id: string; title: string; total: number; networks: Record<string, number> }[];
 }
 
 export type ViewMode = 'home' | 'calendar' | 'alerts' | 'events' | 'cities' | 'organizations' | 'pricing' | 'advertising' | 'admin' | 'about' | 'rules' | 'contacts' | 'editorial' | 'privacy';

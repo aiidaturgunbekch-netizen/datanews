@@ -201,6 +201,7 @@ export const CitiesPage: React.FC<CitiesPageProps> = ({
               onSelectCityFilter(id);
             }}
             onOpen={onSelectAnnouncement}
+            onTerritory={setActiveCityTab}
           />
         </div>
       </Suspense>

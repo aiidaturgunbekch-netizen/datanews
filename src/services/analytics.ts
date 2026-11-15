@@ -97,3 +97,17 @@ export const trackOutbound = (network: string, kind: string) => {
     () => {}
   );
 };
+
+/** Администратор: его нажатия «Поделиться» не считаются (как и просмотры) */
+let adminMode = false;
+export const setAdminMode = (on: boolean) => {
+  adminMode = on;
+};
+
+/** «Поделиться» у публикации: какая новость и через какую сеть (личные данные не собираются) */
+export const trackShare = (annId: string, share: 'wa' | 'tg' | 'fb' | 'x' | 'th' | 'ig' | 'copy' | 'native') => {
+  if (adminMode || !annId) return;
+  fetch('/api/track', { method: 'POST', body: JSON.stringify({ share, annId }), keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(
+    () => {}
+  );
+};

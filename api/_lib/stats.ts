@@ -18,6 +18,8 @@ export const K = {
   reads: (day: string) => `dn:st:n:${day}`,
   /** Переходы с сайта в соцсети за день: «instagram|contact» → число кликов */
   out: (day: string) => `dn:st:o:${day}`,
+  /** «Поделиться» за день: «<id публикации>|<сеть>» → число нажатий (wa, tg, fb, x, th, ig, copy, native) */
+  shares: (day: string) => `dn:st:s:${day}`,
   allVisitors: 'dn:st:u:all',
   allViews: 'dn:st:v:all',
 };

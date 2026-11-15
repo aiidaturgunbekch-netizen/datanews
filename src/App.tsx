@@ -15,7 +15,7 @@ import {
 import { INITIAL_ANNOUNCEMENTS } from './data/initialAnnouncements';
 import { mergeAnnouncements } from './utils/mergeAnnouncements';
 import * as api from './services/api';
-import { fetchPopular, outboundKind, outboundNetwork, trackOutbound, trackRead, trackView } from './services/analytics';
+import { fetchPopular, outboundKind, outboundNetwork, setAdminMode, trackOutbound, trackRead, trackView } from './services/analytics';
 import { CONTACTS, telegramUrl } from './config/contacts';
 import { addDaysStr, kgDateStr, kgTs } from './utils/time';
 import { alertLevel, isAlert, isExpired, isListed } from './utils/urgency';
@@ -254,6 +254,7 @@ export default function App() {
   // Переходы с сайта в Instagram, WhatsApp и Telegram — любой клик по такой ссылке на любой странице
   // (подвал, кнопки связи, «Поделиться», страницы театров); клики администратора не считаются
   useEffect(() => {
+    setAdminMode(role === 'admin');
     if (role === 'admin') return;
     const own = [CONTACTS.whatsappUrl, CONTACTS.instagramUrl, telegramUrl(), CONTACTS.telegramPhoneUrl];
     const onClick = (e: MouseEvent) => {

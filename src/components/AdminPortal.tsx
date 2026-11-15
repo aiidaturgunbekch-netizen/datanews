@@ -511,6 +511,13 @@ const StatsTab: React.FC<{ onRefreshData?: () => void }> = ({ onRefreshData = ()
                     ...(stats.outboundDays || []).map((d) => [new Date(d.date).toLocaleDateString('ru-RU'), d.instagram, d.whatsapp, d.telegram]),
                   ],
                 },
+                {
+                  name: 'Поделились',
+                  rows: [
+                    ['Новость', ...SHARE_NETS.map(([, n]) => n), 'Всего'],
+                    ...(stats.shares || []).map((x) => [x.title || x.id, ...SHARE_NETS.map(([k]) => x.networks[k] || 0), x.total]),
+                  ],
+                },
                 { name: 'Язык', rows: [['Язык', 'Посетители'], ...top(stats.languages, { ru: 'Русский', kg: 'Кыргызский', en: 'Английский', other: 'Другой' })] },
               ]);
             }}
@@ -540,6 +547,7 @@ const StatsTab: React.FC<{ onRefreshData?: () => void }> = ({ onRefreshData = ()
           </div>
           <DailyChart days={stats.days} />
           <OutboundBox stats={stats} days={days} />
+          <SharesBox stats={stats} days={days} />
           {showTable && (
             <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
               <table className="w-full text-sm">
@@ -624,6 +632,77 @@ const OutboundBox: React.FC<{ stats: SiteStats; days: number }> = ({ stats, days
       <p className="text-xs text-gray-500">
         Считается каждое нажатие на ссылку Instagram, WhatsApp или Telegram на сайте: кнопки связи с редакцией, «Поделиться», страницы театров и организаторов. Ваши
         клики как администратора не считаются. Переход по рекламе считается отдельно, в разделе «Реклама».
+      </p>
+    </section>
+  );
+};
+
+// ─────────────── «Поделиться» по публикациям ───────────────
+const SHARE_NETS: [string, string][] = [
+  ['wa', 'WhatsApp'],
+  ['tg', 'Telegram'],
+  ['fb', 'Facebook'],
+  ['ig', 'Instagram'],
+  ['x', 'X'],
+  ['th', 'Threads'],
+  ['copy', 'Ссылка'],
+  ['native', 'Меню телефона'],
+];
+const SharesBox: React.FC<{ stats: SiteStats; days: number }> = ({ stats, days }) => {
+  const list = stats.shares || [];
+  const total = list.reduce((n, s) => n + s.total, 0);
+  const byNet = SHARE_NETS.map(([k, name]) => ({ k, name, n: list.reduce((x, s) => x + (s.networks[k] || 0), 0) })).filter((x) => x.n > 0);
+  return (
+    <section className="rounded-2xl border border-gray-100 bg-white p-4 space-y-3" data-share-stats>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-extrabold text-[#0f1b33]">Какими новостями поделились</h3>
+        <span className="text-xs text-gray-500">
+          за {days} дн. · всего {total}
+        </span>
+      </div>
+      {list.length === 0 ? (
+        <p className="text-xs text-gray-500">Пока никто не поделился новостью. Считается каждое нажатие «Поделиться» в новости.</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {byNet.map((x) => (
+              <span key={x.k} className="px-2.5 py-1 rounded-full bg-[#f6f8fd] text-xs font-bold text-[#12327A]">
+                {x.name}: <span className="tabular-nums">{x.n}</span>
+              </span>
+            ))}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-gray-500">
+                <tr>
+                  <th className="text-left p-2">Новость</th>
+                  <th className="text-left p-2">Через что</th>
+                  <th className="text-right p-2">Всего</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((s) => (
+                  <tr key={s.id} className="border-t border-gray-100 align-top">
+                    <td className="p-2">
+                      <a href={`/n/${s.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#12327A] hover:underline">
+                        {s.title || s.id}
+                      </a>
+                    </td>
+                    <td className="p-2 text-xs text-gray-700">
+                      {SHARE_NETS.filter(([k]) => s.networks[k])
+                        .map(([k, name]) => `${name} ${s.networks[k]}`)
+                        .join(' · ')}
+                    </td>
+                    <td className="p-2 text-right font-bold tabular-nums">{s.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+      <p className="text-xs text-gray-500">
+        Считается нажатие кнопки сети в «Поделиться». Отправил ли человек сообщение до конца, сайт узнать не может. Ваши нажатия как администратора не считаются.
       </p>
     </section>
   );

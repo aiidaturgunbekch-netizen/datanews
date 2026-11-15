@@ -426,6 +426,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
                   url={shareUrl}
                   title={title}
                   lang={lang}
+                  annId={a.id}
                   variant="menu"
                   onDone={(text) => {
                     setShareOpen(false);
@@ -744,7 +745,7 @@ export const AnnouncementDetailModal: React.FC<Props> = ({
           <h2 id="share-title" className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500 mb-2">
             {SHARE_ARTICLE_TITLE[lang]}
           </h2>
-          <ShareMenu url={shareUrl} title={title} lang={lang} />
+          <ShareMenu url={shareUrl} title={title} lang={lang} annId={a.id} />
         </section>
 
         {/* Читайте также: та же рубрика и тот же город */}

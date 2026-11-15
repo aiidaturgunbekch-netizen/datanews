@@ -12,6 +12,7 @@ import { handler, HttpError, json, readBody, requireAdmin } from './_lib/http';
 import { dayKey, K } from './_lib/stats';
 import { buildBackup } from './_lib/backup';
 import { transferPart, type TransferPart } from './_lib/transfer';
+import { loadForPages } from './_lib/articlePage';
 import { campaignAction, campaignStats, createCampaign, getFormats, listCampaigns, updateFormat } from './_lib/ads';
 
 export const config = { runtime: 'edge' };
@@ -73,6 +74,30 @@ export default handler(async (req) => {
   outMaps.forEach((m) => Object.entries(m).forEach(([k, n]) => (outbound[k] = (outbound[k] || 0) + n)));
   const net = (m: Record<string, number>, n: string) => Object.entries(m).reduce((s, [k, v]) => (k.startsWith(`${n}|`) ? s + v : s), 0);
 
+  // «Поделиться» по публикациям: какие новости и через какую сеть
+  const shareMaps = (await pipeline(dates.map((d) => ['HGETALL', K.shares(d)]))).map(toCountMap);
+  const byAnn: Record<string, Record<string, number>> = {};
+  shareMaps.forEach((m) =>
+    Object.entries(m).forEach(([k, n]) => {
+      const [id, network] = k.split('|');
+      if (!id || !network) return;
+      byAnn[id] = byAnn[id] || {};
+      byAnn[id][network] = (byAnn[id][network] || 0) + n;
+    })
+  );
+  let titles: Record<string, string> = {};
+  if (Object.keys(byAnn).length) {
+    try {
+      titles = Object.fromEntries((await loadForPages()).map((a) => [a.id, a.title.ru || a.title.kg || a.title.en || a.id]));
+    } catch {
+      /* без заголовков — покажем id */
+    }
+  }
+  const shares = Object.entries(byAnn)
+    .map(([id, networks]) => ({ id, title: titles[id] || '', total: Object.values(networks).reduce((x, y) => x + y, 0), networks }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 30);
+
   const dayStats = dates.map((date, i) => ({
     date,
     views: Number(perDay[i * 2]) || 0,
@@ -97,6 +122,7 @@ export default handler(async (req) => {
       .map(([k, count]) => ({ network: k.split('|')[0], kind: k.split('|')[1] || 'other', count }))
       .sort((a, b) => b.count - a.count),
     outboundDays: dates.map((date, i) => ({ date, instagram: net(outMaps[i], 'instagram'), whatsapp: net(outMaps[i], 'whatsapp'), telegram: net(outMaps[i], 'telegram') })),
+    shares,
   };
   return json(stats);
 });

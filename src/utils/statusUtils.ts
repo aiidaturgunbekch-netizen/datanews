@@ -156,15 +156,18 @@ export function isFresh(ann: Announcement, referenceDate: Date = new Date()): bo
 }
 
 /**
- * Порядок на главной: сначала то, что происходит сегодня и свежие новости (новее — выше),
- * затем предстоящее по дате начала.
+ * Порядок на главной: сначала новости и то, что уже идёт, — по дате от новой к старой
+ * (17 ноября, 16, 15…; в один день — сначала позже опубликованное), затем предстоящее по дате начала.
  */
 export function freshOrder(a: Announcement, b: Announcement, referenceDate: Date = new Date()): number {
   const now = referenceDate.getTime();
-  const key = (x: Announcement) => {
-    const start = kgTs(x.startDate);
-    return start <= now ? 0 : start;
-  };
+  const started = (x: Announcement) => kgTs(x.startDate) <= now;
+  const sa = started(a);
+  const sb = started(b);
+  if (sa !== sb) return sa ? -1 : 1;
   const pub = (x: Announcement) => kgTs(x.publishedAt || x.startDate);
-  return key(a) - key(b) || pub(b) - pub(a);
+  if (!sa) return kgTs(a.startDate) - kgTs(b.startDate) || pub(b) - pub(a);
+  // день даты материала: от свежего к старому
+  const day = (x: Announcement) => x.startDate.slice(0, 10);
+  return day(b).localeCompare(day(a)) || pub(b) - pub(a);
 }

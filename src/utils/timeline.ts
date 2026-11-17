@@ -63,13 +63,15 @@ export const homeScore = (a: Announcement, now = Date.now()): number => {
   if (a.isUrgentTicker) s += 100;
   if (a.dangerLevel === 'high') s += 30;
   const d = kgDaysUntil(a.startDate, now);
-  if (isOngoing(a, now)) s += 40;
+  // Идёт сейчас: высокий вес только первые 2 дня; длинное событие (на недели и месяцы) не держится в «Главном» всё время
+  if (isOngoing(a, now)) s += d >= -2 ? 40 : 12;
   else if (d === 0) s += 45;
   else if (d === 1) s += 38;
   else if (d >= 2 && d <= 7) s += 30 - d * 2;
   else if (d > 7 && d <= 30) s += 10;
   const age = (now - kgTs(a.publishedAt || a.startDate)) / 86400_000;
-  if (age >= 0) s += age < 1 ? 20 : age < 3 ? 12 : age < 7 ? 6 : 0;
+  // Свежая публикация весит больше: сегодняшнее и вчерашнее поднимается в «Главное»
+  if (age >= 0) s += age < 1 ? 35 : age < 2 ? 25 : age < 3 ? 15 : age < 7 ? 5 : 0;
   s += (4 - Math.min(4, importanceOf(a.category))) * 3;
   if (a.isVerified) s += 4;
   return s;

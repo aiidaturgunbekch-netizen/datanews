@@ -45,7 +45,7 @@ import { SearchModal } from './components/SearchModal';
 import { CategoryResults, StatsMode, StatsPanel } from './components/StatsPanel';
 import { EmergencyBox, HydrometLine, WeatherCard } from './components/WeatherSafety';
 import { TheatreVenues } from './components/TheatreVenues';
-import { freshOrder, isFresh } from './utils/statusUtils';
+import { ARTICLE_CATEGORIES, freshOrder, isFresh } from './utils/statusUtils';
 import { RUBRICS, rubricIdOf, rubricOf } from './config/rubrics';
 import { EDITORIAL_PAGE_VISIBLE } from './config/site';
 import { TheatreSchedule } from './components/TheatreSchedule';
@@ -113,7 +113,9 @@ export default function App() {
       return null;
     }
   });
-  const [selectedCity, setSelectedCity] = useState<CityId>('bishkek');
+  // Город по умолчанию — «Весь Кыргызстан». Город, выбранный читателем, действует до обновления страницы:
+  // после обновления или нового захода снова все новости страны (чтобы читатель не забыл, что выбран один город)
+  const [selectedCity, setSelectedCity] = useState<CityId>('all');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
@@ -318,7 +320,10 @@ export default function App() {
     if (!withArchive && !isListed(item)) return false;
     // Город: публикации «Весь Кыргызстан» (city = 'all') видны в любом городе
     const city = normalizeCity(item.city);
-    if (!ignoreCity && selectedCity !== 'all' && city !== selectedCity && city !== 'all') return false;
+    // Новости ИИ и IT, бизнеса и общие новости интересны всей стране — видны при любом выбранном городе
+    // (иначе, например, новость о дата-центре в Нарыне не видна жителю Бишкека ни в ленте, ни в разделе)
+    const national = ARTICLE_CATEGORIES.includes(item.category);
+    if (!ignoreCity && !national && selectedCity !== 'all' && city !== selectedCity && city !== 'all') return false;
     if (!ignoreCategory && selectedCategory !== 'all' && item.category !== selectedCategory) return false;
 
     // Даты считаются по календарю Бишкека
@@ -449,7 +454,8 @@ export default function App() {
   const weatherQuery = isWeatherQuery(searchQuery);
   const searchItems = useMemo(
     // самые похожие сверху (rankSearch), найденные слова выделяются в списке
-    () => (searching ? rankSearch(announcements.filter((a) => matchesScope(a, true, true)), searchQuery) : []),
+    // поиск — по всей стране, не только по выбранному городу (иначе «Нарын» не находит новости Нарына)
+    () => (searching ? rankSearch(announcements.filter((a) => matchesScope(a, true, true, true)), searchQuery) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [announcements, searching, selectedCity, dateFilter, searchQuery]
   );

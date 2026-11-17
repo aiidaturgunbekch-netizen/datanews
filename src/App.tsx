@@ -63,10 +63,6 @@ const AdminPortal = lazy(() => import('./components/AdminPortal').then((m) => ({
 const AccountPortal = lazy(() => import('./components/AccountPortal').then((m) => ({ default: m.AccountPortal })));
 
 
-/** Выбранный читателем город (ключ в браузере) и допустимые значения */
-const CITY_KEY = 'datanews_kg_city';
-const CITY_IDS: CityId[] = ['all', 'bishkek', 'osh', 'chui', 'osh_region', 'issykkul', 'jalalabad', 'talas', 'naryn', 'batken'];
-
 const screenNow = () => screenFromHash(window.location.hash);
 const isAdminHash = () => screenNow() === 'admin';
 /** Адрес без перезагрузки: #login / #cabinet / пусто (публичная главная) */
@@ -117,23 +113,9 @@ export default function App() {
       return null;
     }
   });
-  // Город по умолчанию — «Весь Кыргызстан». Выбор читателя запоминается в браузере и сохраняется после обновления страницы
-  const [selectedCity, setSelectedCityState] = useState<CityId>(() => {
-    try {
-      const saved = localStorage.getItem(CITY_KEY) as CityId | null;
-      return saved && CITY_IDS.includes(saved) ? saved : 'all';
-    } catch {
-      return 'all';
-    }
-  });
-  const setSelectedCity = useCallback((city: CityId) => {
-    setSelectedCityState(city);
-    try {
-      localStorage.setItem(CITY_KEY, city);
-    } catch {
-      /* без хранилища выбор действует до обновления страницы */
-    }
-  }, []);
+  // Город по умолчанию — «Весь Кыргызстан». Город, выбранный читателем, действует до обновления страницы:
+  // после обновления или нового захода снова все новости страны (чтобы читатель не забыл, что выбран один город)
+  const [selectedCity, setSelectedCity] = useState<CityId>('all');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');

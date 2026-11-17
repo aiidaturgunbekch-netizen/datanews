@@ -599,8 +599,8 @@ export default function App() {
               compact
             />
 
-            {/* Выбрана рубрика в строке навигации — её разделы вместе (во время поиска — результаты поиска по всему сайту) */}
-            {rubric && !searching && (
+            {/* Выбрана рубрика в строке навигации — её разделы вместе */}
+            {rubric && (
               <CategoryResults
                 lang={currentLanguage}
                 category={rubric.categories[0]}
@@ -625,7 +625,7 @@ export default function App() {
             )}
 
             {/* Выбран раздел (из панели «Разделы») — ровно те публикации, что учтены в счётчике раздела */}
-            {!rubric && selectedCategory !== 'all' && !searching && (
+            {!rubric && selectedCategory !== 'all' && (
               <CategoryResults
                 lang={currentLanguage}
                 category={selectedCategory}
@@ -648,8 +648,8 @@ export default function App() {
               />
             )}
 
-            {/* Поиск — отдельный список результатов по ВСЕМУ сайту: все разделы и все города, даже если открыт раздел */}
-            {searching && (
+            {/* Поиск — отдельный список результатов (а не пустые блоки главной); о погоде — сверху прогноз */}
+            {!rubric && selectedCategory === 'all' && searching && (
               <CategoryResults
                 lang={currentLanguage}
                 category="news"
